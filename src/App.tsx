@@ -3,7 +3,9 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { PublicLayout } from "./layouts/PublicLayout";
 import Index from "./pages/Index";
+import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -15,7 +17,21 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<Index />} />
+          {/* Public routes with header/footer */}
+          <Route element={<PublicLayout />}>
+            <Route path="/" element={<Index />} />
+            <Route path="/produtos" element={<Index />} />
+            <Route path="/tecnologias" element={<Index />} />
+            <Route path="/afiliados" element={<Index />} />
+          </Route>
+          
+          {/* Auth routes without header/footer */}
+          <Route path="/login" element={<Login />} />
+          <Route path="/recuperar-senha" element={<Login />} />
+          
+          {/* Dashboard placeholder */}
+          <Route path="/dashboard" element={<Index />} />
+          
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

@@ -1,11 +1,27 @@
-// Update this page (the content is just a fallback if you fail to update the page)
-
 const Index = () => {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background">
-      <div className="text-center">
-        <h1 className="mb-4 text-4xl font-bold">Welcome to Your Blank App</h1>
-        <p className="text-xl text-muted-foreground">Start building your amazing project here!</p>
+    <div className="flex min-h-[80vh] items-center justify-center relative overflow-hidden">
+      {/* Background gradient */}
+      <div className="absolute inset-0 bg-gradient-to-br from-primary/20 via-secondary/20 to-background -z-10" />
+      
+      <div className="text-center space-y-6 px-4">
+        <div className="flex justify-center mb-6">
+          <div className="h-20 w-20 rounded-full bg-primary animate-pulse" />
+        </div>
+        
+        <h1 className="text-5xl md:text-6xl font-bold tracking-tight">
+          Em Construção
+        </h1>
+        
+        <p className="text-xl md:text-2xl text-muted-foreground max-w-md mx-auto">
+          Logo teremos novidades!
+        </p>
+        
+        <div className="pt-4">
+          <p className="text-sm text-muted-foreground">
+            Slim Quality - Colchões Magnéticos Terapêuticos
+          </p>
+        </div>
       </div>
     </div>
   );
