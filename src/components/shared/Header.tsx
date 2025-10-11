@@ -17,12 +17,12 @@ export function Header() {
 
         {/* Desktop Menu */}
         <div className="hidden md:flex md:items-center md:gap-6">
-          <Link 
-            to="/produtos" 
+          <a 
+            href="/#products" 
             className="text-sm font-medium transition-colors hover:text-primary"
           >
             Produtos
-          </Link>
+          </a>
           <Link 
             to="/tecnologias" 
             className="text-sm font-medium transition-colors hover:text-primary"
@@ -68,13 +68,13 @@ export function Header() {
         {mobileMenuOpen && (
           <div className="absolute top-16 left-0 right-0 bg-background border-b md:hidden">
             <div className="container py-4 px-4 space-y-3">
-              <Link 
-                to="/produtos" 
+              <a 
+                href="/#products" 
                 className="block py-2 text-sm font-medium"
                 onClick={() => setMobileMenuOpen(false)}
               >
                 Produtos
-              </Link>
+              </a>
               <Link 
                 to="/tecnologias" 
                 className="block py-2 text-sm font-medium"

@@ -5,6 +5,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { PublicLayout } from "./layouts/PublicLayout";
 import Index from "./pages/Index";
+import ProductPage from "./pages/produtos/ProductPage";
+import Sobre from "./pages/Sobre";
 import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
 
@@ -20,17 +22,13 @@ const App = () => (
           {/* Public routes with header/footer */}
           <Route element={<PublicLayout />}>
             <Route path="/" element={<Index />} />
-            <Route path="/produtos" element={<Index />} />
-            <Route path="/tecnologias" element={<Index />} />
+            <Route path="/produtos/:slug" element={<ProductPage />} />
+            <Route path="/tecnologias" element={<Sobre />} />
             <Route path="/afiliados" element={<Index />} />
           </Route>
           
           {/* Auth routes without header/footer */}
           <Route path="/login" element={<Login />} />
-          <Route path="/recuperar-senha" element={<Login />} />
-          
-          {/* Dashboard placeholder */}
-          <Route path="/dashboard" element={<Index />} />
           
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />

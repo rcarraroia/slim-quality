@@ -22,9 +22,9 @@ export function Footer() {
             <h3 className="font-semibold mb-4">Links Rápidos</h3>
             <ul className="space-y-2 text-sm">
               <li>
-                <Link to="/produtos" className="hover:text-primary transition-colors">
+                <a href="/#products" className="hover:text-primary transition-colors">
                   Produtos
-                </Link>
+                </a>
               </li>
               <li>
                 <Link to="/tecnologias" className="hover:text-primary transition-colors">
