@@ -53,7 +53,7 @@ export default function Vendas() {
         <StatCard
           icon={Target}
           label="Ticket Médio"
-          value={`R$ ${ticketMedio.toLocaleString('pt-BR')}`}
+          value={`R$ ${ticketMedio.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
           iconColor="text-secondary"
         />
         <StatCard
