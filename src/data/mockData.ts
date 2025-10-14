@@ -220,3 +220,14 @@ export const mockProdutos = [
     imagem: ""
   }
 ];
+
+// Mock data para Afiliados
+export const mockAfiliados = [
+  {
+    id: "A001",
+    nome: "Carlos Mendes",
+    email: "carlos.mendes@email.com",
+    totalComissoes: 12450.00,
+    saldoDisponivel: 3200.00,
+  }
+];
