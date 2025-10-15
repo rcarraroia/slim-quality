@@ -9,6 +9,7 @@ import Index from "./pages/Index";
 import ProductPage from "./pages/produtos/ProductPage";
 import Sobre from "./pages/Sobre";
 import Login from "./pages/Login";
+import AfiliadosLanding from "./pages/afiliados/AfiliadosLanding";
 import Dashboard from "./pages/dashboard/Dashboard";
 import Conversas from "./pages/dashboard/Conversas";
 import Produtos from "./pages/dashboard/Produtos";
@@ -32,6 +33,7 @@ const App = () => (
             <Route path="/" element={<Index />} />
             <Route path="/produtos" element={<ProductPage />} />
             <Route path="/tecnologias" element={<Sobre />} />
+            <Route path="/afiliados" element={<AfiliadosLanding />} />
           </Route>
           
           {/* Auth routes without header/footer */}
