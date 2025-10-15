@@ -13,6 +13,9 @@ import Dashboard from "./pages/dashboard/Dashboard";
 import Conversas from "./pages/dashboard/Conversas";
 import Produtos from "./pages/dashboard/Produtos";
 import Vendas from "./pages/dashboard/Vendas";
+import ListaAfiliados from "./pages/dashboard/afiliados/ListaAfiliados";
+import GestaoComissoes from "./pages/dashboard/afiliados/GestaoComissoes";
+import GestaoSaques from "./pages/dashboard/afiliados/GestaoSaques";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -40,6 +43,9 @@ const App = () => (
             <Route path="conversas" element={<Conversas />} />
             <Route path="produtos" element={<Produtos />} />
             <Route path="vendas" element={<Vendas />} />
+            <Route path="afiliados" element={<ListaAfiliados />} />
+            <Route path="afiliados/comissoes" element={<GestaoComissoes />} />
+            <Route path="afiliados/saques" element={<GestaoSaques />} />
           </Route>
           
           {/* 404 */}

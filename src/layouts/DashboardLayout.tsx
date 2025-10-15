@@ -27,7 +27,7 @@ export function DashboardLayout() {
     { icon: MessageSquare, label: 'Conversas', path: '/dashboard/conversas', badge: 8, disabled: false },
     { icon: Package, label: 'Produtos', path: '/dashboard/produtos', disabled: false },
     { icon: DollarSign, label: 'Vendas', path: '/dashboard/vendas', disabled: false },
-    { icon: Users, label: 'Afiliados', path: '/dashboard/afiliados', disabled: true },
+    { icon: Users, label: 'Afiliados', path: '/dashboard/afiliados', disabled: false },
     { icon: UserCircle, label: 'Clientes', path: '/dashboard/clientes', disabled: true },
     { icon: Settings, label: 'Configurações', path: '/dashboard/configuracoes', disabled: true },
   ];
