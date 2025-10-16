@@ -1,25 +1,29 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { CheckCircle2, ArrowLeft } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
+import { Info, CheckCircle2, ExternalLink } from "lucide-react";
+
+const estados = [
+  "AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS", "MG",
+  "PA", "PB", "PR", "PE", "PI", "RJ", "RN", "RS", "RO", "RR", "SC", "SP", "SE", "TO"
+];
 
 export default function AfiliadosCadastro() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [showSuccess, setShowSuccess] = useState(false);
+  const [showWalletHelp, setShowWalletHelp] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [hasAsaasAccount, setHasAsaasAccount] = useState("sim");
+  const [walletId, setWalletId] = useState("");
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -27,13 +31,21 @@ export default function AfiliadosCadastro() {
     if (!acceptedTerms) {
       toast({
         title: "Atenção",
-        description: "Você precisa aceitar os termos e condições para continuar.",
+        description: "Você precisa aceitar os termos para continuar",
         variant: "destructive"
       });
       return;
     }
 
-    // Simula cadastro
+    if (!walletId.startsWith("wal_")) {
+      toast({
+        title: "Wallet ID inválida",
+        description: "A Wallet ID deve começar com 'wal_'",
+        variant: "destructive"
+      });
+      return;
+    }
+
     setShowSuccess(true);
   };
 
@@ -43,247 +55,286 @@ export default function AfiliadosCadastro() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5 py-12">
-      <div className="container mx-auto px-6 max-w-4xl">
-        <Button
-          variant="ghost"
-          onClick={() => navigate("/afiliados")}
-          className="mb-6 gap-2"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Voltar
-        </Button>
+    <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5 py-12 px-4">
+      <div className="max-w-2xl mx-auto">
+        <Card className="shadow-lg">
+          <CardHeader className="text-center space-y-2 pb-8">
+            <div className="mx-auto h-12 w-12 rounded-lg bg-primary mb-4" />
+            <CardTitle className="text-3xl font-bold">Cadastro de Afiliado</CardTitle>
+            <p className="text-muted-foreground">Preencha os dados e comece a ganhar hoje</p>
+          </CardHeader>
 
-        <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold mb-4">Cadastro de Afiliado</h1>
-          <p className="text-xl text-muted-foreground">
-            Preencha seus dados e comece a ganhar comissões
-          </p>
-        </div>
+          <CardContent>
+            <form onSubmit={handleSubmit} className="space-y-8">
+              {/* Seção 1: Dados Pessoais */}
+              <div className="space-y-4">
+                <h3 className="font-semibold text-lg border-b pb-2">Informações Pessoais</h3>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="nome">
+                    Nome Completo <span className="text-destructive">*</span>
+                  </Label>
+                  <Input id="nome" placeholder="Ex: Carlos Mendes" required />
+                </div>
 
-        <form onSubmit={handleSubmit}>
-          <div className="space-y-6">
-            {/* Dados Pessoais */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Dados Pessoais</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid gap-4 md:grid-cols-2">
+                <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="nome">Nome Completo *</Label>
-                    <Input id="nome" placeholder="Seu nome completo" required />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="cpf">CPF *</Label>
+                    <Label htmlFor="cpf">
+                      CPF <span className="text-destructive">*</span>
+                    </Label>
                     <Input id="cpf" placeholder="000.000.000-00" required />
                   </div>
-                </div>
-
-                <div className="grid gap-4 md:grid-cols-2">
+                  
                   <div className="space-y-2">
-                    <Label htmlFor="email">E-mail *</Label>
-                    <Input id="email" type="email" placeholder="seu@email.com" required />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="telefone">Telefone/WhatsApp *</Label>
-                    <Input id="telefone" placeholder="(00) 00000-0000" required />
+                    <Label htmlFor="nascimento">
+                      Data de Nascimento <span className="text-destructive">*</span>
+                    </Label>
+                    <Input id="nascimento" type="date" required />
                   </div>
                 </div>
+              </div>
 
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label htmlFor="dataNascimento">Data de Nascimento *</Label>
-                    <Input id="dataNascimento" type="date" required />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="rg">RG</Label>
-                    <Input id="rg" placeholder="00.000.000-0" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Endereço */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Endereço</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid gap-4 md:grid-cols-3">
-                  <div className="space-y-2">
-                    <Label htmlFor="cep">CEP *</Label>
-                    <Input id="cep" placeholder="00000-000" required />
-                  </div>
-                  <div className="space-y-2 md:col-span-2">
-                    <Label htmlFor="endereco">Endereço *</Label>
-                    <Input id="endereco" placeholder="Rua, Avenida..." required />
-                  </div>
+              {/* Seção 2: Contato */}
+              <div className="space-y-4">
+                <h3 className="font-semibold text-lg border-b pb-2">Informações de Contato</h3>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="email">
+                    Email <span className="text-destructive">*</span>
+                  </Label>
+                  <Input id="email" type="email" placeholder="seu@email.com" required />
                 </div>
 
-                <div className="grid gap-4 md:grid-cols-4">
+                <div className="space-y-2">
+                  <Label htmlFor="telefone">
+                    Telefone/WhatsApp <span className="text-destructive">*</span>
+                  </Label>
+                  <Input id="telefone" placeholder="(00) 00000-0000" required />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="numero">Número *</Label>
-                    <Input id="numero" placeholder="123" required />
+                    <Label htmlFor="cidade">Cidade</Label>
+                    <Input id="cidade" placeholder="Belo Horizonte" />
                   </div>
+                  
                   <div className="space-y-2">
-                    <Label htmlFor="complemento">Complemento</Label>
-                    <Input id="complemento" placeholder="Apto, Bloco..." />
+                    <Label htmlFor="estado">Estado</Label>
+                    <Select>
+                      <SelectTrigger id="estado">
+                        <SelectValue placeholder="Selecione" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {estados.map(estado => (
+                          <SelectItem key={estado} value={estado}>{estado}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
-                  <div className="space-y-2 md:col-span-2">
-                    <Label htmlFor="bairro">Bairro *</Label>
-                    <Input id="bairro" placeholder="Bairro" required />
+                </div>
+              </div>
+
+              {/* Seção 3: Conta Asaas */}
+              <div className="space-y-4">
+                <h3 className="font-semibold text-lg border-b pb-2">Configuração de Recebimento</h3>
+                
+                <div className="bg-primary/10 border border-primary/20 rounded-lg p-4 space-y-2">
+                  <div className="flex gap-2">
+                    <Info className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
+                    <div className="space-y-2">
+                      <p className="font-semibold">Como funciona o recebimento?</p>
+                      <p className="text-sm text-muted-foreground">
+                        Você receberá suas comissões automaticamente via Asaas.
+                        É necessário ter uma conta Asaas para receber os pagamentos.
+                      </p>
+                      <p className="text-sm">
+                        Ainda não tem conta?{" "}
+                        <a 
+                          href="https://asaas.com/cadastro" 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="text-primary hover:underline inline-flex items-center gap-1"
+                        >
+                          Crie gratuitamente em: asaas.com/cadastro
+                          <ExternalLink className="h-3 w-3" />
+                        </a>
+                      </p>
+                    </div>
                   </div>
                 </div>
 
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label htmlFor="cidade">Cidade *</Label>
-                    <Input id="cidade" placeholder="Sua cidade" required />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="estado">Estado *</Label>
-                    <Input id="estado" placeholder="UF" required maxLength={2} />
-                  </div>
+                <div className="space-y-2">
+                  <Label htmlFor="walletId">
+                    Wallet ID do Asaas <span className="text-destructive">*</span>
+                  </Label>
+                  <Input 
+                    id="walletId" 
+                    placeholder="Ex: wal_000005162549" 
+                    value={walletId}
+                    onChange={(e) => setWalletId(e.target.value)}
+                    required 
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowWalletHelp(true)}
+                    className="text-sm text-primary hover:underline"
+                  >
+                    Como encontrar minha Wallet ID?
+                  </button>
                 </div>
-              </CardContent>
-            </Card>
 
-            {/* Dados Bancários */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Dados Bancários para Recebimento</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label htmlFor="chavePix">Chave PIX (E-mail ou CPF) *</Label>
-                    <Input id="chavePix" placeholder="seu@email.com ou CPF" required />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="tipoChave">Tipo de Chave PIX *</Label>
-                    <select 
-                      id="tipoChave" 
-                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                      required
+                <div className="space-y-3">
+                  <Label>Já tem conta no Asaas?</Label>
+                  <RadioGroup value={hasAsaasAccount} onValueChange={setHasAsaasAccount}>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="sim" id="sim" />
+                      <Label htmlFor="sim" className="font-normal cursor-pointer">
+                        Sim, já tenho conta
+                      </Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="nao" id="nao" />
+                      <Label htmlFor="nao" className="font-normal cursor-pointer">
+                        Não, preciso criar
+                      </Label>
+                    </div>
+                  </RadioGroup>
+                  
+                  {hasAsaasAccount === "nao" && (
+                    <a 
+                      href="https://asaas.com/cadastro" 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 text-sm text-primary hover:underline"
                     >
-                      <option value="">Selecione...</option>
-                      <option value="email">E-mail</option>
-                      <option value="cpf">CPF</option>
-                      <option value="telefone">Telefone</option>
-                      <option value="aleatoria">Chave Aleatória</option>
-                    </select>
-                  </div>
+                      Criar conta no Asaas agora
+                      <ExternalLink className="h-4 w-4" />
+                    </a>
+                  )}
                 </div>
+              </div>
 
-                <div className="p-4 bg-muted/50 rounded-lg">
+              {/* Seção 4: Indicação (Opcional) */}
+              <div className="space-y-4">
+                <h3 className="font-semibold text-lg border-b pb-2">Código de Indicação</h3>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="codigo">Código de Indicação (opcional)</Label>
+                  <Input id="codigo" placeholder="Ex: CARLOS2024" />
                   <p className="text-sm text-muted-foreground">
-                    <strong>Importante:</strong> As comissões serão pagas via PIX na chave cadastrada. 
-                    Certifique-se de que a chave está ativa e correta.
+                    Foi indicado por alguém? Cole o código aqui para que ele ganhe comissão
                   </p>
                 </div>
-              </CardContent>
-            </Card>
+              </div>
 
-            {/* Senha */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Defina Sua Senha</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label htmlFor="senha">Senha *</Label>
-                    <Input id="senha" type="password" placeholder="Mínimo 6 caracteres" required minLength={6} />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="confirmarSenha">Confirmar Senha *</Label>
-                    <Input id="confirmarSenha" type="password" placeholder="Repita a senha" required minLength={6} />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Termos */}
-            <Card>
-              <CardContent className="pt-6">
-                <div className="flex items-start space-x-3">
+              {/* Seção 5: Termos */}
+              <div className="space-y-4">
+                <div className="flex items-start space-x-2">
                   <Checkbox 
                     id="terms" 
                     checked={acceptedTerms}
                     onCheckedChange={(checked) => setAcceptedTerms(checked as boolean)}
                   />
-                  <label
-                    htmlFor="terms"
-                    className="text-sm leading-relaxed cursor-pointer"
-                  >
-                    Li e aceito os <a href="#" className="text-primary hover:underline">termos de uso</a> e a{" "}
-                    <a href="#" className="text-primary hover:underline">política de privacidade</a>. 
-                    Estou ciente de que as comissões seguem a estrutura de 10% (N1), 5% (N2) e 2% (N3) 
-                    e que os pagamentos são realizados via PIX semanalmente.
-                  </label>
+                  <Label htmlFor="terms" className="font-normal cursor-pointer leading-tight">
+                    Li e aceito os{" "}
+                    <a 
+                      href="/termos-afiliados" 
+                      target="_blank"
+                      className="text-primary hover:underline"
+                    >
+                      termos do programa de afiliados
+                    </a>
+                  </Label>
                 </div>
-              </CardContent>
-            </Card>
+              </div>
 
-            {/* Botões */}
-            <div className="flex gap-4 justify-end">
-              <Button
-                type="button"
-                variant="outline"
-                size="lg"
-                onClick={() => navigate("/afiliados")}
+              {/* Botões */}
+              <div className="flex justify-between pt-4">
+                <Button 
+                  type="button" 
+                  variant="outline"
+                  onClick={() => navigate("/afiliados")}
+                >
+                  Cancelar
+                </Button>
+                <Button type="submit" size="lg" className="px-8">
+                  Criar Minha Conta
+                </Button>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Modal de Ajuda - Wallet ID */}
+      <Dialog open={showWalletHelp} onOpenChange={setShowWalletHelp}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Como Encontrar Sua Wallet ID</DialogTitle>
+          </DialogHeader>
+          <DialogDescription asChild>
+            <div className="space-y-4">
+              <ol className="space-y-3 list-decimal list-inside">
+                <li>Acesse sua conta no Asaas (asaas.com)</li>
+                <li>Vá em "Configurações" → "Integrações" → "API"</li>
+                <li>Sua Wallet ID estará visível no formato: wal_XXXXXXXXXXXX</li>
+                <li>Copie e cole aqui</li>
+              </ol>
+              <a 
+                href="https://www.youtube.com/watch?v=example" 
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 text-primary hover:underline"
               >
-                Cancelar
-              </Button>
-              <Button type="submit" size="lg">
-                Finalizar Cadastro
+                📹 Ver vídeo tutorial
+                <ExternalLink className="h-4 w-4" />
+              </a>
+              <Button onClick={() => setShowWalletHelp(false)} className="w-full">
+                Entendi
               </Button>
             </div>
-          </div>
-        </form>
-      </div>
+          </DialogDescription>
+        </DialogContent>
+      </Dialog>
 
       {/* Modal de Sucesso */}
       <Dialog open={showSuccess} onOpenChange={setShowSuccess}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <div className="flex justify-center mb-4">
-              <div className="rounded-full bg-primary/10 p-4">
-                <CheckCircle2 className="h-12 w-12 text-primary" />
-              </div>
+        <DialogContent className="max-w-md">
+          <DialogHeader className="text-center space-y-4">
+            <div className="mx-auto">
+              <CheckCircle2 className="h-16 w-16 text-success mx-auto" />
             </div>
-            <DialogTitle className="text-center text-2xl">
-              Bem-vindo ao Programa de Afiliados!
-            </DialogTitle>
-            <DialogDescription className="text-center space-y-4 pt-4">
-              <p>
-                Seu cadastro foi realizado com sucesso! 🎉
-              </p>
-              <p>
-                Agora você já pode acessar seu dashboard, copiar seu link de indicação 
-                e começar a ganhar comissões.
-              </p>
-              <div className="bg-primary/10 p-4 rounded-lg">
-                <p className="text-sm font-medium text-foreground">
-                  Seu link de afiliado:
-                </p>
-                <p className="text-xs text-primary font-mono break-all mt-1">
-                  https://slimquality.com.br/?ref=CM001
-                </p>
+            <DialogTitle className="text-2xl">Bem-vindo ao Programa de Afiliados!</DialogTitle>
+            <DialogDescription asChild>
+              <div className="space-y-4 text-center">
+                <p>Sua conta foi criada com sucesso. Suas comissões serão depositadas automaticamente na sua conta Asaas.</p>
+                
+                <div className="bg-success/10 border border-success/20 rounded-lg p-4 space-y-2 text-left">
+                  <div className="flex items-center gap-2 text-success">
+                    <CheckCircle2 className="h-4 w-4" />
+                    <span className="text-sm">Sua Wallet ID está configurada</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-success">
+                    <CheckCircle2 className="h-4 w-4" />
+                    <span className="text-sm">Você receberá comissões automaticamente</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-success">
+                    <CheckCircle2 className="h-4 w-4" />
+                    <span className="text-sm">Sem necessidade de solicitar saques</span>
+                  </div>
+                </div>
+
+                <div className="space-y-2 pt-2">
+                  <Button onClick={handleSuccessClose} size="lg" className="w-full">
+                    Acessar Meu Dashboard
+                  </Button>
+                  <Button variant="outline" className="w-full">
+                    Falar com Suporte
+                  </Button>
+                </div>
               </div>
             </DialogDescription>
           </DialogHeader>
-          <div className="flex flex-col gap-2 mt-4">
-            <Button onClick={handleSuccessClose} size="lg">
-              Acessar Meu Dashboard
-            </Button>
-            <Button variant="outline" size="lg" asChild>
-              <a href="https://wa.me/553199999999">
-                Falar com Suporte
-              </a>
-            </Button>
-          </div>
         </DialogContent>
       </Dialog>
     </div>

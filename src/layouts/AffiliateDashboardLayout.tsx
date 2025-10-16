@@ -23,8 +23,7 @@ export function AffiliateDashboardLayout() {
     { icon: LayoutDashboard, label: "Início", path: "/afiliados/dashboard" },
     { icon: Users, label: "Minha Rede", path: "/afiliados/dashboard/rede" },
     { icon: DollarSign, label: "Comissões", path: "/afiliados/dashboard/comissoes" },
-    { icon: Wallet, label: "Saques", path: "/afiliados/dashboard/saques" },
-    { icon: TrendingUp, label: "Estatísticas", path: "/afiliados/dashboard/estatisticas" },
+    { icon: Wallet, label: "Recebimentos", path: "/afiliados/dashboard/recebimentos" },
     { icon: LinkIcon, label: "Meu Link", path: "/afiliados/dashboard/link" },
   ];
 
