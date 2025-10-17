@@ -14,7 +14,10 @@ import {
   ChevronDown,
   ChevronUp,
   CreditCard,
-  List
+  List,
+  Calendar,
+  Bot,
+  BarChart3
 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -40,16 +43,19 @@ export function DashboardLayout() {
     { label: 'Solicitações', path: '/dashboard/afiliados/solicitacoes', icon: CreditCard },
   ];
 
-  const disabledItems = [
-    { icon: UserCircle, label: 'Clientes', path: '/dashboard/clientes', disabled: true },
-    { icon: Settings, label: 'Configurações', path: '/dashboard/configuracoes', disabled: true },
+  const secondaryItems = [
+    { icon: UserCircle, label: 'Clientes', path: '/dashboard/clientes', disabled: false }, // ATIVADO
+    { icon: Calendar, label: 'Agendamentos', path: '/dashboard/agendamentos', disabled: false }, // NOVO
+    { icon: Bot, label: 'Automações', path: '/dashboard/automacoes', disabled: false }, // NOVO
+    { icon: BarChart3, label: 'Analytics', path: '/dashboard/analytics', disabled: false }, // NOVO
+    { icon: Settings, label: 'Configurações', path: '/dashboard/configuracoes', disabled: false }, // ATIVADO
   ];
 
   const getPageTitle = () => {
     const allItems = [
       ...menuItems, 
       ...affiliateSubmenu, 
-      ...disabledItems
+      ...secondaryItems
     ];
     const currentItem = allItems.find(item => item.path === location.pathname);
     return currentItem?.label || 'Dashboard';
@@ -161,24 +167,28 @@ export function DashboardLayout() {
             )}
           </div>
 
-          {/* Disabled Items */}
-          {disabledItems.map((item) => {
-            const Icon = item.icon;
-            return (
-              <Link
-                key={item.path}
-                to={item.path}
-                className={cn(
-                  "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors relative",
-                  "text-muted-foreground cursor-not-allowed opacity-50"
-                )}
-                onClick={(e) => e.preventDefault()}
-              >
-                <Icon className="h-5 w-5" />
-                <span>{item.label}</span>
-              </Link>
-            );
-          })}
+          {/* Secondary Items (Activated) */}
+          <div className="pt-2 space-y-1 border-t mt-2">
+            {secondaryItems.map((item) => {
+              const Icon = item.icon;
+              const isActive = location.pathname === item.path;
+              return (
+                <Link
+                  key={item.path}
+                  to={item.path}
+                  className={cn(
+                    "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors relative",
+                    isActive 
+                      ? "bg-primary/10 text-primary" 
+                      : "text-foreground hover:bg-muted hover:text-primary"
+                  )}
+                >
+                  <Icon className="h-5 w-5" />
+                  <span>{item.label}</span>
+                </Link>
+              );
+            })}
+          </div>
         </nav>
 
         {/* Footer */}

@@ -231,3 +231,122 @@ export const mockAfiliados = [
     saldoDisponivel: 3200.00,
   }
 ];
+
+// Mock data para Clientes (Fase 4)
+export const mockClientes = [
+  {
+    id: 347,
+    nome: "Maria Silva",
+    email: "maria@email.com",
+    telefone: "(31) 99999-8888",
+    cidade: "Belo Horizonte - MG",
+    status: "ativo" as const,
+    origem: "Site",
+    ultimaCompra: "12/Out/25",
+    ltv: 4290,
+    cpf: "123.456.789-00",
+    dataNascimento: "1985-03-15",
+    endereco: "Rua das Flores, 123 - Savassi",
+    compras: [
+      { data: "12/Out/25", produto: "Queen", valor: 4290, status: "Entregue" }
+    ],
+    observacoes: "Cliente VIP - gosta de contato via WhatsApp."
+  },
+  {
+    id: 348,
+    nome: "João Lima",
+    email: "joao@email.com",
+    telefone: "(11) 98888-7777",
+    cidade: "São Paulo - SP",
+    status: "ativo" as const,
+    origem: "Afiliado",
+    ultimaCompra: "10/Out/25",
+    ltv: 7380,
+    cpf: "987.654.321-00",
+    dataNascimento: "1990-05-20",
+    endereco: "Av. Paulista, 1000 - Bela Vista",
+    compras: [
+      { data: "10/Out/25", produto: "King", valor: 4890, status: "Entregue" },
+      { data: "01/Jan/25", produto: "Solteiro", valor: 2490, status: "Entregue" }
+    ],
+    observacoes: "Cliente de recompra. Interesse em upgrade para King."
+  },
+  {
+    id: 349,
+    nome: "Ana Costa",
+    email: "ana@email.com",
+    telefone: "(21) 97777-6666",
+    cidade: "Rio de Janeiro - RJ",
+    status: "inativo" as const,
+    origem: "WhatsApp",
+    ultimaCompra: "15/Ago/25",
+    ltv: 3690,
+    cpf: "111.222.333-44",
+    dataNascimento: "1995-11-01",
+    endereco: "Rua Ipanema, 456 - Copacabana",
+    compras: [
+      { data: "15/Ago/25", produto: "Casal", valor: 3690, status: "Entregue" }
+    ],
+    observacoes: "Sem interação há 60 dias. Enviar oferta de reativação."
+  },
+  {
+    id: 350,
+    nome: "Carlos Santos",
+    email: "carlos@email.com",
+    telefone: "(31) 96666-5555",
+    cidade: "Contagem - MG",
+    status: "lead" as const,
+    origem: "Site",
+    ultimaCompra: "-",
+    ltv: 0,
+    cpf: "",
+    dataNascimento: "",
+    endereco: "",
+    compras: [],
+    observacoes: "Lead frio. Interagiu com a página de Queen."
+  },
+];
+
+// Mock data para Agendamentos (Fase 4)
+export const mockAgendamentos = [
+  {
+    id: 1,
+    tipo: "Ligação" as const,
+    data: "2025-10-17",
+    hora: "14:00",
+    cliente: "Maria Silva",
+    assunto: "Follow-up pós-venda Queen",
+    responsavel: "João Admin",
+    status: "pendente" as const,
+  },
+  {
+    id: 2,
+    tipo: "Reunião" as const,
+    data: "2025-10-18",
+    hora: "10:00",
+    cliente: "João Lima",
+    assunto: "Apresentação linha King",
+    responsavel: "Vendedor 1",
+    status: "pendente" as const,
+  },
+  {
+    id: 3,
+    tipo: "WhatsApp" as const,
+    data: "2025-10-18",
+    hora: "15:30",
+    cliente: "Ana Costa",
+    assunto: "Interesse em trocar Casal por Queen",
+    responsavel: "João Admin",
+    status: "pendente" as const,
+  },
+  {
+    id: 4,
+    tipo: "Lembrete" as const,
+    data: "2025-10-16",
+    hora: "09:00",
+    cliente: "Equipe",
+    assunto: "Reunião semanal de vendas",
+    responsavel: "João Admin",
+    status: "concluido" as const,
+  },
+];

@@ -19,6 +19,9 @@ import Produtos from "./pages/dashboard/Produtos";
 import Vendas from "./pages/dashboard/Vendas";
 import Clientes from "./pages/dashboard/Clientes";
 import Configuracoes from "./pages/dashboard/Configuracoes";
+import Agendamentos from "./pages/dashboard/Agendamentos";
+import Automacoes from "./pages/dashboard/Automacoes";
+import Analytics from "./pages/dashboard/Analytics";
 import ListaAfiliados from "./pages/dashboard/afiliados/ListaAfiliados";
 import GestaoComissoes from "./pages/dashboard/afiliados/GestaoComissoes";
 import Solicitacoes from "./pages/dashboard/afiliados/Solicitacoes";
@@ -58,14 +61,17 @@ const App = () => (
             <Route path="produtos" element={<Produtos />} />
             <Route path="vendas" element={<Vendas />} />
             
+            {/* Novos Itens da Fase 4 */}
+            <Route path="clientes" element={<Clientes />} />
+            <Route path="agendamentos" element={<Agendamentos />} />
+            <Route path="automacoes" element={<Automacoes />} />
+            <Route path="analytics" element={<Analytics />} />
+            <Route path="configuracoes" element={<Configuracoes />} />
+            
             {/* Submenu Afiliados Admin */}
             <Route path="afiliados" element={<ListaAfiliados />} />
             <Route path="afiliados/comissoes" element={<GestaoComissoes />} />
             <Route path="afiliados/solicitacoes" element={<Solicitacoes />} />
-            
-            {/* Desabilitados */}
-            <Route path="clientes" element={<Clientes />} />
-            <Route path="configuracoes" element={<Configuracoes />} />
           </Route>
 
           {/* 3. CONTEXTO AFILIADO (Dashboard do Afiliado) */}
