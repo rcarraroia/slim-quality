@@ -8,6 +8,7 @@ import { DashboardLayout } from "./layouts/DashboardLayout";
 import { AffiliateDashboardLayout } from "./layouts/AffiliateDashboardLayout";
 import Index from "./pages/Index";
 import ProductPage from "./pages/produtos/ProductPage";
+import ProdutoDetalhe from "./pages/produtos/ProdutoDetalhe";
 import Sobre from "./pages/Sobre";
 import Login from "./pages/Login";
 import AfiliadosLanding from "./pages/afiliados/AfiliadosLanding";
@@ -16,9 +17,11 @@ import Dashboard from "./pages/dashboard/Dashboard";
 import Conversas from "./pages/dashboard/Conversas";
 import Produtos from "./pages/dashboard/Produtos";
 import Vendas from "./pages/dashboard/Vendas";
+import Clientes from "./pages/dashboard/Clientes";
+import Configuracoes from "./pages/dashboard/Configuracoes";
 import ListaAfiliados from "./pages/dashboard/afiliados/ListaAfiliados";
 import GestaoComissoes from "./pages/dashboard/afiliados/GestaoComissoes";
-import GestaoSaques from "./pages/dashboard/afiliados/GestaoSaques";
+import Solicitacoes from "./pages/dashboard/afiliados/Solicitacoes";
 import AffiliateDashboardInicio from "./pages/afiliados/dashboard/Inicio";
 import AffiliateDashboardRede from "./pages/afiliados/dashboard/MinhaRede";
 import AffiliateDashboardComissoes from "./pages/afiliados/dashboard/Comissoes";
@@ -35,10 +38,11 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <Routes>
-          {/* Public routes with header/footer */}
+          {/* 1. CONTEXTO PÚBLICO (Site de Vendas) */}
           <Route element={<PublicLayout />}>
             <Route path="/" element={<Index />} />
             <Route path="/produtos" element={<ProductPage />} />
+            <Route path="/produtos/:slug" element={<ProdutoDetalhe />} />
             <Route path="/tecnologias" element={<Sobre />} />
             <Route path="/afiliados" element={<AfiliadosLanding />} />
           </Route>
@@ -47,18 +51,24 @@ const App = () => (
           <Route path="/login" element={<Login />} />
           <Route path="/afiliados/cadastro" element={<AfiliadosCadastro />} />
           
-          {/* Dashboard routes */}
+          {/* 2. CONTEXTO ADMIN (Dashboard Administrativo) */}
           <Route path="/dashboard" element={<DashboardLayout />}>
             <Route index element={<Dashboard />} />
             <Route path="conversas" element={<Conversas />} />
             <Route path="produtos" element={<Produtos />} />
             <Route path="vendas" element={<Vendas />} />
+            
+            {/* Submenu Afiliados Admin */}
             <Route path="afiliados" element={<ListaAfiliados />} />
             <Route path="afiliados/comissoes" element={<GestaoComissoes />} />
-            <Route path="afiliados/saques" element={<GestaoSaques />} />
+            <Route path="afiliados/solicitacoes" element={<Solicitacoes />} />
+            
+            {/* Desabilitados */}
+            <Route path="clientes" element={<Clientes />} />
+            <Route path="configuracoes" element={<Configuracoes />} />
           </Route>
 
-          {/* Affiliate Dashboard routes */}
+          {/* 3. CONTEXTO AFILIADO (Dashboard do Afiliado) */}
           <Route path="/afiliados/dashboard" element={<AffiliateDashboardLayout />}>
             <Route index element={<AffiliateDashboardInicio />} />
             <Route path="rede" element={<AffiliateDashboardRede />} />

@@ -3,27 +3,30 @@ import {
   LayoutDashboard, 
   Users, 
   DollarSign, 
-  Link as LinkIcon,
+  Settings,
   LogOut,
   Bell,
   Search,
-  Wallet,
-  CreditCard
+  CreditCard,
+  Home,
+  TreeDeciduous
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
 
 export function AffiliateDashboardLayout() {
   const navigate = useNavigate();
   const location = useLocation();
 
   const menuItems = [
-    { icon: LayoutDashboard, label: "Início", path: "/afiliados/dashboard" },
-    { icon: Users, label: "Minha Rede", path: "/afiliados/dashboard/rede" },
+    { icon: Home, label: "Início", path: "/afiliados/dashboard" },
+    { icon: TreeDeciduous, label: "Minha Rede", path: "/afiliados/dashboard/rede" },
     { icon: DollarSign, label: "Comissões", path: "/afiliados/dashboard/comissoes" },
     { icon: CreditCard, label: "Recebimentos", path: "/afiliados/dashboard/recebimentos" },
+    { icon: Settings, label: "Configurações", path: "/afiliados/dashboard/configuracoes" },
   ];
 
   const getPageTitle = () => {
@@ -51,6 +54,20 @@ export function AffiliateDashboardLayout() {
             </Link>
           </div>
 
+          {/* User Info (Top of Menu) */}
+          <div className="p-4 border-b">
+            <div className="flex items-center gap-3">
+              <Avatar className="h-10 w-10">
+                <AvatarImage src="/placeholder.svg" />
+                <AvatarFallback>CM</AvatarFallback>
+              </Avatar>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium truncate">Carlos Mendes</p>
+                <p className="text-xs text-primary font-semibold">Afiliado Nível 3</p>
+              </div>
+            </div>
+          </div>
+
           {/* Navigation */}
           <nav className="flex-1 space-y-1 p-4">
             {menuItems.map((item) => {
@@ -72,38 +89,15 @@ export function AffiliateDashboardLayout() {
                 </button>
               );
             })}
-            
-            {/* Configurações - Mantido fora do loop principal para ter ícone diferente */}
-            <button
-              onClick={() => navigate("/afiliados/dashboard/configuracoes")}
-              className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors ${
-                location.pathname === "/afiliados/dashboard/configuracoes"
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
-              }`}
-            >
-              <LinkIcon className="h-4 w-4" /> {/* Reutilizando LinkIcon para Configurações */}
-              <span>Configurações</span>
-            </button>
           </nav>
 
-          {/* User Info */}
+          {/* Footer */}
           <div className="border-t p-4">
-            <div className="flex items-center gap-3">
-              <Avatar className="h-10 w-10">
-                <AvatarImage src="/placeholder.svg" />
-                <AvatarFallback>CM</AvatarFallback>
-              </Avatar>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium truncate">Carlos Mendes</p>
-                <p className="text-xs text-muted-foreground">Afiliado Nível 3</p>
-              </div>
-            </div>
             <Button
               variant="ghost"
               size="sm"
               onClick={handleLogout}
-              className="mt-3 w-full justify-start gap-2"
+              className="w-full justify-start gap-2"
             >
               <LogOut className="h-4 w-4" />
               Sair

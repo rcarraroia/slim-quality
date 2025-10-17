@@ -10,7 +10,11 @@ import {
   Settings, 
   LogOut,
   Search,
-  Bell
+  Bell,
+  ChevronDown,
+  ChevronUp,
+  CreditCard,
+  List
 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -21,19 +25,33 @@ export function DashboardLayout() {
   const location = useLocation();
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
+  const [affiliatesMenuOpen, setAffiliatesMenuOpen] = useState(location.pathname.startsWith('/dashboard/afiliados'));
 
   const menuItems = [
     { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard', disabled: false },
     { icon: MessageSquare, label: 'Conversas', path: '/dashboard/conversas', badge: 8, disabled: false },
     { icon: Package, label: 'Produtos', path: '/dashboard/produtos', disabled: false },
     { icon: DollarSign, label: 'Vendas', path: '/dashboard/vendas', disabled: false },
-    { icon: Users, label: 'Afiliados', path: '/dashboard/afiliados', disabled: false },
+  ];
+
+  const affiliateSubmenu = [
+    { label: 'Lista de Afiliados', path: '/dashboard/afiliados', icon: List },
+    { label: 'Comissões', path: '/dashboard/afiliados/comissoes', icon: DollarSign },
+    { label: 'Solicitações', path: '/dashboard/afiliados/solicitacoes', icon: CreditCard },
+  ];
+
+  const disabledItems = [
     { icon: UserCircle, label: 'Clientes', path: '/dashboard/clientes', disabled: true },
     { icon: Settings, label: 'Configurações', path: '/dashboard/configuracoes', disabled: true },
   ];
 
   const getPageTitle = () => {
-    const currentItem = menuItems.find(item => item.path === location.pathname);
+    const allItems = [
+      ...menuItems, 
+      ...affiliateSubmenu, 
+      ...disabledItems
+    ];
+    const currentItem = allItems.find(item => item.path === location.pathname);
     return currentItem?.label || 'Dashboard';
   };
 
@@ -90,10 +108,74 @@ export function DashboardLayout() {
                 <Icon className="h-5 w-5" />
                 <span>{item.label}</span>
                 {item.badge && (
-                  <span className="ml-auto bg-primary text-primary-foreground text-xs rounded-full px-2 py-0.5">
+                  <span className="ml-auto bg-destructive text-destructive-foreground text-xs rounded-full px-2 py-0.5">
                     {item.badge}
                   </span>
                 )}
+              </Link>
+            );
+          })}
+
+          {/* Afiliados Menu (Dropdown) */}
+          <div className="space-y-1">
+            <button
+              onClick={() => setAffiliatesMenuOpen(!affiliatesMenuOpen)}
+              className={cn(
+                "flex items-center w-full gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors relative",
+                location.pathname.startsWith('/dashboard/afiliados')
+                  ? "bg-primary/10 text-primary"
+                  : "text-foreground hover:bg-muted hover:text-primary"
+              )}
+            >
+              <Users className="h-5 w-5" />
+              <span>Afiliados</span>
+              {affiliatesMenuOpen ? (
+                <ChevronUp className="h-4 w-4 ml-auto" />
+              ) : (
+                <ChevronDown className="h-4 w-4 ml-auto" />
+              )}
+            </button>
+            
+            {affiliatesMenuOpen && (
+              <div className="pl-8 space-y-1">
+                {affiliateSubmenu.map((item) => {
+                  const Icon = item.icon;
+                  const isActive = location.pathname === item.path;
+                  return (
+                    <Link
+                      key={item.path}
+                      to={item.path}
+                      className={cn(
+                        "flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors",
+                        isActive 
+                          ? "bg-primary/20 text-primary font-medium" 
+                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                      )}
+                    >
+                      <Icon className="h-4 w-4" />
+                      <span>{item.label}</span>
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Disabled Items */}
+          {disabledItems.map((item) => {
+            const Icon = item.icon;
+            return (
+              <Link
+                key={item.path}
+                to={item.path}
+                className={cn(
+                  "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors relative",
+                  "text-muted-foreground cursor-not-allowed opacity-50"
+                )}
+                onClick={(e) => e.preventDefault()}
+              >
+                <Icon className="h-5 w-5" />
+                <span>{item.label}</span>
               </Link>
             );
           })}
