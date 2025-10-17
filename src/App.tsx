@@ -23,7 +23,6 @@ import AffiliateDashboardInicio from "./pages/afiliados/dashboard/Inicio";
 import AffiliateDashboardRede from "./pages/afiliados/dashboard/MinhaRede";
 import AffiliateDashboardComissoes from "./pages/afiliados/dashboard/Comissoes";
 import AffiliateDashboardRecebimentos from "./pages/afiliados/dashboard/Recebimentos";
-import AffiliateDashboardLink from "./pages/afiliados/dashboard/MeuLink";
 import AffiliateDashboardConfiguracoes from "./pages/afiliados/dashboard/Configuracoes";
 import NotFound from "./pages/NotFound";
 
@@ -65,7 +64,6 @@ const App = () => (
             <Route path="rede" element={<AffiliateDashboardRede />} />
             <Route path="comissoes" element={<AffiliateDashboardComissoes />} />
             <Route path="recebimentos" element={<AffiliateDashboardRecebimentos />} />
-            <Route path="link" element={<AffiliateDashboardLink />} />
             <Route path="configuracoes" element={<AffiliateDashboardConfiguracoes />} />
           </Route>
           

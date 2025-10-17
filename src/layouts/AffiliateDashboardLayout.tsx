@@ -3,12 +3,12 @@ import {
   LayoutDashboard, 
   Users, 
   DollarSign, 
-  TrendingUp, 
   Link as LinkIcon,
   LogOut,
   Bell,
   Search,
-  Wallet
+  Wallet,
+  CreditCard
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -23,8 +23,7 @@ export function AffiliateDashboardLayout() {
     { icon: LayoutDashboard, label: "Início", path: "/afiliados/dashboard" },
     { icon: Users, label: "Minha Rede", path: "/afiliados/dashboard/rede" },
     { icon: DollarSign, label: "Comissões", path: "/afiliados/dashboard/comissoes" },
-    { icon: Wallet, label: "Recebimentos", path: "/afiliados/dashboard/recebimentos" },
-    { icon: LinkIcon, label: "Meu Link", path: "/afiliados/dashboard/link" },
+    { icon: CreditCard, label: "Recebimentos", path: "/afiliados/dashboard/recebimentos" },
   ];
 
   const getPageTitle = () => {
@@ -73,6 +72,19 @@ export function AffiliateDashboardLayout() {
                 </button>
               );
             })}
+            
+            {/* Configurações - Mantido fora do loop principal para ter ícone diferente */}
+            <button
+              onClick={() => navigate("/afiliados/dashboard/configuracoes")}
+              className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors ${
+                location.pathname === "/afiliados/dashboard/configuracoes"
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
+              }`}
+            >
+              <LinkIcon className="h-4 w-4" /> {/* Reutilizando LinkIcon para Configurações */}
+              <span>Configurações</span>
+            </button>
           </nav>
 
           {/* User Info */}
@@ -107,17 +119,12 @@ export function AffiliateDashboardLayout() {
           <h1 className="text-xl font-semibold">{getPageTitle()}</h1>
           
           <div className="ml-auto flex items-center gap-4">
-            {/* Saldo Flutuante */}
-            <Card className="bg-primary/10 border-primary/20 px-4 py-2">
-              <div className="flex items-center gap-3">
-                <Wallet className="h-5 w-5 text-primary" />
-                <div>
-                  <p className="text-xs text-muted-foreground">Saldo Disponível</p>
-                  <p className="text-lg font-bold text-primary">R$ 3.200,00</p>
-                </div>
-                <Button size="sm" className="ml-2">
-                  Sacar
-                </Button>
+            {/* Comissões Este Mês Card */}
+            <Card className="bg-gradient-to-r from-primary/10 to-secondary/10 border-primary/20 px-4 py-2 w-[250px]">
+              <div className="flex flex-col">
+                <p className="text-xs text-muted-foreground">Comissões Este Mês</p>
+                <p className="text-xl font-bold text-success">R$ 892,00</p>
+                <p className="text-xs text-muted-foreground mt-1">Depositadas automaticamente via Asaas</p>
               </div>
             </Card>
 

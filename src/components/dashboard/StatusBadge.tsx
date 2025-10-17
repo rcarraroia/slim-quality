@@ -5,7 +5,7 @@ type StatusType =
   | 'ativa' | 'aguardando' | 'negociando' | 'finalizada'
   | 'pago' | 'pendente' | 'cancelado' | 'enviado'
   | 'ativo' | 'inativo'
-  | 'aprovada' | 'cancelada' | 'paga'
+  | 'aprovada' | 'cancelada' | 'paga' | 'depositado'
   | 'aprovado' | 'processando' | 'rejeitado';
 
 interface StatusBadgeProps {
@@ -30,20 +30,28 @@ const statusConfig: Record<StatusType, { label: string; className: string }> = {
   ativo: { label: 'Ativo', className: 'bg-success/10 text-success hover:bg-success/20' },
   inativo: { label: 'Inativo', className: 'bg-muted text-muted-foreground hover:bg-muted/80' },
   
-  // Comissões
+  // Comissões/Recebimentos
   aprovada: { label: 'Aprovada', className: 'bg-blue-500/10 text-blue-500 hover:bg-blue-500/20' },
   cancelada: { label: 'Cancelada', className: 'bg-destructive/10 text-destructive hover:bg-destructive/20' },
   paga: { label: 'Paga', className: 'bg-success/10 text-success hover:bg-success/20' },
+  depositado: { label: 'Depositado', className: 'bg-success/10 text-success hover:bg-success/20' }, // Novo
   
-  // Saques
+  // Saques (mantido para o dashboard admin)
   aprovado: { label: 'Aprovado', className: 'bg-success/10 text-success hover:bg-success/20' },
   processando: { label: 'Processando', className: 'bg-blue-500/10 text-blue-500 hover:bg-blue-500/20' },
   rejeitado: { label: 'Rejeitado', className: 'bg-destructive/10 text-destructive hover:bg-destructive/20' },
 };
 
 export function StatusBadge({ status, className }: StatusBadgeProps) {
-  const config = statusConfig[status];
+  // Mapeamento de 'aguardando' (Recebimentos) para 'pendente' (Vendas/Geral)
+  const effectiveStatus = status === 'aguardando' ? 'pendente' : status;
   
+  const config = statusConfig[effectiveStatus as StatusType];
+  
+  if (!config) {
+    return <Badge variant="outline" className={cn("border-0", className)}>{status}</Badge>;
+  }
+
   return (
     <Badge 
       variant="outline" 
