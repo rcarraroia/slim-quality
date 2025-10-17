@@ -81,11 +81,26 @@ export default {
             height: "0",
           },
         },
+        // Animação Shimmer para Skeletons
+        shimmer: {
+          '100%': {
+            transform: 'translateX(100%)',
+          },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
+        // Animação Shimmer
+        shimmer: 'shimmer 1.5s infinite',
       },
+      transitionTimingFunction: {
+        'in-expo': 'cubic-bezier(0.95, 0.05, 0.79, 0.05)',
+        'out-expo': 'cubic-bezier(0.19, 1, 0.22, 1)',
+      },
+      transitionDuration: {
+        '400': '400ms',
+      }
     },
   },
   plugins: [require("tailwindcss-animate")],

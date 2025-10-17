@@ -2,16 +2,17 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { MessageCircle, Menu, X } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 export function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+    <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 transition-shadow duration-300">
       <nav className="container flex h-16 items-center justify-between px-4">
         {/* Logo */}
         <Link to="/" className="flex items-center space-x-2">
-          <div className="h-8 w-8 rounded-full bg-primary" />
+          <div className="h-8 w-8 rounded-full bg-primary transition-colors" />
           <span className="text-xl font-bold">Slim Quality</span>
         </Link>
 
@@ -42,7 +43,7 @@ export function Header() {
             Entrar
           </Link>
           
-          <Button asChild>
+          <Button asChild className="transition-all duration-300 hover:scale-[1.02]">
             <a 
               href="https://wa.me/5533998384177?text=Olá!%20Tenho%20interesse%20nos%20colchões%20Slim%20Quality" 
               target="_blank"
@@ -57,46 +58,52 @@ export function Header() {
 
         {/* Mobile Menu Button */}
         <button
-          className="md:hidden"
+          className="md:hidden p-2 rounded-md hover:bg-muted transition-colors"
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
           aria-label="Toggle menu"
         >
           {mobileMenuOpen ? <X /> : <Menu />}
         </button>
 
-        {/* Mobile Menu */}
+        {/* Mobile Menu Overlay */}
         {mobileMenuOpen && (
-          <div className="absolute top-16 left-0 right-0 bg-background border-b md:hidden">
-            <div className="container py-4 px-4 space-y-3">
+          <div 
+            className={cn(
+              "fixed inset-0 top-16 bg-background/95 backdrop-blur-sm md:hidden transition-opacity duration-300",
+              mobileMenuOpen ? "opacity-100" : "opacity-0 pointer-events-none"
+            )}
+            onClick={() => setMobileMenuOpen(false)}
+          >
+            <div className="container py-6 px-4 space-y-4" onClick={(e) => e.stopPropagation()}>
               <a 
                 href="/#products" 
-                className="block py-2 text-sm font-medium"
+                className="block py-3 text-lg font-medium border-b hover:text-primary transition-colors"
                 onClick={() => setMobileMenuOpen(false)}
               >
                 Produtos
               </a>
               <Link 
                 to="/tecnologias" 
-                className="block py-2 text-sm font-medium"
+                className="block py-3 text-lg font-medium border-b hover:text-primary transition-colors"
                 onClick={() => setMobileMenuOpen(false)}
               >
                 Tecnologias
               </Link>
               <Link 
                 to="/afiliados" 
-                className="block py-2 text-sm font-medium"
+                className="block py-3 text-lg font-medium border-b hover:text-primary transition-colors"
                 onClick={() => setMobileMenuOpen(false)}
               >
                 Seja Afiliado
               </Link>
               <Link 
                 to="/login" 
-                className="block py-2 text-sm font-medium"
+                className="block py-3 text-lg font-medium border-b hover:text-primary transition-colors"
                 onClick={() => setMobileMenuOpen(false)}
               >
                 Entrar
               </Link>
-              <Button asChild className="w-full">
+              <Button asChild className="w-full mt-6 transition-all duration-300">
                 <a 
                   href="https://wa.me/5533998384177?text=Olá!%20Tenho%20interesse%20nos%20colchões%20Slim%20Quality" 
                   target="_blank"

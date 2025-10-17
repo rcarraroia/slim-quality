@@ -200,12 +200,12 @@ const ProductPage = () => {
                         <WhatsAppButton
                           productName={`Slim Quality ${product.name}`}
                           message={`Olá BIA! Tenho interesse no Slim Quality ${product.name}`}
-                          className="w-full"
+                          className="w-full transition-all duration-300 hover:scale-[1.02]"
                           size="lg"
                         />
                         <Button
                           variant="outline"
-                          className="w-full"
+                          className="w-full transition-all duration-300 hover:scale-[1.02]"
                           size="lg"
                           onClick={() => setExpandedProduct(null)}
                         >
@@ -233,6 +233,7 @@ const ProductPage = () => {
               <WhatsAppButton
                 message="Olá BIA! Preciso de ajuda para escolher o tamanho ideal do colchão"
                 size="lg"
+                className="transition-all duration-300 hover:scale-[1.05]"
               />
             </CardContent>
           </Card>

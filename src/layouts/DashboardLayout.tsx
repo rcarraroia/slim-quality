@@ -17,7 +17,9 @@ import {
   List,
   Calendar,
   Bot,
-  BarChart3
+  BarChart3,
+  Menu,
+  X
 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -29,6 +31,7 @@ export function DashboardLayout() {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   const [affiliatesMenuOpen, setAffiliatesMenuOpen] = useState(location.pathname.startsWith('/dashboard/afiliados'));
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false); // Novo estado para mobile
 
   const menuItems = [
     { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard', disabled: false },
@@ -44,11 +47,11 @@ export function DashboardLayout() {
   ];
 
   const secondaryItems = [
-    { icon: UserCircle, label: 'Clientes', path: '/dashboard/clientes', disabled: false }, // ATIVADO
-    { icon: Calendar, label: 'Agendamentos', path: '/dashboard/agendamentos', disabled: false }, // NOVO
-    { icon: Bot, label: 'Automações', path: '/dashboard/automacoes', disabled: false }, // NOVO
-    { icon: BarChart3, label: 'Analytics', path: '/dashboard/analytics', disabled: false }, // NOVO
-    { icon: Settings, label: 'Configurações', path: '/dashboard/configuracoes', disabled: false }, // ATIVADO
+    { icon: UserCircle, label: 'Clientes', path: '/dashboard/clientes', disabled: false },
+    { icon: Calendar, label: 'Agendamentos', path: '/dashboard/agendamentos', disabled: false },
+    { icon: Bot, label: 'Automações', path: '/dashboard/automacoes', disabled: false },
+    { icon: BarChart3, label: 'Analytics', path: '/dashboard/analytics', disabled: false },
+    { icon: Settings, label: 'Configurações', path: '/dashboard/configuracoes', disabled: false },
   ];
 
   const getPageTitle = () => {
@@ -64,39 +67,118 @@ export function DashboardLayout() {
   const handleLogout = () => {
     navigate('/login');
   };
+  
+  const handleNavigation = (path: string) => {
+    navigate(path);
+    setMobileMenuOpen(false);
+  };
 
-  return (
-    <div className="flex min-h-screen w-full bg-muted/30">
-      {/* Sidebar */}
-      <aside className="w-[260px] bg-background border-r flex flex-col fixed h-full">
-        {/* Logo */}
-        <div className="p-6 border-b">
-          <Link to="/dashboard" className="flex items-center space-x-2">
-            <div className="h-8 w-8 rounded-full bg-primary" />
-            <span className="text-xl font-bold">Slim Quality</span>
-          </Link>
-        </div>
+  const renderSidebarContent = () => (
+    <>
+      {/* Logo */}
+      <div className="p-6 border-b">
+        <Link to="/dashboard" className="flex items-center space-x-2">
+          <div className="h-8 w-8 rounded-full bg-primary" />
+          <span className="text-xl font-bold">Slim Quality</span>
+        </Link>
+      </div>
 
-        {/* User Info */}
-        <div className="p-4 border-b">
-          <div className="flex items-center gap-3">
-            <Avatar>
-              <AvatarImage src="" />
-              <AvatarFallback className="bg-primary text-primary-foreground">JA</AvatarFallback>
-            </Avatar>
-            <div>
-              <p className="text-sm font-medium">João Admin</p>
-              <p className="text-xs text-muted-foreground">Supervisor</p>
-            </div>
+      {/* User Info */}
+      <div className="p-4 border-b">
+        <div className="flex items-center gap-3">
+          <Avatar>
+            <AvatarImage src="" />
+            <AvatarFallback className="bg-primary text-primary-foreground">JA</AvatarFallback>
+          </Avatar>
+          <div>
+            <p className="text-sm font-medium">João Admin</p>
+            <p className="text-xs text-muted-foreground">Supervisor</p>
           </div>
         </div>
+      </div>
 
-        {/* Menu */}
-        <nav className="flex-1 p-4 space-y-1">
-          {menuItems.map((item) => {
+      {/* Menu */}
+      <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
+        {menuItems.map((item) => {
+          const Icon = item.icon;
+          const isActive = location.pathname === item.path;
+          
+          return (
+            <Link
+              key={item.path}
+              to={item.path}
+              className={cn(
+                "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors relative",
+                isActive 
+                  ? "bg-primary/10 text-primary" 
+                  : item.disabled
+                  ? "text-muted-foreground cursor-not-allowed opacity-50"
+                  : "text-foreground hover:bg-muted hover:text-primary"
+              )}
+              onClick={(e) => { item.disabled && e.preventDefault(); handleNavigation(item.path); }}
+            >
+              <Icon className="h-5 w-5" />
+              <span>{item.label}</span>
+              {item.badge && (
+                <span className="ml-auto bg-destructive text-destructive-foreground text-xs rounded-full px-2 py-0.5">
+                  {item.badge}
+                </span>
+              )}
+            </Link>
+          );
+        })}
+
+        {/* Afiliados Menu (Dropdown) */}
+        <div className="space-y-1">
+          <button
+            onClick={() => setAffiliatesMenuOpen(!affiliatesMenuOpen)}
+            className={cn(
+              "flex items-center w-full gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors relative",
+              location.pathname.startsWith('/dashboard/afiliados')
+                ? "bg-primary/10 text-primary"
+                : "text-foreground hover:bg-muted hover:text-primary"
+            )}
+          >
+            <Users className="h-5 w-5" />
+            <span>Afiliados</span>
+            {affiliatesMenuOpen ? (
+              <ChevronUp className="h-4 w-4 ml-auto" />
+            ) : (
+              <ChevronDown className="h-4 w-4 ml-auto" />
+            )}
+          </button>
+          
+          {affiliatesMenuOpen && (
+            <div className="pl-8 space-y-1">
+              {affiliateSubmenu.map((item) => {
+                const Icon = item.icon;
+                const isActive = location.pathname === item.path;
+                return (
+                  <Link
+                    key={item.path}
+                    to={item.path}
+                    className={cn(
+                      "flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors",
+                      isActive 
+                        ? "bg-primary/20 text-primary font-medium" 
+                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                    )}
+                    onClick={() => handleNavigation(item.path)}
+                  >
+                    <Icon className="h-4 w-4" />
+                    <span>{item.label}</span>
+                  </Link>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Secondary Items (Activated) */}
+        <div className="pt-2 space-y-1 border-t mt-2">
+          {secondaryItems.map((item) => {
             const Icon = item.icon;
             const isActive = location.pathname === item.path;
-            
             return (
               <Link
                 key={item.path}
@@ -105,115 +187,81 @@ export function DashboardLayout() {
                   "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors relative",
                   isActive 
                     ? "bg-primary/10 text-primary" 
-                    : item.disabled
-                    ? "text-muted-foreground cursor-not-allowed opacity-50"
                     : "text-foreground hover:bg-muted hover:text-primary"
                 )}
-                onClick={(e) => item.disabled && e.preventDefault()}
+                onClick={() => handleNavigation(item.path)}
               >
                 <Icon className="h-5 w-5" />
                 <span>{item.label}</span>
-                {item.badge && (
-                  <span className="ml-auto bg-destructive text-destructive-foreground text-xs rounded-full px-2 py-0.5">
-                    {item.badge}
-                  </span>
-                )}
               </Link>
             );
           })}
-
-          {/* Afiliados Menu (Dropdown) */}
-          <div className="space-y-1">
-            <button
-              onClick={() => setAffiliatesMenuOpen(!affiliatesMenuOpen)}
-              className={cn(
-                "flex items-center w-full gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors relative",
-                location.pathname.startsWith('/dashboard/afiliados')
-                  ? "bg-primary/10 text-primary"
-                  : "text-foreground hover:bg-muted hover:text-primary"
-              )}
-            >
-              <Users className="h-5 w-5" />
-              <span>Afiliados</span>
-              {affiliatesMenuOpen ? (
-                <ChevronUp className="h-4 w-4 ml-auto" />
-              ) : (
-                <ChevronDown className="h-4 w-4 ml-auto" />
-              )}
-            </button>
-            
-            {affiliatesMenuOpen && (
-              <div className="pl-8 space-y-1">
-                {affiliateSubmenu.map((item) => {
-                  const Icon = item.icon;
-                  const isActive = location.pathname === item.path;
-                  return (
-                    <Link
-                      key={item.path}
-                      to={item.path}
-                      className={cn(
-                        "flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors",
-                        isActive 
-                          ? "bg-primary/20 text-primary font-medium" 
-                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                      )}
-                    >
-                      <Icon className="h-4 w-4" />
-                      <span>{item.label}</span>
-                    </Link>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-
-          {/* Secondary Items (Activated) */}
-          <div className="pt-2 space-y-1 border-t mt-2">
-            {secondaryItems.map((item) => {
-              const Icon = item.icon;
-              const isActive = location.pathname === item.path;
-              return (
-                <Link
-                  key={item.path}
-                  to={item.path}
-                  className={cn(
-                    "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors relative",
-                    isActive 
-                      ? "bg-primary/10 text-primary" 
-                      : "text-foreground hover:bg-muted hover:text-primary"
-                  )}
-                >
-                  <Icon className="h-5 w-5" />
-                  <span>{item.label}</span>
-                </Link>
-              );
-            })}
-          </div>
-        </nav>
-
-        {/* Footer */}
-        <div className="p-4 border-t">
-          <Button 
-            variant="ghost" 
-            className="w-full justify-start gap-3"
-            onClick={handleLogout}
-          >
-            <LogOut className="h-5 w-5" />
-            <span>Sair</span>
-          </Button>
         </div>
+      </nav>
+
+      {/* Footer */}
+      <div className="p-4 border-t">
+        <Button 
+          variant="ghost" 
+          className="w-full justify-start gap-3"
+          onClick={handleLogout}
+        >
+          <LogOut className="h-5 w-5" />
+          <span>Sair</span>
+        </Button>
+      </div>
+    </>
+  );
+
+  return (
+    <div className="flex min-h-screen w-full bg-muted/30">
+      {/* Sidebar (Desktop) */}
+      <aside className="w-[260px] bg-background border-r flex-col fixed h-full hidden lg:flex">
+        {renderSidebarContent()}
       </aside>
+      
+      {/* Sidebar (Mobile Overlay) */}
+      {mobileMenuOpen && (
+        <div 
+          className="fixed inset-0 z-50 bg-black/50 lg:hidden"
+          onClick={() => setMobileMenuOpen(false)}
+        >
+          <aside 
+            className="w-[260px] bg-background h-full flex flex-col transition-transform duration-300"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="absolute top-4 right-4">
+              <Button variant="ghost" size="icon" onClick={() => setMobileMenuOpen(false)}>
+                <X className="h-6 w-6" />
+              </Button>
+            </div>
+            {renderSidebarContent()}
+          </aside>
+        </div>
+      )}
 
       {/* Main Content */}
-      <div className="flex-1 ml-[260px] flex flex-col">
+      <div className="flex-1 lg:ml-[260px] flex flex-col">
         {/* TopBar */}
-        <header className="h-16 bg-background border-b sticky top-0 z-10 flex items-center px-6 gap-4">
-          <h1 className="text-2xl font-bold">{getPageTitle()}</h1>
+        <header className="h-16 bg-background border-b sticky top-0 z-10 flex items-center px-4 lg:px-6 gap-4 shadow-sm">
+          
+          {/* Mobile Menu Button */}
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="lg:hidden"
+            onClick={() => setMobileMenuOpen(true)}
+            aria-label="Abrir menu lateral"
+          >
+            <Menu className="h-6 w-6" />
+          </Button>
+
+          <h1 className="text-lg lg:text-2xl font-bold truncate">{getPageTitle()}</h1>
           
           <div className="flex-1" />
 
-          {/* Search */}
-          <div className="relative w-[300px]">
+          {/* Search (Hidden on small mobile, visible on tablet/desktop) */}
+          <div className="relative w-[200px] sm:w-[300px] hidden sm:block">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               type="search"
@@ -238,7 +286,7 @@ export function DashboardLayout() {
         </header>
 
         {/* Page Content */}
-        <main className="flex-1 p-6">
+        <main className="flex-1 p-4 lg:p-6">
           <Outlet />
         </main>
       </div>
