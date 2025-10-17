@@ -11,10 +11,13 @@ import { Separator } from "@/components/ui/separator";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { StatusBadge } from "@/components/dashboard/StatusBadge";
+import { UserManagementModal } from "@/components/admin/UserManagementModal";
+import { mockUsers } from "@/data/mockData";
 import { 
-  Settings, User, Building2, Users, CreditCard, Bell, Shield, Link, Palette, Edit, Trash2, CheckCircle
+  Settings, User, Building2, Users, CreditCard, Bell, Shield, Link, Palette, Edit, Trash2, CheckCircle, Clock, Plus
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils";
 
 const settingsTabs = [
   { id: 'perfil', label: 'Meu Perfil', icon: User },
@@ -27,19 +30,55 @@ const settingsTabs = [
   { id: 'aparencia', label: 'Aparência', icon: Palette },
 ];
 
-const mockUsers = [
-  { id: 1, nome: "João Admin", email: "joao@slimquality.com.br", cargo: "Admin", status: "ativo" as const },
-  { id: 2, nome: "Vendedor 1", email: "vendedor1@slimquality.com.br", cargo: "Vendedor", status: "ativo" as const },
-  { id: 3, nome: "Suporte 1", email: "suporte1@slimquality.com.br", cargo: "Suporte", status: "inativo" as const },
-];
+const cargoColors: Record<string, string> = {
+  Admin: 'bg-purple-600 text-white',
+  Vendedor: 'bg-blue-500 text-white',
+  Suporte: 'bg-success text-white',
+  Financeiro: 'bg-orange-500 text-white',
+};
+
+type UserData = typeof mockUsers[0];
 
 export default function Configuracoes() {
-  const [activeTab, setActiveTab] = useState('perfil');
+  const [activeTab, setActiveTab] = useState('usuarios'); // Definindo 'usuarios' como padrão para teste
   const { toast } = useToast();
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingUser, setEditingUser] = useState<UserData | null>(null);
+  const [statusFilter, setStatusFilter] = useState('todos');
+  const [cargoFilter, setCargoFilter] = useState('todos');
 
   const handleSave = (section: string) => {
     toast({ title: "Configurações salvas!", description: `A seção ${section} foi atualizada.` });
   };
+
+  const handleEditUser = (user: UserData) => {
+    setEditingUser(user);
+    setIsModalOpen(true);
+  };
+
+  const handleAddNewUser = () => {
+    setEditingUser(null);
+    setIsModalOpen(true);
+  };
+
+  const handleDeleteUser = (user: UserData) => {
+    toast({
+      title: "⚠️ Confirmação de Exclusão",
+      description: `Tem certeza que deseja excluir o usuário ${user.nome}?`,
+      variant: "destructive",
+    });
+    // Lógica de exclusão simulada
+  };
+
+  const filteredUsers = mockUsers.filter(user => {
+    const matchesStatus = statusFilter === 'todos' || user.status === statusFilter;
+    const matchesCargo = cargoFilter === 'todos' || user.cargo === cargoFilter;
+    return matchesStatus && matchesCargo;
+  });
+
+  const totalUsers = mockUsers.length;
+  const activeUsers = mockUsers.filter(u => u.status === 'ativo').length;
+  const lastActiveUser = mockUsers.find(u => u.ultimoAcesso === 'Há 5 min' || u.ultimoAcesso === 'Agora');
 
   const renderContent = () => {
     switch (activeTab) {
@@ -95,10 +134,75 @@ export default function Configuracoes() {
       case 'usuarios':
         return (
           <div className="space-y-6">
-            <div className="flex justify-between items-center">
-              <h3 className="text-xl font-semibold">👥 Usuários do Sistema</h3>
-              <Button className="gap-2"><Plus className="h-4 w-4" /> Adicionar Usuário</Button>
+            <h3 className="text-xl font-semibold">👥 Gerenciamento de Usuários</h3>
+            <p className="text-muted-foreground text-sm">
+              Gerencie os usuários do sistema, suas permissões e níveis de acesso. Apenas administradores podem adicionar ou remover usuários.
+            </p>
+
+            {/* Cards de Resumo */}
+            <div className="grid grid-cols-3 gap-4">
+              <Card className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Total de Usuários</p>
+                    <p className="text-2xl font-bold text-blue-500">{totalUsers}</p>
+                  </div>
+                  <Users className="h-8 w-8 text-blue-500/50" />
+                </div>
+              </Card>
+              <Card className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Usuários Ativos</p>
+                    <p className="text-2xl font-bold text-success">{activeUsers}</p>
+                  </div>
+                  <CheckCircle className="h-8 w-8 text-success/50" />
+                </div>
+              </Card>
+              <Card className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Último Acesso</p>
+                    <p className="text-lg font-bold text-warning">{lastActiveUser?.ultimoAcesso}</p>
+                    <p className="text-xs text-muted-foreground">{lastActiveUser?.nome}</p>
+                  </div>
+                  <Clock className="h-8 w-8 text-warning/50" />
+                </div>
+              </Card>
             </div>
+
+            {/* Barra de Ações */}
+            <div className="flex flex-col md:flex-row gap-4 items-center">
+              <Select value={cargoFilter} onValueChange={setCargoFilter}>
+                <SelectTrigger className="w-full md:w-[180px]">
+                  <SelectValue placeholder="Cargo" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todos">Todos os Cargos</SelectItem>
+                  <SelectItem value="Admin">Admin</SelectItem>
+                  <SelectItem value="Vendedor">Vendedor</SelectItem>
+                  <SelectItem value="Suporte">Suporte</SelectItem>
+                  <SelectItem value="Financeiro">Financeiro</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-full md:w-[150px]">
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todos">Todos Status</SelectItem>
+                  <SelectItem value="ativo">Ativo</SelectItem>
+                  <SelectItem value="inativo">Inativo</SelectItem>
+                  <SelectItem value="bloqueado">Bloqueado</SelectItem>
+                </SelectContent>
+              </Select>
+              <div className="flex-1" />
+              <Button onClick={handleAddNewUser} className="gap-2 w-full md:w-auto">
+                <Plus className="h-4 w-4" /> Adicionar Usuário
+              </Button>
+            </div>
+
+            {/* Tabela de Usuários */}
             <Card>
               <Table>
                 <TableHeader>
@@ -107,19 +211,40 @@ export default function Configuracoes() {
                     <TableHead>Email</TableHead>
                     <TableHead>Cargo</TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead>Último Acesso</TableHead>
                     <TableHead className="text-right">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {mockUsers.map(user => (
+                  {filteredUsers.map(user => (
                     <TableRow key={user.id}>
-                      <TableCell className="font-medium">{user.nome}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-3">
+                          <Avatar>
+                            <AvatarFallback className={cn("text-white", cargoColors[user.cargo] || 'bg-gray-500')}>
+                              {user.nome.split(" ").map(n => n[0]).join("")}
+                            </AvatarFallback>
+                          </Avatar>
+                          <p className="font-medium">{user.nome}</p>
+                        </div>
+                      </TableCell>
                       <TableCell>{user.email}</TableCell>
-                      <TableCell>{user.cargo}</TableCell>
-                      <TableCell><StatusBadge status={user.status} /></TableCell>
+                      <TableCell>
+                        <span className={cn("px-3 py-1 rounded-full text-xs font-medium", cargoColors[user.cargo])}>
+                          {user.cargo}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <StatusBadge status={user.status} />
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground">{user.ultimoAcesso}</TableCell>
                       <TableCell className="text-right">
-                        <Button variant="ghost" size="icon"><Edit className="h-4 w-4" /></Button>
-                        <Button variant="ghost" size="icon"><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                        <Button variant="ghost" size="icon" onClick={() => handleEditUser(user)}>
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" onClick={() => handleDeleteUser(user)}>
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -283,6 +408,13 @@ export default function Configuracoes() {
           {renderContent()}
         </CardContent>
       </Card>
+      
+      {/* Modal de Gerenciamento de Usuários */}
+      <UserManagementModal 
+        user={editingUser}
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+      />
     </div>
   );
 }

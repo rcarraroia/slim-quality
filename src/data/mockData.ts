@@ -350,3 +350,15 @@ export const mockAgendamentos = [
     status: "concluido" as const,
   },
 ];
+
+// Mock data para Usuários (Fase 4)
+export const mockUsers = [
+  { id: 1, nome: "João Admin", email: "joao@slimquality.com.br", cargo: "Admin", status: "ativo" as const, ultimoAcesso: "Agora" },
+  { id: 2, nome: "Maria Vendedora", email: "maria@slimquality.com.br", cargo: "Vendedor", status: "ativo" as const, ultimoAcesso: "Há 5 min" },
+  { id: 3, nome: "Carlos Suporte", email: "carlos@slimquality.com.br", cargo: "Suporte", status: "ativo" as const, ultimoAcesso: "Há 2 horas" },
+  { id: 4, nome: "Ana Financeiro", email: "ana@slimquality.com.br", cargo: "Financeiro", status: "ativo" as const, ultimoAcesso: "Ontem" },
+  { id: 5, nome: "Pedro Vendedor", email: "pedro@slimquality.com.br", cargo: "Vendedor", status: "inativo" as const, ultimoAcesso: "Há 7 dias" },
+  { id: 6, nome: "Lucas Suporte", email: "lucas@slimquality.com.br", cargo: "Suporte", status: "inativo" as const, ultimoAcesso: "Há 15 dias" },
+  { id: 7, nome: "Juliana Vendedora", email: "juliana@slimquality.com.br", cargo: "Vendedor", status: "ativo" as const, ultimoAcesso: "Há 1 hora" },
+  { id: 8, nome: "Roberto Financeiro", email: "roberto@slimquality.com.br", cargo: "Financeiro", status: "ativo" as const, ultimoAcesso: "Há 30 minutos" },
+];
