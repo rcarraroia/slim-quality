@@ -20,36 +20,36 @@ interface Recebimento {
 }
 
 const mockRecebimentos: Recebimento[] = [
-  { id: 1, data: "12/Out 14:23", descricao: "Comissão venda #1047", origem: "Maria Silva", nivel: "N1", valor: 429.00, status: "depositado" },
-  { id: 2, data: "11/Out 10:15", descricao: "Comissão venda #1046", origem: "João Costa", nivel: "N2", valor: 184.50, status: "depositado" },
-  { id: 3, data: "10/Out 16:40", descricao: "Comissão venda #1045", origem: "Fernanda Lima", nivel: "N1", valor: 489.00, status: "processando" },
-  { id: 4, data: "09/Out 09:30", descricao: "Comissão venda #1044", origem: "Roberto Santos", nivel: "N3", valor: 59.80, status: "depositado" },
-  { id: 5, data: "08/Out 15:55", descricao: "Comissão venda #1043", origem: "Ana Costa", nivel: "N1", valor: 369.00, status: "depositado" },
-  { id: 6, data: "07/Out 18:12", descricao: "Comissão venda #1042", origem: "Paula Souza", nivel: "N2", valor: 245.00, status: "depositado" },
-  { id: 7, data: "06/Out 11:45", descricao: "Comissão venda #1041", origem: "André Lima", nivel: "N1", valor: 489.00, status: "depositado" },
-  { id: 8, data: "05/Out 14:20", descricao: "Comissão venda #1040", origem: "Carla Mendes", nivel: "N2", valor: 184.50, status: "depositado" },
-  { id: 9, data: "04/Out 09:55", descricao: "Comissão venda #1039", origem: "Lucas Silva", nivel: "N1", valor: 429.00, status: "depositado" },
-  { id: 10, data: "03/Out 16:00", descricao: "Comissão venda #1038", origem: "Pedro Rocha", nivel: "N1", valor: 369.00, status: "depositado" },
-  { id: 11, data: "02/Out 12:30", descricao: "Comissão venda #1037", origem: "Mariana Alves", nivel: "N3", valor: 97.80, status: "depositado" },
-  { id: 12, data: "01/Out 08:00", descricao: "Comissão venda #1036", origem: "Gustavo Lima", nivel: "N1", valor: 489.00, status: "depositado" },
-  { id: 13, data: "28/Set 17:00", descricao: "Comissão venda #1035", origem: "Helena Costa", nivel: "N2", valor: 184.50, status: "depositado" },
-  { id: 14, data: "27/Set 10:00", descricao: "Comissão venda #1034", origem: "Felipe Santos", nivel: "N1", valor: 429.00, status: "depositado" },
-  { id: 15, data: "26/Set 14:00", descricao: "Comissão venda #1033", origem: "Leticia Souza", nivel: "N1", valor: 369.00, status: "depositado" },
-  { id: 16, data: "25/Set 09:00", descricao: "Comissão venda #1032", origem: "Ricardo Alves", nivel: "N2", valor: 245.00, status: "depositado" },
-  { id: 17, data: "24/Set 16:00", descricao: "Comissão venda #1031", origem: "Patrícia Mendes", nivel: "N1", valor: 489.00, status: "depositado" },
-  { id: 18, data: "23/Set 11:00", descricao: "Comissão venda #1030", origem: "Bruno Rocha", nivel: "N3", valor: 59.80, status: "depositado" },
-  { id: 19, data: "22/Set 15:00", descricao: "Comissão venda #1029", origem: "Camila Lima", nivel: "N1", valor: 429.00, status: "depositado" },
-  { id: 20, data: "21/Set 10:00", descricao: "Comissão venda #1028", origem: "Daniel Costa", nivel: "N2", valor: 184.50, status: "depositado" },
-  { id: 21, data: "20/Set 14:00", descricao: "Comissão venda #1027", origem: "Elisa Santos", nivel: "N1", valor: 369.00, status: "depositado" },
-  { id: 22, data: "19/Set 09:00", descricao: "Comissão venda #1026", origem: "Gabriel Oliveira", nivel: "N1", valor: 489.00, status: "depositado" },
-  { id: 23, data: "18/Set 16:00", descricao: "Comissão venda #1025", origem: "Isabela Pereira", nivel: "N2", valor: 245.00, status: "depositado" },
-  { id: 24, data: "17/Set 11:00", descricao: "Comissão venda #1024", origem: "João Victor", nivel: "N1", valor: 429.00, status: "depositado" },
-  { id: 25, data: "16/Set 15:00", descricao: "Comissão venda #1023", origem: "Laura Mendes", nivel: "N3", valor: 97.80, status: "depositado" },
-  { id: 26, data: "15/Set 10:00", descricao: "Comissão venda #1022", origem: "Marcelo Silva", nivel: "N1", valor: 369.00, status: "depositado" },
-  { id: 27, data: "14/Set 14:00", descricao: "Comissão venda #1021", origem: "Natália Rocha", nivel: "N2", valor: 184.50, status: "depositado" },
-  { id: 28, data: "13/Set 09:00", descricao: "Comissão venda #1020", origem: "Otávio Lima", nivel: "N1", valor: 489.00, status: "depositado" },
-  { id: 29, data: "12/Set 16:00", descricao: "Comissão venda #1019", origem: "Priscila Costa", nivel: "N1", valor: 429.00, status: "aguardando" },
-  { id: 30, data: "11/Set 11:00", descricao: "Comissão venda #1018", origem: "Quiteria Santos", nivel: "N2", valor: 245.00, status: "depositado" },
+  { id: 1, data: "12/Out 14:23", descricao: "Comissão venda #1047", origem: "Maria Silva", nivel: "N1", valor: 523.50, status: "depositado" }, // Atualizado
+  { id: 2, data: "11/Out 10:15", descricao: "Comissão venda #1046", origem: "João Costa", nivel: "N2", valor: 98.70, status: "depositado" }, // Atualizado
+  { id: 3, data: "10/Out 16:40", descricao: "Comissão venda #1045", origem: "Fernanda Lima", nivel: "N1", valor: 733.50, status: "processando" }, // Atualizado
+  { id: 4, data: "09/Out 09:30", descricao: "Comissão venda #1044", origem: "Roberto Santos", nivel: "N3", valor: 63.80, status: "depositado" }, // Atualizado
+  { id: 5, data: "08/Out 15:55", descricao: "Comissão venda #1043", origem: "Ana Costa", nivel: "N1", valor: 493.50, status: "depositado" }, // Atualizado
+  { id: 6, data: "07/Out 18:12", descricao: "Comissão venda #1042", origem: "Paula Souza", nivel: "N2", valor: 98.70, status: "depositado" }, // Atualizado
+  { id: 7, data: "06/Out 11:45", descricao: "Comissão venda #1041", origem: "André Lima", nivel: "N1", valor: 523.50, status: "depositado" }, // Atualizado
+  { id: 8, data: "05/Out 14:20", descricao: "Comissão venda #1040", origem: "Carla Mendes", nivel: "N2", valor: 98.70, status: "depositado" }, // Atualizado
+  { id: 9, data: "04/Out 09:55", descricao: "Comissão venda #1039", origem: "Lucas Silva", nivel: "N1", valor: 523.50, status: "depositado" }, // Atualizado
+  { id: 10, data: "03/Out 16:00", descricao: "Comissão venda #1038", origem: "Pedro Rocha", nivel: "N1", valor: 493.50, status: "depositado" }, // Atualizado
+  { id: 11, data: "02/Out 12:30", descricao: "Comissão venda #1037", origem: "Mariana Alves", nivel: "N3", valor: 97.80, status: "depositado" }, // King 2%
+  { id: 12, data: "01/Out 08:00", descricao: "Comissão venda #1036", origem: "Gustavo Lima", nivel: "N1", valor: 733.50, status: "depositado" }, // King 15%
+  { id: 13, data: "28/Set 17:00", descricao: "Comissão venda #1035", origem: "Helena Costa", nivel: "N2", valor: 104.70, status: "depositado" }, // Queen 3%
+  { id: 14, data: "27/Set 10:00", descricao: "Comissão venda #1034", origem: "Felipe Santos", nivel: "N1", valor: 523.50, status: "depositado" }, // Queen 15%
+  { id: 15, data: "26/Set 14:00", descricao: "Comissão venda #1033", origem: "Leticia Souza", nivel: "N1", valor: 493.50, status: "depositado" }, // Padrão 15%
+  { id: 16, data: "25/Set 09:00", descricao: "Comissão venda #1032", origem: "Ricardo Alves", nivel: "N2", valor: 98.70, status: "depositado" }, // Padrão 3%
+  { id: 17, data: "24/Set 16:00", descricao: "Comissão venda #1031", origem: "Patrícia Mendes", nivel: "N1", valor: 733.50, status: "depositado" }, // King 15%
+  { id: 18, data: "23/Set 11:00", descricao: "Comissão venda #1030", origem: "Bruno Rocha", nivel: "N3", valor: 63.80, status: "depositado" }, // Solteiro 2%
+  { id: 19, data: "22/Set 15:00", descricao: "Comissão venda #1029", origem: "Camila Lima", nivel: "N1", valor: 523.50, status: "depositado" }, // Queen 15%
+  { id: 20, data: "21/Set 10:00", descricao: "Comissão venda #1028", origem: "Daniel Costa", nivel: "N2", valor: 98.70, status: "depositado" }, // Padrão 3%
+  { id: 21, data: "20/Set 14:00", descricao: "Comissão venda #1027", origem: "Elisa Santos", nivel: "N1", valor: 478.50, status: "depositado" }, // Solteiro 15%
+  { id: 22, data: "19/Set 09:00", descricao: "Comissão venda #1026", origem: "Gabriel Oliveira", nivel: "N1", valor: 733.50, status: "depositado" }, // King 15%
+  { id: 23, data: "18/Set 16:00", descricao: "Comissão venda #1025", origem: "Isabela Pereira", nivel: "N2", valor: 104.70, status: "depositado" }, // Queen 3%
+  { id: 24, data: "17/Set 11:00", descricao: "Comissão venda #1024", origem: "João Victor", nivel: "N1", valor: 523.50, status: "depositado" }, // Queen 15%
+  { id: 25, data: "16/Set 15:00", descricao: "Comissão venda #1023", origem: "Laura Mendes", nivel: "N3", valor: 97.80, status: "depositado" }, // King 2%
+  { id: 26, data: "15/Set 10:00", descricao: "Comissão venda #1022", origem: "Marcelo Silva", nivel: "N1", valor: 493.50, status: "depositado" }, // Padrão 15%
+  { id: 27, data: "14/Set 14:00", descricao: "Comissão venda #1021", origem: "Natália Rocha", nivel: "N2", valor: 98.70, status: "depositado" }, // Padrão 3%
+  { id: 28, data: "13/Set 09:00", descricao: "Comissão venda #1020", origem: "Otávio Lima", nivel: "N1", valor: 733.50, status: "depositado" }, // King 15%
+  { id: 29, data: "12/Set 16:00", descricao: "Comissão venda #1019", origem: "Priscila Costa", nivel: "N1", valor: 523.50, status: "aguardando" }, // Queen 15%
+  { id: 30, data: "11/Set 11:00", descricao: "Comissão venda #1018", origem: "Quiteria Santos", nivel: "N2", valor: 104.70, status: "depositado" }, // Queen 3%
 ];
 
 const statusMap: Record<Recebimento['status'], { label: string; status: any }> = {
@@ -61,13 +61,14 @@ const statusMap: Record<Recebimento['status'], { label: string; status: any }> =
 export default function AffiliateDashboardRecebimentos() {
   const [periodo, setPeriodo] = useState("mes-atual");
 
-  const totalRecebidoOutubro = 892.00;
-  const ultimoRecebimento = 429.00;
-  const totalProcessando = mockRecebimentos.filter(r => r.status === 'processando').reduce((sum, r) => sum + r.valor, 0);
-  const totalLifetime = 12450.00;
-  const mediaMensal = 1037.50;
-  const maiorRecebimento = 1340.00;
-  const menorRecebimento = 420.00;
+  // Recalculando valores de Outubro (mock)
+  const totalRecebidoOutubro = mockRecebimentos.filter(r => r.data.includes('Out') && r.status === 'depositado').reduce((sum, r) => sum + r.valor, 0); // 523.50 + 98.70 + 63.80 + 493.50 + 98.70 + 523.50 + 493.50 + 97.80 = 2393.00
+  const ultimoRecebimento = 523.50; // Atualizado
+  const totalProcessando = mockRecebimentos.filter(r => r.status === 'processando').reduce((sum, r) => sum + r.valor, 0); // 733.50
+  const totalLifetime = 12450.00; // Mantido mockado
+  const mediaMensal = 1037.50; // Mantido mockado
+  const maiorRecebimento = 1340.00; // Mantido mockado
+  const menorRecebimento = 420.00; // Mantido mockado
 
   const filteredRecebimentos = mockRecebimentos.filter(r => {
     // Lógica de filtro simplificada para o mock

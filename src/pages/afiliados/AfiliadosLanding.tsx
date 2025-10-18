@@ -17,14 +17,19 @@ import {
 export default function AfiliadosLanding() {
   const [nivel1, setNivel1] = useState([10]);
   const [nivel2, setNivel2] = useState([5]);
-  const [nivel3, setNivel3] = useState([3]);
+  const [nivel3, setNivel3] = useState([15]); // Aumentei o mock para N3 para refletir o exemplo
 
-  const ticketMedio = 3973;
+  // Ticket médio = (3190 + 3290 + 3490 + 4890) / 4 = 3715
+  const ticketMedio = 3715;
   
   const calcularGanhos = () => {
-    const n1 = nivel1[0] * ticketMedio * 0.10;
-    const n2 = nivel2[0] * ticketMedio * 0.05;
+    // N1: 15%
+    const n1 = nivel1[0] * ticketMedio * 0.15;
+    // N2: 3%
+    const n2 = nivel2[0] * ticketMedio * 0.03;
+    // N3: 2%
     const n3 = nivel3[0] * ticketMedio * 0.02;
+    
     return {
       mensal: n1 + n2 + n3,
       anual: (n1 + n2 + n3) * 12,
@@ -42,7 +47,7 @@ export default function AfiliadosLanding() {
           <div className="grid gap-12 lg:grid-cols-2 lg:gap-8 items-center">
             <div className="space-y-8">
               <div className="inline-block rounded-full bg-primary/10 px-4 py-1.5 text-sm font-medium text-primary">
-                💰 Ganhe até 10% por venda
+                💰 Ganhe até 15% por venda
               </div>
               
               <h1 className="text-5xl font-bold leading-tight lg:text-6xl">
@@ -73,7 +78,7 @@ export default function AfiliadosLanding() {
 
               <div className="flex gap-8 pt-4">
                 <div>
-                  <p className="text-3xl font-bold text-primary">10%</p>
+                  <p className="text-3xl font-bold text-primary">15%</p>
                   <p className="text-sm text-muted-foreground">Comissão Direta</p>
                 </div>
                 <div>
@@ -81,7 +86,7 @@ export default function AfiliadosLanding() {
                   <p className="text-sm text-muted-foreground">De Ganhos</p>
                 </div>
                 <div>
-                  <p className="text-3xl font-bold text-primary">R$ 12k+</p>
+                  <p className="text-3xl font-bold text-primary">R$ 7.8k+</p>
                   <p className="text-sm text-muted-foreground">Média Mensal</p>
                 </div>
               </div>
@@ -196,18 +201,18 @@ export default function AfiliadosLanding() {
             <Card className="border-2 border-primary shadow-lg">
               <CardContent className="p-8 text-center space-y-4">
                 <div className="flex items-center justify-center w-20 h-20 mx-auto rounded-full bg-primary text-primary-foreground text-3xl font-bold">
-                  10%
+                  15%
                 </div>
                 <h3 className="text-2xl font-bold">Nível 1 (Direto)</h3>
                 <p className="text-muted-foreground">
                   Suas indicações diretas
                 </p>
                 <div className="pt-4 border-t">
-                  <p className="text-sm text-muted-foreground">Exemplo:</p>
+                  <p className="text-sm text-muted-foreground">Exemplo (Venda Padrão R$ 3.290):</p>
                   <p className="text-lg font-semibold text-primary">
-                    R$ 429,00
+                    R$ 493,50
                   </p>
-                  <p className="text-xs text-muted-foreground">por venda Queen</p>
+                  <p className="text-xs text-muted-foreground">por venda</p>
                 </div>
               </CardContent>
             </Card>
@@ -215,18 +220,18 @@ export default function AfiliadosLanding() {
             <Card className="border-2 border-secondary shadow-lg">
               <CardContent className="p-8 text-center space-y-4">
                 <div className="flex items-center justify-center w-20 h-20 mx-auto rounded-full bg-secondary text-secondary-foreground text-3xl font-bold">
-                  5%
+                  3%
                 </div>
                 <h3 className="text-2xl font-bold">Nível 2</h3>
                 <p className="text-muted-foreground">
                   Indicados dos seus indicados
                 </p>
                 <div className="pt-4 border-t">
-                  <p className="text-sm text-muted-foreground">Exemplo:</p>
+                  <p className="text-sm text-muted-foreground">Exemplo (Venda Queen R$ 3.490):</p>
                   <p className="text-lg font-semibold text-secondary">
-                    R$ 184,50
+                    R$ 104,70
                   </p>
-                  <p className="text-xs text-muted-foreground">por venda Casal</p>
+                  <p className="text-xs text-muted-foreground">por venda</p>
                 </div>
               </CardContent>
             </Card>
@@ -241,11 +246,11 @@ export default function AfiliadosLanding() {
                   Terceiro nível da sua rede
                 </p>
                 <div className="pt-4 border-t">
-                  <p className="text-sm text-muted-foreground">Exemplo:</p>
+                  <p className="text-sm text-muted-foreground">Exemplo (Venda King R$ 4.890):</p>
                   <p className="text-lg font-semibold">
                     R$ 97,80
                   </p>
-                  <p className="text-xs text-muted-foreground">por venda King</p>
+                  <p className="text-xs text-muted-foreground">por venda</p>
                 </div>
               </CardContent>
             </Card>
@@ -259,7 +264,7 @@ export default function AfiliadosLanding() {
           <div className="text-center mb-16">
             <h2 className="text-4xl font-bold mb-4">Simule Seus Ganhos</h2>
             <p className="text-xl text-muted-foreground">
-              Veja quanto você pode ganhar mensalmente
+              Veja quanto você pode ganhar mensalmente (Ticket Médio R$ 3.715)
             </p>
           </div>
 
@@ -270,7 +275,7 @@ export default function AfiliadosLanding() {
                   <div>
                     <div className="flex items-center justify-between mb-3">
                       <label className="text-sm font-medium">
-                        Vendas Diretas (N1) - 10%
+                        Vendas Diretas (N1) - 15%
                       </label>
                       <span className="text-2xl font-bold text-primary">
                         {nivel1[0]}
@@ -288,7 +293,7 @@ export default function AfiliadosLanding() {
                   <div>
                     <div className="flex items-center justify-between mb-3">
                       <label className="text-sm font-medium">
-                        Vendas Nível 2 - 5%
+                        Vendas Nível 2 - 3%
                       </label>
                       <span className="text-2xl font-bold text-secondary">
                         {nivel2[0]}
@@ -334,19 +339,19 @@ export default function AfiliadosLanding() {
 
                   <div className="space-y-3 pt-4 border-t">
                     <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Nível 1:</span>
+                      <span className="text-muted-foreground">Nível 1 (15%):</span>
                       <span className="font-semibold">
                         R$ {ganhos.breakdown.n1.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                       </span>
                     </div>
                     <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Nível 2:</span>
+                      <span className="text-muted-foreground">Nível 2 (3%):</span>
                       <span className="font-semibold">
                         R$ {ganhos.breakdown.n2.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                       </span>
                     </div>
                     <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Nível 3:</span>
+                      <span className="text-muted-foreground">Nível 3 (2%):</span>
                       <span className="font-semibold">
                         R$ {ganhos.breakdown.n3.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                       </span>
@@ -380,7 +385,7 @@ export default function AfiliadosLanding() {
               {
                 icon: DollarSign,
                 title: "Comissões Generosas",
-                description: "Até 10% de comissão em vendas diretas, muito acima da média do mercado"
+                description: "Até 15% de comissão em vendas diretas, muito acima da média do mercado"
               },
               {
                 icon: Users,

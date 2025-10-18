@@ -13,17 +13,17 @@ const ProductPage = () => {
       id: "solteiro",
       name: "Solteiro",
       dimensions: "88x188x28cm",
-      pricePerDay: "7",
+      pricePerDay: "7,30", // Atualizado
       comparison: "Menos que um café com pão de queijo",
       ideal: "Moradores de apartamentos compactos, quartos de solteiro",
       weight: "35kg",
       badge: null,
     },
     {
-      id: "casal-padrao",
-      name: "Casal Padrão",
+      id: "padrao", // Atualizado
+      name: "Padrão", // Atualizado
       dimensions: "138x188x28cm",
-      pricePerDay: "8,50",
+      pricePerDay: "7,54", // Atualizado
       comparison: "Menos que uma pizza delivery",
       ideal: "Casais em quartos padrão, máximo custo-benefício",
       weight: "45kg",
@@ -33,7 +33,7 @@ const ProductPage = () => {
       id: "queen",
       name: "Queen",
       dimensions: "158x198x28cm",
-      pricePerDay: "9,80",
+      pricePerDay: "8,00", // Atualizado
       comparison: "Menos que um combo de fast food",
       ideal: "Casais que valorizam mais espaço para dormir confortavelmente",
       weight: "52kg",

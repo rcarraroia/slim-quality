@@ -25,10 +25,10 @@ export const mockConversas = [
     id: 3,
     nome: "Ana Costa",
     avatar: "",
-    ultimaMensagem: "Pode enviar o link de pagamento? Quero o modelo Casal com PIX.",
+    ultimaMensagem: "Pode enviar o link de pagamento? Quero o modelo Padrão com PIX.",
     status: "negociando" as const,
     hora: "08:42",
-    tags: ["Modelo Casal", "Pagamento"],
+    tags: ["Modelo Padrão", "Pagamento"],
     problema: "Negociação"
   },
   {
@@ -45,10 +45,10 @@ export const mockConversas = [
     id: 5,
     nome: "Beatriz Lima",
     avatar: "",
-    ultimaMensagem: "Tenho interesse no modelo Casal. Meu marido tem problemas de circulação.",
+    ultimaMensagem: "Tenho interesse no modelo Padrão. Meu marido tem problemas de circulação.",
     status: "ativa" as const,
     hora: "Ontem",
-    tags: ["Modelo Casal", "Circulação"],
+    tags: ["Modelo Padrão", "Circulação"],
     problema: "Má Circulação"
   },
   {
@@ -89,7 +89,7 @@ export const mockVendas = [
     data: "12/Out/25",
     cliente: "Maria Silva",
     produto: "Slim Quality Queen",
-    valor: 4290,
+    valor: 3490, // Novo preço Queen
     pagamento: "12x Cartão",
     status: "pago" as const,
     email: "maria.silva@email.com",
@@ -102,8 +102,8 @@ export const mockVendas = [
     id: 1046,
     data: "12/Out/25",
     cliente: "Roberto Lima",
-    produto: "Slim Quality Casal",
-    valor: 3690,
+    produto: "Slim Quality Padrão", // Renomeado
+    valor: 3290, // Novo preço Padrão
     pagamento: "PIX",
     status: "pendente" as const,
     email: "roberto.lima@email.com",
@@ -131,7 +131,7 @@ export const mockVendas = [
     data: "11/Out/25",
     cliente: "Paulo Santos",
     produto: "Slim Quality Solteiro",
-    valor: 2990,
+    valor: 3190, // Novo preço Solteiro
     pagamento: "À vista",
     status: "pago" as const,
     email: "paulo.santos@email.com",
@@ -145,7 +145,7 @@ export const mockVendas = [
     data: "10/Out/25",
     cliente: "Juliana Rocha",
     produto: "Slim Quality Queen",
-    valor: 4290,
+    valor: 3490, // Novo preço Queen
     pagamento: "10x Cartão",
     status: "enviado" as const,
     email: "juliana.rocha@email.com",
@@ -158,8 +158,8 @@ export const mockVendas = [
     id: 1042,
     data: "10/Out/25",
     cliente: "André Oliveira",
-    produto: "Slim Quality Casal",
-    valor: 3690,
+    produto: "Slim Quality Padrão", // Renomeado
+    valor: 3290, // Novo preço Padrão
     pagamento: "6x Cartão",
     status: "pago" as const,
     email: "andre.oliveira@email.com",
@@ -175,7 +175,7 @@ export const mockProdutos = [
     id: 1,
     nome: "Slim Quality Solteiro",
     dimensoes: { largura: 88, comprimento: 188, altura: 28 },
-    preco: 2990,
+    preco: 3190, // Novo preço
     descricao: "Ideal para moradores de apartamentos compactos e quartos de solteiro",
     estoque: 28,
     vendasMes: 15,
@@ -185,9 +185,9 @@ export const mockProdutos = [
   },
   {
     id: 2,
-    nome: "Slim Quality Casal Padrão",
+    nome: "Slim Quality Padrão", // Renomeado
     dimensoes: { largura: 138, comprimento: 188, altura: 28 },
-    preco: 3690,
+    preco: 3290, // Novo preço
     descricao: "Casais em quartos padrão, máximo custo-benefício",
     estoque: 42,
     vendasMes: 87,
@@ -199,7 +199,7 @@ export const mockProdutos = [
     id: 3,
     nome: "Slim Quality Queen",
     dimensoes: { largura: 158, comprimento: 198, altura: 28 },
-    preco: 4290,
+    preco: 3490, // Novo preço
     descricao: "Casais que valorizam mais espaço para dormir confortavelmente",
     estoque: 31,
     vendasMes: 54,
@@ -243,12 +243,12 @@ export const mockClientes = [
     status: "ativo" as const,
     origem: "Site",
     ultimaCompra: "12/Out/25",
-    ltv: 4290,
+    ltv: 3490, // Atualizado
     cpf: "123.456.789-00",
     dataNascimento: "1985-03-15",
     endereco: "Rua das Flores, 123 - Savassi",
     compras: [
-      { data: "12/Out/25", produto: "Queen", valor: 4290, status: "Entregue" }
+      { data: "12/Out/25", produto: "Queen", valor: 3490, status: "Entregue" }
     ],
     observacoes: "Cliente VIP - gosta de contato via WhatsApp."
   },
@@ -261,13 +261,13 @@ export const mockClientes = [
     status: "ativo" as const,
     origem: "Afiliado",
     ultimaCompra: "10/Out/25",
-    ltv: 7380,
+    ltv: 8180, // 4890 (King) + 3290 (Padrão)
     cpf: "987.654.321-00",
     dataNascimento: "1990-05-20",
     endereco: "Av. Paulista, 1000 - Bela Vista",
     compras: [
       { data: "10/Out/25", produto: "King", valor: 4890, status: "Entregue" },
-      { data: "01/Jan/25", produto: "Solteiro", valor: 2490, status: "Entregue" }
+      { data: "01/Jan/25", produto: "Padrão", valor: 3290, status: "Entregue" } // Atualizado
     ],
     observacoes: "Cliente de recompra. Interesse em upgrade para King."
   },
@@ -280,12 +280,12 @@ export const mockClientes = [
     status: "inativo" as const,
     origem: "WhatsApp",
     ultimaCompra: "15/Ago/25",
-    ltv: 3690,
+    ltv: 3290, // Atualizado
     cpf: "111.222.333-44",
     dataNascimento: "1995-11-01",
     endereco: "Rua Ipanema, 456 - Copacabana",
     compras: [
-      { data: "15/Ago/25", produto: "Casal", valor: 3690, status: "Entregue" }
+      { data: "15/Ago/25", produto: "Padrão", valor: 3290, status: "Entregue" } // Atualizado
     ],
     observacoes: "Sem interação há 60 dias. Enviar oferta de reativação."
   },
@@ -335,7 +335,7 @@ export const mockAgendamentos = [
     data: "2025-10-18",
     hora: "15:30",
     cliente: "Ana Costa",
-    assunto: "Interesse em trocar Casal por Queen",
+    assunto: "Interesse em trocar Padrão por Queen", // Atualizado
     responsavel: "João Admin",
     status: "pendente" as const,
   },

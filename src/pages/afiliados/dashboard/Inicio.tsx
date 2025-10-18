@@ -151,10 +151,10 @@ export default function AffiliateDashboardInicio() {
           <CardContent>
             <div className="space-y-4">
               {[
-                { tipo: "N1", valor: 429.00, cliente: "Maria Silva", produto: "Queen", data: "Hoje, 10:34", status: "pago" },
-                { tipo: "N2", valor: 184.50, cliente: "João Pereira", produto: "Casal", data: "Ontem, 15:20", status: "pago" },
-                { tipo: "N1", valor: 489.00, cliente: "Ana Costa", produto: "King", data: "Há 2 dias", status: "pendente" },
-                { tipo: "N3", valor: 97.80, cliente: "Carlos Santos", produto: "King", data: "Há 3 dias", status: "pago" },
+                { tipo: "N1", valor: 523.50, cliente: "Maria Silva", produto: "Queen", data: "Hoje, 10:34", status: "pago" }, // Atualizado
+                { tipo: "N2", valor: 98.70, cliente: "João Pereira", produto: "Padrão", data: "Ontem, 15:20", status: "pago" }, // Atualizado
+                { tipo: "N1", valor: 733.50, cliente: "Ana Costa", produto: "King", data: "Há 2 dias", status: "pendente" }, // Atualizado
+                { tipo: "N3", valor: 63.80, cliente: "Carlos Santos", produto: "Solteiro", data: "Há 3 dias", status: "pago" }, // Atualizado
               ].map((comissao, i) => (
                 <div key={i} className="flex items-center justify-between p-3 rounded-lg hover:bg-muted transition-colors">
                   <div className="flex items-center gap-3">
@@ -198,7 +198,7 @@ export default function AffiliateDashboardInicio() {
           <CardContent>
             <div className="space-y-4">
               {[
-                { nome: "Marina Silva", acao: "realizou uma venda", produto: "Casal", nivel: "N1", tempo: "Há 2 horas" },
+                { nome: "Marina Silva", acao: "realizou uma venda", produto: "Padrão", nivel: "N1", tempo: "Há 2 horas" }, // Atualizado
                 { nome: "Roberto Costa", acao: "entrou para sua rede", produto: null, nivel: "N2", tempo: "Há 5 horas" },
                 { nome: "Juliana Rocha", acao: "realizou uma venda", produto: "Queen", nivel: "N2", tempo: "Ontem" },
                 { nome: "Paulo Santos", acao: "entrou para sua rede", produto: null, nivel: "N1", tempo: "Há 2 dias" },

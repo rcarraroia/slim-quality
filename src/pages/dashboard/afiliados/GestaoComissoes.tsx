@@ -36,10 +36,10 @@ const mockComissoesAdmin = [
     vendaId: "#1047",
     cliente: "Maria Silva",
     produto: "Slim Quality Queen",
-    valorVenda: 4290.00,
+    valorVenda: 3490.00, // Novo preço Queen
     nivel: 1,
-    percentual: 10,
-    valorComissao: 429.00,
+    percentual: 15,
+    valorComissao: 523.50, // 15% de 3490
     status: "paga" as const,
     dataCriacao: "12/Out/25",
     dataPagamento: "15/Out/25",
@@ -50,11 +50,11 @@ const mockComissoesAdmin = [
     afiliadoNome: "Juliana Santos",
     vendaId: "#1048",
     cliente: "Roberto Lima",
-    produto: "Slim Quality Casal",
-    valorVenda: 3690.00,
+    produto: "Slim Quality Padrão", // Renomeado
+    valorVenda: 3290.00, // Novo preço Padrão
     nivel: 1,
-    percentual: 10,
-    valorComissao: 369.00,
+    percentual: 15,
+    valorComissao: 493.50, // 15% de 3290
     status: "pendente" as const,
     dataCriacao: "12/Out/25",
     dataPagamento: null,
@@ -68,8 +68,8 @@ const mockComissoesAdmin = [
     produto: "Slim Quality King",
     valorVenda: 4890.00,
     nivel: 2,
-    percentual: 5,
-    valorComissao: 244.50,
+    percentual: 3,
+    valorComissao: 146.70, // 3% de 4890
     status: "paga" as const,
     dataCriacao: "11/Out/25",
     dataPagamento: "15/Out/25",
@@ -81,10 +81,10 @@ const mockComissoesAdmin = [
     vendaId: "#1050",
     cliente: "Paulo Santos",
     produto: "Slim Quality Solteiro",
-    valorVenda: 2990.00,
+    valorVenda: 3190.00, // Novo preço Solteiro
     nivel: 1,
-    percentual: 10,
-    valorComissao: 299.00,
+    percentual: 15,
+    valorComissao: 478.50, // 15% de 3190
     status: "aprovada" as const,
     dataCriacao: "11/Out/25",
     dataPagamento: null,
@@ -96,10 +96,10 @@ const mockComissoesAdmin = [
     vendaId: "#1051",
     cliente: "Juliana Rocha",
     produto: "Slim Quality Queen",
-    valorVenda: 4290.00,
+    valorVenda: 3490.00, // Novo preço Queen
     nivel: 1,
-    percentual: 10,
-    valorComissao: 429.00,
+    percentual: 15,
+    valorComissao: 523.50, // 15% de 3490
     status: "pendente" as const,
     dataCriacao: "10/Out/25",
     dataPagamento: null,
@@ -110,11 +110,11 @@ const mockComissoesAdmin = [
     afiliadoNome: "Amanda Silva",
     vendaId: "#1052",
     cliente: "André Oliveira",
-    produto: "Slim Quality Casal",
-    valorVenda: 3690.00,
+    produto: "Slim Quality Padrão", // Renomeado
+    valorVenda: 3290.00, // Novo preço Padrão
     nivel: 3,
     percentual: 2,
-    valorComissao: 73.80,
+    valorComissao: 65.80, // 2% de 3290
     status: "cancelada" as const,
     dataCriacao: "09/Out/25",
     dataPagamento: null,
@@ -126,10 +126,10 @@ const mockComissoesAdmin = [
     vendaId: "#1053",
     cliente: "Beatriz Lima",
     produto: "Slim Quality Queen",
-    valorVenda: 4290.00,
+    valorVenda: 3490.00, // Novo preço Queen
     nivel: 1,
-    percentual: 10,
-    valorComissao: 429.00,
+    percentual: 15,
+    valorComissao: 523.50, // 15% de 3490
     status: "paga" as const,
     dataCriacao: "08/Out/25",
     dataPagamento: "12/Out/25",
@@ -251,8 +251,8 @@ export default function GestaoComissoes() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="todos">Todos os Níveis</SelectItem>
-              <SelectItem value="1">Nível 1 (10%)</SelectItem>
-              <SelectItem value="2">Nível 2 (5%)</SelectItem>
+              <SelectItem value="1">Nível 1 (15%)</SelectItem>
+              <SelectItem value="2">Nível 2 (3%)</SelectItem>
               <SelectItem value="3">Nível 3 (2%)</SelectItem>
             </SelectContent>
           </Select>

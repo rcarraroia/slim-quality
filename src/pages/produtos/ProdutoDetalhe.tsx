@@ -5,9 +5,9 @@ import { CheckCircle } from "lucide-react";
 import { WhatsAppButton } from "@/components/shared/WhatsAppButton";
 
 const productDetails = {
-  solteiro: { name: "Solteiro", price: "2.990", features: ["8 Tecnologias", "15 Anos de Garantia", "Ideal para 1 pessoa"] },
-  casal: { name: "Casal Padrão", price: "3.690", features: ["8 Tecnologias", "15 Anos de Garantia", "Mais Vendido"] },
-  queen: { name: "Queen", price: "4.290", features: ["8 Tecnologias", "15 Anos de Garantia", "Máximo Conforto"] },
+  solteiro: { name: "Solteiro", price: "3.190", features: ["8 Tecnologias", "15 Anos de Garantia", "Ideal para 1 pessoa"] },
+  "padrao": { name: "Padrão", price: "3.290", features: ["8 Tecnologias", "15 Anos de Garantia", "Mais Vendido"] }, // Renomeado
+  queen: { name: "Queen", price: "3.490", features: ["8 Tecnologias", "15 Anos de Garantia", "Máximo Conforto"] },
   king: { name: "King", price: "4.890", features: ["8 Tecnologias", "15 Anos de Garantia", "Luxo e Espaço"] },
 };
 

@@ -40,7 +40,7 @@ const cargoColors: Record<string, string> = {
 type UserData = typeof mockUsers[0];
 
 export default function Configuracoes() {
-  const [activeTab, setActiveTab] = useState('usuarios'); // Definindo 'usuarios' como padrão para teste
+  const [activeTab, setActiveTab] = useState('pagamentos'); // Mantendo em pagamentos para visualização
   const { toast } = useToast();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<UserData | null>(null);
@@ -282,11 +282,14 @@ export default function Configuracoes() {
               </div>
               <Separator />
               <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2"><Label>Nível 1 (Direto)</Label><Input defaultValue="10%" /></div>
-                <div className="space-y-2"><Label>Nível 2</Label><Input defaultValue="5%" /></div>
+                <div className="space-y-2"><Label>Nível 1 (Direto)</Label><Input defaultValue="15%" /></div>
+                <div className="space-y-2"><Label>Nível 2</Label><Input defaultValue="3%" /></div>
                 <div className="space-y-2"><Label>Nível 3</Label><Input defaultValue="2%" /></div>
-                <div className="space-y-2"><Label>Taxa Plataforma</Label><Input defaultValue="3%" /></div>
+                <div className="space-y-2"><Label>Taxa Plataforma (Renum + JB)</Label><Input defaultValue="10%" /></div>
               </div>
+              <p className="text-sm text-muted-foreground">
+                A soma das comissões de N1, N2, N3 e Taxa Plataforma deve ser igual a 30% do valor total da venda.
+              </p>
             </Card>
             <Button onClick={() => handleSave('Pagamentos')}>Salvar Configurações</Button>
           </div>

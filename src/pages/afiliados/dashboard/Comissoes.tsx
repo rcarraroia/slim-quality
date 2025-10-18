@@ -39,7 +39,7 @@ const mockComissoes: Comissao[] = [
   {
     id: "C001",
     tipo: "N1",
-    valor: 429.00,
+    valor: 523.50, // 15% de 3490 (Queen)
     venda: "#1047",
     cliente: "Maria Silva",
     produto: "Slim Quality Queen",
@@ -49,17 +49,17 @@ const mockComissoes: Comissao[] = [
   {
     id: "C002",
     tipo: "N2",
-    valor: 184.50,
+    valor: 98.70, // 3% de 3290 (Padrão)
     venda: "#1046",
     cliente: "Roberto Lima",
-    produto: "Slim Quality Casal",
+    produto: "Slim Quality Padrão",
     data: "2024-10-11",
     status: "pago"
   },
   {
     id: "C003",
     tipo: "N1",
-    valor: 489.00,
+    valor: 733.50, // 15% de 4890 (King)
     venda: "#1045",
     cliente: "Fernanda Costa",
     produto: "Slim Quality King",
@@ -69,20 +69,20 @@ const mockComissoes: Comissao[] = [
   {
     id: "C004",
     tipo: "N3",
-    valor: 97.80,
+    valor: 63.80, // 2% de 3190 (Solteiro)
     venda: "#1044",
     cliente: "Paulo Santos",
-    produto: "Slim Quality King",
+    produto: "Slim Quality Solteiro",
     data: "2024-10-09",
     status: "pago"
   },
   {
     id: "C005",
     tipo: "N1",
-    valor: 369.00,
+    valor: 493.50, // 15% de 3290 (Padrão)
     venda: "#1043",
     cliente: "Juliana Rocha",
-    produto: "Slim Quality Casal",
+    produto: "Slim Quality Padrão",
     data: "2024-10-08",
     status: "processando"
   }
