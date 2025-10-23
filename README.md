@@ -1,73 +1,239 @@
-# Welcome to your Lovable project
+# 🛏️ Slim Quality - Sistema de Vendas e Afiliados
 
-## Project info
+Sistema completo de e-commerce de colchões magnéticos terapêuticos com programa de afiliados multinível.
 
-**URL**: https://lovable.dev/projects/8889ffaf-97e0-4bb3-99da-1933727a3973
+## 📋 Sobre o Projeto
 
-## How can I edit this code?
+Slim Quality é uma plataforma de vendas consultivas de colchões magnéticos terapêuticos, com foco em resolver problemas de saúde através de tecnologia avançada. O sistema inclui:
 
-There are several ways of editing your application.
+- **E-commerce consultivo** (não transacional)
+- **Sistema de afiliados multinível** (3 níveis)
+- **Split automático de comissões** via Asaas
+- **Integração com BIA** (assistente IA via N8N)
+- **Dashboard para afiliados**
 
-**Use Lovable**
+## 🏗️ Arquitetura
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/8889ffaf-97e0-4bb3-99da-1933727a3973) and start prompting.
+- **Backend:** Node.js 18+ + TypeScript 5.x + Express 4.x
+- **Database:** PostgreSQL 15.x (via Supabase)
+- **Pagamentos:** Asaas (PIX + Cartão)
+- **Automação:** N8N
+- **Mensageria:** WhatsApp Business API
 
-Changes made via Lovable will be committed automatically to this repo.
+## 🚀 Como Começar
 
-**Use your preferred IDE**
+### Pré-requisitos
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+- Node.js 18.x ou superior
+- npm 9.x ou superior
+- Supabase CLI instalado e configurado
+- Conta no Supabase
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+### Instalação
 
-Follow these steps:
+1. **Clone o repositório**
+```bash
+git clone [url-do-repositorio]
+cd slim-quality
+```
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+2. **Instale as dependências**
+```bash
+npm install
+```
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+3. **Configure as variáveis de ambiente**
+```bash
+# Copie o template
+cp .env.example .env
 
-# Step 3: Install the necessary dependencies.
-npm i
+# Edite o .env com suas credenciais
+# Consulte docs/SUPABASE_CREDENTIALS.md para obter as credenciais
+```
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
+4. **Aplique as migrations**
+```bash
+npm run db:push
+```
+
+5. **Inicie o servidor de desenvolvimento**
+```bash
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+O servidor estará rodando em `http://localhost:3000`
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+## 📝 Scripts Disponíveis
 
-**Use GitHub Codespaces**
+```bash
+# Desenvolvimento
+npm run dev              # Inicia servidor com hot-reload
+npm run build            # Compila TypeScript para JavaScript
+npm run start            # Executa versão compilada
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+# Qualidade de Código
+npm run lint             # Verifica código com ESLint
+npm run lint:fix         # Corrige problemas do ESLint automaticamente
+npm run format           # Formata código com Prettier
+npm run format:check     # Verifica formatação sem modificar
+npm run type-check       # Verifica tipos TypeScript
 
-## What technologies are used for this project?
+# Testes
+npm test                 # Executa testes
+npm run test:coverage    # Executa testes com cobertura
 
-This project is built with:
+# Banco de Dados
+npm run db:push          # Aplica migrations
+npm run db:reset         # Reseta banco de dados
+npm run db:dump          # Exporta schema do banco
+```
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+## 📁 Estrutura do Projeto
 
-## How can I deploy this project?
+```
+slim-quality-backend/
+├── src/
+│   ├── api/              # Rotas, controllers, middlewares
+│   ├── services/         # Lógica de negócio
+│   ├── types/            # Tipos TypeScript
+│   ├── utils/            # Utilitários (logger, etc)
+│   ├── config/           # Configurações
+│   └── server.ts         # Ponto de entrada
+├── supabase/
+│   ├── migrations/       # Migrations SQL
+│   └── functions/        # Edge Functions
+├── tests/                # Testes
+├── docs/                 # Documentação
+└── .kiro/                # Specs e steering files
+```
 
-Simply open [Lovable](https://lovable.dev/projects/8889ffaf-97e0-4bb3-99da-1933727a3973) and click on Share -> Publish.
+## 📁 Estrutura do Projeto
 
-## Can I connect a custom domain to my Lovable project?
+```
+slim-quality/
+├── .kiro/
+│   └── steering/          # Documentação de contexto para Kiro AI
+│       ├── product.md     # Regras de negócio
+│       ├── structure.md   # Arquitetura técnica
+│       └── tech.md        # Stack e padrões
+├── docs/
+│   └── SUPABASE_ACCESS.md # Guia de acesso ao banco
+├── src/
+│   ├── components/        # Componentes React
+│   ├── pages/            # Páginas da aplicação
+│   ├── layouts/          # Layouts
+│   ├── hooks/            # Custom hooks
+│   ├── lib/              # Bibliotecas e utilitários
+│   └── data/             # Dados estáticos
+├── public/               # Assets públicos
+└── .env.example          # Template de variáveis de ambiente
+```
 
-Yes, you can!
+## 🚀 Como Começar
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+### 1. Clonar o Repositório
+```bash
+git clone [url-do-repositorio]
+cd slim-quality
+```
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+### 2. Instalar Dependências
+```bash
+npm install
+```
+
+### 3. Configurar Variáveis de Ambiente
+```bash
+# Copiar template
+cp .env.example .env
+
+# Editar .env com suas credenciais
+# Consulte docs/SUPABASE_ACCESS.md para obter as credenciais
+```
+
+### 4. Executar em Desenvolvimento
+```bash
+npm run dev
+```
+
+## 📚 Documentação
+
+### Steering Files (Contexto do Projeto)
+
+Os arquivos em `.kiro/steering/` contêm toda a documentação de contexto do projeto:
+
+- **product.md** - Regras de negócio, sistema de comissões, fluxos de venda
+- **structure.md** - Arquitetura do sistema, banco de dados, fluxos críticos
+- **tech.md** - Stack técnica, padrões de código, boas práticas
+
+### Guias Técnicos
+
+- **docs/SUPABASE_ACCESS.md** - Como configurar e acessar o Supabase
+
+## 💰 Sistema de Comissões
+
+O sistema implementa split automático de 30% do valor da venda:
+
+- **15%** → Afiliado N1 (vendedor direto)
+- **3%** → Afiliado N2 (indicado do N1)
+- **2%** → Afiliado N3 (indicado do N2)
+- **5%** → Renum (gestor)
+- **5%** → JB (gestor)
+
+**Redistribuição:** Quando não há rede completa, os percentuais não utilizados são redistribuídos para os gestores.
+
+## 🛏️ Produtos
+
+| Modelo | Dimensões | Preço |
+|--------|-----------|-------|
+| Solteiro | 88x188x28cm | R$ 3.190,00 |
+| Padrão | 138x188x28cm | R$ 3.290,00 |
+| Queen | 158x198x30cm | R$ 3.490,00 |
+| King | 193x203x30cm | R$ 4.890,00 |
+
+## 🔐 Segurança
+
+- **RLS (Row Level Security)** ativo em todas as tabelas
+- **Validação de entrada** com Zod
+- **Rate limiting** em endpoints críticos
+- **Credenciais** nunca commitadas (ver .gitignore)
+
+## 🧪 Testes
+
+```bash
+# Executar testes
+npm run test
+
+# Testes com cobertura
+npm run test:coverage
+```
+
+## 📦 Build
+
+```bash
+# Build para produção
+npm run build
+
+# Preview do build
+npm run preview
+```
+
+## 🤝 Contribuindo
+
+1. Consulte os steering files antes de fazer alterações
+2. Siga os padrões definidos em `tech.md`
+3. Execute testes antes de commitar
+4. Nunca commite credenciais
+
+## 📞 Contato
+
+**Gestores:**
+- Renum: [a definir]
+- JB: [a definir]
+
+**Técnico:**
+- Kiro AI + Equipe Backend
+
+---
+
+**Desenvolvido com ❤️ para revolucionar o sono e a saúde**
