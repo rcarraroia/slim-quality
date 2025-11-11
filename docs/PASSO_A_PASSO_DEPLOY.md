@@ -82,8 +82,15 @@ api/                     # Backend serverless
 
 ## 🔧 Variáveis de Ambiente Necessárias
 
-Configure no Vercel Dashboard:
+Configure no Vercel Dashboard (Settings → Environment Variables):
 
+### Frontend (Vite - devem começar com VITE_)
+```env
+VITE_SUPABASE_URL=https://seu-projeto.supabase.co
+VITE_SUPABASE_ANON_KEY=sua-chave-publica
+```
+
+### Backend (Node.js/Express)
 ```env
 # Supabase
 SUPABASE_URL=https://seu-projeto.supabase.co
@@ -100,6 +107,8 @@ ASAAS_WALLET_JB=wal_xxxxx
 NODE_ENV=production
 FRONTEND_URL=https://seu-dominio.vercel.app
 ```
+
+**IMPORTANTE**: No Vercel, configure TODAS as variáveis acima!
 
 ## ✅ Checklist de Deploy
 
