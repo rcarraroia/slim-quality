@@ -325,6 +325,6 @@ export const affiliateService = {
     return response.data;
   },
 };
-// Alia
-s para compatibilidade com componentes existentes
+
+// Alias para compatibilidade com componentes existentes
 export const affiliateFrontendService = affiliateService;

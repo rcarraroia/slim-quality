@@ -692,8 +692,9 @@ class AppointmentService {
   }
 }
 
-export const appointmentService = new AppointmentService();// ==
-==========================================
+export const appointmentService = new AppointmentService();
+
+// ============================================
 // SISTEMA DE LEMBRETES E CALENDÁRIO
 // ============================================
 

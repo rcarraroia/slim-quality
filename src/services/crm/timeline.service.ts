@@ -698,8 +698,9 @@ class TimelineService {
   }
 }
 
-export const timelineService = new TimelineService();// ==
-==========================================
+export const timelineService = new TimelineService();
+
+// ============================================
 // GESTÃO MANUAL DE EVENTOS E NOTAS
 // ============================================
 

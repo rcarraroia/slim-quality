@@ -491,8 +491,9 @@ class CustomerService {
   }
 }
 
-export const customerService = new CustomerService();// 
-============================================
+export const customerService = new CustomerService();
+
+// ============================================
 // SISTEMA DE BUSCA AVANÇADA E FILTROS
 // ============================================
 
