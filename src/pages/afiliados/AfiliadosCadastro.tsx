@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,7 +10,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Info, CheckCircle2, ExternalLink } from "lucide-react";
+import { WalletIdValidator } from "@/components/affiliates/WalletIdValidator";
+import { affiliateService } from "@/services/affiliate-frontend.service";
+import { useCurrentReferralCode } from "@/hooks/useReferralTracking";
+import { Info, CheckCircle2, ExternalLink, Loader2 } from "lucide-react";
 
 const estados = [
   "AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS", "MG",
@@ -19,11 +23,51 @@ const estados = [
 export default function AfiliadosCadastro() {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const currentReferralCode = useCurrentReferralCode();
+  
   const [showSuccess, setShowSuccess] = useState(false);
   const [showWalletHelp, setShowWalletHelp] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [hasAsaasAccount, setHasAsaasAccount] = useState("sim");
   const [walletId, setWalletId] = useState("");
+  const [isWalletValid, setIsWalletValid] = useState(false);
+  const [walletName, setWalletName] = useState("");
+  
+  // Form data
+  const [formData, setFormData] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    cpf_cnpj: "",
+    birth_date: "",
+    city: "",
+    state: "",
+    referral_code: currentReferralCode || "",
+  });
+
+  // Mutation para cadastro
+  const registerMutation = useMutation({
+    mutationFn: affiliateService.register,
+    onSuccess: () => {
+      setShowSuccess(true);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Erro no cadastro",
+        description: error.response?.data?.message || "Erro interno. Tente novamente.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleInputChange = (field: string, value: string) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleWalletValidation = (isValid: boolean, name?: string) => {
+    setIsWalletValid(isValid);
+    setWalletName(name || "");
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -37,16 +81,34 @@ export default function AfiliadosCadastro() {
       return;
     }
 
-    if (!walletId.startsWith("wal_")) {
+    if (!isWalletValid) {
       toast({
         title: "Wallet ID inválida",
-        description: "A Wallet ID deve começar com 'wal_'",
+        description: "Verifique se a Wallet ID está correta e ativa no Asaas",
         variant: "destructive"
       });
       return;
     }
 
-    setShowSuccess(true);
+    // Validações básicas
+    if (!formData.name || !formData.email || !formData.phone || !formData.cpf_cnpj) {
+      toast({
+        title: "Campos obrigatórios",
+        description: "Preencha todos os campos obrigatórios",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Submeter cadastro
+    registerMutation.mutate({
+      name: formData.name,
+      email: formData.email,
+      phone: formData.phone,
+      cpf_cnpj: formData.cpf_cnpj,
+      wallet_id: walletId,
+      referral_code: formData.referral_code || undefined,
+    });
   };
 
   const handleSuccessClose = () => {
@@ -74,22 +136,39 @@ export default function AfiliadosCadastro() {
                   <Label htmlFor="nome">
                     Nome Completo <span className="text-destructive">*</span>
                   </Label>
-                  <Input id="nome" placeholder="Ex: Carlos Mendes" required />
+                  <Input 
+                    id="nome" 
+                    placeholder="Ex: Carlos Mendes" 
+                    value={formData.name}
+                    onChange={(e) => handleInputChange("name", e.target.value)}
+                    required 
+                  />
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="cpf">
-                      CPF <span className="text-destructive">*</span>
+                      CPF/CNPJ <span className="text-destructive">*</span>
                     </Label>
-                    <Input id="cpf" placeholder="000.000.000-00" required />
+                    <Input 
+                      id="cpf" 
+                      placeholder="000.000.000-00" 
+                      value={formData.cpf_cnpj}
+                      onChange={(e) => handleInputChange("cpf_cnpj", e.target.value)}
+                      required 
+                    />
                   </div>
                   
                   <div className="space-y-2">
                     <Label htmlFor="nascimento">
-                      Data de Nascimento <span className="text-destructive">*</span>
+                      Data de Nascimento
                     </Label>
-                    <Input id="nascimento" type="date" required />
+                    <Input 
+                      id="nascimento" 
+                      type="date" 
+                      value={formData.birth_date}
+                      onChange={(e) => handleInputChange("birth_date", e.target.value)}
+                    />
                   </div>
                 </div>
               </div>
@@ -102,25 +181,43 @@ export default function AfiliadosCadastro() {
                   <Label htmlFor="email">
                     Email <span className="text-destructive">*</span>
                   </Label>
-                  <Input id="email" type="email" placeholder="seu@email.com" required />
+                  <Input 
+                    id="email" 
+                    type="email" 
+                    placeholder="seu@email.com" 
+                    value={formData.email}
+                    onChange={(e) => handleInputChange("email", e.target.value)}
+                    required 
+                  />
                 </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="telefone">
                     Telefone/WhatsApp <span className="text-destructive">*</span>
                   </Label>
-                  <Input id="telefone" placeholder="(00) 00000-0000" required />
+                  <Input 
+                    id="telefone" 
+                    placeholder="(00) 00000-0000" 
+                    value={formData.phone}
+                    onChange={(e) => handleInputChange("phone", e.target.value)}
+                    required 
+                  />
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="cidade">Cidade</Label>
-                    <Input id="cidade" placeholder="Belo Horizonte" />
+                    <Input 
+                      id="cidade" 
+                      placeholder="Belo Horizonte" 
+                      value={formData.city}
+                      onChange={(e) => handleInputChange("city", e.target.value)}
+                    />
                   </div>
                   
                   <div className="space-y-2">
                     <Label htmlFor="estado">Estado</Label>
-                    <Select>
+                    <Select value={formData.state} onValueChange={(value) => handleInputChange("state", value)}>
                       <SelectTrigger id="estado">
                         <SelectValue placeholder="Selecione" />
                       </SelectTrigger>
@@ -163,25 +260,22 @@ export default function AfiliadosCadastro() {
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="walletId">
-                    Wallet ID do Asaas <span className="text-destructive">*</span>
-                  </Label>
-                  <Input 
-                    id="walletId" 
-                    placeholder="Ex: wal_000005162549" 
-                    value={walletId}
-                    onChange={(e) => setWalletId(e.target.value)}
-                    required 
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowWalletHelp(true)}
-                    className="text-sm text-primary hover:underline"
-                  >
-                    Como encontrar minha Wallet ID?
-                  </button>
-                </div>
+                <WalletIdValidator
+                  value={walletId}
+                  onChange={setWalletId}
+                  onValidationChange={handleWalletValidation}
+                  label="Wallet ID do Asaas"
+                  placeholder="Ex: wal_000005162549"
+                  required
+                />
+                
+                <button
+                  type="button"
+                  onClick={() => setShowWalletHelp(true)}
+                  className="text-sm text-primary hover:underline"
+                >
+                  Como encontrar minha Wallet ID?
+                </button>
 
                 <div className="space-y-3">
                   <Label>Já tem conta no Asaas?</Label>
@@ -220,7 +314,17 @@ export default function AfiliadosCadastro() {
                 
                 <div className="space-y-2">
                   <Label htmlFor="codigo">Código de Indicação (opcional)</Label>
-                  <Input id="codigo" placeholder="Ex: CARLOS2024" />
+                  <Input 
+                    id="codigo" 
+                    placeholder="Ex: CARLOS2024" 
+                    value={formData.referral_code}
+                    onChange={(e) => handleInputChange("referral_code", e.target.value)}
+                  />
+                  {currentReferralCode && (
+                    <p className="text-sm text-green-600">
+                      ✓ Código detectado automaticamente: <strong>{currentReferralCode}</strong>
+                    </p>
+                  )}
                   <p className="text-sm text-muted-foreground">
                     Foi indicado por alguém? Cole o código aqui para que ele ganhe comissão
                   </p>
@@ -257,8 +361,20 @@ export default function AfiliadosCadastro() {
                 >
                   Cancelar
                 </Button>
-                <Button type="submit" size="lg" className="px-8">
-                  Criar Minha Conta
+                <Button 
+                  type="submit" 
+                  size="lg" 
+                  className="px-8"
+                  disabled={registerMutation.isPending || !isWalletValid}
+                >
+                  {registerMutation.isPending ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Criando Conta...
+                    </>
+                  ) : (
+                    "Criar Minha Conta"
+                  )}
                 </Button>
               </div>
             </form>

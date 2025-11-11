@@ -1,91 +1,253 @@
-# 🛏️ Slim Quality - Sistema de Vendas e Afiliados
+# Slim Quality - Sistema de Vendas e Afiliados
 
-Sistema completo de e-commerce de colchões magnéticos terapêuticos com programa de afiliados multinível.
+Sistema completo de e-commerce com integração Asaas para pagamentos e splits automáticos de comissões.
 
-## 📋 Sobre o Projeto
+## 🎯 Visão Geral
 
-Slim Quality é uma plataforma de vendas consultivas de colchões magnéticos terapêuticos, com foco em resolver problemas de saúde através de tecnologia avançada. O sistema inclui:
+Sistema de vendas de colchões magnéticos terapêuticos com:
+- ✅ Gestão completa de pedidos
+- ✅ Pagamentos via PIX e Cartão (Asaas)
+- ✅ Splits automáticos de comissões (30%)
+- ✅ Sistema de afiliados multinível (preparado)
+- ✅ Webhooks com idempotência
+- ✅ Controle de estoque automático
+- ✅ Dashboard administrativo
 
-- **E-commerce consultivo** (não transacional)
-- **Sistema de afiliados multinível** (3 níveis)
-- **Split automático de comissões** via Asaas
-- **Integração com BIA** (assistente IA via N8N)
-- **Dashboard para afiliados**
+## 📋 Índice
 
-## 🏗️ Arquitetura
+- [Stack Técnica](#stack-técnica)
+- [Instalação](#instalação)
+- [Configuração](#configuração)
+- [Migrations](#migrations)
+- [Executar](#executar)
+- [Documentação](#documentação)
+- [Integração Asaas](#integração-asaas)
+- [Estrutura do Projeto](#estrutura-do-projeto)
+- [Scripts Disponíveis](#scripts-disponíveis)
 
-- **Backend:** Node.js 18+ + TypeScript 5.x + Express 4.x
-- **Database:** PostgreSQL 15.x (via Supabase)
-- **Pagamentos:** Asaas (PIX + Cartão)
-- **Automação:** N8N
-- **Mensageria:** WhatsApp Business API
+## 🛠️ Stack Técnica
 
-## 🚀 Como Começar
+### Backend
+- **Node.js** 18+
+- **TypeScript** 5.x
+- **Express.js** 4.x
+- **Supabase** (PostgreSQL + Auth + RLS)
 
-### Pré-requisitos
+### Integrações
+- **Asaas** - Gateway de pagamento e splits
+- **N8N** - Automação (BIA)
+- **WhatsApp Business** - Atendimento
 
-- Node.js 18.x ou superior
-- npm 9.x ou superior
-- Supabase CLI instalado e configurado
-- Conta no Supabase
-
-### Instalação
-
-1. **Clone o repositório**
-```bash
-git clone [url-do-repositorio]
-cd slim-quality
+### Bibliotecas Principais
+```json
+{
+  "@supabase/supabase-js": "^2.x",
+  "express": "^4.x",
+  "axios": "^1.x",
+  "zod": "^3.x",
+  "cors": "^2.x",
+  "helmet": "^7.x",
+  "dotenv": "^16.x"
+}
 ```
 
-2. **Instale as dependências**
+## 📦 Instalação
+
 ```bash
+# Clonar repositório
+git clone https://github.com/seu-usuario/slim-quality-backend.git
+cd slim-quality-backend
+
+# Instalar dependências
 npm install
-```
 
-3. **Configure as variáveis de ambiente**
-```bash
-# Copie o template
+# Copiar arquivo de ambiente
 cp .env.example .env
 
-# Edite o .env com suas credenciais
-# Consulte docs/SUPABASE_CREDENTIALS.md para obter as credenciais
+# Editar variáveis de ambiente
+nano .env
 ```
 
-4. **Aplique as migrations**
+## ⚙️ Configuração
+
+### 1. Variáveis de Ambiente
+
+Edite o arquivo `.env`:
+
 ```bash
-npm run db:push
+# Supabase
+SUPABASE_URL=https://seu-projeto.supabase.co
+SUPABASE_ANON_KEY=sua-chave-publica
+SUPABASE_SERVICE_KEY=sua-chave-privada
+
+# Asaas
+ASAAS_API_KEY=sua-api-key-asaas
+ASAAS_ENVIRONMENT=sandbox # ou production
+ASAAS_WALLET_RENUM=wal_xxxxx
+ASAAS_WALLET_JB=wal_xxxxx
+ASAAS_WEBHOOK_TOKEN=seu-token-secreto
+
+# App
+NODE_ENV=development
+PORT=3000
+FRONTEND_URL=http://localhost:5173
 ```
 
-5. **Inicie o servidor de desenvolvimento**
+### 2. Obter Credenciais Asaas
+
+**Sandbox (Testes):**
+1. Criar conta: https://sandbox.asaas.com
+2. API Key: https://sandbox.asaas.com/config/api
+3. Wallet IDs: Criar subcontas para Renum e JB
+
+**Produção:**
+1. Criar conta: https://www.asaas.com
+2. Completar verificação KYC
+3. Obter API Key e Wallet IDs
+
+### 3. Configurar Webhooks no Asaas
+
+1. Acesse: https://www.asaas.com/config/webhooks (ou sandbox)
+2. **URL:** `https://seu-dominio.com/webhooks/asaas`
+3. **Token:** Mesmo valor de `ASAAS_WEBHOOK_TOKEN`
+4. **Eventos:** Selecionar todos de pagamento:
+   - PAYMENT_CONFIRMED
+   - PAYMENT_RECEIVED
+   - PAYMENT_OVERDUE
+   - PAYMENT_REFUNDED
+   - PAYMENT_CANCELLED
+
+## 🗄️ Migrations
+
+### Aplicar Migrations
+
+```bash
+# Via Supabase CLI (recomendado)
+supabase db push
+
+# Ou via script
+npm run migrate
+```
+
+### Validar Banco de Dados
+
+```bash
+npm run validate:db
+```
+
+### Estrutura Criada
+
+- ✅ 8 tabelas (orders, payments, etc)
+- ✅ 4 enums (order_status, payment_status, etc)
+- ✅ 3 funções (generate_order_number, etc)
+- ✅ Triggers automáticos
+- ✅ Políticas RLS completas
+- ✅ Índices otimizados
+
+## 🚀 Executar
+
+### Desenvolvimento
+
 ```bash
 npm run dev
 ```
 
-O servidor estará rodando em `http://localhost:3000`
+Servidor rodando em: http://localhost:3000
 
-## 📝 Scripts Disponíveis
+### Produção
 
 ```bash
-# Desenvolvimento
-npm run dev              # Inicia servidor com hot-reload
-npm run build            # Compila TypeScript para JavaScript
-npm run start            # Executa versão compilada
+# Build
+npm run build
 
-# Qualidade de Código
-npm run lint             # Verifica código com ESLint
-npm run lint:fix         # Corrige problemas do ESLint automaticamente
-npm run format           # Formata código com Prettier
-npm run format:check     # Verifica formatação sem modificar
-npm run type-check       # Verifica tipos TypeScript
+# Start
+npm start
+```
 
-# Testes
-npm test                 # Executa testes
-npm run test:coverage    # Executa testes com cobertura
+### Health Check
 
-# Banco de Dados
-npm run db:push          # Aplica migrations
-npm run db:reset         # Reseta banco de dados
-npm run db:dump          # Exporta schema do banco
+```bash
+curl http://localhost:3000/health
+```
+
+## 📚 Documentação
+
+### API Endpoints
+
+Documentação completa: [docs/API.md](docs/API.md)
+
+**Endpoints Principais:**
+- `POST /api/orders` - Criar pedido
+- `POST /api/orders/:id/payment` - Gerar pagamento
+- `GET /api/orders/my-orders` - Listar pedidos
+- `GET /api/admin/orders` - Listar todos (admin)
+- `POST /webhooks/asaas` - Webhook Asaas
+
+### Exemplos de Uso
+
+**Criar Pedido:**
+```bash
+curl -X POST http://localhost:3000/api/orders \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "items": [{"product_id": "uuid", "quantity": 1}],
+    "customer": {...},
+    "shipping_address": {...}
+  }'
+```
+
+**Gerar Pagamento PIX:**
+```bash
+curl -X POST http://localhost:3000/api/orders/ORDER_ID/payment \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"payment_method": "pix"}'
+```
+
+## 💳 Integração Asaas
+
+### Fluxo de Pagamento
+
+```
+1. Cliente cria pedido
+   └─ POST /api/orders
+
+2. Sistema gera cobrança no Asaas
+   └─ POST /api/orders/:id/payment
+   └─ Splits configurados automaticamente (30%)
+
+3. Cliente paga (PIX ou Cartão)
+   └─ Asaas processa pagamento
+
+4. Webhook confirma pagamento
+   └─ POST /webhooks/asaas
+   └─ Status atualizado para 'paid'
+   └─ Estoque reduzido
+   └─ Splits executados automaticamente
+```
+
+### Splits Automáticos
+
+**Distribuição Fixa (30% do valor):**
+- 15% → Afiliado N1 (vendedor direto)
+- 3% → Afiliado N2 (indicado do N1)
+- 2% → Afiliado N3 (indicado do N2)
+- 5% → Renum (gestor)
+- 5% → JB (gestor)
+- 70% → Fábrica (automático - não configurado)
+
+**Redistribuição:**
+- Sem N2 e N3: +2.5% Renum, +2.5% JB
+- Sem N3: +1% Renum, +1% JB
+
+### Cartões de Teste (Sandbox)
+
+```
+Aprovado: 5162306219378829
+Rejeitado: 5162306219378837
+CVV: Qualquer
+Validade: Qualquer data futura
 ```
 
 ## 📁 Estrutura do Projeto
@@ -93,147 +255,142 @@ npm run db:dump          # Exporta schema do banco
 ```
 slim-quality-backend/
 ├── src/
-│   ├── api/              # Rotas, controllers, middlewares
-│   ├── services/         # Lógica de negócio
-│   ├── types/            # Tipos TypeScript
-│   ├── utils/            # Utilitários (logger, etc)
-│   ├── config/           # Configurações
-│   └── server.ts         # Ponto de entrada
+│   ├── api/
+│   │   ├── controllers/       # Controllers
+│   │   ├── middlewares/       # Middlewares
+│   │   ├── routes/            # Rotas
+│   │   └── validators/        # Schemas Zod
+│   ├── services/
+│   │   ├── asaas/             # Integração Asaas
+│   │   ├── sales/             # Lógica de vendas
+│   │   └── inventory/         # Controle de estoque
+│   ├── types/                 # TypeScript types
+│   ├── utils/                 # Utilitários
+│   ├── config/                # Configurações
+│   └── server.ts              # Servidor Express
 ├── supabase/
-│   ├── migrations/       # Migrations SQL
-│   └── functions/        # Edge Functions
-├── tests/                # Testes
-├── docs/                 # Documentação
-└── .kiro/                # Specs e steering files
+│   └── migrations/            # SQL Migrations
+├── scripts/                   # Scripts utilitários
+├── docs/                      # Documentação
+├── .env.example               # Exemplo de variáveis
+├── tsconfig.json              # Config TypeScript
+└── package.json
 ```
 
-## 📁 Estrutura do Projeto
+## 🔧 Scripts Disponíveis
 
-```
-slim-quality/
-├── .kiro/
-│   └── steering/          # Documentação de contexto para Kiro AI
-│       ├── product.md     # Regras de negócio
-│       ├── structure.md   # Arquitetura técnica
-│       └── tech.md        # Stack e padrões
-├── docs/
-│   └── SUPABASE_ACCESS.md # Guia de acesso ao banco
-├── src/
-│   ├── components/        # Componentes React
-│   ├── pages/            # Páginas da aplicação
-│   ├── layouts/          # Layouts
-│   ├── hooks/            # Custom hooks
-│   ├── lib/              # Bibliotecas e utilitários
-│   └── data/             # Dados estáticos
-├── public/               # Assets públicos
-└── .env.example          # Template de variáveis de ambiente
-```
-
-## 🚀 Como Começar
-
-### 1. Clonar o Repositório
 ```bash
-git clone [url-do-repositorio]
-cd slim-quality
+# Desenvolvimento
+npm run dev              # Servidor com hot-reload
+
+# Build
+npm run build            # Compilar TypeScript
+npm start                # Executar produção
+
+# Banco de Dados
+npm run migrate          # Aplicar migrations
+npm run validate:db      # Validar estrutura
+
+# Testes
+npm test                 # Executar testes
+npm run test:coverage    # Cobertura de testes
+
+# Qualidade de Código
+npm run lint             # ESLint
+npm run format           # Prettier
 ```
-
-### 2. Instalar Dependências
-```bash
-npm install
-```
-
-### 3. Configurar Variáveis de Ambiente
-```bash
-# Copiar template
-cp .env.example .env
-
-# Editar .env com suas credenciais
-# Consulte docs/SUPABASE_ACCESS.md para obter as credenciais
-```
-
-### 4. Executar em Desenvolvimento
-```bash
-npm run dev
-```
-
-## 📚 Documentação
-
-### Steering Files (Contexto do Projeto)
-
-Os arquivos em `.kiro/steering/` contêm toda a documentação de contexto do projeto:
-
-- **product.md** - Regras de negócio, sistema de comissões, fluxos de venda
-- **structure.md** - Arquitetura do sistema, banco de dados, fluxos críticos
-- **tech.md** - Stack técnica, padrões de código, boas práticas
-
-### Guias Técnicos
-
-- **docs/SUPABASE_ACCESS.md** - Como configurar e acessar o Supabase
-
-## 💰 Sistema de Comissões
-
-O sistema implementa split automático de 30% do valor da venda:
-
-- **15%** → Afiliado N1 (vendedor direto)
-- **3%** → Afiliado N2 (indicado do N1)
-- **2%** → Afiliado N3 (indicado do N2)
-- **5%** → Renum (gestor)
-- **5%** → JB (gestor)
-
-**Redistribuição:** Quando não há rede completa, os percentuais não utilizados são redistribuídos para os gestores.
-
-## 🛏️ Produtos
-
-| Modelo | Dimensões | Preço |
-|--------|-----------|-------|
-| Solteiro | 88x188x28cm | R$ 3.190,00 |
-| Padrão | 138x188x28cm | R$ 3.290,00 |
-| Queen | 158x198x30cm | R$ 3.490,00 |
-| King | 193x203x30cm | R$ 4.890,00 |
 
 ## 🔐 Segurança
 
-- **RLS (Row Level Security)** ativo em todas as tabelas
-- **Validação de entrada** com Zod
-- **Rate limiting** em endpoints críticos
-- **Credenciais** nunca commitadas (ver .gitignore)
+### Implementado
 
-## 🧪 Testes
+- ✅ JWT Authentication (Supabase)
+- ✅ Row Level Security (RLS)
+- ✅ Validação de entrada (Zod)
+- ✅ Webhook token validation
+- ✅ Idempotência de webhooks
+- ✅ Helmet.js (headers de segurança)
+- ✅ CORS configurado
+- ✅ Rate limiting (webhooks)
+- ✅ Dados sensíveis não logados
 
-```bash
-# Executar testes
-npm run test
+### Boas Práticas
 
-# Testes com cobertura
-npm run test:coverage
+- Nunca commitar `.env`
+- Usar `SUPABASE_SERVICE_KEY` apenas no backend
+- Validar `authToken` em todos os webhooks
+- Implementar rate limiting em produção
+- Monitorar logs do Asaas
+
+## 📊 Monitoramento
+
+### Logs Estruturados
+
+Todos os logs são em formato JSON:
+
+```json
+{
+  "timestamp": "2025-01-24T10:00:00Z",
+  "level": "info",
+  "module": "OrderService",
+  "message": "Pedido criado com sucesso",
+  "context": {
+    "orderId": "uuid",
+    "total": 3290.00
+  }
+}
 ```
 
-## 📦 Build
+### Auditoria
 
-```bash
-# Build para produção
-npm run build
+Todas as transações Asaas são registradas em `asaas_transactions`:
+- Request/Response completos
+- Timestamps
+- Status de sucesso/erro
+- IDs de referência
 
-# Preview do build
-npm run preview
-```
+## 🚧 Roadmap
+
+### Sprint 3 (Atual) ✅
+- [x] Sistema de vendas completo
+- [x] Integração Asaas (PIX + Cartão)
+- [x] Splits automáticos
+- [x] Webhooks com idempotência
+- [x] Controle de estoque
+- [x] Dashboard admin
+
+### Sprint 4 (Próximo)
+- [ ] Sistema de afiliados completo
+- [ ] Cálculo de comissões multinível
+- [ ] Dashboard de afiliados
+- [ ] Links de indicação rastreáveis
+- [ ] Árvore genealógica
+
+### Futuro
+- [ ] Notificações (Email + WhatsApp)
+- [ ] Relatórios avançados
+- [ ] Integração com transportadoras
+- [ ] Sistema de cupons
+- [ ] Programa de fidelidade
 
 ## 🤝 Contribuindo
 
-1. Consulte os steering files antes de fazer alterações
-2. Siga os padrões definidos em `tech.md`
-3. Execute testes antes de commitar
-4. Nunca commite credenciais
+1. Fork o projeto
+2. Crie uma branch: `git checkout -b feature/nova-feature`
+3. Commit: `git commit -m 'Add nova feature'`
+4. Push: `git push origin feature/nova-feature`
+5. Abra um Pull Request
 
-## 📞 Contato
+## 📄 Licença
 
-**Gestores:**
-- Renum: [a definir]
-- JB: [a definir]
+Este projeto é proprietário da Slim Quality.
 
-**Técnico:**
-- Kiro AI + Equipe Backend
+## 📞 Suporte
+
+- **Documentação:** [docs/API.md](docs/API.md)
+- **Issues:** https://github.com/seu-usuario/slim-quality-backend/issues
+- **Email:** suporte@slimquality.com.br
 
 ---
 
-**Desenvolvido com ❤️ para revolucionar o sono e a saúde**
+**Desenvolvido com ❤️ pela equipe Slim Quality**

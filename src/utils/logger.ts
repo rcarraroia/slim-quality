@@ -1,81 +1,86 @@
+/**
+ * Logger Utility
+ * Sprint 3: Sistema de Vendas
+ * 
+ * Sistema de logging estruturado
+ */
+
 interface LogEntry {
   timestamp: string;
   level: 'debug' | 'info' | 'warn' | 'error';
   module: string;
   message: string;
   context?: Record<string, any>;
-  error?: Error;
+  error?: {
+    message: string;
+    stack?: string;
+  };
 }
 
-class Logger {
-  private log(entry: LogEntry): void {
-    const logString = JSON.stringify({
-      ...entry,
-      error: entry.error
-        ? {
-            message: entry.error.message,
-            stack: entry.error.stack,
-          }
-        : undefined,
-    });
-
-    switch (entry.level) {
-      case 'error':
-        console.error(logString);
-        break;
-      case 'warn':
-        console.warn(logString);
-        break;
-      case 'debug':
-        if (process.env.NODE_ENV === 'development') {
-          console.debug(logString);
-        }
-        break;
-      default:
-        console.log(logString);
-    }
-  }
-
-  debug(module: string, message: string, context?: Record<string, any>): void {
-    this.log({
-      timestamp: new Date().toISOString(),
-      level: 'debug',
-      module,
-      message,
-      context,
-    });
-  }
-
-  info(module: string, message: string, context?: Record<string, any>): void {
-    this.log({
+export class Logger {
+  /**
+   * Log de informação
+   */
+  static info(module: string, message: string, context?: any): void {
+    const entry: LogEntry = {
       timestamp: new Date().toISOString(),
       level: 'info',
       module,
       message,
       context,
-    });
+    };
+
+    console.log(JSON.stringify(entry));
   }
 
-  warn(module: string, message: string, context?: Record<string, any>): void {
-    this.log({
+  /**
+   * Log de debug
+   */
+  static debug(module: string, message: string, context?: any): void {
+    if (process.env.NODE_ENV === 'development') {
+      const entry: LogEntry = {
+        timestamp: new Date().toISOString(),
+        level: 'debug',
+        module,
+        message,
+        context,
+      };
+
+      console.log(JSON.stringify(entry));
+    }
+  }
+
+  /**
+   * Log de warning
+   */
+  static warn(module: string, message: string, context?: any): void {
+    const entry: LogEntry = {
       timestamp: new Date().toISOString(),
       level: 'warn',
       module,
       message,
       context,
-    });
+    };
+
+    console.warn(JSON.stringify(entry));
   }
 
-  error(module: string, message: string, error?: Error, context?: Record<string, any>): void {
-    this.log({
+  /**
+   * Log de erro
+   */
+  static error(module: string, message: string, error?: Error, context?: any): void {
+    const entry: LogEntry = {
       timestamp: new Date().toISOString(),
       level: 'error',
       module,
       message,
-      error,
       context,
-    });
+      error: error ? {
+        message: error.message,
+        stack: error.stack,
+      } : undefined,
+    };
+
+    console.error(JSON.stringify(entry));
   }
 }
-
-export const logger = new Logger();

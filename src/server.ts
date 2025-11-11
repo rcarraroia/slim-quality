@@ -1,54 +1,113 @@
-import express, { Application } from 'express';
+/**
+ * Express Server
+ * Sprint 3: Sistema de Vendas
+ * 
+ * Servidor principal da API
+ */
+
+import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import dotenv from 'dotenv';
-import { appConfig } from './config/app';
-import { logger } from './utils/logger';
+import { Logger } from '@/utils/logger';
 
-// Load environment variables
+// Importar rotas
+import ordersRoutes from '@/api/routes/orders.routes';
+import adminOrdersRoutes from '@/api/routes/admin-orders.routes';
+import webhookRoutes from '@/api/routes/webhook.routes';
+
+// Carregar variáveis de ambiente
 dotenv.config();
 
-// Validate required environment variables
-const requiredEnvVars = ['SUPABASE_URL', 'SUPABASE_ANON_KEY', 'SUPABASE_SERVICE_ROLE_KEY'];
+const app = express();
+const PORT = process.env.PORT || 3000;
 
-for (const envVar of requiredEnvVars) {
-  if (!process.env[envVar]) {
-    throw new Error(`Missing required environment variable: ${envVar}`);
-  }
-}
+// ============================================
+// MIDDLEWARES GLOBAIS
+// ============================================
 
-// Create Express app
-const app: Application = express();
-
-// Middleware
+// Segurança
 app.use(helmet());
-app.use(cors());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
 
-// Health check endpoint
-app.get('/health', (_req, res) => {
-  res.json({
+// CORS
+app.use(cors({
+  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+  credentials: true,
+}));
+
+// Body parser
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// Logging de requests
+app.use((req, res, next) => {
+  Logger.info('Server', 'Request', {
+    method: req.method,
+    path: req.path,
+    ip: req.ip,
+  });
+  next();
+});
+
+// ============================================
+// HEALTH CHECK
+// ============================================
+
+app.get('/health', (req, res) => {
+  res.status(200).json({
     status: 'ok',
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV || 'development',
   });
 });
 
-// Root endpoint
-app.get('/', (_req, res) => {
-  res.json({
-    message: 'Slim Quality Backend API',
-    version: '0.1.0',
-    documentation: '/api/docs',
+// ============================================
+// ROTAS DA API
+// ============================================
+
+// Rotas públicas de pedidos
+app.use('/api/orders', ordersRoutes);
+
+// Rotas administrativas de pedidos
+app.use('/api/admin/orders', adminOrdersRoutes);
+
+// Rotas de webhooks
+app.use('/webhooks', webhookRoutes);
+
+// ============================================
+// ERROR HANDLING
+// ============================================
+
+// 404 - Rota não encontrada
+app.use((req, res) => {
+  res.status(404).json({
+    error: 'Rota não encontrada',
+    code: 'NOT_FOUND',
+    path: req.path,
   });
 });
 
-// Start server
-const PORT = appConfig.port;
+// Error handler global
+app.use((err: Error, req: express.Request, res: express.Response, next: express.NextFunction) => {
+  Logger.error('Server', 'Erro não tratado', err, {
+    method: req.method,
+    path: req.path,
+  });
+
+  res.status(500).json({
+    error: 'Erro interno do servidor',
+    code: 'INTERNAL_SERVER_ERROR',
+    message: process.env.NODE_ENV === 'development' ? err.message : undefined,
+  });
+});
+
+// ============================================
+// START SERVER
+// ============================================
+
 app.listen(PORT, () => {
-  logger.info('Server', `Server started on port ${PORT}`, {
-    environment: process.env.NODE_ENV,
+  Logger.info('Server', `Servidor rodando na porta ${PORT}`, {
+    environment: process.env.NODE_ENV || 'development',
     port: PORT,
   });
 });

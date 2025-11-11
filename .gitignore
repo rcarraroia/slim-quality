@@ -1,40 +1,54 @@
+# Dependencies
+node_modules/
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Build
+dist/
+build/
+*.tsbuildinfo
+
+# Environment
+.env
+.env.local
+.env.*.local
+
 # Logs
-logs
+logs/
 *.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
-lerna-debug.log*
 
-node_modules
-dist
-dist-ssr
-*.local
-
-# Editor directories and files
-.vscode/*
-!.vscode/extensions.json
-.idea
+# OS
 .DS_Store
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
+Thumbs.db
+*.swp
+*.swo
+*~
 
-# Kiro AI
-.kiro/cache/
-.kiro/logs/
+# IDE
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
 
-# Credenciais (NUNCA commitar)
-.env
-.env.local
-.env.production
-*.key
-*_credentials.json
-*CREDENTIALS*.md
-docs/SUPABASE_CREDENTIALS.md
+# Testing
+coverage/
+.nyc_output/
+*.lcov
+
+# Temporary
+tmp/
+temp/
+*.tmp
 
 # Supabase
-.branches/
+.supabase/
+
+# Misc
+*.bak
+*.cache
+.eslintcache

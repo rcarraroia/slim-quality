@@ -1,55 +1,77 @@
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { WhatsAppButton } from "@/components/shared/WhatsAppButton";
 import { Link } from "react-router-dom";
+import { productService } from "@/services/product-frontend.service";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 const ProductPage = () => {
   const [expandedProduct, setExpandedProduct] = useState<string | null>(null);
 
-  const products = [
-    {
-      id: "solteiro",
-      name: "Solteiro",
-      dimensions: "88x188x28cm",
-      pricePerDay: "7",
-      comparison: "Menos que um café com pão de queijo",
-      ideal: "Moradores de apartamentos compactos, quartos de solteiro",
-      weight: "35kg",
-      badge: null,
-    },
-    {
-      id: "casal-padrao",
-      name: "Casal Padrão",
-      dimensions: "138x188x28cm",
-      pricePerDay: "8,50",
-      comparison: "Menos que uma pizza delivery",
-      ideal: "Casais em quartos padrão, máximo custo-benefício",
-      weight: "45kg",
-      badge: "Mais Vendido",
-    },
-    {
-      id: "queen",
-      name: "Queen",
-      dimensions: "158x198x28cm",
-      pricePerDay: "9,80",
-      comparison: "Menos que um combo de fast food",
-      ideal: "Casais que valorizam mais espaço para dormir confortavelmente",
-      weight: "52kg",
-      badge: null,
-    },
-    {
-      id: "king",
-      name: "King",
-      dimensions: "193x203x28cm",
-      pricePerDay: "11,20",
-      comparison: "Menos que um almoço no restaurante",
-      ideal: "Quem busca máximo luxo, conforto e espaço disponível",
-      weight: "62kg",
-      badge: "Máximo Conforto",
-    },
-  ];
+  // Buscar produtos da API
+  const { data: productsData, isLoading, error } = useQuery({
+    queryKey: ['products'],
+    queryFn: () => productService.getProducts({ limit: 10 }),
+  });
+
+  // Transformar dados da API para formato do componente
+  const products = productsData?.products.map((product: any) => ({
+    id: product.slug,
+    name: product.name.replace('Colchão Magnético ', ''),
+    dimensions: `${product.dimensions.width}x${product.dimensions.length}x${product.dimensions.height}cm`,
+    pricePerDay: (product.price / 30).toFixed(2),
+    comparison: product.price < 3300 ? "Menos que um café com pão de queijo" : 
+                product.price < 3500 ? "Menos que uma pizza delivery" :
+                product.price < 4000 ? "Menos que um combo de fast food" :
+                "Menos que um almoço no restaurante",
+    ideal: product.description || "Produto de qualidade premium",
+    weight: product.dimensions.weight ? `${product.dimensions.weight}kg` : "N/A",
+    badge: product.is_featured ? "Mais Vendido" : null,
+    fullData: product,
+  })) || [];
+
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="container px-4 py-16">
+        <div className="text-center mb-12 space-y-4">
+          <Skeleton className="h-16 w-3/4 mx-auto" />
+          <Skeleton className="h-6 w-1/2 mx-auto" />
+        </div>
+        <div className="grid sm:grid-cols-2 gap-8 max-w-6xl mx-auto">
+          {[1, 2, 3, 4].map((i) => (
+            <Card key={i}>
+              <CardContent className="p-0">
+                <Skeleton className="aspect-[4/3] w-full" />
+                <div className="p-6 space-y-4">
+                  <Skeleton className="h-8 w-3/4" />
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-12 w-full" />
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <div className="container px-4 py-16">
+        <Alert variant="destructive" className="max-w-2xl mx-auto">
+          <AlertDescription>
+            Erro ao carregar produtos. Por favor, tente novamente mais tarde.
+          </AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col">

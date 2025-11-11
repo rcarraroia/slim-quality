@@ -10,7 +10,8 @@ import {
   Settings, 
   LogOut,
   Search,
-  Bell
+  Bell,
+  Calendar
 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -25,10 +26,11 @@ export function DashboardLayout() {
   const menuItems = [
     { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard', disabled: false },
     { icon: MessageSquare, label: 'Conversas', path: '/dashboard/conversas', badge: 8, disabled: false },
+    { icon: UserCircle, label: 'Clientes', path: '/dashboard/clientes', disabled: false },
+    { icon: Calendar, label: 'Agendamentos', path: '/dashboard/agendamentos', disabled: false },
     { icon: Package, label: 'Produtos', path: '/dashboard/produtos', disabled: false },
     { icon: DollarSign, label: 'Vendas', path: '/dashboard/vendas', disabled: false },
     { icon: Users, label: 'Afiliados', path: '/dashboard/afiliados', disabled: false },
-    { icon: UserCircle, label: 'Clientes', path: '/dashboard/clientes', disabled: true },
     { icon: Settings, label: 'Configurações', path: '/dashboard/configuracoes', disabled: true },
   ];
 
