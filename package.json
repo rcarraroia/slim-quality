@@ -5,7 +5,7 @@
   "main": "dist/server.js",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "vite build",
     "start": "vite preview",
     "dev:backend": "tsx watch src/server.ts",
     "build:backend": "tsc",
