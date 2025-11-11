@@ -61,6 +61,7 @@
     "@types/react-dom": "^18.3.0",
     "@typescript-eslint/eslint-plugin": "^6.17.0",
     "@typescript-eslint/parser": "^6.17.0",
+    "@vercel/node": "^3.0.21",
     "@vitejs/plugin-react-swc": "^3.5.0",
     "@vitest/coverage-v8": "^1.1.0",
     "autoprefixer": "^10.4.17",
