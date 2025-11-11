@@ -1,333 +1,149 @@
-# 🚀 PASSO A PASSO - COMMIT E DEPLOY
+# Deploy no Vercel - Configuração Completa
 
-## ✅ SISTEMA PRONTO PARA DEPLOY
+## ✅ Problemas Corrigidos
 
-Todas as correções foram aplicadas e o banco está 100% funcional!
+### 1. Merge Conflicts
+- **Problema**: Marcadores de merge conflict (`<<<<<<<`, `=======`, `>>>>>>>`) nos arquivos
+- **Arquivos afetados**: 
+  - `src/services/affiliate-frontend.service.ts`
+  - `src/services/crm/appointment.service.ts`
+  - `src/services/crm/conversation.service.ts`
+  - `src/services/crm/customer.service.ts`
+  - `src/services/crm/timeline.service.ts`
+- **Solução**: Removidos todos os marcadores de conflito
+
+### 2. Configuração de Build
+- **Problema**: `package.json` configurado apenas para backend (TypeScript)
+- **Solução**: Atualizado para build do frontend com Vite
+  ```json
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "start": "vite preview"
+  }
+  ```
+
+### 3. Dependências Faltando
+- **Problema**: Dependências do React não estavam instaladas
+- **Solução**: Adicionadas todas as dependências necessárias:
+  - `react` e `react-dom`
+  - `react-router-dom`
+  - `@tanstack/react-query`
+  - `lucide-react`
+  - `vite` e plugins
+  - `express-rate-limit`, `multer`
+  - Tipos TypeScript
+
+### 4. Conflito de Peer Dependencies
+- **Problema**: `lucide-react@0.344.0` não era compatível com React 18
+- **Solução**: 
+  - Atualizado `lucide-react` para `^0.454.0`
+  - Criado `.npmrc` com `legacy-peer-deps=true`
+  - Adicionado `overrides` no `package.json`
+
+### 5. Configuração Híbrida Frontend/Backend
+- **Problema**: Vercel não sabia como lidar com frontend + backend juntos
+- **Solução**: 
+  - Criado `vercel.json` com configuração de rotas
+  - Criado `api/index.ts` como wrapper serverless
+  - Modificado `src/server.ts` para não executar `app.listen()` quando importado
+
+## 📁 Arquivos Criados/Modificados
+
+### Novos Arquivos
+- `.npmrc` - Configuração npm para resolver peer dependencies
+- `vercel.json` - Configuração de deploy do Vercel
+- `api/index.ts` - Wrapper serverless para o Express
+
+### Arquivos Modificados
+- `package.json` - Scripts de build e dependências
+- `src/server.ts` - Condicional para `app.listen()`
+- Todos os services com merge conflicts
+
+## 🚀 Como o Deploy Funciona Agora
+
+### Build Process
+1. **Frontend**: `vite build` gera arquivos estáticos em `dist/`
+2. **Backend**: Express app é exportado como serverless function
+3. **Rotas**:
+   - `/api/*` → Serverless function (backend)
+   - `/*` → Arquivos estáticos (frontend)
+
+### Estrutura no Vercel
+```
+dist/                    # Frontend estático (Vite)
+├── index.html
+├── assets/
+└── ...
+
+api/                     # Backend serverless
+└── index.ts            # Express app wrapper
+```
+
+## 🔧 Variáveis de Ambiente Necessárias
+
+Configure no Vercel Dashboard:
+
+```env
+# Supabase
+SUPABASE_URL=https://seu-projeto.supabase.co
+SUPABASE_ANON_KEY=sua-chave-publica
+SUPABASE_SERVICE_KEY=sua-chave-privada
+
+# Asaas
+ASAAS_API_KEY=sua-chave-asaas
+ASAAS_WALLET_FABRICA=wal_xxxxx
+ASAAS_WALLET_RENUM=wal_xxxxx
+ASAAS_WALLET_JB=wal_xxxxx
+
+# App
+NODE_ENV=production
+FRONTEND_URL=https://seu-dominio.vercel.app
+```
+
+## ✅ Checklist de Deploy
+
+- [x] Merge conflicts resolvidos
+- [x] Scripts de build configurados
+- [x] Dependências instaladas
+- [x] Peer dependencies resolvidas
+- [x] Configuração híbrida frontend/backend
+- [x] `vercel.json` criado
+- [x] Serverless function configurada
+- [ ] Variáveis de ambiente configuradas no Vercel
+- [ ] Deploy testado
+
+## 🎯 Próximos Passos
+
+1. **Configurar Variáveis de Ambiente** no Vercel Dashboard
+2. **Aguardar Build** completar
+3. **Testar**:
+   - Frontend: `https://seu-dominio.vercel.app`
+   - Backend: `https://seu-dominio.vercel.app/api/health`
+4. **Configurar Domínio Customizado** (opcional)
+
+## � Notas ImpDortantes
+
+- O backend roda como **serverless functions** (não como servidor tradicional)
+- Cada requisição `/api/*` inicia uma nova instância da function
+- Limite de **10 segundos** por requisição no plano gratuito
+- Para operações longas, considere usar **Vercel Edge Functions** ou **Background Jobs**
+
+## 🐛 Troubleshooting
+
+### Build falha com erro de TypeScript
+- Verifique se todos os merge conflicts foram resolvidos
+- Execute `npm run type-check` localmente
+
+### API não responde
+- Verifique se as variáveis de ambiente estão configuradas
+- Teste a rota `/api/health`
+
+### Frontend carrega mas API falha
+- Verifique CORS no `src/server.ts`
+- Confirme que `FRONTEND_URL` está correto
 
 ---
 
-## 📝 PASSO 1: COMMIT E PUSH
-
-### 1.1 Verificar Status
-```bash
-git status
-```
-
-### 1.2 Adicionar Todos os Arquivos
-```bash
-git add .
-```
-
-### 1.3 Fazer Commit
-```bash
-git commit -m "feat: Sistema completo - Banco 100% funcional
-
-- ✅ Sprint 1: Auth (3 tabelas)
-- ✅ Sprint 2: Produtos (5 tabelas)
-- ✅ Sprint 3: Vendas (8 tabelas)
-- ✅ Sprint 4: Afiliados (10 tabelas)
-- ✅ Sprint 5: CRM (7 tabelas)
-
-Correções aplicadas:
-- Migration duplicada renomeada
-- Policies corrigidas (profiles.role → user_roles.role)
-- Índices otimizados
-- Triggers de proteção adicionados
-- Total: 33 tabelas criadas com sucesso"
-```
-
-### 1.4 Push para Repositório
-```bash
-git push origin main
-```
-
-**✅ Pronto! Código está no repositório.**
-
----
-
-## 🔐 PASSO 2: OBTER VARIÁVEIS DO SUPABASE
-
-### 2.1 Acessar Dashboard
-1. Acesse: https://supabase.com/dashboard
-2. Selecione seu projeto: `vtynmmtuvxreiwcxxlma`
-3. Vá em: Settings → API
-
-### 2.2 Copiar Variáveis
-```bash
-# Project URL
-VITE_SUPABASE_URL=https://vtynmmtuvxreiwcxxlma.supabase.co
-
-# anon public (Chave Pública)
-VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
-
-# service_role (Chave Privada)
-SUPABASE_SERVICE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
-```
-
-**✅ Anote essas 3 variáveis!**
-
----
-
-## 💳 PASSO 3: OBTER VARIÁVEIS DO ASAAS
-
-### 3.1 Criar Conta (se ainda não tem)
-1. Acesse: https://sandbox.asaas.com/cadastro
-2. Preencha os dados
-3. Confirme email
-
-### 3.2 Obter API Key
-1. Faça login em: https://sandbox.asaas.com
-2. Vá em: Integrações → API
-3. Copie a API Key
-
-```bash
-ASAAS_API_KEY=$aact_YTU5YTE0M2M2N2I4MTliNzk0YTI5N2U5MzdjNWZmNDQ6OjAwMDAwMDAwMDAwMDAwNzI1Mjk6OiRhYWNoXzRlNTkxZGY3LTBmNWYtNGRmYS04YTBiLTZlMjQwMWM3NTI3OA==
-```
-
-### 3.3 Obter Wallet IDs
-
-**Opção A: Via Dashboard**
-1. Após login, vá em: Perfil → Dados da Conta
-2. Copie o Wallet ID (formato: `wal_` + 20 caracteres)
-
-**Opção B: Via API**
-```bash
-curl -X GET 'https://api-sandbox.asaas.com/v3/wallets' \
-  -H 'access_token: SUA_API_KEY'
-```
-
-**⚠️ IMPORTANTE:**
-- Renum precisa criar conta e fornecer Wallet ID
-- JB precisa criar conta e fornecer Wallet ID
-
-```bash
-ASAAS_WALLET_RENUM=f9c7d1dd-9e52-4e81-8194-8b666f276405
-ASAAS_WALLET_JB=7c06e9d9-dbae-4a85-82f4-36716775bcb2
-```
-
-### 3.4 Gerar Webhook Token
-1. Acesse: https://www.uuidgenerator.net/
-2. Copie um UUID v4
-
-```bash
-ASAAS_WEBHOOK_TOKEN=xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx
-```
-
-### 3.5 Configurar Ambiente
-```bash
-ASAAS_ENVIRONMENT=sandbox
-```
-
-**✅ Anote essas 5 variáveis!**
-
----
-
-## 🚀 PASSO 4: DEPLOY NO VERCEL
-
-### 4.1 Acessar Vercel
-1. Acesse: https://vercel.com
-2. Faça login (ou crie conta)
-
-### 4.2 Importar Projeto
-1. Clique em: "Add New..." → "Project"
-2. Clique em: "Import Git Repository"
-3. Selecione seu repositório
-4. Clique em: "Import"
-
-### 4.3 Configurar Build
-```
-Framework Preset: Vite
-Build Command: npm run build
-Output Directory: dist
-Install Command: npm install
-Root Directory: ./
-```
-
-### 4.4 Adicionar Variáveis de Ambiente
-
-**⚠️ ANTES DE CLICAR EM DEPLOY!**
-
-Clique em "Environment Variables" e adicione:
-
-```bash
-# SUPABASE (3 variáveis)
-VITE_SUPABASE_URL=https://vtynmmtuvxreiwcxxlma.supabase.co
-VITE_SUPABASE_ANON_KEY=sua-anon-key-aqui
-SUPABASE_SERVICE_KEY=sua-service-key-aqui
-
-# ASAAS (5 variáveis)
-ASAAS_API_KEY=sua-api-key-aqui
-ASAAS_ENVIRONMENT=sandbox
-ASAAS_WALLET_RENUM=5363ddbb-5ef8-47b6-931f-7b3e633cdef7
-ASAAS_WALLET_JB=wal_xxxxxxxxxxxxxxxxxxxxx
-ASAAS_WEBHOOK_TOKEN=seu-uuid-v4-aqui
-
-# API URL (deixe vazio por enquanto)
-VITE_API_URL=
-```
-
-### 4.5 Deploy
-1. Clique em: "Deploy"
-2. Aguarde 2-5 minutos
-3. ✅ Deploy concluído!
-
-### 4.6 Copiar URL
-1. Após deploy, copie a URL: `https://seu-app.vercel.app`
-2. Volte em: Settings → Environment Variables
-3. Edite `VITE_API_URL` e cole a URL
-4. Clique em: "Deployments" → "..." → "Redeploy"
-
-**✅ Sistema deployado!**
-
----
-
-## 🔗 PASSO 5: CONFIGURAR WEBHOOK NO ASAAS
-
-### 5.1 Acessar Webhooks
-1. Acesse: https://sandbox.asaas.com
-2. Vá em: Integrações → Webhooks
-3. Clique em: "Adicionar Webhook"
-
-### 5.2 Configurar
-```
-URL: https://seu-app.vercel.app/api/webhooks/asaas
-Token: (mesmo valor de ASAAS_WEBHOOK_TOKEN)
-
-Eventos:
-✅ PAYMENT_CONFIRMED
-✅ PAYMENT_RECEIVED
-✅ PAYMENT_OVERDUE
-✅ PAYMENT_REFUNDED
-✅ PAYMENT_CANCELLED
-```
-
-### 5.3 Salvar e Testar
-1. Clique em: "Salvar"
-2. Clique em: "Testar Webhook"
-3. Verifique se retorna sucesso
-
-**✅ Webhook configurado!**
-
----
-
-## 🧪 PASSO 6: TESTAR SISTEMA
-
-### 6.1 Acessar Aplicação
-```
-https://seu-app.vercel.app
-```
-
-### 6.2 Testar Login
-1. Vá em: `/login`
-2. Tente fazer login
-3. ✅ Deve funcionar
-
-### 6.3 Testar Produtos
-1. Vá em: `/produtos`
-2. Verifique se produtos aparecem
-3. ✅ Deve carregar
-
-### 6.4 Testar Afiliados
-1. Vá em: `/afiliados/cadastro`
-2. Cadastre um afiliado de teste
-3. ✅ Deve gerar código
-
-### 6.5 Testar CRM
-1. Vá em: `/dashboard/clientes`
-2. Adicione um cliente
-3. ✅ Deve salvar
-
-**✅ Sistema funcionando!**
-
----
-
-## 📊 PASSO 7: VERIFICAR LOGS
-
-### 7.1 Logs do Vercel
-1. Acesse: https://vercel.com/seu-projeto
-2. Vá em: "Logs"
-3. Verifique se não há erros
-
-### 7.2 Logs do Supabase
-1. Acesse: https://supabase.com/dashboard/project/vtynmmtuvxreiwcxxlma
-2. Vá em: "Logs"
-3. Verifique queries executadas
-
-**✅ Tudo funcionando!**
-
----
-
-## ✅ CHECKLIST FINAL
-
-Antes de considerar concluído:
-
-- [ ] Código commitado e pushed
-- [ ] Variáveis do Supabase copiadas (3)
-- [ ] Variáveis do Asaas copiadas (5)
-- [ ] Projeto importado no Vercel
-- [ ] Variáveis configuradas no Vercel (9)
-- [ ] Deploy realizado com sucesso
-- [ ] URL copiada e atualizada
-- [ ] Webhook configurado no Asaas
-- [ ] Login testado e funcionando
-- [ ] Produtos carregando
-- [ ] Afiliados funcionando
-- [ ] CRM acessível
-- [ ] Logs sem erros
-
-**Se todos os itens estão marcados: PARABÉNS! 🎉**
-
-**Seu sistema está 100% funcional em produção!**
-
----
-
-## 🆘 PROBLEMAS?
-
-### Erro: "Supabase connection failed"
-- Verifique variáveis VITE_SUPABASE_*
-- Confirme que têm prefixo VITE_
-- Faça redeploy
-
-### Erro: "Unauthorized"
-- Verifique RLS no Supabase
-- Confirme que usuário está logado
-- Verifique policies
-
-### Erro: "Webhook não funciona"
-- Verifique URL no Asaas
-- Confirme token correto
-- Teste manualmente
-
-### Build Failed
-- Verifique logs do Vercel
-- Teste `npm run build` localmente
-- Verifique package.json
-
----
-
-## 📚 DOCUMENTAÇÃO COMPLETA
-
-- **Guia Completo:** `docs/GUIA_DEPLOY_COMPLETO.md`
-- **Variáveis:** `docs/VARIAVEIS_AMBIENTE.md`
-- **Correções:** `docs/CORRECAO_CONCLUIDA.md`
-
----
-
-## 🎯 PRÓXIMOS PASSOS
-
-1. **Testar Fluxo Completo:**
-   - Cadastrar afiliado
-   - Fazer venda com indicação
-   - Verificar comissões
-
-2. **Monitorar:**
-   - Logs do Vercel
-   - Logs do Supabase
-   - Webhooks do Asaas
-
-3. **Preparar Produção:**
-   - Criar conta Asaas Production
-   - Configurar domínio próprio
-   - Atualizar variáveis
-
-**Boas vendas! 🚀**
+**Última atualização**: 11/11/2025
+**Status**: ✅ Pronto para deploy
