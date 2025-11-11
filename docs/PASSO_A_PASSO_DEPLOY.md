@@ -101,8 +101,8 @@ curl -X GET 'https://api-sandbox.asaas.com/v3/wallets' \
 - JB precisa criar conta e fornecer Wallet ID
 
 ```bash
-ASAAS_WALLET_RENUM=wal_xxxxxxxxxxxxxxxxxxxxx
-ASAAS_WALLET_JB=wal_xxxxxxxxxxxxxxxxxxxxx
+ASAAS_WALLET_RENUM=f9c7d1dd-9e52-4e81-8194-8b666f276405
+ASAAS_WALLET_JB=7c06e9d9-dbae-4a85-82f4-36716775bcb2
 ```
 
 ### 3.4 Gerar Webhook Token
@@ -158,7 +158,7 @@ SUPABASE_SERVICE_KEY=sua-service-key-aqui
 # ASAAS (5 variáveis)
 ASAAS_API_KEY=sua-api-key-aqui
 ASAAS_ENVIRONMENT=sandbox
-ASAAS_WALLET_RENUM=wal_xxxxxxxxxxxxxxxxxxxxx
+ASAAS_WALLET_RENUM=5363ddbb-5ef8-47b6-931f-7b3e633cdef7
 ASAAS_WALLET_JB=wal_xxxxxxxxxxxxxxxxxxxxx
 ASAAS_WEBHOOK_TOKEN=seu-uuid-v4-aqui
 

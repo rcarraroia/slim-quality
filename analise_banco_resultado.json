@@ -1,0 +1,201 @@
+{
+  "results": {
+    "profiles": {
+      "exists": true,
+      "count": 0
+    },
+    "user_roles": {
+      "exists": true,
+      "count": 0
+    },
+    "auth_logs": {
+      "exists": true,
+      "count": 0
+    },
+    "products": {
+      "exists": true,
+      "count": 0
+    },
+    "technologies": {
+      "exists": true,
+      "count": 0
+    },
+    "product_technologies": {
+      "exists": true,
+      "count": 0
+    },
+    "product_images": {
+      "exists": true,
+      "count": 0
+    },
+    "inventory_logs": {
+      "exists": true,
+      "count": 0
+    },
+    "orders": {
+      "exists": true,
+      "count": 0
+    },
+    "order_items": {
+      "exists": true,
+      "count": 0
+    },
+    "order_status_history": {
+      "exists": true,
+      "count": 0
+    },
+    "payments": {
+      "exists": true,
+      "count": 0
+    },
+    "shipping_addresses": {
+      "exists": true,
+      "count": 0
+    },
+    "asaas_transactions": {
+      "exists": true,
+      "count": 0
+    },
+    "asaas_splits": {
+      "exists": true,
+      "count": 0
+    },
+    "asaas_webhook_logs": {
+      "exists": true,
+      "count": 0
+    },
+    "affiliates": {
+      "exists": true,
+      "count": 0
+    },
+    "affiliate_network": {
+      "exists": true,
+      "count": 0
+    },
+    "referral_codes": {
+      "exists": true,
+      "count": 0
+    },
+    "referral_clicks": {
+      "exists": true,
+      "count": 0
+    },
+    "referral_conversions": {
+      "exists": true,
+      "count": 0
+    },
+    "commissions": {
+      "exists": true,
+      "count": 0
+    },
+    "commission_splits": {
+      "exists": true,
+      "count": 0
+    },
+    "commission_logs": {
+      "exists": true,
+      "count": 0
+    },
+    "asaas_wallets": {
+      "exists": true,
+      "count": 0
+    },
+    "notification_logs": {
+      "exists": true,
+      "count": 0
+    },
+    "customers": {
+      "exists": true,
+      "count": 0
+    },
+    "customer_tags": {
+      "exists": true,
+      "count": 7
+    },
+    "customer_tag_assignments": {
+      "exists": true,
+      "count": 0
+    },
+    "customer_timeline": {
+      "exists": true,
+      "count": 0
+    },
+    "conversations": {
+      "exists": true,
+      "count": 0
+    },
+    "messages": {
+      "exists": true,
+      "count": 0
+    },
+    "appointments": {
+      "exists": true,
+      "count": 0
+    }
+  },
+  "summary": {
+    "Sprint 1 - Auth": {
+      "existing": [
+        "profiles",
+        "user_roles",
+        "auth_logs"
+      ],
+      "missing": [],
+      "total_records": 0
+    },
+    "Sprint 2 - Produtos": {
+      "existing": [
+        "products",
+        "technologies",
+        "product_technologies",
+        "product_images",
+        "inventory_logs"
+      ],
+      "missing": [],
+      "total_records": 0
+    },
+    "Sprint 3 - Vendas": {
+      "existing": [
+        "orders",
+        "order_items",
+        "order_status_history",
+        "payments",
+        "shipping_addresses",
+        "asaas_transactions",
+        "asaas_splits",
+        "asaas_webhook_logs"
+      ],
+      "missing": [],
+      "total_records": 0
+    },
+    "Sprint 4 - Afiliados": {
+      "existing": [
+        "affiliates",
+        "affiliate_network",
+        "referral_codes",
+        "referral_clicks",
+        "referral_conversions",
+        "commissions",
+        "commission_splits",
+        "commission_logs",
+        "asaas_wallets",
+        "notification_logs"
+      ],
+      "missing": [],
+      "total_records": 0
+    },
+    "Sprint 5 - CRM": {
+      "existing": [
+        "customers",
+        "customer_tags",
+        "customer_tag_assignments",
+        "customer_timeline",
+        "conversations",
+        "messages",
+        "appointments"
+      ],
+      "missing": [],
+      "total_records": 7
+    }
+  }
+}

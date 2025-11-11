@@ -213,7 +213,9 @@
     - _Requirements: 10.1_
 
 
-- [ ] 12. Criar primeiro commit
+
+- [x] 12. Criar primeiro commit
+
   - Adicionar todos os arquivos ao Git
   - Criar commit com mensagem descritiva
   - Validar que arquivos sensíveis não foram incluídos

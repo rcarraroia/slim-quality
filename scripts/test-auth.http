@@ -1,0 +1,178 @@
+### Slim Quality Backend - Testes de Autenticação
+### Sprint 1: Sistema de Autenticação e Gestão de Usuários
+
+@baseUrl = http://localhost:3000
+@email = teste@slimquality.com
+@password = senha123456
+
+### 1. Health Check
+GET {{baseUrl}}/health
+
+### 2. Registrar novo usuário
+# @name register
+POST {{baseUrl}}/api/auth/register
+Content-Type: application/json
+
+{
+  "email": "{{email}}",
+  "password": "{{password}}",
+  "full_name": "Usuário Teste",
+  "phone": "+5511999999999"
+}
+
+### 3. Login
+# @name login
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{email}}",
+  "password": "{{password}}"
+}
+
+### 4. Obter dados do usuário autenticado (GET /api/auth/me)
+@accessToken = {{login.response.body.data.session.access_token}}
+
+GET {{baseUrl}}/api/auth/me
+Authorization: Bearer {{accessToken}}
+
+### 5. Atualizar perfil
+PUT {{baseUrl}}/api/users/profile
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "full_name": "Usuário Teste Atualizado",
+  "phone": "+5511988888888"
+}
+
+### 6. Solicitar recuperação de senha
+POST {{baseUrl}}/api/auth/forgot-password
+Content-Type: application/json
+
+{
+  "email": "{{email}}"
+}
+
+### 7. Logout
+POST {{baseUrl}}/api/auth/logout
+Authorization: Bearer {{accessToken}}
+
+### 8. Tentar acessar rota protegida após logout (deve falhar)
+GET {{baseUrl}}/api/auth/me
+Authorization: Bearer {{accessToken}}
+
+### ========================================
+### TESTES ADMINISTRATIVOS
+### ========================================
+
+### 9. Criar usuário admin para testes
+# @name registerAdmin
+POST {{baseUrl}}/api/auth/register
+Content-Type: application/json
+
+{
+  "email": "admin@slimquality.com",
+  "password": "admin123456",
+  "full_name": "Admin Teste"
+}
+
+### 10. Login como admin
+# @name loginAdmin
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@slimquality.com",
+  "password": "admin123456"
+}
+
+@adminToken = {{loginAdmin.response.body.data.session.access_token}}
+@adminUserId = {{loginAdmin.response.body.data.user.id}}
+
+### 11. Atribuir role admin ao usuário admin (via SQL direto no Supabase)
+### Execute no SQL Editor do Supabase:
+### INSERT INTO user_roles (user_id, role) VALUES ('{{adminUserId}}', 'admin');
+
+### 12. Listar todos os usuários (apenas admin)
+GET {{baseUrl}}/api/admin/users
+Authorization: Bearer {{adminToken}}
+
+### 13. Buscar usuário específico por ID
+@userId = {{register.response.body.data.user.id}}
+
+GET {{baseUrl}}/api/admin/users/{{userId}}
+Authorization: Bearer {{adminToken}}
+
+### 14. Atribuir role 'vendedor' a usuário
+POST {{baseUrl}}/api/admin/users/{{userId}}/roles
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "role": "vendedor"
+}
+
+### 15. Remover role 'vendedor' de usuário
+DELETE {{baseUrl}}/api/admin/users/{{userId}}/roles/vendedor
+Authorization: Bearer {{adminToken}}
+
+### ========================================
+### TESTES DE VALIDAÇÃO E ERROS
+### ========================================
+
+### 16. Tentar registrar com email inválido (deve falhar)
+POST {{baseUrl}}/api/auth/register
+Content-Type: application/json
+
+{
+  "email": "email-invalido",
+  "password": "senha123",
+  "full_name": "Teste"
+}
+
+### 17. Tentar registrar com senha curta (deve falhar)
+POST {{baseUrl}}/api/auth/register
+Content-Type: application/json
+
+{
+  "email": "teste2@slimquality.com",
+  "password": "123",
+  "full_name": "Teste"
+}
+
+### 18. Tentar registrar com email duplicado (deve falhar)
+POST {{baseUrl}}/api/auth/register
+Content-Type: application/json
+
+{
+  "email": "{{email}}",
+  "password": "senha123456",
+  "full_name": "Outro Usuário"
+}
+
+### 19. Tentar login com credenciais inválidas (deve falhar)
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{email}}",
+  "password": "senha-errada"
+}
+
+### 20. Tentar acessar rota admin sem ser admin (deve falhar)
+GET {{baseUrl}}/api/admin/users
+Authorization: Bearer {{accessToken}}
+
+### ========================================
+### TESTES DE RATE LIMITING
+### ========================================
+
+### 21. Testar rate limiting (executar múltiplas vezes rapidamente)
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "teste-rate-limit@slimquality.com",
+  "password": "senha123"
+}

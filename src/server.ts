@@ -105,11 +105,14 @@ app.use((err: Error, req: express.Request, res: express.Response, next: express.
 // START SERVER
 // ============================================
 
-app.listen(PORT, () => {
-  Logger.info('Server', `Servidor rodando na porta ${PORT}`, {
-    environment: process.env.NODE_ENV || 'development',
-    port: PORT,
+// Só inicia o servidor se executado diretamente (não quando importado)
+if (require.main === module) {
+  app.listen(PORT, () => {
+    Logger.info('Server', `Servidor rodando na porta ${PORT}`, {
+      environment: process.env.NODE_ENV || 'development',
+      port: PORT,
+    });
   });
-});
+}
 
 export default app;

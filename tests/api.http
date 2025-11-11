@@ -1,0 +1,335 @@
+###
+# Slim Quality - API Tests
+# Sprint 3: Sistema de Vendas
+#
+# Uso: Instalar extensão REST Client no VS Code
+# Ou usar com httpYac, Thunder Client, etc.
+###
+
+# ============================================
+# VARIÁVEIS
+# ============================================
+
+@baseUrl = http://localhost:3000
+@token = YOUR_JWT_TOKEN_HERE
+@adminToken = YOUR_ADMIN_JWT_TOKEN_HERE
+@orderId = ORDER_ID_HERE
+@productId = PRODUCT_ID_HERE
+
+# ============================================
+# HEALTH CHECK
+# ============================================
+
+### Health Check
+GET {{baseUrl}}/health
+
+# ============================================
+# AUTENTICAÇÃO (Supabase)
+# ============================================
+
+### Login
+POST https://YOUR_SUPABASE_URL/auth/v1/token?grant_type=password
+apikey: YOUR_SUPABASE_ANON_KEY
+Content-Type: application/json
+
+{
+  "email": "user@example.com",
+  "password": "password123"
+}
+
+# ============================================
+# PEDIDOS - ENDPOINTS PÚBLICOS
+# ============================================
+
+### Criar Pedido
+POST {{baseUrl}}/api/orders
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "items": [
+    {
+      "product_id": "{{productId}}",
+      "quantity": 1
+    }
+  ],
+  "customer": {
+    "name": "João Silva",
+    "email": "joao@example.com",
+    "cpfCnpj": "12345678901",
+    "phone": "(11) 99999-9999",
+    "mobilePhone": "(11) 99999-9999",
+    "address": "Rua Exemplo",
+    "addressNumber": "123",
+    "complement": "Apto 45",
+    "province": "Centro",
+    "postalCode": "12345-678"
+  },
+  "shipping_address": {
+    "recipient_name": "João Silva",
+    "street": "Rua Exemplo",
+    "number": "123",
+    "complement": "Apto 45",
+    "neighborhood": "Centro",
+    "city": "São Paulo",
+    "state": "SP",
+    "postal_code": "12345-678",
+    "phone": "(11) 99999-9999"
+  },
+  "referral_code": "ABC123",
+  "notes": "Entregar pela manhã"
+}
+
+### Gerar Pagamento PIX
+POST {{baseUrl}}/api/orders/{{orderId}}/payment
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "payment_method": "pix"
+}
+
+### Gerar Pagamento Cartão
+POST {{baseUrl}}/api/orders/{{orderId}}/payment
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "payment_method": "credit_card",
+  "card": {
+    "holder_name": "JOAO SILVA",
+    "number": "5162306219378829",
+    "expiry_month": "12",
+    "expiry_year": "2028",
+    "ccv": "123"
+  },
+  "card_holder": {
+    "name": "João Silva",
+    "email": "joao@example.com",
+    "cpfCnpj": "12345678901",
+    "postalCode": "12345-678",
+    "addressNumber": "123",
+    "phone": "(11) 99999-9999",
+    "mobilePhone": "(11) 99999-9999"
+  },
+  "installments": 3,
+  "remote_ip": "192.168.1.1"
+}
+
+### Listar Meus Pedidos
+GET {{baseUrl}}/api/orders/my-orders?page=1&limit=20
+Authorization: Bearer {{token}}
+
+### Listar Meus Pedidos (Filtrado)
+GET {{baseUrl}}/api/orders/my-orders?status=paid&date_from=2025-01-01T00:00:00Z
+Authorization: Bearer {{token}}
+
+### Detalhes do Pedido
+GET {{baseUrl}}/api/orders/{{orderId}}
+Authorization: Bearer {{token}}
+
+### Status do Pedido
+GET {{baseUrl}}/api/orders/{{orderId}}/status
+Authorization: Bearer {{token}}
+
+# ============================================
+# PEDIDOS - ENDPOINTS ADMINISTRATIVOS
+# ============================================
+
+### Listar Todos os Pedidos (Admin)
+GET {{baseUrl}}/api/admin/orders?page=1&limit=20
+Authorization: Bearer {{adminToken}}
+
+### Listar Pedidos Pendentes (Admin)
+GET {{baseUrl}}/api/admin/orders?status=pending
+Authorization: Bearer {{adminToken}}
+
+### Listar Pedidos por Cliente (Admin)
+GET {{baseUrl}}/api/admin/orders?customer_id=USER_ID_HERE
+Authorization: Bearer {{adminToken}}
+
+### Detalhes do Pedido (Admin)
+GET {{baseUrl}}/api/admin/orders/{{orderId}}
+Authorization: Bearer {{adminToken}}
+
+### Atualizar Status do Pedido (Admin)
+PUT {{baseUrl}}/api/admin/orders/{{orderId}}/status
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "status": "processing",
+  "notes": "Pedido em separação"
+}
+
+### Cancelar Pedido (Admin)
+POST {{baseUrl}}/api/admin/orders/{{orderId}}/cancel
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "reason": "Produto indisponível"
+}
+
+### Estatísticas (Admin)
+GET {{baseUrl}}/api/admin/orders/stats
+Authorization: Bearer {{adminToken}}
+
+# ============================================
+# WEBHOOKS
+# ============================================
+
+### Webhook Asaas - PAYMENT_CONFIRMED
+POST {{baseUrl}}/webhooks/asaas
+asaas-access-token: YOUR_WEBHOOK_TOKEN
+Content-Type: application/json
+
+{
+  "id": "evt_test_123",
+  "event": "PAYMENT_CONFIRMED",
+  "dateCreated": "2025-01-24T10:00:00.000Z",
+  "payment": {
+    "object": "payment",
+    "id": "pay_test_123",
+    "dateCreated": "2025-01-24T09:00:00.000Z",
+    "customer": "cus_test_123",
+    "value": 3290.00,
+    "netValue": 3190.00,
+    "description": "Pedido #ORD-20250124-0001",
+    "billingType": "PIX",
+    "status": "CONFIRMED",
+    "dueDate": "2025-01-31",
+    "pixTransaction": {
+      "qrCode": {
+        "encodedImage": "data:image/png;base64,iVBORw0KGgo...",
+        "payload": "00020126580014br.gov.bcb.pix...",
+        "expirationDate": "2025-01-24T23:59:59.000Z"
+      }
+    }
+  }
+}
+
+### Webhook Asaas - PAYMENT_RECEIVED
+POST {{baseUrl}}/webhooks/asaas
+asaas-access-token: YOUR_WEBHOOK_TOKEN
+Content-Type: application/json
+
+{
+  "id": "evt_test_124",
+  "event": "PAYMENT_RECEIVED",
+  "dateCreated": "2025-01-24T10:05:00.000Z",
+  "payment": {
+    "object": "payment",
+    "id": "pay_test_123",
+    "status": "RECEIVED",
+    "value": 3290.00,
+    "netValue": 3190.00,
+    "billingType": "PIX"
+  }
+}
+
+### Webhook Asaas - PAYMENT_OVERDUE
+POST {{baseUrl}}/webhooks/asaas
+asaas-access-token: YOUR_WEBHOOK_TOKEN
+Content-Type: application/json
+
+{
+  "id": "evt_test_125",
+  "event": "PAYMENT_OVERDUE",
+  "dateCreated": "2025-02-01T00:00:00.000Z",
+  "payment": {
+    "object": "payment",
+    "id": "pay_test_123",
+    "status": "OVERDUE",
+    "value": 3290.00,
+    "billingType": "PIX"
+  }
+}
+
+### Webhook Asaas - PAYMENT_REFUNDED
+POST {{baseUrl}}/webhooks/asaas
+asaas-access-token: YOUR_WEBHOOK_TOKEN
+Content-Type: application/json
+
+{
+  "id": "evt_test_126",
+  "event": "PAYMENT_REFUNDED",
+  "dateCreated": "2025-01-24T15:00:00.000Z",
+  "payment": {
+    "object": "payment",
+    "id": "pay_test_123",
+    "status": "REFUNDED",
+    "value": 3290.00,
+    "billingType": "CREDIT_CARD"
+  }
+}
+
+# ============================================
+# TESTES DE ERRO
+# ============================================
+
+### Criar Pedido sem Autenticação (401)
+POST {{baseUrl}}/api/orders
+Content-Type: application/json
+
+{
+  "items": [{"product_id": "{{productId}}", "quantity": 1}]
+}
+
+### Criar Pedido com Dados Inválidos (400)
+POST {{baseUrl}}/api/orders
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "items": []
+}
+
+### Buscar Pedido Inexistente (404)
+GET {{baseUrl}}/api/orders/00000000-0000-0000-0000-000000000000
+Authorization: Bearer {{token}}
+
+### Acessar Rota Admin sem Permissão (403)
+GET {{baseUrl}}/api/admin/orders
+Authorization: Bearer {{token}}
+
+### Gerar Pagamento para Pedido Já Pago (400)
+POST {{baseUrl}}/api/orders/{{orderId}}/payment
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "payment_method": "pix"
+}
+
+### Atualizar Status com Transição Inválida (400)
+PUT {{baseUrl}}/api/admin/orders/{{orderId}}/status
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "status": "delivered"
+}
+
+### Webhook com Token Inválido (401)
+POST {{baseUrl}}/webhooks/asaas
+asaas-access-token: INVALID_TOKEN
+Content-Type: application/json
+
+{
+  "id": "evt_test_999",
+  "event": "PAYMENT_CONFIRMED",
+  "payment": {}
+}
+
+# ============================================
+# NOTAS
+# ============================================
+
+# 1. Substitua as variáveis no topo do arquivo
+# 2. Para obter JWT token, use o endpoint de login do Supabase
+# 3. Para testes de webhook, use ngrok ou similar para expor localhost
+# 4. Cartões de teste Asaas (Sandbox):
+#    - Aprovado: 5162306219378829
+#    - Rejeitado: 5162306219378837
+# 5. Sempre use ASAAS_ENVIRONMENT=sandbox para testes
