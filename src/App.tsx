@@ -15,6 +15,7 @@ import { lazy } from 'react';
 import Index from "./pages/Index";
 import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
+import { AuthRedirect } from "./components/AuthRedirect";
 
 // Lazy load pages
 const ProductPage = lazy(() => import("./pages/produtos/ProductPage"));
@@ -63,7 +64,12 @@ const AppContent = () => {
       <Routes>
       {/* Public routes with header/footer */}
       <Route element={<PublicLayout />}>
-        <Route path="/" element={<Index />} />
+        <Route path="/" element={
+          <>
+            <AuthRedirect />
+            <Index />
+          </>
+        } />
         <Route path="/produtos" element={<ProductPage />} />
         <Route path="/tecnologias" element={<Sobre />} />
         <Route path="/afiliados" element={<AfiliadosLanding />} />

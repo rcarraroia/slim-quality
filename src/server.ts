@@ -12,6 +12,7 @@ import dotenv from 'dotenv';
 import { Logger } from '@/utils/logger';
 
 // Importar rotas
+import authRoutes from '@/api/routes/auth.routes';
 import ordersRoutes from '@/api/routes/orders.routes';
 import adminOrdersRoutes from '@/api/routes/admin-orders.routes';
 import webhookRoutes from '@/api/routes/webhook.routes';
@@ -64,6 +65,9 @@ app.get('/health', (req, res) => {
 // ============================================
 // ROTAS DA API
 // ============================================
+
+// Rotas de autenticação
+app.use('/api/auth', authRoutes);
 
 // Rotas públicas de pedidos
 app.use('/api/orders', ordersRoutes);

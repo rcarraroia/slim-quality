@@ -698,6 +698,8 @@ class TimelineService {
   }
 }
 
+// Exportar classe e instância
+export { TimelineService };
 export const timelineService = new TimelineService();
 
 // ============================================

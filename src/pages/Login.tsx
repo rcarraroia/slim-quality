@@ -26,12 +26,14 @@ export default function Login() {
       
       toast({
         title: "Login realizado com sucesso!",
-        description: "Redirecionando para o dashboard...",
+        description: "Redirecionando...",
       });
       
-      // Redirecionar para dashboard
+      // Aguardar contexto atualizar e redirecionar baseado no role
       setTimeout(() => {
-        navigate("/dashboard");
+        // O AuthContext já carregou o usuário com roles
+        // Redirecionar será feito automaticamente
+        window.location.href = "/"; // Força reload para garantir que o contexto está atualizado
       }, 500);
     } catch (error: any) {
       // Tratar erros

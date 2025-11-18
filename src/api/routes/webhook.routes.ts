@@ -19,12 +19,13 @@ const router = Router();
  * Recebe webhooks do Asaas
  * 
  * Sem autenticação JWT (usa authToken do Asaas)
+ * TODO: Implementar validateAsaasToken e handleAsaasWebhook
  */
-router.post(
-  '/asaas',
-  webhookRateLimit,
-  validateAsaasToken,
-  handleAsaasWebhook
-);
+// router.post(
+//   '/asaas',
+//   webhookRateLimit,
+//   validateAsaasToken,
+//   handleAsaasWebhook
+// );
 
 export default router;

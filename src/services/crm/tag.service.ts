@@ -615,4 +615,6 @@ class TagService {
   }
 }
 
+// Exportar classe e instância
+export { TagService };
 export const tagService = new TagService();

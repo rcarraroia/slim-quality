@@ -491,6 +491,8 @@ class CustomerService {
   }
 }
 
+// Exportar classe e instância
+export { CustomerService };
 export const customerService = new CustomerService();
 
 // ============================================

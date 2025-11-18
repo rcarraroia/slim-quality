@@ -84,3 +84,6 @@ export class Logger {
     console.error(JSON.stringify(entry));
   }
 }
+
+// Exportar instância para uso como { logger }
+export const logger = Logger;

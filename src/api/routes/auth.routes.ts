@@ -13,7 +13,7 @@ import {
   forgotPasswordController,
   meController,
 } from '../controllers/auth.controller';
-import { requireAuth } from '../middlewares/auth.middleware';
+import { authenticate } from '../middlewares/auth.middleware';
 import { authRateLimiter } from '../middlewares/rate-limit.middleware';
 
 const router = Router();
@@ -37,7 +37,7 @@ router.post('/login', authRateLimiter, loginController);
  * Encerra sessão do usuário
  * Requer autenticação
  */
-router.post('/logout', requireAuth, logoutController);
+router.post('/logout', authenticate, logoutController);
 
 /**
  * POST /api/auth/forgot-password
@@ -51,6 +51,6 @@ router.post('/forgot-password', authRateLimiter, forgotPasswordController);
  * Retorna dados do usuário autenticado
  * Requer autenticação
  */
-router.get('/me', requireAuth, meController);
+router.get('/me', authenticate, meController);
 
 export default router;
