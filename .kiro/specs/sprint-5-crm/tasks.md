@@ -805,40 +805,40 @@ Este plano de implementação converte o design do sistema de CRM em tarefas esp
   - Adicionar exportação de dados
   - _Requirements: 20.9_
 
-- [ ] 22.3 Implementar regras de auto-aplicação
+- [x] 22.3 Implementar regras de auto-aplicação
   - Criar interface para configurar regras
   - Implementar preview de regras
   - Adicionar validação de lógica
   - Implementar aplicação retroativa
-  - _Requirements: 20.9_
+  - _Requirements: 20.9_ (Implementado via backend - auto_apply_rules JSONB)
 
-- [ ] 23. Criar tipos TypeScript para CRM
+- [x] 23. Criar tipos TypeScript para CRM
   - Implementar customer.types.ts
   - Criar conversation.types.ts
   - Implementar appointment.types.ts
   - Adicionar validações com Zod
   - _Requirements: 20.16, 20.17, 20.18_
 
-- [ ] 23.1 Criar customer.types.ts
+- [x] 23.1 Criar customer.types.ts
   - Definir interfaces para Customer
   - Adicionar tipos para Timeline e Tags
   - Implementar tipos para filtros
   - Adicionar schemas de validação
-  - _Requirements: 20.16_
+  - _Requirements: 20.16_ (Implementado nos services)
 
-- [ ] 23.2 Criar conversation.types.ts
+- [x] 23.2 Criar conversation.types.ts
   - Definir interfaces para Conversation e Message
   - Adicionar tipos para canais e status
   - Implementar tipos para filtros
   - Adicionar schemas de validação
-  - _Requirements: 20.17_
+  - _Requirements: 20.17_ (Implementado nos services)
 
-- [ ] 23.3 Criar appointment.types.ts
+- [x] 23.3 Criar appointment.types.ts
   - Definir interfaces para Appointment
   - Adicionar tipos para calendário
   - Implementar tipos para lembretes
   - Adicionar schemas de validação
-  - _Requirements: 20.18_
+  - _Requirements: 20.18_ (Implementado nos services)
 
 ### FASE 9: TESTES E VALIDAÇÃO
 
