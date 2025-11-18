@@ -31,7 +31,9 @@ export default function Conversas() {
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [newMessage, setNewMessage] = useState('');
   const [sending, setSending] = useState(false);
+  const [isTyping, setIsTyping] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     loadConversations();
@@ -120,6 +122,18 @@ export default function Conversas() {
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  const handleTyping = () => {
+    setIsTyping(true);
+    
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+    
+    typingTimeoutRef.current = setTimeout(() => {
+      setIsTyping(false);
+    }, 3000);
   };
 
   const formatTime = (date: string) => {
@@ -347,6 +361,20 @@ export default function Conversas() {
                         </div>
                       </div>
                     ))}
+                    
+                    {/* Indicador de digitando */}
+                    {isTyping && (
+                      <div className="flex justify-start">
+                        <div className="bg-muted rounded-lg p-3">
+                          <div className="flex gap-1">
+                            <span className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                            <span className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                            <span className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    
                     <div ref={messagesEndRef} />
                   </div>
                 )}
@@ -358,7 +386,10 @@ export default function Conversas() {
                   <Input
                     placeholder="Digite sua mensagem..."
                     value={newMessage}
-                    onChange={(e) => setNewMessage(e.target.value)}
+                    onChange={(e) => {
+                      setNewMessage(e.target.value);
+                      handleTyping();
+                    }}
                     onKeyPress={(e) => e.key === 'Enter' && !e.shiftKey && handleSendMessage()}
                     disabled={sending}
                   />
