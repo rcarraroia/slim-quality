@@ -6,7 +6,7 @@
  */
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import apiClient from '@/lib/api-client';
+import { supabase } from '@/config/supabase';
 
 // Tipos
 interface User {
@@ -51,13 +51,43 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Função para carregar dados do usuário
   const loadUser = async () => {
     try {
-      const response = await apiClient.get('/api/auth/me');
-      const userData = response.data.data;
+      const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
       
-      setUser(userData);
+      if (authError || !authUser) {
+        throw new Error('Usuário não autenticado');
+      }
+
+      // Buscar perfil e roles
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', authUser.id)
+        .single();
+
+      if (profileError) throw profileError;
+
+      // Buscar roles
+      const { data: userRoles, error: rolesError } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', authUser.id)
+        .is('deleted_at', null);
+
+      if (rolesError) throw rolesError;
+
+      const roles = userRoles?.map(r => r.role) || [];
+
+      setUser({
+        id: authUser.id,
+        email: authUser.email!,
+        full_name: profile.full_name,
+        phone: profile.phone,
+        avatar_url: profile.avatar_url,
+        is_affiliate: profile.is_affiliate,
+        roles,
+      });
     } catch (error) {
       console.error('Erro ao carregar usuário:', error);
-      // Se falhar, limpar token
       localStorage.removeItem('access_token');
       localStorage.removeItem('refresh_token');
       setUser(null);
@@ -69,22 +99,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Função de login
   const login = async (email: string, password: string) => {
     try {
-      const response = await apiClient.post('/api/auth/login', {
+      // Login direto com Supabase
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
-      const { data } = response.data;
-      const { session, user: userData } = data;
+      if (error) throw error;
 
       // Armazenar tokens
-      localStorage.setItem('access_token', session.access_token);
-      if (session.refresh_token) {
-        localStorage.setItem('refresh_token', session.refresh_token);
+      if (data.session) {
+        localStorage.setItem('access_token', data.session.access_token);
+        if (data.session.refresh_token) {
+          localStorage.setItem('refresh_token', data.session.refresh_token);
+        }
       }
 
-      // Atualizar estado do usuário
-      setUser(userData);
+      // Carregar dados completos do usuário
+      await loadUser();
     } catch (error) {
       console.error('Erro no login:', error);
       throw error;
@@ -94,12 +126,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Função de logout
   const logout = async () => {
     try {
-      // Chamar API de logout
-      await apiClient.post('/api/auth/logout');
+      await supabase.auth.signOut();
     } catch (error) {
       console.error('Erro no logout:', error);
     } finally {
-      // Sempre limpar dados locais
       localStorage.removeItem('access_token');
       localStorage.removeItem('refresh_token');
       setUser(null);
