@@ -36,6 +36,7 @@ export default function Clientes() {
   const [dateTo, setDateTo] = useState('');
   const [origin, setOrigin] = useState('');
   const [availableTags, setAvailableTags] = useState<Tag[]>([]);
+  const [selectedCustomers, setSelectedCustomers] = useState<string[]>([]);
 
   useEffect(() => {
     loadCustomers();
@@ -92,6 +93,51 @@ export default function Clientes() {
 
   const hasActiveFilters = selectedTags.length > 0 || dateFrom || dateTo || origin;
 
+  const toggleCustomerSelection = (customerId: string) => {
+    setSelectedCustomers(prev =>
+      prev.includes(customerId)
+        ? prev.filter(id => id !== customerId)
+        : [...prev, customerId]
+    );
+  };
+
+  const selectAllCustomers = () => {
+    setSelectedCustomers(customers.map(c => c.id));
+  };
+
+  const clearSelection = () => {
+    setSelectedCustomers([]);
+  };
+
+  const handleBulkTagApply = async (tagId: string) => {
+    try {
+      await Promise.all(
+        selectedCustomers.map(customerId =>
+          customerFrontendService.addTag(customerId, tagId)
+        )
+      );
+      clearSelection();
+      loadCustomers();
+    } catch (error) {
+      console.error('Erro ao aplicar tags:', error);
+    }
+  };
+
+  const handleBulkExport = async () => {
+    try {
+      const blob = await customerFrontendService.exportCustomers({
+        customer_ids: selectedCustomers
+      });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `clientes-selecionados-${new Date().toISOString().split('T')[0]}.csv`;
+      a.click();
+    } catch (error) {
+      console.error('Erro ao exportar:', error);
+    }
+  };
+
   const handleExport = async () => {
     try {
       const blob = await customerFrontendService.exportCustomers({ search });
@@ -126,11 +172,21 @@ export default function Clientes() {
         <div className="flex-1 relative">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Buscar por nome, email ou telefone..."
+            placeholder="Buscar por nome, email, telefone ou CPF/CNPJ..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-10"
           />
+          {search && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="absolute right-2 top-1/2 transform -translate-y-1/2 h-6 w-6 p-0"
+              onClick={() => setSearch('')}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          )}
         </div>
         <Popover open={showFilters} onOpenChange={setShowFilters}>
           <PopoverTrigger asChild>
@@ -270,6 +326,51 @@ export default function Clientes() {
         </Card>
       )}
 
+      {/* Ações em Massa */}
+      {selectedCustomers.length > 0 && (
+        <Card className="bg-primary/5 border-primary">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <span className="font-medium">
+                  {selectedCustomers.length} {selectedCustomers.length === 1 ? 'cliente selecionado' : 'clientes selecionados'}
+                </span>
+                <Button variant="outline" size="sm" onClick={clearSelection}>
+                  Limpar seleção
+                </Button>
+              </div>
+              <div className="flex gap-2">
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button size="sm">Aplicar Tag</Button>
+                  </PopoverTrigger>
+                  <PopoverContent>
+                    <div className="space-y-2">
+                      {availableTags.map(tag => (
+                        <Button
+                          key={tag.id}
+                          variant="outline"
+                          size="sm"
+                          className="w-full justify-start"
+                          style={{ borderColor: tag.color }}
+                          onClick={() => handleBulkTagApply(tag.id)}
+                        >
+                          {tag.name}
+                        </Button>
+                      ))}
+                    </div>
+                  </PopoverContent>
+                </Popover>
+                <Button size="sm" variant="outline" onClick={handleBulkExport}>
+                  <Download className="h-4 w-4 mr-2" />
+                  Exportar Selecionados
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Lista de Clientes */}
       {loading ? (
         <div className="text-center py-12">
@@ -280,15 +381,34 @@ export default function Clientes() {
           <p className="text-muted-foreground">Nenhum cliente encontrado</p>
         </div>
       ) : (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {customers.map(customer => (
-            <CustomerCard
-              key={customer.id}
-              customer={customer}
-              onClick={() => navigate(`/dashboard/clientes/${customer.id}`)}
+        <>
+          <div className="flex items-center gap-2 mb-4">
+            <input
+              type="checkbox"
+              checked={selectedCustomers.length === customers.length}
+              onChange={(e) => e.target.checked ? selectAllCustomers() : clearSelection()}
+              className="h-4 w-4"
             />
-          ))}
-        </div>
+            <span className="text-sm text-muted-foreground">Selecionar todos</span>
+          </div>
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {customers.map(customer => (
+              <div key={customer.id} className="relative">
+                <input
+                  type="checkbox"
+                  checked={selectedCustomers.includes(customer.id)}
+                  onChange={() => toggleCustomerSelection(customer.id)}
+                  className="absolute top-2 left-2 z-10 h-4 w-4"
+                  onClick={(e) => e.stopPropagation()}
+                />
+                <CustomerCard
+                  customer={customer}
+                  onClick={() => navigate(`/dashboard/clientes/${customer.id}`)}
+                />
+              </div>
+            ))}
+          </div>
+        </>
       )}
 
       {/* Paginação */}
