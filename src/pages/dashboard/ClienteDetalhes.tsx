@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Mail, Phone, MapPin, Edit, Calendar, MessageSquare } from 'lucide-react';
+import { ArrowLeft, Mail, Phone, MapPin, Edit, Calendar, MessageSquare, Save, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Input } from '@/components/ui/input';
 import { TimelineView } from '@/components/crm/TimelineView';
 import { customerFrontendService, type Customer, type TimelineEvent } from '@/services/frontend/customer-frontend.service';
 
@@ -15,6 +16,8 @@ export default function ClienteDetalhes() {
   const [customer, setCustomer] = useState<Customer | null>(null);
   const [timeline, setTimeline] = useState<TimelineEvent[]>([]);
   const [loading, setLoading] = useState(true);
+  const [editMode, setEditMode] = useState(false);
+  const [editData, setEditData] = useState<Partial<Customer>>({});
 
   useEffect(() => {
     if (id) {
@@ -27,10 +30,21 @@ export default function ClienteDetalhes() {
     try {
       const data = await customerFrontendService.getCustomerById(id!);
       setCustomer(data);
+      setEditData(data);
     } catch (error) {
       console.error('Erro ao carregar cliente:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSaveEdit = async () => {
+    try {
+      await customerFrontendService.updateCustomer(id!, editData);
+      setEditMode(false);
+      loadCustomer();
+    } catch (error) {
+      console.error('Erro ao atualizar cliente:', error);
     }
   };
 
@@ -94,7 +108,7 @@ export default function ClienteDetalhes() {
                 </p>
               </div>
               <div className="flex gap-2">
-                <Button variant="outline" size="sm">
+                <Button variant="outline" size="sm" onClick={() => setEditMode(true)}>
                   <Edit className="h-4 w-4 mr-2" />
                   Editar
                 </Button>
@@ -109,28 +123,74 @@ export default function ClienteDetalhes() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4 mb-4">
-              {customer.email && (
-                <div className="flex items-center gap-2 text-sm">
-                  <Mail className="h-4 w-4 text-muted-foreground" />
-                  <span>{customer.email}</span>
+            {editMode ? (
+              <div className="space-y-4 mb-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-sm font-medium">Nome</label>
+                    <Input
+                      value={editData.name || ''}
+                      onChange={(e) => setEditData({ ...editData, name: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium">Email</label>
+                    <Input
+                      type="email"
+                      value={editData.email || ''}
+                      onChange={(e) => setEditData({ ...editData, email: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium">Telefone</label>
+                    <Input
+                      value={editData.phone || ''}
+                      onChange={(e) => setEditData({ ...editData, phone: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium">CPF/CNPJ</label>
+                    <Input
+                      value={editData.document || ''}
+                      onChange={(e) => setEditData({ ...editData, document: e.target.value })}
+                    />
+                  </div>
                 </div>
-              )}
-              {customer.phone && (
-                <div className="flex items-center gap-2 text-sm">
-                  <Phone className="h-4 w-4 text-muted-foreground" />
-                  <span>{customer.phone}</span>
+                <div className="flex gap-2">
+                  <Button onClick={handleSaveEdit}>
+                    <Save className="h-4 w-4 mr-2" />
+                    Salvar
+                  </Button>
+                  <Button variant="outline" onClick={() => setEditMode(false)}>
+                    <X className="h-4 w-4 mr-2" />
+                    Cancelar
+                  </Button>
                 </div>
-              )}
-              {customer.address && (
-                <div className="flex items-center gap-2 text-sm">
-                  <MapPin className="h-4 w-4 text-muted-foreground" />
-                  <span>
-                    {customer.address.city}, {customer.address.state}
-                  </span>
-                </div>
-              )}
-            </div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-4 mb-4">
+                {customer.email && (
+                  <div className="flex items-center gap-2 text-sm">
+                    <Mail className="h-4 w-4 text-muted-foreground" />
+                    <span>{customer.email}</span>
+                  </div>
+                )}
+                {customer.phone && (
+                  <div className="flex items-center gap-2 text-sm">
+                    <Phone className="h-4 w-4 text-muted-foreground" />
+                    <span>{customer.phone}</span>
+                  </div>
+                )}
+                {customer.address && (
+                  <div className="flex items-center gap-2 text-sm">
+                    <MapPin className="h-4 w-4 text-muted-foreground" />
+                    <span>
+                      {customer.address.city}, {customer.address.state}
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
 
             {customer.tags && customer.tags.length > 0 && (
               <div className="flex flex-wrap gap-2">
@@ -202,13 +262,60 @@ export default function ClienteDetalhes() {
 
         <TabsContent value="orders">
           <Card className="p-6">
-            <p className="text-muted-foreground">Pedidos do cliente aparecerão aqui</p>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="font-semibold">Histórico de Pedidos</h3>
+                <div className="text-sm text-muted-foreground">
+                  Total: R$ {customer.total_spent?.toFixed(2) || '0,00'}
+                </div>
+              </div>
+              {customer.orders && customer.orders.length > 0 ? (
+                <div className="space-y-3">
+                  {customer.orders.map((order: any) => (
+                    <div key={order.id} className="flex items-center justify-between p-4 border rounded-lg">
+                      <div>
+                        <p className="font-medium">Pedido #{order.id.slice(0, 8)}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {new Date(order.created_at).toLocaleDateString('pt-BR')}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-medium">R$ {order.total.toFixed(2)}</p>
+                        <Badge>{order.status}</Badge>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-muted-foreground text-center py-8">Nenhum pedido realizado</p>
+              )}
+            </div>
           </Card>
         </TabsContent>
 
         <TabsContent value="conversations">
           <Card className="p-6">
-            <p className="text-muted-foreground">Conversas do cliente aparecerão aqui</p>
+            <div className="space-y-4">
+              <h3 className="font-semibold">Conversas</h3>
+              {customer.conversations && customer.conversations.length > 0 ? (
+                <div className="space-y-3">
+                  {customer.conversations.map((conv: any) => (
+                    <div key={conv.id} className="flex items-center justify-between p-4 border rounded-lg cursor-pointer hover:bg-accent"
+                         onClick={() => navigate(`/dashboard/conversas?id=${conv.id}`)}>
+                      <div>
+                        <p className="font-medium">{conv.subject || 'Sem assunto'}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {conv.channel} • {new Date(conv.created_at).toLocaleDateString('pt-BR')}
+                        </p>
+                      </div>
+                      <Badge>{conv.status}</Badge>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-muted-foreground text-center py-8">Nenhuma conversa registrada</p>
+              )}
+            </div>
           </Card>
         </TabsContent>
       </Tabs>
