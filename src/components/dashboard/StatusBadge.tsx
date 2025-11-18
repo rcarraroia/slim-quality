@@ -6,7 +6,11 @@ type StatusType =
   | 'pago' | 'pendente' | 'cancelado' | 'enviado'
   | 'ativo' | 'inativo'
   | 'aprovada' | 'cancelada' | 'paga'
-  | 'aprovado' | 'processando' | 'rejeitado';
+  | 'aprovado' | 'processando' | 'rejeitado'
+  // CRM - Conversas
+  | 'new' | 'open' | 'pending' | 'resolved' | 'closed'
+  // CRM - Agendamentos
+  | 'scheduled' | 'confirmed' | 'completed' | 'cancelled' | 'no_show';
 
 interface StatusBadgeProps {
   status: StatusType;
@@ -39,6 +43,20 @@ const statusConfig: Record<StatusType, { label: string; className: string }> = {
   aprovado: { label: 'Aprovado', className: 'bg-success/10 text-success hover:bg-success/20' },
   processando: { label: 'Processando', className: 'bg-blue-500/10 text-blue-500 hover:bg-blue-500/20' },
   rejeitado: { label: 'Rejeitado', className: 'bg-destructive/10 text-destructive hover:bg-destructive/20' },
+  
+  // CRM - Conversas
+  new: { label: 'Nova', className: 'bg-purple-500/10 text-purple-500 hover:bg-purple-500/20' },
+  open: { label: 'Aberta', className: 'bg-success/10 text-success hover:bg-success/20' },
+  pending: { label: 'Pendente', className: 'bg-warning/10 text-warning hover:bg-warning/20' },
+  resolved: { label: 'Resolvida', className: 'bg-blue-500/10 text-blue-500 hover:bg-blue-500/20' },
+  closed: { label: 'Fechada', className: 'bg-muted text-muted-foreground hover:bg-muted/80' },
+  
+  // CRM - Agendamentos
+  scheduled: { label: 'Agendado', className: 'bg-blue-500/10 text-blue-500 hover:bg-blue-500/20' },
+  confirmed: { label: 'Confirmado', className: 'bg-success/10 text-success hover:bg-success/20' },
+  completed: { label: 'Concluído', className: 'bg-green-600/10 text-green-600 hover:bg-green-600/20' },
+  cancelled: { label: 'Cancelado', className: 'bg-destructive/10 text-destructive hover:bg-destructive/20' },
+  no_show: { label: 'Não Compareceu', className: 'bg-orange-500/10 text-orange-500 hover:bg-orange-500/20' },
 };
 
 export function StatusBadge({ status, className }: StatusBadgeProps) {
