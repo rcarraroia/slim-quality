@@ -1,10 +1,25 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Search, Filter, Download } from 'lucide-react';
+import { Plus, Search, Filter, Download, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { CustomerCard } from '@/components/crm/CustomerCard';
 import { customerFrontendService, type Customer } from '@/services/frontend/customer-frontend.service';
+import { tagFrontendService, type Tag } from '@/services/frontend/tag-frontend.service';
+import { Card, CardContent } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 
 export default function Clientes() {
   const navigate = useNavigate();
@@ -13,10 +28,31 @@ export default function Clientes() {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
+  
+  // Filtros avançados
+  const [showFilters, setShowFilters] = useState(false);
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+  const [origin, setOrigin] = useState('');
+  const [availableTags, setAvailableTags] = useState<Tag[]>([]);
 
   useEffect(() => {
     loadCustomers();
-  }, [page, search]);
+  }, [page, search, selectedTags, dateFrom, dateTo, origin]);
+
+  useEffect(() => {
+    loadTags();
+  }, []);
+
+  const loadTags = async () => {
+    try {
+      const result = await tagFrontendService.getTags({ limit: 100 });
+      setAvailableTags(result.data);
+    } catch (error) {
+      console.error('Erro ao carregar tags:', error);
+    }
+  };
 
   const loadCustomers = async () => {
     try {
@@ -24,7 +60,11 @@ export default function Clientes() {
       const result = await customerFrontendService.getCustomers({
         search,
         page,
-        limit: 20
+        limit: 20,
+        tags: selectedTags.length > 0 ? selectedTags : undefined,
+        date_from: dateFrom || undefined,
+        date_to: dateTo || undefined,
+        origin: origin || undefined
       });
       setCustomers(result.data);
       setTotal(result.pagination.total);
@@ -34,6 +74,23 @@ export default function Clientes() {
       setLoading(false);
     }
   };
+
+  const toggleTag = (tagId: string) => {
+    setSelectedTags(prev =>
+      prev.includes(tagId)
+        ? prev.filter(id => id !== tagId)
+        : [...prev, tagId]
+    );
+  };
+
+  const clearFilters = () => {
+    setSelectedTags([]);
+    setDateFrom('');
+    setDateTo('');
+    setOrigin('');
+  };
+
+  const hasActiveFilters = selectedTags.length > 0 || dateFrom || dateTo || origin;
 
   const handleExport = async () => {
     try {
@@ -64,7 +121,7 @@ export default function Clientes() {
         </Button>
       </div>
 
-      {/* Filtros */}
+      {/* Barra de Busca e Ações */}
       <div className="flex gap-4">
         <div className="flex-1 relative">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -75,15 +132,143 @@ export default function Clientes() {
             className="pl-10"
           />
         </div>
-        <Button variant="outline">
-          <Filter className="h-4 w-4 mr-2" />
-          Filtros
-        </Button>
+        <Popover open={showFilters} onOpenChange={setShowFilters}>
+          <PopoverTrigger asChild>
+            <Button variant="outline">
+              <Filter className="h-4 w-4 mr-2" />
+              Filtros
+              {hasActiveFilters && (
+                <Badge className="ml-2 h-5 w-5 rounded-full p-0 flex items-center justify-center">
+                  {selectedTags.length + (dateFrom ? 1 : 0) + (dateTo ? 1 : 0) + (origin ? 1 : 0)}
+                </Badge>
+              )}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-80" align="end">
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h4 className="font-semibold">Filtros Avançados</h4>
+                {hasActiveFilters && (
+                  <Button variant="ghost" size="sm" onClick={clearFilters}>
+                    Limpar
+                  </Button>
+                )}
+              </div>
+
+              {/* Filtro por Tags */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Tags</label>
+                <div className="flex flex-wrap gap-2">
+                  {availableTags.map(tag => (
+                    <Badge
+                      key={tag.id}
+                      variant={selectedTags.includes(tag.id) ? "default" : "outline"}
+                      className="cursor-pointer"
+                      onClick={() => toggleTag(tag.id)}
+                      style={{
+                        backgroundColor: selectedTags.includes(tag.id) ? tag.color : undefined,
+                        borderColor: tag.color
+                      }}
+                    >
+                      {tag.name}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+
+              {/* Filtro por Data de Cadastro */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Data de Cadastro</label>
+                <div className="grid grid-cols-2 gap-2">
+                  <Input
+                    type="date"
+                    value={dateFrom}
+                    onChange={(e) => setDateFrom(e.target.value)}
+                    placeholder="De"
+                  />
+                  <Input
+                    type="date"
+                    value={dateTo}
+                    onChange={(e) => setDateTo(e.target.value)}
+                    placeholder="Até"
+                  />
+                </div>
+              </div>
+
+              {/* Filtro por Origem */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Origem</label>
+                <Select value={origin} onValueChange={setOrigin}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Todas as origens" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">Todas</SelectItem>
+                    <SelectItem value="organic">Orgânico</SelectItem>
+                    <SelectItem value="affiliate">Afiliado</SelectItem>
+                    <SelectItem value="n8n">N8N/WhatsApp</SelectItem>
+                    <SelectItem value="manual">Manual</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </PopoverContent>
+        </Popover>
         <Button variant="outline" onClick={handleExport}>
           <Download className="h-4 w-4 mr-2" />
           Exportar
         </Button>
       </div>
+
+      {/* Filtros Ativos */}
+      {hasActiveFilters && (
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-sm text-muted-foreground">Filtros ativos:</span>
+              {selectedTags.map(tagId => {
+                const tag = availableTags.find(t => t.id === tagId);
+                return tag ? (
+                  <Badge key={tagId} style={{ backgroundColor: tag.color }}>
+                    {tag.name}
+                    <X
+                      className="h-3 w-3 ml-1 cursor-pointer"
+                      onClick={() => toggleTag(tagId)}
+                    />
+                  </Badge>
+                ) : null;
+              })}
+              {dateFrom && (
+                <Badge variant="secondary">
+                  De: {new Date(dateFrom).toLocaleDateString('pt-BR')}
+                  <X
+                    className="h-3 w-3 ml-1 cursor-pointer"
+                    onClick={() => setDateFrom('')}
+                  />
+                </Badge>
+              )}
+              {dateTo && (
+                <Badge variant="secondary">
+                  Até: {new Date(dateTo).toLocaleDateString('pt-BR')}
+                  <X
+                    className="h-3 w-3 ml-1 cursor-pointer"
+                    onClick={() => setDateTo('')}
+                  />
+                </Badge>
+              )}
+              {origin && (
+                <Badge variant="secondary">
+                  Origem: {origin === 'organic' ? 'Orgânico' : origin === 'affiliate' ? 'Afiliado' : origin === 'n8n' ? 'N8N/WhatsApp' : 'Manual'}
+                  <X
+                    className="h-3 w-3 ml-1 cursor-pointer"
+                    onClick={() => setOrigin('')}
+                  />
+                </Badge>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Lista de Clientes */}
       {loading ? (
