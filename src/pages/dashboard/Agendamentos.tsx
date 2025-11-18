@@ -5,12 +5,15 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { appointmentFrontendService, type Appointment } from '@/services/frontend/appointment-frontend.service';
+import { AppointmentModal } from '@/components/crm/AppointmentModal';
 
 export default function Agendamentos() {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [todayAppointments, setTodayAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedDate, setSelectedDate] = useState(new Date());
+  const [modalOpen, setModalOpen] = useState(false);
+  const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
 
   useEffect(() => {
     loadAppointments();
@@ -72,7 +75,10 @@ export default function Agendamentos() {
             {todayAppointments.length} agendamento(s) hoje
           </p>
         </div>
-        <Button>
+        <Button onClick={() => {
+          setSelectedAppointment(null);
+          setModalOpen(true);
+        }}>
           <Plus className="h-4 w-4 mr-2" />
           Novo Agendamento
         </Button>
@@ -90,6 +96,10 @@ export default function Agendamentos() {
               <div
                 key={appointment.id}
                 className="flex items-center justify-between p-3 border rounded-lg hover:bg-accent cursor-pointer"
+                onClick={() => {
+                  setSelectedAppointment(appointment);
+                  setModalOpen(true);
+                }}
               >
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-1">
@@ -200,7 +210,12 @@ export default function Agendamentos() {
                             {dayAppointments.slice(0, 2).map(apt => (
                               <div
                                 key={apt.id}
-                                className="text-xs p-1 bg-primary/10 rounded truncate"
+                                className="text-xs p-1 bg-primary/10 rounded truncate cursor-pointer hover:bg-primary/20"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedAppointment(apt);
+                                  setModalOpen(true);
+                                }}
                               >
                                 {formatTime(apt.scheduled_at)} {apt.title}
                               </div>
@@ -233,6 +248,10 @@ export default function Agendamentos() {
                   <div
                     key={appointment.id}
                     className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent cursor-pointer"
+                    onClick={() => {
+                      setSelectedAppointment(appointment);
+                      setModalOpen(true);
+                    }}
                   >
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-2">
@@ -264,6 +283,20 @@ export default function Agendamentos() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Modal de Agendamento */}
+      <AppointmentModal
+        open={modalOpen}
+        onClose={() => {
+          setModalOpen(false);
+          setSelectedAppointment(null);
+        }}
+        appointment={selectedAppointment}
+        onSuccess={() => {
+          loadAppointments();
+          loadTodayAppointments();
+        }}
+      />
     </div>
   );
 }

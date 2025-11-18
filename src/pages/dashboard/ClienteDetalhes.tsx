@@ -9,6 +9,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Input } from '@/components/ui/input';
 import { TimelineView } from '@/components/crm/TimelineView';
 import { customerFrontendService, type Customer, type TimelineEvent } from '@/services/frontend/customer-frontend.service';
+import { ReminderSystem } from '@/components/crm/ReminderSystem';
 
 export default function ClienteDetalhes() {
   const { id } = useParams<{ id: string }>();
@@ -216,6 +217,7 @@ export default function ClienteDetalhes() {
           <TabsTrigger value="info">Informações</TabsTrigger>
           <TabsTrigger value="orders">Pedidos</TabsTrigger>
           <TabsTrigger value="conversations">Conversas</TabsTrigger>
+          <TabsTrigger value="reminders">Lembretes</TabsTrigger>
         </TabsList>
 
         <TabsContent value="timeline" className="space-y-4">
@@ -317,6 +319,10 @@ export default function ClienteDetalhes() {
               )}
             </div>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="reminders">
+          <ReminderSystem customerId={id} />
         </TabsContent>
       </Tabs>
     </div>
