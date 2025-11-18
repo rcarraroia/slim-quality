@@ -605,14 +605,14 @@ Este plano de implementação converte o design do sistema de CRM em tarefas esp
   - Implementar adição manual de notas
   - _Requirements: 20.15, 20.7_
 
-- [ ] 16.3 Mostrar dados relacionados
+- [x] 16.3 Mostrar dados relacionados
   - Integrar com sistema de vendas (pedidos)
   - Mostrar conversas relacionadas
   - Exibir agendamentos futuros e passados
   - Calcular métricas (LTV, frequência de compra)
   - _Requirements: 20.7_
 
-- [ ] 16.4 Implementar edição de cliente
+- [x] 16.4 Implementar edição de cliente
   - Criar formulário de edição inline
   - Implementar validação de campos
   - Adicionar upload de avatar (futuro)
@@ -640,14 +640,14 @@ Este plano de implementação converte o design do sistema de CRM em tarefas esp
   - Adicionar ordenação por data/prioridade
   - _Requirements: 20.8_
 
-- [ ] 17.3 Implementar CRUD de agendamentos
+- [x] 17.3 Implementar CRUD de agendamentos
   - Criar modal/drawer para novo agendamento
   - Implementar formulário com validações
   - Adicionar seleção de cliente e tipo
   - Implementar detecção de conflitos
   - _Requirements: 20.8_
 
-- [ ] 17.4 Adicionar sistema de lembretes
+- [x] 17.4 Adicionar sistema de lembretes
   - Implementar notificações no frontend
   - Adicionar badges de agendamentos próximos
   - Implementar configuração de preferências
@@ -726,28 +726,28 @@ Este plano de implementação converte o design do sistema de CRM em tarefas esp
   - Adicionar validações de cores e nomes
   - _Requirements: 20.18_
 
-- [ ] 20. Implementar tratamento de erros e loading states
+- [x] 20. Implementar tratamento de erros e loading states
   - Adicionar loading skeletons para todas as páginas
   - Implementar error boundaries para componentes
   - Criar sistema de notificações toast
   - Implementar retry automático em falhas
   - _Requirements: 20.19, 20.22, 20.23_
 
-- [ ] 20.1 Implementar loading states
+- [x] 20.1 Implementar loading states
   - Criar skeletons para listas de clientes
   - Adicionar loading para timeline e conversas
   - Implementar spinners para ações
   - Adicionar progress bars para uploads
   - _Requirements: 20.19, 20.22_
 
-- [ ] 20.2 Implementar error handling
+- [x] 20.2 Implementar error handling
   - Criar error boundaries para páginas
   - Implementar fallbacks para componentes
   - Adicionar retry automático
   - Implementar logs de erro estruturados
   - _Requirements: 20.23_
 
-- [ ] 20.3 Criar sistema de notificações
+- [x] 20.3 Criar sistema de notificações
   - Implementar toast notifications
   - Adicionar notificações de sucesso/erro
   - Implementar notificações em tempo real
