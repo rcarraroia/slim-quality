@@ -9,31 +9,40 @@ import { useReferralTracking } from "@/hooks/useReferralTracking";
 import { PublicLayout } from "./layouts/PublicLayout";
 import { DashboardLayout } from "./layouts/DashboardLayout";
 import { AffiliateDashboardLayout } from "./layouts/AffiliateDashboardLayout";
+import { Suspense } from 'react';
+import { LoadingSpinner } from './components/ui/loading-spinner';
+import { lazy } from 'react';
 import Index from "./pages/Index";
-import ProductPage from "./pages/produtos/ProductPage";
-import Sobre from "./pages/Sobre";
 import Login from "./pages/Login";
-import AfiliadosLanding from "./pages/afiliados/AfiliadosLanding";
-import AfiliadosCadastro from "./pages/afiliados/AfiliadosCadastro";
-import Dashboard from "./pages/dashboard/Dashboard";
-import Conversas from "./pages/dashboard/Conversas";
-import Clientes from "./pages/dashboard/Clientes";
-import ClienteDetalhes from "./pages/dashboard/ClienteDetalhes";
-import Agendamentos from "./pages/dashboard/Agendamentos";
-import Produtos from "./pages/dashboard/Produtos";
-import Vendas from "./pages/dashboard/Vendas";
-import ListaAfiliados from "./pages/dashboard/afiliados/ListaAfiliados";
-import GestaoComissoes from "./pages/dashboard/afiliados/GestaoComissoes";
-import GestaoSaques from "./pages/dashboard/afiliados/GestaoSaques";
-import AdminAffiliatesPage from "./pages/admin/Affiliates";
-import Tags from "./pages/admin/Tags";
-import AffiliateDashboardInicio from "./pages/afiliados/dashboard/Inicio";
-import AffiliateDashboardRede from "./pages/afiliados/dashboard/MinhaRede";
-import AffiliateDashboardComissoes from "./pages/afiliados/dashboard/Comissoes";
-import AffiliateDashboardRecebimentos from "./pages/afiliados/dashboard/Recebimentos";
-import AffiliateDashboardLink from "./pages/afiliados/dashboard/MeuLink";
-import AffiliateDashboardConfiguracoes from "./pages/afiliados/dashboard/Configuracoes";
 import NotFound from "./pages/NotFound";
+
+// Lazy load pages
+const ProductPage = lazy(() => import("./pages/produtos/ProductPage"));
+const Sobre = lazy(() => import("./pages/Sobre"));
+const AfiliadosLanding = lazy(() => import("./pages/afiliados/AfiliadosLanding"));
+const AfiliadosCadastro = lazy(() => import("./pages/afiliados/AfiliadosCadastro"));
+
+// Dashboard pages - lazy load
+const Dashboard = lazy(() => import("./pages/dashboard/Dashboard"));
+const Conversas = lazy(() => import("./pages/dashboard/Conversas"));
+const Clientes = lazy(() => import("./pages/dashboard/Clientes"));
+const ClienteDetalhes = lazy(() => import("./pages/dashboard/ClienteDetalhes"));
+const Agendamentos = lazy(() => import("./pages/dashboard/Agendamentos"));
+const Produtos = lazy(() => import("./pages/dashboard/Produtos"));
+const Vendas = lazy(() => import("./pages/dashboard/Vendas"));
+const ListaAfiliados = lazy(() => import("./pages/dashboard/afiliados/ListaAfiliados"));
+const GestaoComissoes = lazy(() => import("./pages/dashboard/afiliados/GestaoComissoes"));
+const GestaoSaques = lazy(() => import("./pages/dashboard/afiliados/GestaoSaques"));
+const AdminAffiliatesPage = lazy(() => import("./pages/admin/Affiliates"));
+const Tags = lazy(() => import("./pages/admin/Tags"));
+
+// Affiliate dashboard pages - lazy load
+const AffiliateDashboardInicio = lazy(() => import("./pages/afiliados/dashboard/Inicio"));
+const AffiliateDashboardRede = lazy(() => import("./pages/afiliados/dashboard/MinhaRede"));
+const AffiliateDashboardComissoes = lazy(() => import("./pages/afiliados/dashboard/Comissoes"));
+const AffiliateDashboardRecebimentos = lazy(() => import("./pages/afiliados/dashboard/Recebimentos"));
+const AffiliateDashboardLink = lazy(() => import("./pages/afiliados/dashboard/MeuLink"));
+const AffiliateDashboardConfiguracoes = lazy(() => import("./pages/afiliados/dashboard/Configuracoes"));
 
 const queryClient = new QueryClient();
 
@@ -43,7 +52,15 @@ const AppContent = () => {
   useReferralTracking();
 
   return (
-    <Routes>
+    <Suspense fallback={
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="flex flex-col items-center gap-2">
+          <LoadingSpinner size="lg" />
+          <p className="text-sm text-muted-foreground">Carregando...</p>
+        </div>
+      </div>
+    }>
+      <Routes>
       {/* Public routes with header/footer */}
       <Route element={<PublicLayout />}>
         <Route path="/" element={<Index />} />
@@ -93,6 +110,7 @@ const AppContent = () => {
       {/* 404 */}
       <Route path="*" element={<NotFound />} />
     </Routes>
+    </Suspense>
   );
 };
 

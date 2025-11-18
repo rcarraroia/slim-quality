@@ -16,6 +16,11 @@ import {
 } from "@/components/ui/select";
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { LoadingState, LoadingSpinner } from '@/components/ui/loading-spinner';
+import { useErrorHandler } from '@/hooks/useErrorHandler';
+import { useLoadingState } from '@/hooks/useLoadingState';
+import { useDebounce } from '@/hooks/useDebounce';
+import { toast } from 'sonner';
 
 export default function Conversas() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -23,6 +28,7 @@ export default function Conversas() {
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [channelFilter, setChannelFilter] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState('');
+  const debouncedSearch = useDebounce(searchQuery, 500);
   const [unreadCount, setUnreadCount] = useState(0);
   
   // Chat state
@@ -38,7 +44,7 @@ export default function Conversas() {
   useEffect(() => {
     loadConversations();
     loadUnreadCount();
-  }, [statusFilter, channelFilter, searchQuery]);
+  }, [statusFilter, channelFilter, debouncedSearch]);
 
   useEffect(() => {
     if (selectedConversation) {

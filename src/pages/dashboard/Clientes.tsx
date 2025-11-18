@@ -8,6 +8,8 @@ import { customerFrontendService, type Customer } from '@/services/frontend/cust
 import { tagFrontendService, type Tag } from '@/services/frontend/tag-frontend.service';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { useDebounce } from '@/hooks/useDebounce';
+import { useCache } from '@/hooks/useCache';
 import {
   Select,
   SelectContent,
@@ -26,8 +28,10 @@ export default function Clientes() {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const debouncedSearch = useDebounce(search, 500);
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
+  const cache = useCache<Customer[]>({ key: 'customers-list', ttl: 2 * 60 * 1000 });
   
   // Filtros avançados
   const [showFilters, setShowFilters] = useState(false);
@@ -40,7 +44,7 @@ export default function Clientes() {
 
   useEffect(() => {
     loadCustomers();
-  }, [page, search, selectedTags, dateFrom, dateTo, origin]);
+  }, [page, debouncedSearch, selectedTags, dateFrom, dateTo, origin]);
 
   useEffect(() => {
     loadTags();
@@ -58,8 +62,18 @@ export default function Clientes() {
   const loadCustomers = async () => {
     try {
       setLoading(true);
+      
+      // Check cache first (only for initial load without filters)
+      if (page === 1 && !debouncedSearch && selectedTags.length === 0 && !dateFrom && !dateTo && !origin) {
+        if (cache.isValid() && cache.data) {
+          setCustomers(cache.data);
+          setLoading(false);
+          return;
+        }
+      }
+      
       const result = await customerFrontendService.getCustomers({
-        search,
+        search: debouncedSearch,
         page,
         limit: 20,
         tags: selectedTags.length > 0 ? selectedTags : undefined,
@@ -67,8 +81,14 @@ export default function Clientes() {
         date_to: dateTo || undefined,
         origin: origin || undefined
       });
+      
       setCustomers(result.data);
       setTotal(result.pagination.total);
+      
+      // Cache only initial load
+      if (page === 1 && !debouncedSearch && selectedTags.length === 0) {
+        cache.set(result.data);
+      }
     } catch (error) {
       console.error('Erro ao carregar clientes:', error);
     } finally {
