@@ -563,21 +563,21 @@ Este plano de implementação converte o design do sistema de CRM em tarefas esp
   - Adicionar botões de ação (Novo Cliente, Exportar)
   - _Requirements: 20.6_
 
-- [ ] 15.2 Implementar filtros avançados
+- [x] 15.2 Implementar filtros avançados
   - Criar filtros por tags (múltipla seleção)
   - Adicionar filtro por data de cadastro
   - Implementar filtro por origem (orgânico, afiliado, N8N)
   - Adicionar filtro por vendedor atribuído
   - _Requirements: 20.6_
 
-- [ ] 15.3 Implementar busca inteligente
+- [x] 15.3 Implementar busca inteligente
   - Criar busca unificada (nome, email, telefone, CPF)
   - Adicionar sugestões de busca
   - Implementar busca com debounce
   - Adicionar histórico de buscas recentes
   - _Requirements: 20.6_
 
-- [ ] 15.4 Adicionar ações em massa
+- [x] 15.4 Adicionar ações em massa
   - Implementar seleção múltipla de clientes
   - Adicionar aplicação de tags em massa
   - Implementar exportação seletiva
@@ -668,21 +668,21 @@ Este plano de implementação converte o design do sistema de CRM em tarefas esp
   - Adicionar ações rápidas (ver detalhes, editar, agendar)
   - _Requirements: 20.13_
 
-- [ ] 18.2 Criar ChatInterface.tsx
+- [x] 18.2 Criar ChatInterface.tsx
   - Implementar interface de chat em tempo real
   - Adicionar área de mensagens com scroll automático
   - Implementar input de mensagem com envio
   - Adicionar indicadores de digitação e status
   - _Requirements: 20.14_
 
-- [ ] 18.3 Criar TagSelector.tsx
+- [x] 18.3 Criar TagSelector.tsx
   - Implementar seletor múltiplo de tags
   - Adicionar criação de tags inline
   - Implementar cores personalizadas
   - Adicionar busca e filtro de tags
   - _Requirements: 20.15_
 
-- [ ] 18.4 Criar CustomerFilters.tsx
+- [x] 18.4 Criar CustomerFilters.tsx
   - Implementar painel de filtros avançados
   - Adicionar filtros por data com date picker
   - Implementar filtros por tags com autocomplete
