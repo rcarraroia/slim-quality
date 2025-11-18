@@ -491,14 +491,14 @@ Este plano de implementação converte o design do sistema de CRM em tarefas esp
   - Adicionar refresh automático de dados
   - _Requirements: 20.4, 20.22, 20.23_
 
-- [ ] 12.3 Adicionar interface de chat lateral
+- [x] 12.3 Adicionar interface de chat lateral
   - Criar layout split com lista + chat
   - Implementar seleção de conversa
   - Adicionar interface de envio de mensagens
   - Implementar scroll automático para novas mensagens
   - _Requirements: 20.1, 20.14_
 
-- [ ] 12.4 Implementar indicadores de status
+- [x] 12.4 Implementar indicadores de status
   - Adicionar badges para mensagens não lidas
   - Implementar indicadores de "digitando"
   - Adicionar timestamps relativos
@@ -526,21 +526,21 @@ Este plano de implementação converte o design do sistema de CRM em tarefas esp
   - Implementar rotas administrativas (/admin/tags)
   - _Requirements: 20.7, 20.8, 20.9_
 
-- [ ] 14. Adaptar componentes existentes para CRM
+- [x] 14. Adaptar componentes existentes para CRM
   - Reutilizar StatCard.tsx para métricas de CRM
   - Adaptar StatusBadge.tsx para status de conversas/clientes
   - Reutilizar componentes UI existentes (Card, Table, Avatar, etc.)
   - Implementar padrões visuais consistentes
   - _Requirements: 20.11, 20.12_
 
-- [ ] 14.1 Reutilizar StatCard para métricas CRM
+- [x] 14.1 Reutilizar StatCard para métricas CRM
   - Criar métricas específicas (total clientes, conversas ativas, etc.)
   - Implementar trends e comparações
   - Adicionar cores e ícones apropriados
   - Integrar com APIs de estatísticas
   - _Requirements: 20.11_
 
-- [ ] 14.2 Adaptar StatusBadge para CRM
+- [x] 14.2 Adaptar StatusBadge para CRM
   - Adicionar novos status (conversa: new, open, resolved, etc.)
   - Implementar cores para status de clientes
   - Adicionar status de agendamentos
