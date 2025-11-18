@@ -754,28 +754,28 @@ Este plano de implementação converte o design do sistema de CRM em tarefas esp
   - Adicionar configuração de preferências
   - _Requirements: 20.19_
 
-- [ ] 21. Implementar otimizações de performance
+- [x] 21. Implementar otimizações de performance
   - Adicionar lazy loading para componentes pesados
   - Implementar virtualização para listas grandes
   - Adicionar cache com React Query
   - Implementar otimistic updates
   - _Requirements: 20.20, 20.24, 20.25_
 
-- [ ] 21.1 Implementar lazy loading
+- [x] 21.1 Implementar lazy loading
   - Adicionar lazy loading para páginas
   - Implementar code splitting por rota
   - Adicionar preloading para componentes críticos
   - Implementar loading progressivo de imagens
   - _Requirements: 20.20_
 
-- [ ] 21.2 Implementar cache inteligente
+- [x] 21.2 Implementar cache inteligente
   - Configurar React Query para cache
   - Implementar invalidação automática
   - Adicionar cache persistente
   - Implementar sincronização entre tabs
   - _Requirements: 20.20, 20.25_
 
-- [ ] 21.3 Implementar otimistic updates
+- [x] 21.3 Implementar otimistic updates
   - Adicionar updates otimistas para ações rápidas
   - Implementar rollback em caso de erro
   - Adicionar feedback visual imediato
