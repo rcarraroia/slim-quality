@@ -22,26 +22,19 @@ export default function Login() {
     setLoading(true);
 
     try {
-      // Chamar login (AuthContext já carrega usuário e roles)
-      await login(email, password);
+      // Chamar login e receber usuário com roles
+      const userData = await login(email, password);
       
       toast({
         title: "Login realizado com sucesso!",
         description: "Redirecionando...",
       });
       
-      // Aguardar um pouco para o contexto atualizar
-      setTimeout(() => {
-        // Buscar usuário do contexto (já foi carregado pelo login)
-        const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
-        const roles = currentUser.roles || [];
-        
-        // Determinar dashboard baseado nos roles
-        const dashboardRoute = getDashboardByRole(roles);
-        
-        // Redirecionar
-        navigate(dashboardRoute, { replace: true });
-      }, 1000);
+      // Determinar dashboard baseado nos roles
+      const dashboardRoute = getDashboardByRole(userData.roles);
+      
+      // Redirecionar imediatamente
+      navigate(dashboardRoute, { replace: true });
     } catch (error: any) {
       // Tratar erros
       const errorMessage = error?.message || "Credenciais inválidas";

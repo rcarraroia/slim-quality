@@ -22,7 +22,7 @@ interface User {
 interface AuthContextType {
   user: User | null;
   loading: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<User>;
   logout: () => Promise<void>;
   isAuthenticated: boolean;
   hasRole: (role: string) => boolean;
@@ -102,7 +102,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   // Função de login
-  const login = async (email: string, password: string) => {
+  const login = async (email: string, password: string): Promise<User> => {
     try {
       // Login direto com Supabase
       const { data, error } = await supabase.auth.signInWithPassword({
@@ -120,8 +120,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       }
 
-      // Carregar dados completos do usuário
-      await loadUser();
+      // Buscar perfil e roles
+      const authUser = data.user;
+      
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', authUser.id)
+        .single();
+
+      if (profileError) throw profileError;
+
+      const { data: userRoles, error: rolesError } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', authUser.id)
+        .is('deleted_at', null);
+
+      if (rolesError) throw rolesError;
+
+      const roles = userRoles?.map(r => r.role) || [];
+
+      const userData: User = {
+        id: authUser.id,
+        email: authUser.email!,
+        full_name: profile.full_name,
+        phone: profile.phone,
+        avatar_url: profile.avatar_url,
+        is_affiliate: profile.is_affiliate,
+        roles,
+      };
+
+      setUser(userData);
+      localStorage.setItem('user', JSON.stringify(userData));
+      
+      return userData;
     } catch (error) {
       console.error('Erro no login:', error);
       throw error;
