@@ -1,0 +1,54 @@
+{
+  "timestamp": "The current date is: 18/11/2025 \nEnter the new date: (dd-mm-yy)",
+  "total_tables": 7,
+  "existing_tables": 6,
+  "missing_tables": 1,
+  "details": {
+    "customers": {
+      "exists": true,
+      "count": 0,
+      "columns": 0,
+      "rls_enabled": false,
+      "policies": 0
+    },
+    "customer_tags": {
+      "exists": true,
+      "count": 7,
+      "columns": 0,
+      "rls_enabled": false,
+      "policies": 0
+    },
+    "tags": {
+      "exists": false,
+      "error": "{'code': 'PGRST205', 'details': None, 'hint': \"Perhaps you meant the table 'public.auth_logs'\", 'message': \"Could not find the table 'public.tags' in the schema cache\"}"
+    },
+    "customer_timeline": {
+      "exists": true,
+      "count": 0,
+      "columns": 0,
+      "rls_enabled": false,
+      "policies": 0
+    },
+    "conversations": {
+      "exists": true,
+      "count": 0,
+      "columns": 0,
+      "rls_enabled": false,
+      "policies": 0
+    },
+    "messages": {
+      "exists": true,
+      "count": 0,
+      "columns": 0,
+      "rls_enabled": false,
+      "policies": 0
+    },
+    "appointments": {
+      "exists": true,
+      "count": 0,
+      "columns": 0,
+      "rls_enabled": false,
+      "policies": 0
+    }
+  }
+}

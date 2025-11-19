@@ -25,7 +25,7 @@ const AfiliadosCadastro = lazy(() => import("./pages/afiliados/AfiliadosCadastro
 
 // Dashboard pages - lazy load
 const Dashboard = lazy(() => import("./pages/dashboard/Dashboard"));
-const Conversas = lazy(() => import("./pages/dashboard/ConversasSimple"));
+const Conversas = lazy(() => import("./pages/dashboard/Conversas"));
 const Clientes = lazy(() => import("./pages/dashboard/Clientes"));
 const ClienteDetalhes = lazy(() => import("./pages/dashboard/ClienteDetalhes"));
 const Agendamentos = lazy(() => import("./pages/dashboard/Agendamentos"));
