@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
+import { getDashboardByRole } from "@/utils/navigation";
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -21,7 +22,7 @@ export default function Login() {
     setLoading(true);
 
     try {
-      // Chamar API real de login
+      // Chamar login (AuthContext já carrega usuário e roles)
       await login(email, password);
       
       toast({
@@ -29,15 +30,21 @@ export default function Login() {
         description: "Redirecionando...",
       });
       
-      // Aguardar contexto atualizar e redirecionar baseado no role
+      // Aguardar um pouco para o contexto atualizar
       setTimeout(() => {
-        // O AuthContext já carregou o usuário com roles
-        // Redirecionar será feito automaticamente
-        window.location.href = "/"; // Força reload para garantir que o contexto está atualizado
-      }, 500);
+        // Buscar usuário do contexto (já foi carregado pelo login)
+        const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+        const roles = currentUser.roles || [];
+        
+        // Determinar dashboard baseado nos roles
+        const dashboardRoute = getDashboardByRole(roles);
+        
+        // Redirecionar
+        navigate(dashboardRoute, { replace: true });
+      }, 1000);
     } catch (error: any) {
       // Tratar erros
-      const errorMessage = error.response?.data?.error || "Credenciais inválidas";
+      const errorMessage = error?.message || "Credenciais inválidas";
       
       toast({
         title: "Erro no login",

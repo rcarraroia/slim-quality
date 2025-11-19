@@ -77,7 +77,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       const roles = userRoles?.map(r => r.role) || [];
 
-      setUser({
+      const userData = {
         id: authUser.id,
         email: authUser.email!,
         full_name: profile.full_name,
@@ -85,7 +85,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         avatar_url: profile.avatar_url,
         is_affiliate: profile.is_affiliate,
         roles,
-      });
+      };
+
+      setUser(userData);
+      
+      // Salvar no localStorage para acesso rápido
+      localStorage.setItem('user', JSON.stringify(userData));
     } catch (error) {
       console.error('Erro ao carregar usuário:', error);
       localStorage.removeItem('access_token');
@@ -132,6 +137,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } finally {
       localStorage.removeItem('access_token');
       localStorage.removeItem('refresh_token');
+      localStorage.removeItem('user');
       setUser(null);
     }
   };
