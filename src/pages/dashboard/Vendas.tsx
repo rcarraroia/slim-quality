@@ -3,8 +3,39 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { StatusBadge } from '@/components/dashboard/StatusBadge';
 import { StatCard } from '@/components/dashboard/StatCard';
-import { mockVendas } from '@/data/mockData';
 import { DollarSign, ShoppingCart, TrendingUp, Target, Eye, Download } from 'lucide-react';
+
+// Mock data temporário até integração com backend
+const mockVendas = [
+  {
+    id: '1001',
+    data: '01/12/2025',
+    cliente: 'João Silva',
+    email: 'joao@email.com',
+    telefone: '(11) 99999-9999',
+    cidade: 'São Paulo - SP',
+    produto: 'Slim Quality Padrão',
+    dimensoes: '138x188x28cm',
+    valor: 3290,
+    pagamento: 'PIX',
+    status: 'pago' as const,
+    endereco: 'Rua Exemplo, 123 - Centro'
+  },
+  {
+    id: '1002',
+    data: '01/12/2025',
+    cliente: 'Maria Santos',
+    email: 'maria@email.com',
+    telefone: '(11) 98888-8888',
+    cidade: 'Rio de Janeiro - RJ',
+    produto: 'Slim Quality Queen',
+    dimensoes: '158x198x30cm',
+    valor: 3490,
+    pagamento: 'Cartão 3x',
+    status: 'pendente' as const,
+    endereco: 'Av. Principal, 456 - Zona Sul'
+  }
+];
 import {
   Select,
   SelectContent,
