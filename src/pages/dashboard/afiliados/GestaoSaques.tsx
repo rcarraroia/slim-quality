@@ -27,114 +27,47 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { StatusBadge } from "@/components/dashboard/StatusBadge";
 import { Search, Eye, Check, X, Wallet, Clock, TrendingDown } from "lucide-react";
+import { useAdminWithdrawals } from "@/hooks/useAdminWithdrawals";
 
-// Mock data de saques para admin
-const mockSaquesAdmin = [
-  {
-    id: "S001",
-    afiliadoId: "A001",
-    afiliadoNome: "Carlos Mendes",
-    valor: 3200.00,
-    pixChave: "carlos.mendes@email.com",
-    tipoChave: "Email",
-    status: "pendente" as const,
-    dataSolicitacao: "14/Out/25",
-    dataProcessamento: null,
-    comprovante: null,
-  },
-  {
-    id: "S002",
-    afiliadoId: "A002",
-    afiliadoNome: "Juliana Santos",
-    valor: 2100.00,
-    pixChave: "11988887777",
-    tipoChave: "Celular",
-    status: "aprovado" as const,
-    dataSolicitacao: "13/Out/25",
-    dataProcessamento: "14/Out/25",
-    comprovante: "comprovante_s002.pdf",
-  },
-  {
-    id: "S003",
-    afiliadoId: "A004",
-    afiliadoNome: "Fernanda Costa",
-    valor: 1200.00,
-    pixChave: "31966665555",
-    tipoChave: "Celular",
-    status: "pendente" as const,
-    dataSolicitacao: "14/Out/25",
-    dataProcessamento: null,
-    comprovante: null,
-  },
-  {
-    id: "S004",
-    afiliadoId: "A006",
-    afiliadoNome: "Amanda Silva",
-    valor: 4500.00,
-    pixChave: "amanda.silva@email.com",
-    tipoChave: "Email",
-    status: "processando" as const,
-    dataSolicitacao: "12/Out/25",
-    dataProcessamento: null,
-    comprovante: null,
-  },
-  {
-    id: "S005",
-    afiliadoId: "A001",
-    afiliadoNome: "Carlos Mendes",
-    valor: 5000.00,
-    pixChave: "carlos.mendes@email.com",
-    tipoChave: "Email",
-    status: "aprovado" as const,
-    dataSolicitacao: "08/Out/25",
-    dataProcessamento: "09/Out/25",
-    comprovante: "comprovante_s005.pdf",
-  },
-  {
-    id: "S006",
-    afiliadoId: "A003",
-    afiliadoNome: "Roberto Oliveira",
-    valor: 429.00,
-    pixChave: "roberto.oliveira@email.com",
-    tipoChave: "Email",
-    status: "rejeitado" as const,
-    dataSolicitacao: "10/Out/25",
-    dataProcessamento: "11/Out/25",
-    comprovante: null,
-    motivoRejeicao: "Saldo insuficiente para processamento",
-  },
-];
 
 export default function GestaoSaques() {
-  const [selectedSaque, setSelectedSaque] = useState<typeof mockSaquesAdmin[0] | null>(null);
+  const [selectedSaque, setSelectedSaque] = useState<any>(null);
   const [statusFilter, setStatusFilter] = useState("todos");
   const [searchTerm, setSearchTerm] = useState("");
   const [showRejectDialog, setShowRejectDialog] = useState(false);
   const [rejectReason, setRejectReason] = useState("");
 
-  const filteredSaques = mockSaquesAdmin.filter(saque => {
+  // Hook para gerenciar dados de saques
+  const {
+    loading,
+    error,
+    withdrawals,
+    stats,
+    approveWithdrawal,
+    rejectWithdrawal
+  } = useAdminWithdrawals();
+
+  const filteredSaques = withdrawals.filter((saque: any) => {
     const matchesStatus = statusFilter === "todos" || saque.status === statusFilter;
-    const matchesSearch = saque.afiliadoNome.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         saque.id.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = saque.affiliate_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          saque.id?.toLowerCase().includes(searchTerm.toLowerCase());
     return matchesStatus && matchesSearch;
   });
 
   const totalPendente = filteredSaques
-    .filter(s => s.status === "pendente")
-    .reduce((acc, s) => acc + s.valor, 0);
+    .filter((s: any) => s.status === "pending")
+    .reduce((acc: number, s: any) => acc + (s.amount_cents || 0) / 100, 0);
 
   const totalProcessado = filteredSaques
-    .filter(s => s.status === "aprovado")
-    .reduce((acc, s) => acc + s.valor, 0);
+    .filter((s: any) => s.status === "approved")
+    .reduce((acc: number, s: any) => acc + (s.amount_cents || 0) / 100, 0);
 
-  const handleAprovar = (saqueId: string) => {
-    console.log(`Aprovando saque ${saqueId}`);
-    // Aqui virá a lógica real de aprovação
+  const handleAprovar = async (saqueId: string) => {
+    await approveWithdrawal(saqueId);
   };
 
-  const handleRejeitar = (saqueId: string, motivo: string) => {
-    console.log(`Rejeitando saque ${saqueId} com motivo: ${motivo}`);
-    // Aqui virá a lógica real de rejeição
+  const handleRejeitar = async (saqueId: string, motivo: string) => {
+    await rejectWithdrawal(saqueId, motivo);
     setShowRejectDialog(false);
     setRejectReason("");
     setSelectedSaque(null);
@@ -148,7 +81,7 @@ export default function GestaoSaques() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-muted-foreground">Total de Solicitações</p>
-              <p className="text-2xl font-bold">{mockSaquesAdmin.length}</p>
+              <p className="text-2xl font-bold">{withdrawals.length}</p>
             </div>
             <Wallet className="h-8 w-8 text-primary" />
           </div>
@@ -159,7 +92,7 @@ export default function GestaoSaques() {
             <div>
               <p className="text-sm text-muted-foreground">Aguardando Aprovação</p>
               <p className="text-2xl font-bold text-yellow-600">
-                {mockSaquesAdmin.filter(s => s.status === "pendente").length}
+                {withdrawals.filter((s: any) => s.status === "pending").length}
               </p>
             </div>
             <Clock className="h-8 w-8 text-yellow-600" />
@@ -235,31 +168,31 @@ export default function GestaoSaques() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredSaques.map((saque) => (
+            {filteredSaques.map((saque: any) => (
               <TableRow key={saque.id}>
                 <TableCell className="font-medium">{saque.id}</TableCell>
                 <TableCell>
                   <div>
-                    <p className="font-medium">{saque.afiliadoNome}</p>
-                    <p className="text-xs text-muted-foreground">{saque.afiliadoId}</p>
+                    <p className="font-medium">{saque.affiliate_name || 'N/A'}</p>
+                    <p className="text-xs text-muted-foreground">{saque.affiliate_id}</p>
                   </div>
                 </TableCell>
                 <TableCell className="font-bold text-green-600">
-                  R$ {saque.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                  R$ {((saque.amount_cents || 0) / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                 </TableCell>
                 <TableCell>
                   <code className="text-xs bg-muted px-2 py-1 rounded">
-                    {saque.pixChave}
+                    {saque.pix_key || 'N/A'}
                   </code>
                 </TableCell>
-                <TableCell>{saque.tipoChave}</TableCell>
-                <TableCell>{saque.dataSolicitacao}</TableCell>
+                <TableCell>{saque.pix_key_type || 'N/A'}</TableCell>
+                <TableCell>{saque.created_at ? new Date(saque.created_at).toLocaleDateString('pt-BR') : 'N/A'}</TableCell>
                 <TableCell>
                   <StatusBadge status={saque.status} />
                 </TableCell>
                 <TableCell className="text-right">
                   <div className="flex items-center justify-end gap-2">
-                    {saque.status === "pendente" && (
+                    {saque.status === "pending" && (
                       <>
                         <Button
                           variant="ghost"

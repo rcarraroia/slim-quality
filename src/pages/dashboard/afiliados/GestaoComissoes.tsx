@@ -26,146 +26,47 @@ import {
 } from "@/components/ui/dialog";
 import { StatusBadge } from "@/components/dashboard/StatusBadge";
 import { Search, Eye, Check, X, TrendingUp, DollarSign } from "lucide-react";
+import { useAdminCommissions } from "@/hooks/useAdminCommissions";
 
-// Mock data de comissões para admin
-const mockComissoesAdmin = [
-  {
-    id: "C001",
-    afiliadoId: "A001",
-    afiliadoNome: "Carlos Mendes",
-    vendaId: "#1047",
-    cliente: "Maria Silva",
-    produto: "Slim Quality Queen",
-    valorVenda: 4290.00,
-    nivel: 1,
-    percentual: 10,
-    valorComissao: 429.00,
-    status: "paga" as const,
-    dataCriacao: "12/Out/25",
-    dataPagamento: "15/Out/25",
-  },
-  {
-    id: "C002",
-    afiliadoId: "A002",
-    afiliadoNome: "Juliana Santos",
-    vendaId: "#1048",
-    cliente: "Roberto Lima",
-    produto: "Slim Quality Casal",
-    valorVenda: 3690.00,
-    nivel: 1,
-    percentual: 10,
-    valorComissao: 369.00,
-    status: "pendente" as const,
-    dataCriacao: "12/Out/25",
-    dataPagamento: null,
-  },
-  {
-    id: "C003",
-    afiliadoId: "A001",
-    afiliadoNome: "Carlos Mendes",
-    vendaId: "#1049",
-    cliente: "Fernanda Costa",
-    produto: "Slim Quality King",
-    valorVenda: 4890.00,
-    nivel: 2,
-    percentual: 5,
-    valorComissao: 244.50,
-    status: "paga" as const,
-    dataCriacao: "11/Out/25",
-    dataPagamento: "15/Out/25",
-  },
-  {
-    id: "C004",
-    afiliadoId: "A003",
-    afiliadoNome: "Roberto Oliveira",
-    vendaId: "#1050",
-    cliente: "Paulo Santos",
-    produto: "Slim Quality Solteiro",
-    valorVenda: 2990.00,
-    nivel: 1,
-    percentual: 10,
-    valorComissao: 299.00,
-    status: "aprovada" as const,
-    dataCriacao: "11/Out/25",
-    dataPagamento: null,
-  },
-  {
-    id: "C005",
-    afiliadoId: "A004",
-    afiliadoNome: "Fernanda Costa",
-    vendaId: "#1051",
-    cliente: "Juliana Rocha",
-    produto: "Slim Quality Queen",
-    valorVenda: 4290.00,
-    nivel: 1,
-    percentual: 10,
-    valorComissao: 429.00,
-    status: "pendente" as const,
-    dataCriacao: "10/Out/25",
-    dataPagamento: null,
-  },
-  {
-    id: "C006",
-    afiliadoId: "A006",
-    afiliadoNome: "Amanda Silva",
-    vendaId: "#1052",
-    cliente: "André Oliveira",
-    produto: "Slim Quality Casal",
-    valorVenda: 3690.00,
-    nivel: 3,
-    percentual: 2,
-    valorComissao: 73.80,
-    status: "cancelada" as const,
-    dataCriacao: "09/Out/25",
-    dataPagamento: null,
-  },
-  {
-    id: "C007",
-    afiliadoId: "A001",
-    afiliadoNome: "Carlos Mendes",
-    vendaId: "#1053",
-    cliente: "Beatriz Lima",
-    produto: "Slim Quality Queen",
-    valorVenda: 4290.00,
-    nivel: 1,
-    percentual: 10,
-    valorComissao: 429.00,
-    status: "paga" as const,
-    dataCriacao: "08/Out/25",
-    dataPagamento: "12/Out/25",
-  },
-];
 
 export default function GestaoComissoes() {
-  const [selectedComissao, setSelectedComissao] = useState<typeof mockComissoesAdmin[0] | null>(null);
+  const [selectedComissao, setSelectedComissao] = useState<any>(null);
   const [statusFilter, setStatusFilter] = useState("todos");
   const [nivelFilter, setNivelFilter] = useState("todos");
   const [searchTerm, setSearchTerm] = useState("");
 
-  const filteredComissoes = mockComissoesAdmin.filter(comissao => {
+  // Hook para gerenciar dados de comissões
+  const {
+    loading,
+    error,
+    commissions,
+    stats,
+    approveCommission,
+    rejectCommission
+  } = useAdminCommissions();
+
+  const filteredComissoes = commissions.filter((comissao: any) => {
     const matchesStatus = statusFilter === "todos" || comissao.status === statusFilter;
-    const matchesNivel = nivelFilter === "todos" || comissao.nivel.toString() === nivelFilter;
-    const matchesSearch = comissao.afiliadoNome.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         comissao.vendaId.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesNivel = nivelFilter === "todos" || comissao.level?.toString() === nivelFilter;
+    const matchesSearch = comissao.affiliate_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          comissao.order_number?.toLowerCase().includes(searchTerm.toLowerCase());
     return matchesStatus && matchesNivel && matchesSearch;
   });
 
   const totalComissoesPendentes = filteredComissoes
-    .filter(c => c.status === "pendente")
-    .reduce((acc, c) => acc + c.valorComissao, 0);
+    .filter((c: any) => c.status === "pending")
+    .reduce((acc: number, c: any) => acc + (c.commission_value_cents || 0) / 100, 0);
 
   const totalComissoesPagas = filteredComissoes
-    .filter(c => c.status === "paga")
-    .reduce((acc, c) => acc + c.valorComissao, 0);
+    .filter((c: any) => c.status === "paid")
+    .reduce((acc: number, c: any) => acc + (c.commission_value_cents || 0) / 100, 0);
 
-  const handleAprovar = (comissaoId: string) => {
-    console.log(`Aprovando comissão ${comissaoId}`);
-    // Aqui virá a lógica real de aprovação
+  const handleAprovar = async (comissaoId: string) => {
+    await approveCommission(comissaoId);
   };
 
-  const handleRejeitar = (comissaoId: string) => {
-    console.log(`Rejeitando comissão ${comissaoId}`);
-    // Aqui virá a lógica real de rejeição
+  const handleRejeitar = async (comissaoId: string) => {
+    await rejectCommission(comissaoId);
   };
 
   return (
@@ -176,7 +77,7 @@ export default function GestaoComissoes() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-muted-foreground">Total de Comissões</p>
-              <p className="text-2xl font-bold">{mockComissoesAdmin.length}</p>
+              <p className="text-2xl font-bold">{commissions.length}</p>
             </div>
             <TrendingUp className="h-8 w-8 text-primary" />
           </div>
@@ -187,7 +88,7 @@ export default function GestaoComissoes() {
             <div>
               <p className="text-sm text-muted-foreground">Pendentes de Aprovação</p>
               <p className="text-2xl font-bold text-yellow-600">
-                {mockComissoesAdmin.filter(c => c.status === "pendente").length}
+                {commissions.filter((c: any) => c.status === "pending").length}
               </p>
             </div>
             <DollarSign className="h-8 w-8 text-yellow-600" />
@@ -277,37 +178,37 @@ export default function GestaoComissoes() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredComissoes.map((comissao) => (
+            {filteredComissoes.map((comissao: any) => (
               <TableRow key={comissao.id}>
                 <TableCell className="font-medium">{comissao.id}</TableCell>
                 <TableCell>
                   <div>
-                    <p className="font-medium">{comissao.afiliadoNome}</p>
-                    <p className="text-xs text-muted-foreground">{comissao.afiliadoId}</p>
+                    <p className="font-medium">{comissao.affiliate_name || 'N/A'}</p>
+                    <p className="text-xs text-muted-foreground">{comissao.affiliate_id}</p>
                   </div>
                 </TableCell>
-                <TableCell>{comissao.vendaId}</TableCell>
-                <TableCell>{comissao.cliente}</TableCell>
+                <TableCell>{comissao.order_number || 'N/A'}</TableCell>
+                <TableCell>{comissao.customer_name || 'N/A'}</TableCell>
                 <TableCell>
-                  <p className="text-sm">{comissao.produto}</p>
+                  <p className="text-sm">{comissao.product_name || 'N/A'}</p>
                 </TableCell>
                 <TableCell>
                   <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-primary/10 text-primary text-xs font-medium">
-                    N{comissao.nivel} ({comissao.percentual}%)
+                    N{comissao.level || 1} ({comissao.percentage || 0}%)
                   </span>
                 </TableCell>
                 <TableCell>
-                  R$ {comissao.valorVenda.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                  R$ {((comissao.order_value_cents || 0) / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                 </TableCell>
                 <TableCell className="font-bold text-green-600">
-                  R$ {comissao.valorComissao.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                  R$ {((comissao.commission_value_cents || 0) / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                 </TableCell>
                 <TableCell>
                   <StatusBadge status={comissao.status} />
                 </TableCell>
                 <TableCell className="text-right">
                   <div className="flex items-center justify-end gap-2">
-                    {comissao.status === "pendente" && (
+                    {comissao.status === "pending" && (
                       <>
                         <Button
                           variant="ghost"

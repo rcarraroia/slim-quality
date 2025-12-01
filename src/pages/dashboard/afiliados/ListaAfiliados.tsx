@@ -26,108 +26,49 @@ import {
 } from "@/components/ui/dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { StatusBadge } from "@/components/dashboard/StatusBadge";
-import { Search, Eye, UserCheck, UserX, Download } from "lucide-react";
+import { Search, Eye, UserCheck, UserX, Download, Loader2 } from "lucide-react";
+import { useAdminAffiliates } from "@/hooks/useAdminAffiliates";
 
-// Mock data expandido para admin
-const mockAfiliadosAdmin = [
-  {
-    id: "A001",
-    nome: "Carlos Mendes",
-    email: "carlos.mendes@email.com",
-    telefone: "(31) 99999-8888",
-    cidade: "Belo Horizonte - MG",
-    dataCadastro: "15/Ago/25",
-    status: "ativo" as const,
-    nivel: 3,
-    totalIndicados: 12,
-    vendasGeradas: 8,
-    comissoesTotais: 12450.00,
-    saldoDisponivel: 3200.00,
-    pixChave: "carlos.mendes@email.com",
-  },
-  {
-    id: "A002",
-    nome: "Juliana Santos",
-    email: "juliana.santos@email.com",
-    telefone: "(11) 98888-7777",
-    cidade: "São Paulo - SP",
-    dataCadastro: "20/Ago/25",
-    status: "ativo" as const,
-    nivel: 2,
-    totalIndicados: 8,
-    vendasGeradas: 5,
-    comissoesTotais: 8750.00,
-    saldoDisponivel: 2100.00,
-    pixChave: "11988887777",
-  },
-  {
-    id: "A003",
-    nome: "Roberto Oliveira",
-    email: "roberto.oliveira@email.com",
-    telefone: "(21) 97777-6666",
-    cidade: "Rio de Janeiro - RJ",
-    dataCadastro: "25/Ago/25",
-    status: "pendente" as const,
-    nivel: 1,
-    totalIndicados: 3,
-    vendasGeradas: 1,
-    comissoesTotais: 429.00,
-    saldoDisponivel: 429.00,
-    pixChave: "roberto.oliveira@email.com",
-  },
-  {
-    id: "A004",
-    nome: "Fernanda Costa",
-    email: "fernanda.costa@email.com",
-    telefone: "(31) 96666-5555",
-    cidade: "Contagem - MG",
-    dataCadastro: "01/Set/25",
-    status: "ativo" as const,
-    nivel: 2,
-    totalIndicados: 6,
-    vendasGeradas: 4,
-    comissoesTotais: 6890.00,
-    saldoDisponivel: 1200.00,
-    pixChave: "31966665555",
-  },
-  {
-    id: "A005",
-    nome: "Paulo Rocha",
-    email: "paulo.rocha@email.com",
-    telefone: "(11) 95555-4444",
-    cidade: "Campinas - SP",
-    dataCadastro: "05/Set/25",
-    status: "inativo" as const,
-    nivel: 1,
-    totalIndicados: 2,
-    vendasGeradas: 0,
-    comissoesTotais: 0,
-    saldoDisponivel: 0,
-    pixChave: "paulo.rocha@email.com",
-  },
-  {
-    id: "A006",
-    nome: "Amanda Silva",
-    email: "amanda.silva@email.com",
-    telefone: "(21) 94444-3333",
-    cidade: "Niterói - RJ",
-    dataCadastro: "10/Set/25",
-    status: "ativo" as const,
-    nivel: 3,
-    totalIndicados: 15,
-    vendasGeradas: 10,
-    comissoesTotais: 15200.00,
-    saldoDisponivel: 4500.00,
-    pixChave: "amanda.silva@email.com",
-  },
-];
+interface Afiliado {
+  id: string;
+  nome: string;
+  email: string;
+  telefone: string;
+  cidade: string;
+  dataCadastro: string;
+  status: "ativo" | "pendente" | "inativo";
+  nivel: number;
+  totalIndicados: number;
+  vendasGeradas: number;
+  comissoesTotais: number;
+  saldoDisponivel: number;
+  pixChave: string;
+}
 
 export default function ListaAfiliados() {
-  const [selectedAfiliado, setSelectedAfiliado] = useState<typeof mockAfiliadosAdmin[0] | null>(null);
+  const { affiliatesTable, loading, error } = useAdminAffiliates();
+  const [selectedAfiliado, setSelectedAfiliado] = useState<Afiliado | null>(null);
   const [statusFilter, setStatusFilter] = useState("todos");
   const [searchTerm, setSearchTerm] = useState("");
 
-  const filteredAfiliados = mockAfiliadosAdmin.filter(afiliado => {
+  // Convert API data to component format
+  const afiliadosData: Afiliado[] = (affiliatesTable as any[])?.map((affiliate: any) => ({
+    id: affiliate.id,
+    nome: affiliate.name,
+    email: affiliate.email,
+    telefone: affiliate.phone || '',
+    cidade: affiliate.city || '',
+    dataCadastro: new Date(affiliate.createdAt).toLocaleDateString('pt-BR'),
+    status: affiliate.status === 'active' ? 'ativo' : affiliate.status === 'pending' ? 'pendente' : 'inativo',
+    nivel: affiliate.level || 1,
+    totalIndicados: affiliate.totalReferrals || 0,
+    vendasGeradas: affiliate.totalSales || 0,
+    comissoesTotais: (affiliate.totalCommissions || 0) / 100,
+    saldoDisponivel: (affiliate.availableBalance || 0) / 100,
+    pixChave: affiliate.pixKey || '',
+  })) || [];
+
+  const filteredAfiliados = afiliadosData.filter(afiliado => {
     const matchesStatus = statusFilter === "todos" || afiliado.status === statusFilter;
     const matchesSearch = afiliado.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          afiliado.email.toLowerCase().includes(searchTerm.toLowerCase());
@@ -147,7 +88,7 @@ export default function ListaAfiliados() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-muted-foreground">Total de Afiliados</p>
-              <p className="text-2xl font-bold">{mockAfiliadosAdmin.length}</p>
+              <p className="text-2xl font-bold">{afiliadosData.length}</p>
             </div>
             <UserCheck className="h-8 w-8 text-primary" />
           </div>
@@ -158,7 +99,7 @@ export default function ListaAfiliados() {
             <div>
               <p className="text-sm text-muted-foreground">Afiliados Ativos</p>
               <p className="text-2xl font-bold">
-                {mockAfiliadosAdmin.filter(a => a.status === "ativo").length}
+                {afiliadosData.filter(a => a.status === "ativo").length}
               </p>
             </div>
             <UserCheck className="h-8 w-8 text-green-600" />
@@ -170,7 +111,7 @@ export default function ListaAfiliados() {
             <div>
               <p className="text-sm text-muted-foreground">Comissões Pagas</p>
               <p className="text-2xl font-bold">
-                R$ {mockAfiliadosAdmin.reduce((acc, a) => acc + a.comissoesTotais, 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                R$ {afiliadosData.reduce((acc, a) => acc + a.comissoesTotais, 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
               </p>
             </div>
             <Download className="h-8 w-8 text-blue-600" />
@@ -182,7 +123,7 @@ export default function ListaAfiliados() {
             <div>
               <p className="text-sm text-muted-foreground">Vendas Geradas</p>
               <p className="text-2xl font-bold">
-                {mockAfiliadosAdmin.reduce((acc, a) => acc + a.vendasGeradas, 0)}
+                {afiliadosData.reduce((acc, a) => acc + a.vendasGeradas, 0)}
               </p>
             </div>
             <Download className="h-8 w-8 text-secondary" />

@@ -2,14 +2,16 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { 
-  Users, 
-  Search, 
-  ChevronDown, 
+import {
+  Users,
+  Search,
+  ChevronDown,
   ChevronRight,
   DollarSign,
-  TrendingUp
+  TrendingUp,
+  Loader2
 } from "lucide-react";
+import { useMyNetwork } from "@/hooks/useMyNetwork";
 
 interface NetworkNode {
   id: string;
@@ -21,96 +23,24 @@ interface NetworkNode {
   expanded?: boolean;
 }
 
-const mockNetwork: NetworkNode[] = [
-  {
-    id: "A002",
-    nome: "Marina Silva",
-    nivel: 1,
-    vendas: 8,
-    comissaoGerada: 2950.00,
-    expanded: true,
-    indicados: [
-      {
-        id: "A003",
-        nome: "Roberto Costa",
-        nivel: 2,
-        vendas: 4,
-        comissaoGerada: 738.00,
-        indicados: [
-          {
-            id: "A008",
-            nome: "Pedro Alves",
-            nivel: 3,
-            vendas: 2,
-            comissaoGerada: 195.60,
-            indicados: []
-          }
-        ]
-      },
-      {
-        id: "A006",
-        nome: "Juliana Rocha",
-        nivel: 2,
-        vendas: 3,
-        comissaoGerada: 553.50,
-        indicados: []
-      }
-    ]
-  },
-  {
-    id: "A004",
-    nome: "Paulo Santos",
-    nivel: 1,
-    vendas: 5,
-    comissaoGerada: 1990.00,
-    indicados: [
-      {
-        id: "A007",
-        nome: "Ana Beatriz",
-        nivel: 2,
-        vendas: 2,
-        comissaoGerada: 369.00,
-        indicados: [
-          {
-            id: "A009",
-            nome: "Carlos Mendes Jr",
-            nivel: 3,
-            vendas: 1,
-            comissaoGerada: 85.80,
-            indicados: []
-          }
-        ]
-      }
-    ]
-  },
-  {
-    id: "A005",
-    nome: "Fernanda Lima",
-    nivel: 1,
-    vendas: 2,
-    comissaoGerada: 858.00,
-    indicados: []
-  }
-];
-
 export default function AffiliateDashboardMinhaRede() {
-  const [network, setNetwork] = useState<NetworkNode[]>(mockNetwork);
+  const { network: apiNetwork, loading, error } = useMyNetwork();
   const [searchTerm, setSearchTerm] = useState("");
 
-  const toggleNode = (id: string, nodes: NetworkNode[]): NetworkNode[] => {
-    return nodes.map(node => {
-      if (node.id === id) {
-        return { ...node, expanded: !node.expanded };
-      }
-      if (node.indicados.length > 0) {
-        return { ...node, indicados: toggleNode(id, node.indicados) };
-      }
-      return node;
-    });
-  };
+  // Convert API data to component format
+  const network: NetworkNode[] = (apiNetwork as any[])?.map((node: any) => ({
+    id: node.affiliate.id,
+    nome: node.affiliate.name,
+    nivel: node.level,
+    vendas: node.affiliate.totalSales || 0,
+    comissaoGerada: (node.affiliate.totalCommissionsCents || 0) / 100,
+    indicados: [], // TODO: Build hierarchical structure
+    expanded: true
+  })) || [];
 
+  // TODO: Implement toggle functionality when hierarchical data is available
   const handleToggle = (id: string) => {
-    setNetwork(toggleNode(id, network));
+    // Placeholder for future implementation
   };
 
   const renderNode = (node: NetworkNode, depth: number = 0) => {

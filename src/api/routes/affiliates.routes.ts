@@ -10,7 +10,6 @@
  */
 
 import { Router, Request, Response } from 'express';
-import { z } from 'zod';
 import { Logger } from '@/utils/logger';
 import { affiliateService } from '@/services/affiliates/affiliate.service';
 import { referralTrackerService } from '@/services/affiliates/referral-tracker.service';
@@ -18,6 +17,12 @@ import { commissionService } from '@/services/affiliates/commission.service';
 import { requireAuth } from '@/middlewares/auth.middleware';
 import { validateRequest } from '@/middlewares/validation.middleware';
 import { rateLimitMiddleware } from '@/middlewares/rate-limit.middleware';
+import {
+  CreateAffiliateSchema,
+  UpdateAffiliateSchema,
+  ValidateWalletSchema,
+  ValidateReferralCodeSchema
+} from '../validators/affiliate.validators';
 
 const router = Router();
 
@@ -25,22 +30,10 @@ const router = Router();
 // SCHEMAS DE VALIDAÇÃO
 // ============================================
 
-const CreateAffiliateSchema = z.object({
-  name: z.string().min(3, 'Nome deve ter pelo menos 3 caracteres').max(100, 'Nome muito longo'),
-  email: z.string().email('Email inválido'),
-  phone: z.string().regex(/^\+?[1-9]\d{1,14}$/, 'Telefone inválido').optional(),
-  document: z.string().regex(/^\d{11}$|^\d{14}$/, 'CPF ou CNPJ inválido').optional(),
-  walletId: z.string().regex(/^wal_[a-zA-Z0-9]{20}$/, 'Wallet ID inválido'),
-  referralCode: z.string().regex(/^[A-Z0-9]{6}$/, 'Código de indicação inválido').optional(),
-});
+// Schemas importados de affiliate.validators.ts
 
-const UpdateAffiliateSchema = z.object({
-  name: z.string().min(3).max(100).optional(),
-  phone: z.string().regex(/^\+?[1-9]\d{1,14}$/).optional(),
-  notificationEmail: z.boolean().optional(),
-  notificationWhatsapp: z.boolean().optional(),
-});
-
+// Schema adicional para consultas de comissão
+import { z } from 'zod';
 const CommissionQuerySchema = z.object({
   page: z.coerce.number().min(1).default(1),
   limit: z.coerce.number().min(1).max(100).default(20),
@@ -57,7 +50,7 @@ const CommissionQuerySchema = z.object({
  * POST /api/affiliates/register
  * Cadastro de novo afiliado
  */
-router.post('/register', 
+router.post('/register',
   rateLimitMiddleware({ windowMs: 15 * 60 * 1000, max: 5 }), // 5 tentativas por 15 min
   validateRequest(CreateAffiliateSchema),
   async (req: Request, res: Response) => {
@@ -67,7 +60,7 @@ router.post('/register',
         hasReferralCode: !!req.body.referralCode,
       });
 
-      const result = await affiliateService.createAffiliate(req.body);
+      const result = await affiliateService.register(req.body);
 
       if (!result.success) {
         return res.status(400).json({
@@ -76,12 +69,10 @@ router.post('/register',
         });
       }
 
-      // Não retornar dados sensíveis
-      const { wallet_id, ...safeData } = result.data!;
-
+      // DTO já vem sem dados sensíveis
       res.status(201).json({
         message: 'Afiliado cadastrado com sucesso. Aguarde aprovação.',
-        affiliate: safeData,
+        affiliate: result.data,
       });
 
     } catch (error) {
@@ -137,6 +128,51 @@ router.post('/validate-wallet',
   }
 );
 
+/**
+ * GET /api/affiliates/validate-referral/:code
+ * Validação de código de referência
+ */
+router.get('/validate-referral/:code',
+  rateLimitMiddleware({ windowMs: 60 * 1000, max: 20 }), // 20 tentativas por minuto
+  async (req: Request, res: Response) => {
+    try {
+      const { code } = req.params;
+
+      if (!code) {
+        return res.status(400).json({
+          error: 'Código de referência é obrigatório',
+          code: 'MISSING_REFERRAL_CODE',
+        });
+      }
+
+      const result = await affiliateService.getAffiliateByCode(code);
+
+      if (result.success && result.data) {
+        res.json({
+          valid: true,
+          affiliate: {
+            id: result.data.id,
+            name: result.data.name,
+            email: result.data.email
+          }
+        });
+      } else {
+        res.status(404).json({
+          valid: false,
+          error: 'Código de referência inválido'
+        });
+      }
+
+    } catch (error) {
+      Logger.error('AffiliateRoutes', 'Error validating referral code', error as Error);
+      res.status(500).json({
+        error: 'Erro interno do servidor',
+        code: 'INTERNAL_ERROR',
+      });
+    }
+  }
+);
+
 // ============================================
 // ROTAS AUTENTICADAS
 // ============================================
@@ -158,10 +194,8 @@ router.get('/me', requireAuth, async (req: Request, res: Response) => {
       });
     }
 
-    // Não retornar wallet_id por segurança
-    const { wallet_id, ...safeData } = result.data!;
-
-    res.json(safeData);
+    // DTO já vem sem dados sensíveis
+    res.json(result.data);
 
   } catch (error) {
     Logger.error('AffiliateRoutes', 'Error getting affiliate data', error as Error);
@@ -205,8 +239,8 @@ router.put('/me',
         });
       }
 
-      const { wallet_id, ...safeData } = result.data!;
-      res.json(safeData);
+      // DTO já vem sem dados sensíveis
+      res.json(result.data);
 
     } catch (error) {
       Logger.error('AffiliateRoutes', 'Error updating affiliate', error as Error);
@@ -250,9 +284,9 @@ router.get('/dashboard', requireAuth, async (req: Request, res: Response) => {
         id: affiliate.id,
         name: affiliate.name,
         email: affiliate.email,
-        referralCode: affiliate.referral_code,
+        referralCode: affiliate.referralCode,
         status: affiliate.status,
-        createdAt: affiliate.created_at,
+        createdAt: affiliate.createdAt,
       },
       stats: statsResult.data || {
         totalClicks: 0,
@@ -304,13 +338,13 @@ router.get('/referral-link', requireAuth, async (req: Request, res: Response) =>
         code: 'AFFILIATE_NOT_FOUND',
       });
     }
+const affiliate = affiliateResult.data!;
 
-    const affiliate = affiliateResult.data!;
-    const referralLink = affiliateService.generateReferralLink(affiliate.referral_code);
+const referralLink = affiliateService.generateReferralLink(affiliate.referralCode);
 
-    res.json({
-      referralCode: affiliate.referral_code,
-      referralLink,
+res.json({
+  referralCode: affiliate.referralCode,
+  referralLink,
       // TODO: Adicionar QR Code
       // qrCode: generateQRCode(referralLink),
     });

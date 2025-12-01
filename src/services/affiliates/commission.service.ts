@@ -12,11 +12,37 @@
 import { supabase } from '@/config/supabase';
 import { Logger } from '@/utils/logger';
 import type {
-  Commission,
-  CommissionQueryParams,
   ServiceResponse,
   PaginatedResponse,
 } from '@/types/affiliate.types';
+
+// Local types for Commission Service
+export interface Commission {
+  id: string;
+  order_id: string;
+  order_number: string;
+  affiliate_id: string;
+  affiliate_name: string;
+  level: number;
+  percentage: number;
+  base_value_cents: number;
+  commission_value_cents: number;
+  status: 'calculated' | 'pending' | 'paid' | 'failed';
+  asaas_split_id?: string;
+  paid_at?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CommissionQueryParams {
+  page?: number;
+  limit?: number;
+  status?: string;
+  affiliateId?: string;
+  startDate?: string;
+  endDate?: string;
+  level?: number;
+}
 
 export interface MonthlyStats {
   newAffiliates: number;
@@ -60,12 +86,74 @@ export interface AuditLogItem {
 
 export class CommissionService {
   /**
-   * Obtém comissões de um afiliado
-   */
-  async getAffiliateCommissions(
-    affiliateId: string,
-    params: CommissionQueryParams = {}
-  ): Promise<ServiceResponse<PaginatedResponse<Commission>>> {
+    * Obtém comissão por ID
+    */
+   async getById(id: string): Promise<ServiceResponse<Commission>> {
+     try {
+       const { data: commission, error } = await supabase
+         .from('commissions')
+         .select(`
+           *,
+           affiliates!inner(
+             id,
+             name,
+             email,
+             referral_code
+           ),
+           orders!inner(
+             order_number,
+             customer_name,
+             total_cents
+           )
+         `)
+         .eq('id', id)
+         .single();
+
+       if (error || !commission) {
+         Logger.error('CommissionService', 'Commission not found', error || new Error('Commission not found'), { commissionId: id });
+         return {
+           success: false,
+           error: 'Comissão não encontrada',
+           code: 'COMMISSION_NOT_FOUND',
+         };
+       }
+
+       return { success: true, data: commission };
+
+     } catch (error) {
+       Logger.error('CommissionService', 'Error getting commission by ID', error as Error);
+       return {
+         success: false,
+         error: 'Erro interno ao obter comissão',
+         code: 'INTERNAL_ERROR',
+       };
+     }
+   }
+
+  /**
+    * Obtém comissões de um afiliado (alias para getByAffiliateId)
+    */
+   async getByAffiliateId(
+     affiliateId: string,
+     params: CommissionQueryParams = {}
+   ): Promise<ServiceResponse<PaginatedResponse<Commission>>> {
+     return this.getAffiliateCommissions(affiliateId, params);
+   }
+
+  /**
+    * Obtém estatísticas de comissões (alias para getMonthlyStats)
+    */
+   async getStats(params?: any): Promise<ServiceResponse<MonthlyStats>> {
+     return this.getMonthlyStats();
+   }
+
+  /**
+    * Obtém comissões de um afiliado
+    */
+   async getAffiliateCommissions(
+     affiliateId: string,
+     params: CommissionQueryParams = {}
+   ): Promise<ServiceResponse<PaginatedResponse<Commission>>> {
     try {
       const {
         page = 1,

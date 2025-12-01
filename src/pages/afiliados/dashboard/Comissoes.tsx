@@ -11,11 +11,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { 
-  Search, 
+import {
+  Search,
   Filter,
   Download,
-  Eye
+  Eye,
+  Loader2
 } from "lucide-react";
 import {
   Dialog,
@@ -23,6 +24,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { useMyCommissions } from "@/hooks/useMyCommissions";
 
 interface Comissao {
   id: string;
@@ -35,72 +37,32 @@ interface Comissao {
   status: "pago" | "pendente" | "processando";
 }
 
-const mockComissoes: Comissao[] = [
-  {
-    id: "C001",
-    tipo: "N1",
-    valor: 429.00,
-    venda: "#1047",
-    cliente: "Maria Silva",
-    produto: "Slim Quality Queen",
-    data: "2024-10-12",
-    status: "pago"
-  },
-  {
-    id: "C002",
-    tipo: "N2",
-    valor: 184.50,
-    venda: "#1046",
-    cliente: "Roberto Lima",
-    produto: "Slim Quality Casal",
-    data: "2024-10-11",
-    status: "pago"
-  },
-  {
-    id: "C003",
-    tipo: "N1",
-    valor: 489.00,
-    venda: "#1045",
-    cliente: "Fernanda Costa",
-    produto: "Slim Quality King",
-    data: "2024-10-10",
-    status: "pendente"
-  },
-  {
-    id: "C004",
-    tipo: "N3",
-    valor: 97.80,
-    venda: "#1044",
-    cliente: "Paulo Santos",
-    produto: "Slim Quality King",
-    data: "2024-10-09",
-    status: "pago"
-  },
-  {
-    id: "C005",
-    tipo: "N1",
-    valor: 369.00,
-    venda: "#1043",
-    cliente: "Juliana Rocha",
-    produto: "Slim Quality Casal",
-    data: "2024-10-08",
-    status: "processando"
-  }
-];
-
 export default function AffiliateDashboardComissoes() {
+  const { commissions, summary, loading, error } = useMyCommissions();
   const [selectedComissao, setSelectedComissao] = useState<Comissao | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("todos");
   const [tipoFilter, setTipoFilter] = useState("todos");
 
-  const filteredComissoes = mockComissoes.filter(c => {
+  // Convert API data to component format
+  const comissoesData: Comissao[] = (commissions as any[])?.map((c: any) => ({
+    id: c.id,
+    tipo: c.level === 1 ? "N1" : c.level === 2 ? "N2" : "N3",
+    valor: c.amountCents / 100,
+    venda: `#${c.orderId}`,
+    cliente: c.customerName || "Cliente",
+    produto: c.productName || "Produto",
+    data: c.createdAt,
+    status: c.status === "paid" ? "pago" : c.status === "pending" ? "pendente" : "processando"
+  })) || [];
+
+  const filteredComissoes = comissoesData.filter(c => {
     const matchesSearch = c.cliente.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          c.produto.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          c.venda.includes(searchTerm);
     const matchesStatus = statusFilter === "todos" || c.status === statusFilter;
     const matchesTipo = tipoFilter === "todos" || c.tipo === tipoFilter;
-    
+
     return matchesSearch && matchesStatus && matchesTipo;
   });
 

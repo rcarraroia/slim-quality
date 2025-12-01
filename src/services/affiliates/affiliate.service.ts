@@ -9,11 +9,12 @@
  * - Validações de integridade da rede
  */
 
-import { supabase } from '@/config/supabase';
 import { Logger } from '@/utils/logger';
 import { affiliateAsaasService } from './affiliate-asaas.service';
 import { crmIntegrationService } from '@/services/crm/integration.service';
-import type {
+import { affiliateRepository, IAffiliateRepository } from '@/repositories/affiliate.repository';
+import { DataSanitizer } from '@/utils/sanitization';
+import {
   Affiliate,
   AffiliateNetwork,
   CreateAffiliateRequest,
@@ -25,160 +26,152 @@ import type {
   ServiceResponse,
   PaginatedResponse,
   WalletValidation,
+  AffiliateResponseDTO,
+  AffiliateDetailResponseDTO,
+  AffiliateAdminResponseDTO,
+  CreateAffiliateDTO,
 } from '@/types/affiliate.types';
+import {
+  DomainError,
+  ValidationError,
+  InvalidWalletError,
+  DuplicateAffiliateError,
+  InvalidReferralCodeError,
+  NotFoundError,
+  AffiliateNotFoundError,
+  ForbiddenError,
+  InsufficientPermissionsError,
+  ConflictError,
+  AffiliateInactiveError,
+  InsufficientBalanceError,
+  ExternalServiceError,
+  AsaasServiceError,
+  DatabaseError,
+  ApplicationError,
+  handleServiceError,
+} from '@/utils/errors';
 
 export class AffiliateService {
+  constructor(
+    private repository: IAffiliateRepository = affiliateRepository
+  ) {}
   /**
-   * Cria novo afiliado com validações completas
-   */
-  async createAffiliate(data: CreateAffiliateRequest, userId?: string): Promise<ServiceResponse<Affiliate>> {
-    try {
-      Logger.info('AffiliateService', 'Creating affiliate', {
-        email: data.email,
-        walletId: data.walletId,
-        hasReferralCode: !!data.referralCode,
-      });
+    * Cria novo afiliado com validações completas
+    */
+   async createAffiliate(data: CreateAffiliateRequest, userId?: string): Promise<ServiceResponse<AffiliateResponseDTO>> {
+     try {
+       Logger.info('AffiliateService', 'Creating affiliate', {
+         hasReferralCode: !!data.referralCode,
+         // Removed PII from logs
+       });
 
-      // 1. Validar Wallet ID via Asaas
-      const walletValidation = await this.validateWalletId(data.walletId);
-      if (!walletValidation.isValid) {
-        return {
-          success: false,
-          error: walletValidation.error || 'Wallet ID inválida',
-          code: 'INVALID_WALLET_ID',
-        };
-      }
+       // 1. Sanitizar dados de entrada
+       const sanitizedData = DataSanitizer.sanitizeAffiliateData(data);
+       const validation = DataSanitizer.validateSanitizedData(sanitizedData);
 
-      if (!walletValidation.isActive) {
-        return {
-          success: false,
-          error: 'Wallet ID não está ativa no Asaas',
-          code: 'INACTIVE_WALLET_ID',
-        };
-      }
+       if (!validation.isValid) {
+         throw new ValidationError(validation.errors[0]);
+       }
 
-      // 2. Verificar se email já está cadastrado
-      const { data: existingAffiliate } = await supabase
-        .from('affiliates')
-        .select('id, email')
-        .eq('email', data.email)
-        .is('deleted_at', null)
-        .single();
+       // 2. Validar Wallet ID via Asaas
+       const walletValidation = await this.validateWalletId(sanitizedData.walletId);
+       if (!walletValidation.isValid) {
+         throw new InvalidWalletError(sanitizedData.walletId);
+       }
 
-      if (existingAffiliate) {
-        return {
-          success: false,
-          error: 'Email já cadastrado como afiliado',
-          code: 'EMAIL_ALREADY_EXISTS',
-        };
-      }
+       if (!walletValidation.isActive) {
+         throw new InvalidWalletError(sanitizedData.walletId);
+       }
 
-      // 3. Verificar se Wallet ID já está em uso
-      const { data: existingWallet } = await supabase
-        .from('affiliates')
-        .select('id, wallet_id')
-        .eq('wallet_id', data.walletId)
-        .is('deleted_at', null)
-        .single();
+       // 3. Verificar duplicatas
+       const existingByEmail = await this.repository.findByUserId(userId || '');
+       if (existingByEmail) {
+         throw new DuplicateAffiliateError('email', sanitizedData.email);
+       }
 
-      if (existingWallet) {
-        return {
-          success: false,
-          error: 'Wallet ID já está em uso por outro afiliado',
-          code: 'WALLET_ID_ALREADY_EXISTS',
-        };
-      }
+       const existingByWallet = await this.repository.findByWalletId(sanitizedData.walletId);
+       if (existingByWallet) {
+         throw new DuplicateAffiliateError('walletId', sanitizedData.walletId);
+       }
 
-      // 4. Validar código de indicação (se fornecido)
-      let parentAffiliate: Affiliate | null = null;
-      if (data.referralCode) {
-        const parentResult = await this.getAffiliateByCode(data.referralCode);
-        if (!parentResult.success || !parentResult.data) {
-          return {
-            success: false,
-            error: 'Código de indicação inválido',
-            code: 'INVALID_REFERRAL_CODE',
-          };
-        }
+       // 4. Validar código de indicação (se fornecido)
+       let parentAffiliate: Affiliate | null = null;
+       if (sanitizedData.referralCode) {
+         parentAffiliate = await this.repository.findByReferralCode(sanitizedData.referralCode);
+         if (!parentAffiliate) {
+           throw new InvalidReferralCodeError(sanitizedData.referralCode);
+         }
 
-        parentAffiliate = parentResult.data;
-        if (parentAffiliate.status !== 'active') {
-          return {
-            success: false,
-            error: 'Afiliado indicador não está ativo',
-            code: 'INACTIVE_REFERRER',
-          };
-        }
-      }
+         if (parentAffiliate.status !== 'active') {
+           throw new AffiliateInactiveError(parentAffiliate.id);
+         }
+       }
 
-      // 5. Criar afiliado
-      const { data: newAffiliate, error: createError } = await supabase
-        .from('affiliates')
-        .insert({
-          user_id: userId,
-          name: data.name,
-          email: data.email,
-          phone: data.phone,
-          document: data.document,
-          wallet_id: data.walletId,
-          wallet_validated_at: new Date().toISOString(),
-          status: 'pending', // Sempre inicia como pending
-        })
-        .select()
-        .single();
+       // 5. Gerar código de referência único
+       const referralCode = await this.generateReferralCode();
 
-      if (createError) {
-        Logger.error('AffiliateService', 'Error creating affiliate', createError);
-        return {
-          success: false,
-          error: 'Erro ao criar afiliado',
-          code: 'CREATE_AFFILIATE_ERROR',
-        };
-      }
+       // 6. Criar afiliado via repository
+       const affiliateData: CreateAffiliateDTO = {
+         userId: userId || '',
+         name: sanitizedData.name,
+         email: sanitizedData.email,
+         phone: sanitizedData.phone,
+         document: sanitizedData.document,
+         walletId: sanitizedData.walletId,
+         referralCode,
+         pixKey: sanitizedData.pixKey,
+       };
 
-      // 6. Construir rede genealógica (se há indicação)
-      if (parentAffiliate) {
-        const networkResult = await this.buildNetwork(newAffiliate.id, parentAffiliate.id);
-        if (!networkResult.success) {
-          // Rollback: deletar afiliado criado
-          await supabase
-            .from('affiliates')
-            .delete()
-            .eq('id', newAffiliate.id);
+       const newAffiliate = await this.repository.create(affiliateData);
 
-          return networkResult;
-        }
-      } else {
-        // Criar como raiz (nível 1)
-        await this.createNetworkRoot(newAffiliate.id);
-      }
+       // 7. Construir rede genealógica (se há indicação)
+       if (parentAffiliate) {
+         const networkResult = await this.buildNetwork(newAffiliate.id, parentAffiliate.id);
+         if (!networkResult.success) {
+           // Rollback: deletar afiliado criado
+           await this.repository.delete(newAffiliate.id);
+           throw new ApplicationError(networkResult.error || 'Erro ao construir rede genealógica');
+         }
+       } else {
+         // Criar como raiz (nível 1)
+         await this.createNetworkRoot(newAffiliate.id);
+       }
 
-      Logger.info('AffiliateService', 'Affiliate created successfully', {
-        affiliateId: newAffiliate.id,
-        email: newAffiliate.email,
-        referralCode: newAffiliate.referral_code,
-        hasParent: !!parentAffiliate,
-      });
+       Logger.info('AffiliateService', 'Affiliate created successfully', {
+         affiliateId: newAffiliate.id,
+         referralCode: newAffiliate.referralCode,
+         hasParent: !!parentAffiliate,
+         // Removed PII from logs
+       });
 
-      // Integração CRM: Registrar afiliado no CRM
-      try {
-        await crmIntegrationService.handleAffiliateCreated(newAffiliate);
-      } catch (error) {
-        Logger.error('AffiliateService', 'Erro ao integrar com CRM (não crítico)', error as Error);
-        // Não falhar a operação se integração CRM falhar
-      }
+       // Integração CRM: Registrar afiliado no CRM
+       try {
+         await crmIntegrationService.handleAffiliateCreated(newAffiliate);
+       } catch (error) {
+         Logger.error('AffiliateService', 'CRM integration failed (non-critical)', error as Error);
+         // Não falhar a operação se integração CRM falhar
+       }
 
-      return { success: true, data: newAffiliate };
+       // Return DTO instead of full entity
+       return {
+         success: true,
+         data: this.toAffiliateResponseDTO(newAffiliate)
+       };
 
-    } catch (error) {
-      Logger.error('AffiliateService', 'Error in createAffiliate', error as Error);
-      return {
-        success: false,
-        error: 'Erro interno ao criar afiliado',
-        code: 'INTERNAL_ERROR',
-      };
-    }
-  }
+     } catch (error) {
+       const handledError = handleServiceError(error);
+       Logger.error('AffiliateService', 'Error in createAffiliate', {
+         error: handledError.message,
+         code: handledError.code,
+         // Removed PII from logs
+       });
+
+       return {
+         success: false,
+         code: handledError.code,
+       };
+     }
+   }
 
   /**
    * Valida Wallet ID do Asaas
@@ -197,100 +190,88 @@ export class AffiliateService {
   }
 
   /**
-   * Busca afiliado por código de referência
-   */
-  async getAffiliateByCode(referralCode: string): Promise<ServiceResponse<Affiliate>> {
-    try {
-      const { data: affiliate, error } = await supabase
-        .from('affiliates')
-        .select('*')
-        .eq('referral_code', referralCode)
-        .is('deleted_at', null)
-        .single();
+    * Busca afiliado por código de referência
+    */
+   async getAffiliateByCode(referralCode: string): Promise<ServiceResponse<AffiliateResponseDTO>> {
+     try {
+       const affiliate = await this.repository.findByReferralCode(referralCode);
 
-      if (error || !affiliate) {
-        return {
-          success: false,
-          error: 'Afiliado não encontrado',
-          code: 'AFFILIATE_NOT_FOUND',
-        };
-      }
+       if (!affiliate) {
+         throw new AffiliateNotFoundError('referral_code');
+       }
 
-      return { success: true, data: affiliate };
+       return { success: true, data: this.toAffiliateResponseDTO(affiliate) };
 
-    } catch (error) {
-      Logger.error('AffiliateService', 'Error getting affiliate by code', error as Error);
-      return {
-        success: false,
-        error: 'Erro ao buscar afiliado',
-        code: 'GET_AFFILIATE_ERROR',
-      };
-    }
-  }
+     } catch (error) {
+       const handledError = handleServiceError(error);
+       Logger.error('AffiliateService', 'Error getting affiliate by code', {
+         referralCode,
+         error: handledError.message,
+         code: handledError.code,
+       });
+       return {
+         success: false,
+         error: handledError.message,
+         code: handledError.code,
+       };
+     }
+   }
 
   /**
-   * Busca afiliado por ID
-   */
-  async getAffiliateById(affiliateId: string): Promise<ServiceResponse<Affiliate>> {
-    try {
-      const { data: affiliate, error } = await supabase
-        .from('affiliates')
-        .select('*')
-        .eq('id', affiliateId)
-        .is('deleted_at', null)
-        .single();
+    * Busca afiliado por ID
+    */
+   async getAffiliateById(affiliateId: string): Promise<ServiceResponse<AffiliateResponseDTO>> {
+     try {
+       const affiliate = await this.repository.findById(affiliateId);
 
-      if (error || !affiliate) {
-        return {
-          success: false,
-          error: 'Afiliado não encontrado',
-          code: 'AFFILIATE_NOT_FOUND',
-        };
-      }
+       if (!affiliate) {
+         throw new AffiliateNotFoundError(affiliateId);
+       }
 
-      return { success: true, data: affiliate };
+       return { success: true, data: this.toAffiliateResponseDTO(affiliate) };
 
-    } catch (error) {
-      Logger.error('AffiliateService', 'Error getting affiliate by ID', error as Error);
-      return {
-        success: false,
-        error: 'Erro ao buscar afiliado',
-        code: 'GET_AFFILIATE_ERROR',
-      };
-    }
-  }
+     } catch (error) {
+       const handledError = handleServiceError(error);
+       Logger.error('AffiliateService', 'Error getting affiliate by ID', {
+         affiliateId,
+         error: handledError.message,
+         code: handledError.code,
+       });
+       return {
+         success: false,
+         error: handledError.message,
+         code: handledError.code,
+       };
+     }
+   }
 
   /**
-   * Busca afiliado por user_id
-   */
-  async getAffiliateByUserId(userId: string): Promise<ServiceResponse<Affiliate>> {
-    try {
-      const { data: affiliate, error } = await supabase
-        .from('affiliates')
-        .select('*')
-        .eq('user_id', userId)
-        .is('deleted_at', null)
-        .single();
+    * Busca afiliado por user_id
+    */
+   async getAffiliateByUserId(userId: string): Promise<ServiceResponse<AffiliateResponseDTO>> {
+     try {
+       const affiliate = await this.repository.findByUserId(userId);
 
-      if (error || !affiliate) {
-        return {
-          success: false,
-          error: 'Afiliado não encontrado para este usuário',
-          code: 'AFFILIATE_NOT_FOUND',
-        };
-      }
+       if (!affiliate) {
+         throw new AffiliateNotFoundError(`user_${userId}`);
+       }
 
-      return { success: true, data: affiliate };
+       return { success: true, data: this.toAffiliateResponseDTO(affiliate) };
 
-    } catch (error) {
-      Logger.error('AffiliateService', 'Error getting affiliate by user ID', error as Error);
-      return {
-        success: false,
-        error: 'Erro ao buscar afiliado',
-        code: 'GET_AFFILIATE_ERROR',
-      };
-    }
-  }
+     } catch (error) {
+       const handledError = handleServiceError(error);
+       Logger.error('AffiliateService', 'Error getting affiliate by user ID', {
+         userId,
+         error: handledError.message,
+         code: handledError.code,
+       });
+       return {
+         success: false,
+         error: handledError.message,
+         code: handledError.code,
+       };
+     }
+   }
 
   /**
    * Lista afiliados com paginação e filtros
@@ -373,41 +354,56 @@ export class AffiliateService {
     affiliateId: string,
     data: UpdateAffiliateRequest,
     userId?: string
-  ): Promise<ServiceResponse<Affiliate>> {
+  ): Promise<ServiceResponse<AffiliateResponseDTO>> {
     try {
-      const { data: updatedAffiliate, error } = await supabase
-        .from('affiliates')
-        .update({
-          ...data,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', affiliateId)
-        .is('deleted_at', null)
-        .select()
-        .single();
+      Logger.info('AffiliateService', 'Updating affiliate', { affiliateId });
 
-      if (error) {
-        Logger.error('AffiliateService', 'Error updating affiliate', error);
-        return {
-          success: false,
-          error: 'Erro ao atualizar afiliado',
-          code: 'UPDATE_AFFILIATE_ERROR',
-        };
+      // Verificar se afiliado existe
+      const affiliate = await this.repository.findById(affiliateId);
+      if (!affiliate) {
+        throw new AffiliateNotFoundError(affiliateId);
       }
 
-      Logger.info('AffiliateService', 'Affiliate updated', {
+      // Verificar permissões (só o próprio usuário ou admin pode atualizar)
+      if (userId && affiliate.userId !== userId) {
+        // TODO: Verificar se é admin
+        throw new ForbiddenError('Apenas o próprio usuário pode atualizar seus dados');
+      }
+
+      // Preparar dados para atualização
+      const updateData: UpdateAffiliateDTO = {};
+
+      if (data.name !== undefined) updateData.name = data.name;
+      if (data.phone !== undefined) updateData.phone = data.phone;
+      if (data.pixKey !== undefined) updateData.pixKey = data.pixKey;
+
+      // Status is not in UpdateAffiliateRequest - handled separately in updateAffiliateStatus
+
+      if (Object.keys(updateData).length === 0) {
+        throw new ValidationError('Nenhum campo válido para atualizar');
+      }
+
+      // Atualizar via repository
+      const updatedAffiliate = await this.repository.update(affiliateId, updateData);
+
+      Logger.info('AffiliateService', 'Affiliate updated successfully', {
         affiliateId,
         updatedBy: userId,
       });
 
-      return { success: true, data: updatedAffiliate };
+      return { success: true, data: this.toAffiliateResponseDTO(updatedAffiliate) };
 
     } catch (error) {
-      Logger.error('AffiliateService', 'Error in updateAffiliate', error as Error);
+      const handledError = handleServiceError(error);
+      Logger.error('AffiliateService', 'Error in updateAffiliate', {
+        affiliateId,
+        error: handledError.message,
+        code: handledError.code,
+      });
       return {
         success: false,
-        error: 'Erro interno ao atualizar afiliado',
-        code: 'INTERNAL_ERROR',
+        error: handledError.message,
+        code: handledError.code,
       };
     }
   }
@@ -510,7 +506,7 @@ export class AffiliateService {
         };
       }
 
-      return { success: true, data: stats };
+      return { success: true, data: stats as AffiliateStatsResponse };
 
     } catch (error) {
       Logger.error('AffiliateService', 'Error in getAffiliateStats', error as Error);
@@ -532,7 +528,11 @@ export class AffiliateService {
       // Validar que não criará loop
       const loopValidation = await this.validateNetworkIntegrity(affiliateId, parentId);
       if (!loopValidation.success) {
-        return loopValidation;
+        return {
+          success: false,
+          error: loopValidation.error || 'Erro de validação de rede',
+          code: loopValidation.code || 'NETWORK_VALIDATION_ERROR',
+        };
       }
 
       // Criar entrada na rede
@@ -729,11 +729,138 @@ export class AffiliateService {
   }
 
   /**
+   * Gera código de indicação único
+   */
+  async generateReferralCode(): Promise<string> {
+    const maxAttempts = 10;
+    let attempts = 0;
+
+    while (attempts < maxAttempts) {
+      // Gera código alfanumérico único de 8 caracteres
+      const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+      let code = '';
+      for (let i = 0; i < 8; i++) {
+        code += chars.charAt(Math.floor(Math.random() * chars.length));
+      }
+
+      // Verifica se o código já existe
+      const { data: existing } = await supabase
+        .from('affiliates')
+        .select('id')
+        .eq('referral_code', code)
+        .single();
+
+      if (!existing) {
+        return code;
+      }
+
+      attempts++;
+    }
+
+    // Fallback: usa timestamp para garantir unicidade
+    const timestamp = Date.now().toString(36).toUpperCase().slice(-4);
+    return `REF${timestamp}`;
+  }
+
+  /**
+   * Vincula afiliado na árvore genealógica
+   */
+  async linkToNetwork(affiliateId: string, referralCode: string): Promise<ServiceResponse<void>> {
+    try {
+      // Buscar afiliado pelo código de referência
+      const parentResult = await this.getAffiliateByCode(referralCode);
+      if (!parentResult.success || !parentResult.data) {
+        return {
+          success: false,
+          error: 'Código de indicação inválido',
+          code: 'INVALID_REFERRAL_CODE',
+        };
+      }
+
+      const parentAffiliate = parentResult.data;
+      if (parentAffiliate.status !== 'active') {
+        return {
+          success: false,
+          error: 'Afiliado indicador não está ativo',
+          code: 'INACTIVE_REFERRER',
+        };
+      }
+
+      // Construir rede
+      return await this.buildNetwork(affiliateId, parentAffiliate.id);
+
+    } catch (error) {
+      Logger.error('AffiliateService', 'Error linking to network', error as Error);
+      return {
+        success: false,
+        error: 'Erro interno ao vincular na rede',
+        code: 'INTERNAL_ERROR',
+      };
+    }
+  }
+
+  /**
+   * Método de registro simplificado (wrapper para createAffiliate)
+   */
+  async register(data: CreateAffiliateRequest, userId?: string): Promise<ServiceResponse<AffiliateResponseDTO>> {
+    return this.createAffiliate(data, userId);
+  }
+
+  /**
    * Gera link de referência do afiliado
    */
   generateReferralLink(referralCode: string): string {
     const baseUrl = process.env.FRONTEND_URL || 'https://slimquality.com.br';
     return `${baseUrl}?ref=${referralCode}`;
+  }
+
+  /**
+   * Converte Affiliate para AffiliateResponseDTO (remove PII)
+   */
+  private toAffiliateResponseDTO(affiliate: Affiliate): AffiliateResponseDTO {
+    return {
+      id: affiliate.id,
+      name: affiliate.name,
+      referralCode: affiliate.referralCode,
+      level: affiliate.level,
+      status: affiliate.status,
+      totalReferrals: affiliate.totalReferrals,
+      totalSales: affiliate.totalSales,
+      totalCommissions: (affiliate.totalCommissionsCents / 100),
+      availableBalance: (affiliate.availableBalanceCents / 100),
+      createdAt: affiliate.createdAt,
+    };
+  }
+
+  /**
+   * Converte Affiliate para AffiliateDetailResponseDTO (dados do próprio afiliado)
+   */
+  private toAffiliateDetailResponseDTO(affiliate: Affiliate): AffiliateDetailResponseDTO {
+    return {
+      ...this.toAffiliateResponseDTO(affiliate),
+      phone: affiliate.phone,
+      pixKey: affiliate.pixKey,
+    };
+  }
+
+  /**
+   * Converte Affiliate para AffiliateAdminResponseDTO (dados completos para admin)
+   */
+  private toAffiliateAdminResponseDTO(affiliate: Affiliate): AffiliateAdminResponseDTO {
+    return {
+      ...this.toAffiliateResponseDTO(affiliate),
+      email: affiliate.email,
+      phone: affiliate.phone,
+      document: affiliate.document, // Should be masked in production
+      walletId: affiliate.walletId, // Should be masked in production
+      pixKey: affiliate.pixKey,
+      dataCadastro: affiliate.createdAt,
+      cidade: '', // Not available in current schema
+      totalIndicados: affiliate.totalReferrals,
+      vendasGeradas: affiliate.totalSales,
+      comissoesTotais: (affiliate.totalCommissionsCents / 100),
+      saldoDisponivel: (affiliate.availableBalanceCents / 100),
+    };
   }
 }
 

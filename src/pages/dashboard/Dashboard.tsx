@@ -4,12 +4,13 @@ import { StatusBadge } from '@/components/dashboard/StatusBadge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { mockConversas, mockVendas } from '@/data/mockData';
+import { useConversations } from '@/hooks/useConversations';
+import { useSales } from '@/hooks/useSales';
 import { Link } from 'react-router-dom';
 
 export default function Dashboard() {
-  const conversasRecentes = mockConversas.slice(0, 5);
-  const vendasRecentes = mockVendas.slice(0, 5);
+  const { conversations: conversasRecentes, loading: loadingConversas } = useConversations({ limit: 5 });
+  const { sales: vendasRecentes, loading: loadingVendas } = useSales({ limit: 5 });
 
   return (
     <div className="space-y-6">

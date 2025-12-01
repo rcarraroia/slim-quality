@@ -324,6 +324,108 @@ export const affiliateService = {
     });
     return response.data;
   },
+
+  // ============================================
+  // ADMIN COMMISSIONS MANAGEMENT
+  // ============================================
+
+  /**
+   * Listar todas as comissões (admin)
+   */
+  async getAllCommissions(params?: {
+    status?: string;
+    affiliate_id?: string;
+    limit?: number;
+    offset?: number;
+  }) {
+    const response = await apiClient.get('/api/admin/commissions', { params });
+    return response.data.data;
+  },
+
+  /**
+   * Buscar comissão por ID (admin)
+   */
+  async getCommissionById(id: string) {
+    const response = await apiClient.get(`/api/admin/commissions/${id}`);
+    return response.data.data;
+  },
+
+  /**
+   * Buscar estatísticas de comissões (admin)
+   */
+  async getCommissionStats() {
+    const response = await apiClient.get('/api/admin/commissions/stats');
+    return response.data.data;
+  },
+
+  /**
+   * Aprovar comissão (admin)
+   */
+  async approveCommission(commissionId: string) {
+    const response = await apiClient.post(`/api/admin/commissions/${commissionId}/approve`);
+    return response.data;
+  },
+
+  /**
+   * Rejeitar comissão (admin)
+   */
+  async rejectCommission(commissionId: string, reason?: string) {
+    const response = await apiClient.post(`/api/admin/commissions/${commissionId}/reject`, {
+      reason
+    });
+    return response.data;
+  },
+
+  // ============================================
+  // ADMIN WITHDRAWALS MANAGEMENT
+  // ============================================
+
+  /**
+   * Listar todos os saques (admin)
+   */
+  async getAllWithdrawals(params?: {
+    status?: string;
+    affiliate_id?: string;
+    limit?: number;
+    offset?: number;
+  }) {
+    const response = await apiClient.get('/api/admin/withdrawals', { params });
+    return response.data.data;
+  },
+
+  /**
+   * Buscar saque por ID (admin)
+   */
+  async getWithdrawalById(id: string) {
+    const response = await apiClient.get(`/api/admin/withdrawals/${id}`);
+    return response.data.data;
+  },
+
+  /**
+   * Buscar estatísticas de saques (admin)
+   */
+  async getWithdrawalStats() {
+    const response = await apiClient.get('/api/admin/withdrawals/stats');
+    return response.data.data;
+  },
+
+  /**
+   * Aprovar saque (admin)
+   */
+  async approveWithdrawal(withdrawalId: string) {
+    const response = await apiClient.post(`/api/admin/withdrawals/${withdrawalId}/approve`);
+    return response.data;
+  },
+
+  /**
+   * Rejeitar saque (admin)
+   */
+  async rejectWithdrawal(withdrawalId: string, reason?: string) {
+    const response = await apiClient.post(`/api/admin/withdrawals/${withdrawalId}/reject`, {
+      reason
+    });
+    return response.data;
+  },
 };
 
 // Alias para compatibilidade com componentes existentes

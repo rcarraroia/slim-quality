@@ -21,7 +21,7 @@ if not SUPABASE_URL or not SUPABASE_SERVICE_KEY:
 supabase = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
 
 print("=" * 80)
-print("VERIFICAÇÃO DO BANCO DE DADOS - SPRINT 5 CRM")
+print("VERIFICACAO DO BANCO DE DADOS - SPRINT 5 CRM")
 print("=" * 80)
 print()
 
@@ -49,11 +49,11 @@ def check_rls_status(table_name):
     try:
         # Query para verificar RLS
         query = f"""
-        SELECT 
+        SELECT
             schemaname,
             tablename,
             rowsecurity
-        FROM pg_tables 
+        FROM pg_tables
         WHERE tablename = '{table_name}'
         AND schemaname = 'public';
         """
@@ -63,15 +63,15 @@ def check_rls_status(table_name):
         return None
 
 def check_policies(table_name):
-    """Verifica políticas RLS"""
+    """Verifica politicas RLS"""
     try:
         query = f"""
-        SELECT 
+        SELECT
             policyname,
             cmd,
             qual,
             with_check
-        FROM pg_policies 
+        FROM pg_policies
         WHERE tablename = '{table_name}'
         AND schemaname = 'public';
         """
@@ -84,7 +84,7 @@ def get_table_columns(table_name):
     """Lista colunas da tabela"""
     try:
         query = f"""
-        SELECT 
+        SELECT
             column_name,
             data_type,
             is_nullable,
@@ -111,47 +111,47 @@ def count_records(table_name):
 results = {}
 
 for table in EXPECTED_TABLES:
-    print(f"📋 Verificando tabela: {table}")
+    print(f"Verificando tabela: {table}")
     print("-" * 80)
     
     exists, error = check_table_exists(table)
     
     if exists:
-        print(f"  ✅ Tabela existe")
-        
+        print(f"  Tabela existe")
+
         # Contar registros
         count = count_records(table)
         if count is not None:
-            print(f"  📊 Registros: {count}")
-        
+            print(f"  Registros: {count}")
+
         # Verificar colunas
         columns = get_table_columns(table)
         if columns:
-            print(f"  📝 Colunas ({len(columns)}):")
+            print(f"  Colunas ({len(columns)}):")
             for col in columns[:5]:  # Mostrar apenas primeiras 5
                 nullable = "NULL" if col['is_nullable'] == 'YES' else "NOT NULL"
                 print(f"     - {col['column_name']}: {col['data_type']} {nullable}")
             if len(columns) > 5:
                 print(f"     ... e mais {len(columns) - 5} colunas")
-        
+
         # Verificar RLS
         rls_status = check_rls_status(table)
         if rls_status:
             rls_enabled = rls_status[0].get('rowsecurity', False) if rls_status else False
             if rls_enabled:
-                print(f"  🔒 RLS: ATIVO")
+                print(f"  RLS: ATIVO")
             else:
-                print(f"  ⚠️  RLS: DESATIVADO")
-        
-        # Verificar políticas
+                print(f"  RLS: DESATIVADO")
+
+        # Verificar politicas
         policies = check_policies(table)
         if policies:
-            print(f"  🛡️  Políticas RLS ({len(policies)}):")
+            print(f"  Politicas RLS ({len(policies)}):")
             for policy in policies:
                 print(f"     - {policy['policyname']} ({policy['cmd']})")
         else:
-            print(f"  ⚠️  Nenhuma política RLS encontrada")
-        
+            print(f"  Nenhuma politica RLS encontrada")
+
         results[table] = {
             'exists': True,
             'count': count,
@@ -160,8 +160,8 @@ for table in EXPECTED_TABLES:
             'policies': len(policies)
         }
     else:
-        print(f"  ❌ Tabela NÃO existe")
-        print(f"  ⚠️  Erro: {error}")
+        print(f"  Tabela NAO existe")
+        print(f"  Erro: {error}")
         results[table] = {
             'exists': False,
             'error': error
@@ -171,25 +171,25 @@ for table in EXPECTED_TABLES:
 
 # Resumo final
 print("=" * 80)
-print("RESUMO DA VERIFICAÇÃO")
+print("RESUMO DA VERIFICACAO")
 print("=" * 80)
 print()
 
 existing_tables = [t for t, r in results.items() if r['exists']]
 missing_tables = [t for t, r in results.items() if not r['exists']]
 
-print(f"✅ Tabelas existentes: {len(existing_tables)}/{len(EXPECTED_TABLES)}")
+print(f"Tabelas existentes: {len(existing_tables)}/{len(EXPECTED_TABLES)}")
 for table in existing_tables:
     r = results[table]
-    print(f"   - {table}: {r['count']} registros, {r['columns']} colunas, RLS: {'✅' if r['rls_enabled'] else '❌'}, Políticas: {r['policies']}")
+    print(f"   - {table}: {r['count']} registros, {r['columns']} colunas, RLS: {'SIM' if r['rls_enabled'] else 'NAO'}, Politicas: {r['policies']}")
 
 if missing_tables:
     print()
-    print(f"❌ Tabelas faltando: {len(missing_tables)}")
+    print(f"Tabelas faltando: {len(missing_tables)}")
     for table in missing_tables:
         print(f"   - {table}")
 
-# Salvar relatório em JSON
+# Salvar relatorio em JSON
 report = {
     'timestamp': str(os.popen('date').read().strip()),
     'total_tables': len(EXPECTED_TABLES),
@@ -202,12 +202,12 @@ with open('database_verification_report.json', 'w') as f:
     json.dump(report, f, indent=2)
 
 print()
-print("📄 Relatório salvo em: database_verification_report.json")
+print("Relatorio salvo em: database_verification_report.json")
 print()
 
 # Status final
 if len(existing_tables) == len(EXPECTED_TABLES):
-    print("✅ TODAS AS TABELAS EXISTEM!")
+    print("TODAS AS TABELAS EXISTEM!")
 else:
-    print(f"⚠️  FALTAM {len(missing_tables)} TABELAS")
-    print("   Execute as migrations necessárias para criar as tabelas faltantes")
+    print(f"FALTAM {len(missing_tables)} TABELAS")
+    print("   Execute as migrations necessarias para criar as tabelas faltantes")

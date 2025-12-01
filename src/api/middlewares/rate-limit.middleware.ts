@@ -1,81 +1,65 @@
-/**
- * Middleware de Rate Limiting
- * Sprint 1: Sistema de Autenticação e Gestão de Usuários
- * 
- * Protege contra ataques de força bruta e abuso de API
- */
+import { Request, Response, NextFunction } from 'express';
 
-import rateLimit from 'express-rate-limit';
-import { logger } from '../../utils/logger';
+// Simple in-memory rate limiting (for development)
+// In production, use Redis or similar
+const rateLimitStore = new Map<string, { count: number; resetTime: number }>();
 
-/**
- * Rate limiter para rotas de autenticação
- * Limita tentativas de login/registro por IP
- */
-export const authRateLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutos
-  max: 10, // 10 requisições por janela
-  message: {
-    error: 'Muitas tentativas. Tente novamente em 15 minutos.',
-  },
-  standardHeaders: true, // Retorna info de rate limit nos headers
-  legacyHeaders: false,
-  handler: (req, res) => {
-    logger.warn('RateLimiter', 'Rate limit exceeded', {
-      ip: req.ip,
-      path: req.path,
-      method: req.method,
-    });
-    res.status(429).json({
-      error: 'Muitas tentativas. Tente novamente em 15 minutos.',
-    });
-  },
-});
+interface RateLimitOptions {
+  windowMs: number; // Time window in milliseconds
+  max: number; // Maximum requests per window
+  message?: string;
+  skipSuccessfulRequests?: boolean;
+}
 
 /**
- * Rate limiter para rotas de API em geral
- * Mais permissivo que o de autenticação
+ * Middleware para rate limiting
  */
-export const apiRateLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutos
-  max: 100, // 100 requisições por janela
-  message: {
-    error: 'Muitas requisições. Tente novamente em alguns minutos.',
-  },
-  standardHeaders: true,
-  legacyHeaders: false,
-  handler: (req, res) => {
-    logger.warn('RateLimiter', 'API rate limit exceeded', {
-      ip: req.ip,
-      path: req.path,
-      method: req.method,
-    });
-    res.status(429).json({
-      error: 'Muitas requisições. Tente novamente em alguns minutos.',
-    });
-  },
-});
+export const rateLimitMiddleware = (options: RateLimitOptions) => {
+  const { windowMs, max, message = 'Muitas tentativas. Tente novamente mais tarde.' } = options;
+
+  return (req: Request, res: Response, next: NextFunction) => {
+    const key = `${req.ip}-${req.path}`;
+    const now = Date.now();
+
+    const current = rateLimitStore.get(key);
+
+    if (!current || now > current.resetTime) {
+      // First request or window expired
+      rateLimitStore.set(key, {
+        count: 1,
+        resetTime: now + windowMs,
+      });
+      next();
+    } else if (current.count < max) {
+      // Within limit
+      current.count++;
+      rateLimitStore.set(key, current);
+      next();
+    } else {
+      // Rate limit exceeded
+      const resetIn = Math.ceil((current.resetTime - now) / 1000);
+
+      res.status(429).json({
+        error: message,
+        code: 'RATE_LIMIT_EXCEEDED',
+        retryAfter: resetIn,
+      });
+    }
+  };
+};
 
 /**
- * Rate limiter estrito para operações sensíveis
- * Ex: alteração de senha, exclusão de conta
+ * Limpa entradas expiradas do store (chamar periodicamente)
  */
-export const strictRateLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000, // 1 hora
-  max: 3, // 3 requisições por hora
-  message: {
-    error: 'Limite de operações sensíveis atingido. Tente novamente em 1 hora.',
-  },
-  standardHeaders: true,
-  legacyHeaders: false,
-  handler: (req, res) => {
-    logger.warn('RateLimiter', 'Strict rate limit exceeded', {
-      ip: req.ip,
-      path: req.path,
-      method: req.method,
-    });
-    res.status(429).json({
-      error: 'Limite de operações sensíveis atingido. Tente novamente em 1 hora.',
-    });
-  },
-});
+export const cleanupRateLimitStore = () => {
+  const now = Date.now();
+
+  for (const [key, value] of rateLimitStore.entries()) {
+    if (now > value.resetTime) {
+      rateLimitStore.delete(key);
+    }
+  }
+};
+
+// Limpar store a cada 5 minutos
+setInterval(cleanupRateLimitStore, 5 * 60 * 1000);

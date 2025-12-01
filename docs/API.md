@@ -554,3 +554,497 @@ Content-Type: application/json
 - Usuários veem apenas próprios pedidos
 - Admins veem todos os pedidos
 - Logs do Asaas apenas para admins
+
+
+---
+
+## 👥 Endpoints de Afiliados
+
+### Registrar Afiliado
+
+Registra um novo afiliado no sistema.
+
+**Endpoint:** `POST /api/affiliates`
+
+**Headers:**
+```
+Authorization: Bearer <JWT_TOKEN>
+Content-Type: application/json
+```
+
+**Body:**
+```json
+{
+  "name": "João Silva",
+  "email": "joao@example.com",
+  "phone": "+5511999999999",
+  "wallet_id": "wal_abcdefghij1234567890",
+  "referral_code": "ABC123",
+  "cpf_cnpj": "12345678901"
+}
+```
+
+**Response:** `201 Created`
+```json
+{
+  "success": true,
+  "data": {
+    "id": "uuid-do-afiliado",
+    "name": "João Silva",
+    "email": "joao@example.com",
+    "referral_code": "JOAO123",
+    "status": "pending",
+    "created_at": "2025-01-25T10:00:00Z"
+  },
+  "timestamp": "2025-01-25T10:00:00Z"
+}
+```
+
+**Erros:**
+- `422 Unprocessable Entity` - Dados inválidos
+- `409 Conflict` - Email ou Wallet ID já cadastrado
+
+---
+
+### Validar Wallet ID
+
+Valida se um Wallet ID do Asaas é válido.
+
+**Endpoint:** `POST /api/affiliates/validate-wallet`
+
+**Body:**
+```json
+{
+  "wallet_id": "wal_abcdefghij1234567890"
+}
+```
+
+**Response:** `200 OK`
+```json
+{
+  "success": true,
+  "data": {
+    "valid": true,
+    "active": true,
+    "name": "João Silva"
+  }
+}
+```
+
+---
+
+### Meu Dashboard (Afiliado)
+
+Retorna dados do dashboard do afiliado autenticado.
+
+**Endpoint:** `GET /api/affiliate/dashboard`
+
+**Response:** `200 OK`
+```json
+{
+  "success": true,
+  "data": {
+    "stats": {
+      "total_commissions_cents": 150000,
+      "pending_commissions_cents": 50000,
+      "paid_commissions_cents": 100000,
+      "available_balance_cents": 100000,
+      "total_referrals": 15,
+      "active_referrals": 12
+    },
+    "recent_commissions": [...],
+    "network_summary": {
+      "n1": 5,
+      "n2": 7,
+      "n3": 3
+    }
+  }
+}
+```
+
+---
+
+### Minha Rede (Afiliado)
+
+Retorna a rede genealógica do afiliado.
+
+**Endpoint:** `GET /api/affiliate/network`
+
+**Response:** `200 OK`
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "uuid",
+      "name": "Afiliado N1",
+      "level": 1,
+      "status": "active",
+      "joined_at": "2025-01-20T10:00:00Z",
+      "children": [...]
+    }
+  ]
+}
+```
+
+---
+
+### Minhas Comissões (Afiliado)
+
+Lista comissões do afiliado autenticado.
+
+**Endpoint:** `GET /api/affiliate/commissions`
+
+**Query Params:**
+- `page` (opcional): Número da página (padrão: 1)
+- `limit` (opcional): Itens por página (padrão: 50)
+- `status` (opcional): Filtrar por status (pending, paid, cancelled)
+
+**Response:** `200 OK`
+```json
+{
+  "success": true,
+  "data": {
+    "data": [
+      {
+        "id": "uuid",
+        "order_id": "uuid",
+        "amount_cents": 49350,
+        "level": 1,
+        "percentage": 15,
+        "status": "paid",
+        "paid_at": "2025-01-25T10:00:00Z",
+        "created_at": "2025-01-20T10:00:00Z"
+      }
+    ],
+    "pagination": {
+      "page": 1,
+      "limit": 50,
+      "total": 100,
+      "totalPages": 2,
+      "hasMore": true
+    }
+  }
+}
+```
+
+---
+
+## 🔧 Endpoints Administrativos - Afiliados
+
+### Listar Todos os Afiliados (Admin)
+
+**Endpoint:** `GET /api/admin/affiliates`
+
+**Query Params:**
+- `page` (opcional): Número da página
+- `limit` (opcional): Itens por página
+- `status` (opcional): Filtrar por status
+- `search` (opcional): Buscar por nome/email
+- `sortBy` (opcional): Campo de ordenação
+- `sortOrder` (opcional): asc ou desc
+
+**Response:** `200 OK`
+```json
+{
+  "success": true,
+  "data": {
+    "data": [...],
+    "pagination": {
+      "page": 1,
+      "limit": 50,
+      "total": 150,
+      "totalPages": 3,
+      "hasMore": true
+    }
+  }
+}
+```
+
+---
+
+### Buscar Afiliado por ID (Admin)
+
+**Endpoint:** `GET /api/admin/affiliates/:id`
+
+**Response:** `200 OK`
+```json
+{
+  "success": true,
+  "data": {
+    "id": "uuid",
+    "name": "João Silva",
+    "email": "joao@example.com",
+    "wallet_id": "wal_xxx",
+    "status": "active",
+    "referral_code": "JOAO123",
+    "total_commissions_cents": 150000,
+    "available_balance_cents": 100000,
+    "created_at": "2025-01-20T10:00:00Z"
+  }
+}
+```
+
+---
+
+### Atualizar Status de Afiliado (Admin)
+
+**Endpoint:** `PUT /api/admin/affiliates/:id/status`
+
+**Body:**
+```json
+{
+  "status": "active",
+  "reason": "Documentação aprovada"
+}
+```
+
+**Response:** `200 OK`
+```json
+{
+  "success": true,
+  "data": {
+    "id": "uuid",
+    "status": "active",
+    "updated_at": "2025-01-25T10:00:00Z"
+  }
+}
+```
+
+---
+
+### Estatísticas de Afiliados (Admin)
+
+**Endpoint:** `GET /api/admin/affiliates/stats`
+
+**Response:** `200 OK`
+```json
+{
+  "success": true,
+  "data": {
+    "total": 150,
+    "active": 120,
+    "pending": 20,
+    "inactive": 10
+  }
+}
+```
+
+---
+
+## 💰 Endpoints de Comissões
+
+### Listar Todas as Comissões (Admin)
+
+**Endpoint:** `GET /api/admin/commissions`
+
+**Query Params:**
+- `page`, `limit`, `status`, `affiliate_id`, `start_date`, `end_date`
+
+**Response:** `200 OK`
+```json
+{
+  "success": true,
+  "data": {
+    "data": [...],
+    "pagination": {...}
+  }
+}
+```
+
+---
+
+### Estatísticas de Comissões (Admin)
+
+**Endpoint:** `GET /api/admin/commissions/stats`
+
+**Response:** `200 OK`
+```json
+{
+  "success": true,
+  "data": {
+    "total_commissions_cents": 5000000,
+    "pending_commissions_cents": 1500000,
+    "paid_commissions_cents": 3500000,
+    "total_count": 500,
+    "pending_count": 150,
+    "paid_count": 350
+  }
+}
+```
+
+---
+
+### Marcar Comissão como Paga (Admin)
+
+**Endpoint:** `POST /api/admin/commissions/:id/approve`
+
+**Body:**
+```json
+{
+  "admin_id": "uuid-do-admin"
+}
+```
+
+**Response:** `200 OK`
+
+---
+
+## 💸 Endpoints de Saques
+
+### Solicitar Saque (Afiliado)
+
+**Endpoint:** `POST /api/affiliate/withdrawals`
+
+**Body:**
+```json
+{
+  "amount_cents": 10000,
+  "bank_code": "001",
+  "bank_name": "Banco do Brasil",
+  "agency": "1234",
+  "account": "12345678",
+  "account_type": "checking",
+  "account_holder_name": "João Silva",
+  "account_holder_document": "12345678901"
+}
+```
+
+**Response:** `201 Created`
+```json
+{
+  "success": true,
+  "data": {
+    "id": "uuid",
+    "amount_cents": 10000,
+    "status": "pending",
+    "requested_at": "2025-01-25T10:00:00Z"
+  }
+}
+```
+
+---
+
+### Listar Todos os Saques (Admin)
+
+**Endpoint:** `GET /api/admin/withdrawals`
+
+**Query Params:**
+- `page`, `limit`, `status`, `affiliate_id`
+
+**Response:** `200 OK`
+
+---
+
+### Aprovar Saque (Admin)
+
+**Endpoint:** `POST /api/admin/withdrawals/:id/approve`
+
+**Body:**
+```json
+{
+  "admin_id": "uuid-do-admin",
+  "reason": "Aprovado conforme política"
+}
+```
+
+**Response:** `200 OK`
+
+---
+
+### Rejeitar Saque (Admin)
+
+**Endpoint:** `POST /api/admin/withdrawals/:id/reject`
+
+**Body:**
+```json
+{
+  "admin_id": "uuid-do-admin",
+  "reason": "Dados bancários inválidos"
+}
+```
+
+**Response:** `200 OK`
+
+---
+
+### Estatísticas de Saques (Admin)
+
+**Endpoint:** `GET /api/admin/withdrawals/stats`
+
+**Response:** `200 OK`
+```json
+{
+  "success": true,
+  "data": {
+    "total_withdrawals": 50,
+    "pending_withdrawals": 10,
+    "approved_withdrawals": 35,
+    "rejected_withdrawals": 5,
+    "total_amount_cents": 500000
+  }
+}
+```
+
+---
+
+## 🚨 Códigos de Erro
+
+### Códigos HTTP
+
+- `200 OK` - Sucesso
+- `201 Created` - Recurso criado
+- `400 Bad Request` - Requisição inválida
+- `401 Unauthorized` - Não autenticado
+- `403 Forbidden` - Sem permissão
+- `404 Not Found` - Recurso não encontrado
+- `409 Conflict` - Conflito (duplicação)
+- `422 Unprocessable Entity` - Erro de validação
+- `500 Internal Server Error` - Erro interno
+
+### Formato de Erro
+
+```json
+{
+  "success": false,
+  "error": "Mensagem de erro amigável",
+  "code": "ERROR_CODE",
+  "details": {
+    "errors": [
+      {
+        "field": "email",
+        "message": "Email inválido",
+        "code": "invalid_string"
+      }
+    ]
+  },
+  "timestamp": "2025-01-25T10:00:00Z"
+}
+```
+
+### Códigos de Erro Comuns
+
+- `VALIDATION_ERROR` - Erro de validação de dados
+- `UNAUTHORIZED` - Não autenticado
+- `FORBIDDEN` - Sem permissão
+- `NOT_FOUND` - Recurso não encontrado
+- `CONFLICT` - Recurso já existe
+- `INTERNAL_ERROR` - Erro interno do servidor
+- `BAD_REQUEST` - Requisição inválida
+- `SERVICE_UNAVAILABLE` - Serviço indisponível
+
+---
+
+## 📝 Notas Importantes
+
+1. **Autenticação**: Todos os endpoints (exceto webhooks) requerem JWT do Supabase
+2. **Paginação**: Padrão de 50 itens por página, máximo de 100
+3. **Timestamps**: Todos em formato ISO 8601 (UTC)
+4. **Valores Monetários**: Sempre em centavos (cents)
+5. **RLS**: Row Level Security ativo - usuários veem apenas seus dados
+6. **Rate Limiting**: 100 requisições por 15 minutos por IP
+
+---
+
+**Última atualização:** 2025-01-25  
+**Versão da API:** 1.0.0

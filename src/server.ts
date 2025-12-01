@@ -15,6 +15,9 @@ import { Logger } from '@/utils/logger';
 import authRoutes from '@/api/routes/auth.routes';
 import ordersRoutes from '@/api/routes/orders.routes';
 import adminOrdersRoutes from '@/api/routes/admin-orders.routes';
+import { adminAffiliateRoutes } from '@/api/routes/admin/affiliates.routes';
+import { adminCommissionRoutes } from '@/api/routes/admin/commissions.routes';
+import { adminWithdrawalRoutes } from '@/api/routes/admin/withdrawals.routes';
 import webhookRoutes from '@/api/routes/webhook.routes';
 
 // Carregar variáveis de ambiente
@@ -74,6 +77,15 @@ app.use('/api/orders', ordersRoutes);
 
 // Rotas administrativas de pedidos
 app.use('/api/admin/orders', adminOrdersRoutes);
+
+// Rotas administrativas de afiliados
+app.use('/api/admin/affiliates', adminAffiliateRoutes);
+
+// Rotas administrativas de comissões
+app.use('/api/admin/commissions', adminCommissionRoutes);
+
+// Rotas administrativas de saques
+app.use('/api/admin/withdrawals', adminWithdrawalRoutes);
 
 // Rotas de webhooks
 app.use('/webhooks', webhookRoutes);
