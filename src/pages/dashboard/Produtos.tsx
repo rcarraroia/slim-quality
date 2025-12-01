@@ -2,8 +2,47 @@ import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { mockProdutos } from '@/data/mockData';
 import { Edit, Trash2, Plus, Package } from 'lucide-react';
+
+// Mock data temporário até integração com backend
+const mockProdutos = [
+  {
+    id: '1',
+    nome: 'Slim Quality Solteiro',
+    dimensoes: { largura: 88, comprimento: 188, altura: 28 },
+    preco: 3190,
+    estoque: 15,
+    vendasMes: 8,
+    maisVendido: false
+  },
+  {
+    id: '2',
+    nome: 'Slim Quality Padrão',
+    dimensoes: { largura: 138, comprimento: 188, altura: 28 },
+    preco: 3290,
+    estoque: 25,
+    vendasMes: 42,
+    maisVendido: true
+  },
+  {
+    id: '3',
+    nome: 'Slim Quality Queen',
+    dimensoes: { largura: 158, comprimento: 198, altura: 30 },
+    preco: 3490,
+    estoque: 18,
+    vendasMes: 15,
+    maisVendido: false
+  },
+  {
+    id: '4',
+    nome: 'Slim Quality King',
+    dimensoes: { largura: 193, comprimento: 203, altura: 30 },
+    preco: 4890,
+    estoque: 10,
+    vendasMes: 6,
+    maisVendido: false
+  }
+];
 import {
   Dialog,
   DialogContent,
