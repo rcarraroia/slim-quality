@@ -186,8 +186,8 @@ export default function Automacoes() {
                 Aguardar
               </Toggle>
               <Input type="number" placeholder="1" className="w-20" />
-              <Select defaultValue="horas" className="w-32">
-                <SelectTrigger><SelectValue /></SelectTrigger>
+              <Select defaultValue="horas">
+                <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="horas">horas</SelectItem>
                   <SelectItem value="dias">dias</SelectItem>

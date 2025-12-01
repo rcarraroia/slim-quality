@@ -6,7 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { CheckCircle, MessageCircle, Calendar, Edit, User, ShoppingCart, Clock, MapPin } from "lucide-react";
-import { StatusBadge } from "@/components/dashboard/StatusBadge";
+import { StatusBadge, StatusType } from "@/components/dashboard/StatusBadge"; // Importando StatusType
 
 interface Compra {
   data: string;
@@ -102,7 +102,7 @@ export function ClienteDetailModal({ cliente, isOpen, onClose, onEdit, onSchedul
                 <CardContent className="p-6 space-y-4">
                   <h4 className="font-semibold text-lg border-b pb-2">🏷️ Status</h4>
                   <div className="space-y-2 text-sm">
-                    <div><p className="text-muted-foreground">Status:</p><StatusBadge status={cliente.status} /></div>
+                    <div><p className="text-muted-foreground">Status:</p><StatusBadge status={cliente.status as StatusType} /></div>
                     <div><p className="text-muted-foreground">Origem:</p><p className="font-medium">{cliente.origem}</p></div>
                     <div><p className="text-muted-foreground">Cadastro:</p><p className="font-medium">10/Abr/2024</p></div>
                     <div><p className="text-muted-foreground">Última Interação:</p><p className="font-medium">12/Out/2025</p></div>

@@ -1,10 +1,10 @@
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 
-type StatusType = 
+export type StatusType = 
   | 'ativa' | 'aguardando' | 'negociando' | 'finalizada'
   | 'pago' | 'pendente' | 'cancelado' | 'enviado'
-  | 'ativo' | 'inativo'
+  | 'ativo' | 'inativo' | 'lead' // Adicionado 'lead'
   | 'aprovada' | 'cancelada' | 'paga' | 'depositado'
   | 'aprovado' | 'processando' | 'rejeitado';
 
@@ -29,12 +29,13 @@ const statusConfig: Record<StatusType, { label: string; className: string }> = {
   // Geral
   ativo: { label: 'Ativo', className: 'bg-success/10 text-success hover:bg-success/20' },
   inativo: { label: 'Inativo', className: 'bg-muted text-muted-foreground hover:bg-muted/80' },
+  lead: { label: 'Lead', className: 'bg-secondary/10 text-secondary hover:bg-secondary/20' }, // Configuração para 'lead'
   
   // Comissões/Recebimentos
   aprovada: { label: 'Aprovada', className: 'bg-blue-500/10 text-blue-500 hover:bg-blue-500/20' },
   cancelada: { label: 'Cancelada', className: 'bg-destructive/10 text-destructive hover:bg-destructive/20' },
   paga: { label: 'Paga', className: 'bg-success/10 text-success hover:bg-success/20' },
-  depositado: { label: 'Depositado', className: 'bg-success/10 text-success hover:bg-success/20' }, // Novo
+  depositado: { label: 'Depositado', className: 'bg-success/10 text-success hover:bg-success/20' },
   
   // Saques (mantido para o dashboard admin)
   aprovado: { label: 'Aprovado', className: 'bg-success/10 text-success hover:bg-success/20' },

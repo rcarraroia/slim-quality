@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Calendar as CalendarIcon, Clock, MessageCircle, Users, Plus, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Calendar as CalendarIcon, Clock, MessageCircle, Users, Plus, ChevronLeft, ChevronRight, User } from 'lucide-react'; // Adicionado User
 import { Calendar } from '@/components/ui/calendar';
 import { Separator } from '@/components/ui/separator';
 import { mockAgendamentos } from '@/data/mockData';
@@ -160,7 +160,7 @@ export default function Agendamentos() {
               <Textarea defaultValue="Cliente comprou Queen há 5 dias. Verificar se produto chegou bem." rows={4} readOnly={!isModalOpen} />
               <div className="flex justify-end gap-2 pt-4 border-t">
                 <Button variant="outline">Editar</Button>
-                <Button variant="success">Concluir</Button>
+                <Button variant="default">Concluir</Button>
                 <Button variant="destructive">Cancelar</Button>
               </div>
             </div>

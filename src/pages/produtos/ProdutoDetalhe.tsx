@@ -42,7 +42,7 @@ export default function ProdutoDetalhe() {
           
           <Card className="p-6 space-y-6">
             <p className="text-4xl font-bold text-primary">
-              R$ {product.price.toLocaleString('pt-BR')}
+              R$ {product.price}
             </p>
             
             <div className="space-y-3">

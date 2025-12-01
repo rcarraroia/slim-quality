@@ -135,12 +135,20 @@ const Index = () => {
               </div>
             </div>
             <div className="relative aspect-square md:aspect-auto md:h-[500px] rounded-2xl bg-muted overflow-hidden order-first md:order-last">
-              <div className="absolute inset-0 flex items-center justify-center text-muted-foreground">
-                <div className="text-center">
-                  <div className="text-8xl mb-4">😊</div>
-                  <p className="text-lg">Imagem: Pessoa acordando feliz</p>
-                </div>
-              </div>
+              {/* Video Element */}
+              <video
+                autoPlay
+                loop
+                muted
+                playsInline
+                className="absolute inset-0 w-full h-full object-cover"
+                // Poster é recomendado para fallback, mas usaremos o placeholder.svg como exemplo
+                poster="/placeholder.svg" 
+              >
+                <source src="/videos/acordando_feliz.mp4" type="video/mp4" />
+                Seu navegador não suporta o elemento de vídeo.
+              </video>
+              {/* Fim do Video Element */}
             </div>
           </div>
         </div>

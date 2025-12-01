@@ -6,7 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { StatCard } from '@/components/dashboard/StatCard';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { StatusBadge } from '@/components/dashboard/StatusBadge';
+import { StatusBadge, StatusType } from '@/components/dashboard/StatusBadge';
 import { ClienteDetailModal } from '@/components/admin/ClienteDetailModal';
 import { mockClientes } from '@/data/mockData';
 import { Users, Check, DollarSign, RefreshCw, Search, Plus, Download, Eye, Edit, UserCircle, Frown } from 'lucide-react';
@@ -141,7 +141,7 @@ export default function Clientes() {
           <p className="text-xs text-muted-foreground">{cliente.telefone}</p>
         </TableCell>
         <TableCell>
-          <StatusBadge status={cliente.status} />
+          <StatusBadge status={cliente.status as StatusType} />
         </TableCell>
         <TableCell className="text-sm text-muted-foreground">{cliente.origem}</TableCell>
         <TableCell className="text-sm">{cliente.ultimaCompra}</TableCell>
@@ -169,28 +169,28 @@ export default function Clientes() {
         <StatCard
           icon={Users}
           label="Clientes Cadastrados"
-          value={loading ? <Skeleton className="h-8 w-16" /> : totalClientes}
+          value={loading ? "..." : totalClientes}
           trend={loading ? undefined : { value: "+23 este mês", positive: true }}
           iconColor="text-blue-500"
         />
         <StatCard
           icon={Check}
           label="Clientes Ativos"
-          value={loading ? <Skeleton className="h-8 w-16" /> : clientesAtivos}
+          value={loading ? "..." : clientesAtivos}
           trend={loading ? undefined : { value: `${(clientesAtivos / totalClientes * 100).toFixed(0)}% de ativação`, positive: true }}
           iconColor="text-success"
         />
         <StatCard
           icon={DollarSign}
           label="Ticket Médio"
-          value={loading ? <Skeleton className="h-8 w-24" /> : `R$ ${ticketMedio.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
+          value={loading ? "..." : `R$ ${ticketMedio.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
           trend={loading ? undefined : { value: "+5% vs. mês passado", positive: true }}
           iconColor="text-secondary"
         />
         <StatCard
           icon={RefreshCw}
           label="Taxa de Recompra"
-          value={loading ? <Skeleton className="h-8 w-12" /> : "67%"}
+          value={loading ? "..." : "67%"}
           trend={loading ? undefined : { value: "Compraram 2+ vezes", positive: true }}
           iconColor="text-warning"
         />
