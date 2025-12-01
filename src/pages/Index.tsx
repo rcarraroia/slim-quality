@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { WhatsAppButton } from "@/components/shared/WhatsAppButton";
-import { CheckCircle, Star, Moon, Heart, Brain, Wind, User } from "lucide-react";
+import { CheckCircle, Star, Moon, Heart, Brain, Wind, User, Droplet } from "lucide-react";
 import { Link } from "react-router-dom";
 
 const Index = () => {
@@ -34,6 +34,12 @@ const Index = () => {
       title: "Estresse e Ansiedade",
       description: "Tensão mental, irritabilidade, esgotamento emocional",
       link: "/tecnologias#vibromassagem"
+    },
+    {
+      icon: Droplet,
+      title: "Inchaço nas Pernas e Retenção de Líquidos",
+      description: "Sintomas como peso nas pernas e tornozelos inchados.",
+      link: "/tecnologias#magnetico"
     },
     {
       icon: Wind,
