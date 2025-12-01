@@ -181,4 +181,28 @@ export const commissionService = {
     });
     return response.data;
   },
+
+  /**
+   * Buscar resumo de comissões do afiliado logado
+   */
+  async getMyCommissionsSummary() {
+    const response = await apiClient.get('/api/affiliate/commissions/summary');
+    return response.data.data;
+  },
+
+  /**
+   * Buscar minhas comissões (afiliado logado)
+   */
+  async getMyCommissions(params?: {
+    page?: number;
+    limit?: number;
+    status?: string;
+  }) {
+    const response = await apiClient.get('/api/affiliate/commissions', { params });
+    return response.data.data;
+  },
 };
+
+// Export default e named exports
+export default commissionService;
+export const commissionFrontendService = commissionService;
