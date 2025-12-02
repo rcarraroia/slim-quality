@@ -214,11 +214,11 @@ const Index = () => {
                 Conheça todas as 8 tecnologias →
               </Link>
             </div>
-            <div className="relative aspect-square rounded-2xl bg-background flex items-center justify-center shadow-lg overflow-hidden">
+            <div className="relative rounded-2xl bg-background flex items-center justify-center shadow-lg overflow-hidden">
               <img 
                 src="/images/infografico-magnetoterapia.png" 
                 alt="Infográfico: 240 ímãs + 7 tecnologias = alívio comprovado" 
-                className="w-full h-full object-cover"
+                className="w-full h-full object-contain"
               />
             </div>
           </div>
