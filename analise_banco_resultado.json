@@ -2,15 +2,15 @@
   "results": {
     "profiles": {
       "exists": true,
-      "count": 0
+      "count": 1
     },
     "user_roles": {
       "exists": true,
-      "count": 0
+      "count": 2
     },
     "auth_logs": {
       "exists": true,
-      "count": 0
+      "count": 1
     },
     "products": {
       "exists": true,
@@ -141,7 +141,7 @@
         "auth_logs"
       ],
       "missing": [],
-      "total_records": 0
+      "total_records": 4
     },
     "Sprint 2 - Produtos": {
       "existing": [

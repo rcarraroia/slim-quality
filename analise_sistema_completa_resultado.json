@@ -1,0 +1,223 @@
+{
+  "timestamp": "2025-12-01T17:51:34.963911",
+  "summary": {
+    "total_tables": 35,
+    "success_tables": 0,
+    "error_tables": 35,
+    "total_records": 0
+  },
+  "modules": {
+    "Autentica\u00e7\u00e3o": {
+      "tables_ok": 0,
+      "tables_total": 2,
+      "records": 0
+    },
+    "Produtos": {
+      "tables_ok": 0,
+      "tables_total": 5,
+      "records": 0
+    },
+    "Vendas": {
+      "tables_ok": 0,
+      "tables_total": 5,
+      "records": 0
+    },
+    "Afiliados": {
+      "tables_ok": 0,
+      "tables_total": 10,
+      "records": 0
+    },
+    "Asaas": {
+      "tables_ok": 0,
+      "tables_total": 4,
+      "records": 0
+    },
+    "CRM": {
+      "tables_ok": 0,
+      "tables_total": 8,
+      "records": 0
+    },
+    "Notifica\u00e7\u00f5es": {
+      "tables_ok": 0,
+      "tables_total": 1,
+      "records": 0
+    }
+  },
+  "tables": {
+    "profiles": {
+      "exists": false,
+      "error": "[Errno 11001] getaddrinfo failed",
+      "status": "ERROR"
+    },
+    "user_roles": {
+      "exists": false,
+      "error": "[Errno 11001] getaddrinfo failed",
+      "status": "ERROR"
+    },
+    "products": {
+      "exists": false,
+      "error": "[Errno 11001] getaddrinfo failed",
+      "status": "ERROR"
+    },
+    "product_images": {
+      "exists": false,
+      "error": "[Errno 11001] getaddrinfo failed",
+      "status": "ERROR"
+    },
+    "product_technologies": {
+      "exists": false,
+      "error": "[Errno 11001] getaddrinfo failed",
+      "status": "ERROR"
+    },
+    "technologies": {
+      "exists": false,
+      "error": "[Errno 11001] getaddrinfo failed",
+      "status": "ERROR"
+    },
+    "inventory_logs": {
+      "exists": false,
+      "error": "[Errno 11001] getaddrinfo failed",
+      "status": "ERROR"
+    },
+    "orders": {
+      "exists": false,
+      "error": "[Errno 11001] getaddrinfo failed",
+      "status": "ERROR"
+    },
+    "order_items": {
+      "exists": false,
+      "error": "[Errno 11001] getaddrinfo failed",
+      "status": "ERROR"
+    },
+    "order_status_history": {
+      "exists": false,
+      "error": "[Errno 11001] getaddrinfo failed",
+      "status": "ERROR"
+    },
+    "payments": {
+      "exists": false,
+      "error": "[Errno 11001] getaddrinfo failed",
+      "status": "ERROR"
+    },
+    "shipping_addresses": {
+      "exists": false,
+      "error": "[Errno 11001] getaddrinfo failed",
+      "status": "ERROR"
+    },
+    "affiliates": {
+      "exists": false,
+      "error": "[Errno 11001] getaddrinfo failed",
+      "status": "ERROR"
+    },
+    "affiliate_network": {
+      "exists": false,
+      "error": "[Errno 11001] getaddrinfo failed",
+      "status": "ERROR"
+    },
+    "referral_codes": {
+      "exists": false,
+      "error": "[Errno 11001] getaddrinfo failed",
+      "status": "ERROR"
+    },
+    "referral_clicks": {
+      "exists": false,
+      "error": "[Errno 11001] getaddrinfo failed",
+      "status": "ERROR"
+    },
+    "referral_conversions": {
+      "exists": false,
+      "error": "[Errno 11001] getaddrinfo failed",
+      "status": "ERROR"
+    },
+    "commissions": {
+      "exists": false,
+      "error": "[Errno 11001] getaddrinfo failed",
+      "status": "ERROR"
+    },
+    "commission_splits": {
+      "exists": false,
+      "error": "[Errno 11001] getaddrinfo failed",
+      "status": "ERROR"
+    },
+    "commission_payments": {
+      "exists": false,
+      "error": "[Errno 11001] getaddrinfo failed",
+      "status": "ERROR"
+    },
+    "commission_logs": {
+      "exists": false,
+      "error": "[Errno 11001] getaddrinfo failed",
+      "status": "ERROR"
+    },
+    "withdrawals": {
+      "exists": false,
+      "error": "[Errno 11001] getaddrinfo failed",
+      "status": "ERROR"
+    },
+    "asaas_transactions": {
+      "exists": false,
+      "error": "[Errno 11001] getaddrinfo failed",
+      "status": "ERROR"
+    },
+    "asaas_splits": {
+      "exists": false,
+      "error": "[Errno 11001] getaddrinfo failed",
+      "status": "ERROR"
+    },
+    "asaas_wallets": {
+      "exists": false,
+      "error": "[Errno 11001] getaddrinfo failed",
+      "status": "ERROR"
+    },
+    "asaas_webhook_logs": {
+      "exists": false,
+      "error": "[Errno 11001] getaddrinfo failed",
+      "status": "ERROR"
+    },
+    "customers": {
+      "exists": false,
+      "error": "[Errno 11001] getaddrinfo failed",
+      "status": "ERROR"
+    },
+    "customer_tags": {
+      "exists": false,
+      "error": "[Errno 11001] getaddrinfo failed",
+      "status": "ERROR"
+    },
+    "tags": {
+      "exists": false,
+      "error": "[Errno 11001] getaddrinfo failed",
+      "status": "ERROR"
+    },
+    "customer_notes": {
+      "exists": false,
+      "error": "[Errno 11001] getaddrinfo failed",
+      "status": "ERROR"
+    },
+    "customer_timeline": {
+      "exists": false,
+      "error": "[Errno 11001] getaddrinfo failed",
+      "status": "ERROR"
+    },
+    "conversations": {
+      "exists": false,
+      "error": "[Errno 11001] getaddrinfo failed",
+      "status": "ERROR"
+    },
+    "messages": {
+      "exists": false,
+      "error": "[Errno 11001] getaddrinfo failed",
+      "status": "ERROR"
+    },
+    "appointments": {
+      "exists": false,
+      "error": "[Errno 11001] getaddrinfo failed",
+      "status": "ERROR"
+    },
+    "notification_logs": {
+      "exists": false,
+      "error": "[Errno 11001] getaddrinfo failed",
+      "status": "ERROR"
+    }
+  }
+}

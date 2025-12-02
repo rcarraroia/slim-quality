@@ -38,7 +38,7 @@ export default function Clientes() {
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
-  const [origin, setOrigin] = useState('');
+  const [origin, setOrigin] = useState('all');
   const [availableTags, setAvailableTags] = useState<Tag[]>([]);
   const [selectedCustomers, setSelectedCustomers] = useState<string[]>([]);
 
@@ -108,7 +108,7 @@ export default function Clientes() {
     setSelectedTags([]);
     setDateFrom('');
     setDateTo('');
-    setOrigin('');
+    setOrigin('all');
   };
 
   const hasActiveFilters = selectedTags.length > 0 || dateFrom || dateTo || origin;
@@ -215,7 +215,7 @@ export default function Clientes() {
               Filtros
               {hasActiveFilters && (
                 <Badge className="ml-2 h-5 w-5 rounded-full p-0 flex items-center justify-center">
-                  {selectedTags.length + (dateFrom ? 1 : 0) + (dateTo ? 1 : 0) + (origin ? 1 : 0)}
+                  {selectedTags.length + (dateFrom ? 1 : 0) + (dateTo ? 1 : 0) + (origin !== 'all' ? 1 : 0)}
                 </Badge>
               )}
             </Button>
@@ -279,7 +279,7 @@ export default function Clientes() {
                     <SelectValue placeholder="Todas as origens" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Todas</SelectItem>
+                    <SelectItem value="all">Todas</SelectItem>
                     <SelectItem value="organic">Orgânico</SelectItem>
                     <SelectItem value="affiliate">Afiliado</SelectItem>
                     <SelectItem value="n8n">N8N/WhatsApp</SelectItem>
@@ -332,7 +332,7 @@ export default function Clientes() {
                   />
                 </Badge>
               )}
-              {origin && (
+              {origin !== 'all' && (
                 <Badge variant="secondary">
                   Origem: {origin === 'organic' ? 'Orgânico' : origin === 'affiliate' ? 'Afiliado' : origin === 'n8n' ? 'N8N/WhatsApp' : 'Manual'}
                   <X

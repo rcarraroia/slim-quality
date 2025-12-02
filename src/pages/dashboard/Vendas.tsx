@@ -1,41 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { StatusBadge } from '@/components/dashboard/StatusBadge';
 import { StatCard } from '@/components/dashboard/StatCard';
-import { DollarSign, ShoppingCart, TrendingUp, Target, Eye, Download } from 'lucide-react';
-
-// Mock data temporário até integração com backend
-const mockVendas = [
-  {
-    id: '1001',
-    data: '01/12/2025',
-    cliente: 'João Silva',
-    email: 'joao@email.com',
-    telefone: '(11) 99999-9999',
-    cidade: 'São Paulo - SP',
-    produto: 'Slim Quality Padrão',
-    dimensoes: '138x188x28cm',
-    valor: 3290,
-    pagamento: 'PIX',
-    status: 'pago' as const,
-    endereco: 'Rua Exemplo, 123 - Centro'
-  },
-  {
-    id: '1002',
-    data: '01/12/2025',
-    cliente: 'Maria Santos',
-    email: 'maria@email.com',
-    telefone: '(11) 98888-8888',
-    cidade: 'Rio de Janeiro - RJ',
-    produto: 'Slim Quality Queen',
-    dimensoes: '158x198x30cm',
-    valor: 3490,
-    pagamento: 'Cartão 3x',
-    status: 'pendente' as const,
-    endereco: 'Av. Principal, 456 - Zona Sul'
-  }
-];
+import { DollarSign, ShoppingCart, TrendingUp, Target, Eye, Download, PackageOpen } from 'lucide-react';
+import { supabase } from '@/config/supabase';
 import {
   Select,
   SelectContent,
@@ -50,17 +19,72 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 
+interface Venda {
+  id: string;
+  created_at: string;
+  customer_id: string;
+  total_amount: number;
+  payment_method: string;
+  status: 'pending' | 'paid' | 'cancelled' | 'shipped';
+  customer: {
+    name: string;
+    email: string;
+    phone: string;
+  };
+  order_items: {
+    product: {
+      name: string;
+      dimensions: string;
+    };
+  }[];
+}
+
 export default function Vendas() {
   const [statusFilter, setStatusFilter] = useState('todos');
   const [periodoFilter, setPeriodoFilter] = useState('mes');
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
-  const [selectedVenda, setSelectedVenda] = useState<typeof mockVendas[0] | null>(null);
+  const [selectedVenda, setSelectedVenda] = useState<Venda | null>(null);
+  const [vendas, setVendas] = useState<Venda[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const totalVendas = mockVendas.reduce((acc, v) => acc + v.valor, 0);
-  const quantidadeVendas = mockVendas.length;
-  const ticketMedio = totalVendas / quantidadeVendas;
+  useEffect(() => {
+    loadVendas();
+  }, [statusFilter, periodoFilter]);
 
-  const handleViewDetails = (venda: typeof mockVendas[0]) => {
+  const loadVendas = async () => {
+    try {
+      setLoading(true);
+      let query = supabase
+        .from('orders')
+        .select(`
+          *,
+          customer:customers(name, email, phone),
+          order_items(
+            product:products(name, dimensions)
+          )
+        `)
+        .order('created_at', { ascending: false });
+
+      if (statusFilter !== 'todos') {
+        query = query.eq('status', statusFilter);
+      }
+
+      const { data, error } = await query;
+
+      if (error) throw error;
+      setVendas(data || []);
+    } catch (error) {
+      console.error('Erro ao carregar vendas:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const totalVendas = vendas.reduce((acc, v) => acc + v.total_amount, 0);
+  const quantidadeVendas = vendas.length;
+  const ticketMedio = quantidadeVendas > 0 ? totalVendas / quantidadeVendas : 0;
+
+  const handleViewDetails = (venda: Venda) => {
     setSelectedVenda(venda);
     setIsDetailModalOpen(true);
   };
@@ -152,35 +176,59 @@ export default function Vendas() {
                 </tr>
               </thead>
               <tbody>
-                {mockVendas.map((venda, index) => (
-                  <tr 
-                    key={venda.id}
-                    className={`border-b hover:bg-muted/50 transition-colors ${
-                      index % 2 === 0 ? 'bg-background' : 'bg-muted/20'
-                    }`}
-                  >
-                    <td className="p-4 text-sm font-medium">#{venda.id}</td>
-                    <td className="p-4 text-sm">{venda.data}</td>
-                    <td className="p-4 text-sm">{venda.cliente}</td>
-                    <td className="p-4 text-sm">{venda.produto}</td>
-                    <td className="p-4 text-sm font-semibold">
-                      R$ {venda.valor.toLocaleString('pt-BR')}
-                    </td>
-                    <td className="p-4 text-sm text-muted-foreground">{venda.pagamento}</td>
-                    <td className="p-4">
-                      <StatusBadge status={venda.status} />
-                    </td>
-                    <td className="p-4">
-                      <Button 
-                        variant="ghost" 
-                        size="sm"
-                        onClick={() => handleViewDetails(venda)}
-                      >
-                        <Eye className="h-4 w-4" />
-                      </Button>
+                {loading ? (
+                  <tr>
+                    <td colSpan={8} className="p-8 text-center text-muted-foreground">
+                      Carregando vendas...
                     </td>
                   </tr>
-                ))}
+                ) : vendas.length === 0 ? (
+                  <tr>
+                    <td colSpan={8} className="p-12">
+                      <div className="flex flex-col items-center justify-center text-center">
+                        <PackageOpen className="h-16 w-16 text-muted-foreground mb-4" />
+                        <h3 className="text-lg font-semibold mb-2">Nenhuma venda encontrada</h3>
+                        <p className="text-muted-foreground">
+                          As vendas aparecerão aqui quando forem realizadas
+                        </p>
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  vendas.map((venda, index) => (
+                    <tr 
+                      key={venda.id}
+                      className={`border-b hover:bg-muted/50 transition-colors ${
+                        index % 2 === 0 ? 'bg-background' : 'bg-muted/20'
+                      }`}
+                    >
+                      <td className="p-4 text-sm font-medium">#{venda.id.slice(0, 8)}</td>
+                      <td className="p-4 text-sm">
+                        {new Date(venda.created_at).toLocaleDateString('pt-BR')}
+                      </td>
+                      <td className="p-4 text-sm">{venda.customer?.name || 'N/A'}</td>
+                      <td className="p-4 text-sm">
+                        {venda.order_items?.[0]?.product?.name || 'N/A'}
+                      </td>
+                      <td className="p-4 text-sm font-semibold">
+                        R$ {venda.total_amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      </td>
+                      <td className="p-4 text-sm text-muted-foreground">{venda.payment_method}</td>
+                      <td className="p-4">
+                        <StatusBadge status={venda.status} />
+                      </td>
+                      <td className="p-4">
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={() => handleViewDetails(venda)}
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
@@ -201,19 +249,21 @@ export default function Vendas() {
                 <div className="grid grid-cols-2 gap-3 text-sm">
                   <div>
                     <span className="text-muted-foreground">Nome:</span>
-                    <p className="font-medium">{selectedVenda.cliente}</p>
+                    <p className="font-medium">{selectedVenda.customer?.name || 'N/A'}</p>
                   </div>
                   <div>
                     <span className="text-muted-foreground">Email:</span>
-                    <p className="font-medium">{selectedVenda.email}</p>
+                    <p className="font-medium">{selectedVenda.customer?.email || 'N/A'}</p>
                   </div>
                   <div>
                     <span className="text-muted-foreground">Telefone:</span>
-                    <p className="font-medium">{selectedVenda.telefone}</p>
+                    <p className="font-medium">{selectedVenda.customer?.phone || 'N/A'}</p>
                   </div>
                   <div>
-                    <span className="text-muted-foreground">Cidade:</span>
-                    <p className="font-medium">{selectedVenda.cidade}</p>
+                    <span className="text-muted-foreground">Data:</span>
+                    <p className="font-medium">
+                      {new Date(selectedVenda.created_at).toLocaleDateString('pt-BR')}
+                    </p>
                   </div>
                 </div>
               </div>
@@ -223,16 +273,20 @@ export default function Vendas() {
                 <div className="grid grid-cols-2 gap-3 text-sm">
                   <div>
                     <span className="text-muted-foreground">Produto:</span>
-                    <p className="font-medium">{selectedVenda.produto}</p>
+                    <p className="font-medium">
+                      {selectedVenda.order_items?.[0]?.product?.name || 'N/A'}
+                    </p>
                   </div>
                   <div>
                     <span className="text-muted-foreground">Dimensões:</span>
-                    <p className="font-medium">{selectedVenda.dimensoes}</p>
+                    <p className="font-medium">
+                      {selectedVenda.order_items?.[0]?.product?.dimensions || 'N/A'}
+                    </p>
                   </div>
                   <div className="col-span-2">
                     <span className="text-muted-foreground">Preço:</span>
                     <p className="font-medium text-lg text-primary">
-                      R$ {selectedVenda.valor.toLocaleString('pt-BR')}
+                      R$ {selectedVenda.total_amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                     </p>
                   </div>
                 </div>
@@ -243,27 +297,13 @@ export default function Vendas() {
                 <div className="grid grid-cols-2 gap-3 text-sm">
                   <div>
                     <span className="text-muted-foreground">Forma:</span>
-                    <p className="font-medium">{selectedVenda.pagamento}</p>
+                    <p className="font-medium">{selectedVenda.payment_method}</p>
                   </div>
                   <div>
                     <span className="text-muted-foreground">Status:</span>
                     <div className="mt-1">
                       <StatusBadge status={selectedVenda.status} />
                     </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-3">
-                <h3 className="font-semibold text-lg">Entrega</h3>
-                <div className="space-y-2 text-sm">
-                  <div>
-                    <span className="text-muted-foreground">Endereço:</span>
-                    <p className="font-medium">{selectedVenda.endereco}</p>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground">Prazo:</span>
-                    <p className="font-medium">15 dias úteis</p>
                   </div>
                 </div>
               </div>

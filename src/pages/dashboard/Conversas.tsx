@@ -25,8 +25,8 @@ import { toast } from 'sonner';
 export default function Conversas() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
-  const [statusFilter, setStatusFilter] = useState<string>('');
-  const [channelFilter, setChannelFilter] = useState<string>('');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [channelFilter, setChannelFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const debouncedSearch = useDebounce(searchQuery, 500);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -60,8 +60,8 @@ export default function Conversas() {
     try {
       setLoading(true);
       const result = await conversationFrontendService.getMyConversations({
-        status: statusFilter as any,
-        channel: channelFilter,
+        status: statusFilter === 'all' ? undefined : (statusFilter as any),
+        channel: channelFilter === 'all' ? undefined : channelFilter,
         search: searchQuery,
         limit: 50
       });
@@ -196,7 +196,7 @@ export default function Conversas() {
                 <SelectValue placeholder="Todos os status" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Todos</SelectItem>
+                <SelectItem value="all">Todos</SelectItem>
                 <SelectItem value="open">Abertas</SelectItem>
                 <SelectItem value="pending">Pendentes</SelectItem>
                 <SelectItem value="closed">Fechadas</SelectItem>
@@ -208,7 +208,7 @@ export default function Conversas() {
                 <SelectValue placeholder="Todos os canais" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Todos</SelectItem>
+                <SelectItem value="all">Todos</SelectItem>
                 <SelectItem value="whatsapp">WhatsApp</SelectItem>
                 <SelectItem value="email">Email</SelectItem>
                 <SelectItem value="phone">Telefone</SelectItem>

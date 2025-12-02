@@ -42,7 +42,7 @@ export function CustomerFilters({ filters, onFiltersChange }: CustomerFiltersPro
       tags: [],
       dateFrom: '',
       dateTo: '',
-      origin: ''
+      origin: 'all'
     });
   };
 
@@ -50,7 +50,7 @@ export function CustomerFilters({ filters, onFiltersChange }: CustomerFiltersPro
     filters.tags.length > 0 || 
     filters.dateFrom || 
     filters.dateTo || 
-    filters.origin;
+    (filters.origin && filters.origin !== 'all');
 
   const activeFilterCount = 
     filters.tags.length + 
@@ -119,7 +119,7 @@ export function CustomerFilters({ filters, onFiltersChange }: CustomerFiltersPro
                   <SelectValue placeholder="Todas as origens" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Todas</SelectItem>
+                  <SelectItem value="all">Todas</SelectItem>
                   <SelectItem value="organic">Orgânico</SelectItem>
                   <SelectItem value="affiliate">Afiliado</SelectItem>
                   <SelectItem value="n8n">N8N/WhatsApp</SelectItem>

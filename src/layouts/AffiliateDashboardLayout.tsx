@@ -14,10 +14,12 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
+import { useAuth } from "@/contexts/AuthContext";
 
 export function AffiliateDashboardLayout() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { logout } = useAuth();
 
   const menuItems = [
     { icon: LayoutDashboard, label: "Início", path: "/afiliados/dashboard" },
@@ -32,8 +34,15 @@ export function AffiliateDashboardLayout() {
     return currentItem?.label || "Dashboard Afiliado";
   };
 
-  const handleLogout = () => {
-    navigate("/login");
+  const handleLogout = async () => {
+    try {
+      await logout();
+      navigate('/login', { replace: true });
+    } catch (error) {
+      console.error('Erro ao fazer logout:', error);
+      // Mesmo com erro, redirecionar para login
+      navigate('/login', { replace: true });
+    }
   };
 
   return (

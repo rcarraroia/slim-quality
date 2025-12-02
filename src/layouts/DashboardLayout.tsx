@@ -17,10 +17,12 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/contexts/AuthContext';
 
 export function DashboardLayout() {
   const location = useLocation();
   const navigate = useNavigate();
+  const { logout } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
 
   const menuItems = [
@@ -39,8 +41,15 @@ export function DashboardLayout() {
     return currentItem?.label || 'Dashboard';
   };
 
-  const handleLogout = () => {
-    navigate('/login');
+  const handleLogout = async () => {
+    try {
+      await logout();
+      navigate('/login', { replace: true });
+    } catch (error) {
+      console.error('Erro ao fazer logout:', error);
+      // Mesmo com erro, redirecionar para login
+      navigate('/login', { replace: true });
+    }
   };
 
   return (
