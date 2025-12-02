@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -25,147 +25,146 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { StatusBadge } from "@/components/dashboard/StatusBadge";
-import { Search, Eye, Check, X, TrendingUp, DollarSign } from "lucide-react";
+import { Search, Eye, Check, X, TrendingUp, DollarSign, PackageOpen } from "lucide-react";
+import { supabase } from "@/config/supabase";
+import { useToast } from "@/hooks/use-toast";
 
-// Mock data de comissões para admin
-const mockComissoesAdmin = [
-  {
-    id: "C001",
-    afiliadoId: "A001",
-    afiliadoNome: "Carlos Mendes",
-    vendaId: "#1047",
-    cliente: "Maria Silva",
-    produto: "Slim Quality Queen",
-    valorVenda: 3490.00, // Novo preço Queen
-    nivel: 1,
-    percentual: 15,
-    valorComissao: 523.50, // 15% de 3490
-    status: "paga" as const,
-    dataCriacao: "12/Out/25",
-    dataPagamento: "15/Out/25",
-  },
-  {
-    id: "C002",
-    afiliadoId: "A002",
-    afiliadoNome: "Juliana Santos",
-    vendaId: "#1048",
-    cliente: "Roberto Lima",
-    produto: "Slim Quality Padrão", // Renomeado
-    valorVenda: 3290.00, // Novo preço Padrão
-    nivel: 1,
-    percentual: 15,
-    valorComissao: 493.50, // 15% de 3290
-    status: "pendente" as const,
-    dataCriacao: "12/Out/25",
-    dataPagamento: null,
-  },
-  {
-    id: "C003",
-    afiliadoId: "A001",
-    afiliadoNome: "Carlos Mendes",
-    vendaId: "#1049",
-    cliente: "Fernanda Costa",
-    produto: "Slim Quality King",
-    valorVenda: 4890.00,
-    nivel: 2,
-    percentual: 3,
-    valorComissao: 146.70, // 3% de 4890
-    status: "paga" as const,
-    dataCriacao: "11/Out/25",
-    dataPagamento: "15/Out/25",
-  },
-  {
-    id: "C004",
-    afiliadoId: "A003",
-    afiliadoNome: "Roberto Oliveira",
-    vendaId: "#1050",
-    cliente: "Paulo Santos",
-    produto: "Slim Quality Solteiro",
-    valorVenda: 3190.00, // Novo preço Solteiro
-    nivel: 1,
-    percentual: 15,
-    valorComissao: 478.50, // 15% de 3190
-    status: "aprovada" as const,
-    dataCriacao: "11/Out/25",
-    dataPagamento: null,
-  },
-  {
-    id: "C005",
-    afiliadoId: "A004",
-    afiliadoNome: "Fernanda Costa",
-    vendaId: "#1051",
-    cliente: "Juliana Rocha",
-    produto: "Slim Quality Queen",
-    valorVenda: 3490.00, // Novo preço Queen
-    nivel: 1,
-    percentual: 15,
-    valorComissao: 523.50, // 15% de 3490
-    status: "pendente" as const,
-    dataCriacao: "10/Out/25",
-    dataPagamento: null,
-  },
-  {
-    id: "C006",
-    afiliadoId: "A006",
-    afiliadoNome: "Amanda Silva",
-    vendaId: "#1052",
-    cliente: "André Oliveira",
-    produto: "Slim Quality Padrão", // Renomeado
-    valorVenda: 3290.00, // Novo preço Padrão
-    nivel: 3,
-    percentual: 2,
-    valorComissao: 65.80, // 2% de 3290
-    status: "cancelada" as const,
-    dataCriacao: "09/Out/25",
-    dataPagamento: null,
-  },
-  {
-    id: "C007",
-    afiliadoId: "A001",
-    afiliadoNome: "Carlos Mendes",
-    vendaId: "#1053",
-    cliente: "Beatriz Lima",
-    produto: "Slim Quality Queen",
-    valorVenda: 3490.00, // Novo preço Queen
-    nivel: 1,
-    percentual: 15,
-    valorComissao: 523.50, // 15% de 3490
-    status: "paga" as const,
-    dataCriacao: "08/Out/25",
-    dataPagamento: "12/Out/25",
-  },
-];
+interface Commission {
+  id: string;
+  affiliate_id: string;
+  order_id: string;
+  amount: number;
+  level: number;
+  percentage: number;
+  status: string;
+  created_at: string;
+  paid_at: string | null;
+  affiliate: {
+    name: string;
+  };
+  order: {
+    id: string;
+    total_amount: number;
+    customer: {
+      name: string;
+    };
+    order_items: {
+      product: {
+        name: string;
+      };
+    }[];
+  };
+}
 
 export default function GestaoComissoes() {
-  const [selectedComissao, setSelectedComissao] = useState<typeof mockComissoesAdmin[0] | null>(null);
+  const [comissoes, setComissoes] = useState<Commission[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedComissao, setSelectedComissao] = useState<Commission | null>(null);
   const [statusFilter, setStatusFilter] = useState("todos");
   const [nivelFilter, setNivelFilter] = useState("todos");
   const [searchTerm, setSearchTerm] = useState("");
+  const { toast } = useToast();
 
-  const filteredComissoes = mockComissoesAdmin.filter(comissao => {
+  useEffect(() => {
+    loadComissoes();
+  }, []);
+
+  const loadComissoes = async () => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('commissions')
+        .select(`
+          *,
+          affiliate:affiliates(name),
+          order:orders(
+            id,
+            total_amount,
+            customer:customers(name),
+            order_items(product:products(name))
+          )
+        `)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setComissoes(data || []);
+    } catch (error) {
+      console.error('Erro ao carregar comissões:', error);
+      toast({
+        title: "Erro ao carregar comissões",
+        description: "Não foi possível carregar a lista de comissões.",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const filteredComissoes = comissoes.filter(comissao => {
     const matchesStatus = statusFilter === "todos" || comissao.status === statusFilter;
-    const matchesNivel = nivelFilter === "todos" || comissao.nivel.toString() === nivelFilter;
-    const matchesSearch = comissao.afiliadoNome.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         comissao.vendaId.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesNivel = nivelFilter === "todos" || comissao.level.toString() === nivelFilter;
+    const matchesSearch = 
+      comissao.affiliate?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      comissao.order?.id?.toLowerCase().includes(searchTerm.toLowerCase());
     return matchesStatus && matchesNivel && matchesSearch;
   });
 
   const totalComissoesPendentes = filteredComissoes
-    .filter(c => c.status === "pendente")
-    .reduce((acc, c) => acc + c.valorComissao, 0);
+    .filter(c => c.status === "pending")
+    .reduce((acc, c) => acc + c.amount, 0);
 
   const totalComissoesPagas = filteredComissoes
-    .filter(c => c.status === "paga")
-    .reduce((acc, c) => acc + c.valorComissao, 0);
+    .filter(c => c.status === "paid")
+    .reduce((acc, c) => acc + c.amount, 0);
 
-  const handleAprovar = (comissaoId: string) => {
-    console.log(`Aprovando comissão ${comissaoId}`);
-    // Aqui virá a lógica real de aprovação
+  const handleAprovar = async (comissaoId: string) => {
+    try {
+      const { error } = await supabase
+        .from('commissions')
+        .update({ status: 'approved' })
+        .eq('id', comissaoId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Comissão aprovada",
+        description: "A comissão foi aprovada com sucesso.",
+      });
+
+      loadComissoes();
+    } catch (error) {
+      console.error('Erro ao aprovar comissão:', error);
+      toast({
+        title: "Erro ao aprovar comissão",
+        description: "Não foi possível aprovar a comissão.",
+        variant: "destructive"
+      });
+    }
   };
 
-  const handleRejeitar = (comissaoId: string) => {
-    console.log(`Rejeitando comissão ${comissaoId}`);
-    // Aqui virá a lógica real de rejeição
+  const handleRejeitar = async (comissaoId: string) => {
+    try {
+      const { error } = await supabase
+        .from('commissions')
+        .update({ status: 'rejected' })
+        .eq('id', comissaoId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Comissão rejeitada",
+        description: "A comissão foi rejeitada.",
+      });
+
+      loadComissoes();
+    } catch (error) {
+      console.error('Erro ao rejeitar comissão:', error);
+      toast({
+        title: "Erro ao rejeitar comissão",
+        description: "Não foi possível rejeitar a comissão.",
+        variant: "destructive"
+      });
+    }
   };
 
   return (
@@ -176,7 +175,7 @@ export default function GestaoComissoes() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-muted-foreground">Total de Comissões</p>
-              <p className="text-2xl font-bold">{mockComissoesAdmin.length}</p>
+              <p className="text-2xl font-bold">{loading ? "..." : comissoes.length}</p>
             </div>
             <TrendingUp className="h-8 w-8 text-primary" />
           </div>
@@ -187,7 +186,7 @@ export default function GestaoComissoes() {
             <div>
               <p className="text-sm text-muted-foreground">Pendentes de Aprovação</p>
               <p className="text-2xl font-bold text-yellow-600">
-                {mockComissoesAdmin.filter(c => c.status === "pendente").length}
+                {loading ? "..." : comissoes.filter(c => c.status === "pending").length}
               </p>
             </div>
             <DollarSign className="h-8 w-8 text-yellow-600" />
@@ -199,7 +198,7 @@ export default function GestaoComissoes() {
             <div>
               <p className="text-sm text-muted-foreground">Valor Pendente</p>
               <p className="text-2xl font-bold text-yellow-600">
-                R$ {totalComissoesPendentes.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                {loading ? "..." : `R$ ${totalComissoesPendentes.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
               </p>
             </div>
             <DollarSign className="h-8 w-8 text-yellow-600" />
@@ -211,7 +210,7 @@ export default function GestaoComissoes() {
             <div>
               <p className="text-sm text-muted-foreground">Total Pago</p>
               <p className="text-2xl font-bold text-green-600">
-                R$ {totalComissoesPagas.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                {loading ? "..." : `R$ ${totalComissoesPagas.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
               </p>
             </div>
             <DollarSign className="h-8 w-8 text-green-600" />
@@ -229,31 +228,32 @@ export default function GestaoComissoes() {
               className="pl-9"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
+              disabled={loading}
             />
           </div>
 
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <Select value={statusFilter} onValueChange={setStatusFilter} disabled={loading}>
             <SelectTrigger className="w-full md:w-[180px]">
               <SelectValue placeholder="Status" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="todos">Todos os Status</SelectItem>
-              <SelectItem value="pendente">Pendente</SelectItem>
-              <SelectItem value="aprovada">Aprovada</SelectItem>
-              <SelectItem value="paga">Paga</SelectItem>
-              <SelectItem value="cancelada">Cancelada</SelectItem>
+              <SelectItem value="pending">Pendente</SelectItem>
+              <SelectItem value="approved">Aprovada</SelectItem>
+              <SelectItem value="paid">Paga</SelectItem>
+              <SelectItem value="rejected">Rejeitada</SelectItem>
             </SelectContent>
           </Select>
 
-          <Select value={nivelFilter} onValueChange={setNivelFilter}>
+          <Select value={nivelFilter} onValueChange={setNivelFilter} disabled={loading}>
             <SelectTrigger className="w-full md:w-[150px]">
               <SelectValue placeholder="Nível" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="todos">Todos os Níveis</SelectItem>
-              <SelectItem value="1">Nível 1 (15%)</SelectItem>
-              <SelectItem value="2">Nível 2 (3%)</SelectItem>
-              <SelectItem value="3">Nível 3 (2%)</SelectItem>
+              <SelectItem value="1">Nível 1</SelectItem>
+              <SelectItem value="2">Nível 2</SelectItem>
+              <SelectItem value="3">Nível 3</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -277,65 +277,86 @@ export default function GestaoComissoes() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredComissoes.map((comissao) => (
-              <TableRow key={comissao.id}>
-                <TableCell className="font-medium">{comissao.id}</TableCell>
-                <TableCell>
-                  <div>
-                    <p className="font-medium">{comissao.afiliadoNome}</p>
-                    <p className="text-xs text-muted-foreground">{comissao.afiliadoId}</p>
-                  </div>
-                </TableCell>
-                <TableCell>{comissao.vendaId}</TableCell>
-                <TableCell>{comissao.cliente}</TableCell>
-                <TableCell>
-                  <p className="text-sm">{comissao.produto}</p>
-                </TableCell>
-                <TableCell>
-                  <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-primary/10 text-primary text-xs font-medium">
-                    N{comissao.nivel} ({comissao.percentual}%)
-                  </span>
-                </TableCell>
-                <TableCell>
-                  R$ {comissao.valorVenda.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                </TableCell>
-                <TableCell className="font-bold text-green-600">
-                  R$ {comissao.valorComissao.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                </TableCell>
-                <TableCell>
-                  <StatusBadge status={comissao.status} />
-                </TableCell>
-                <TableCell className="text-right">
-                  <div className="flex items-center justify-end gap-2">
-                    {comissao.status === "pendente" && (
-                      <>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleAprovar(comissao.id)}
-                        >
-                          <Check className="h-4 w-4 text-green-600" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleRejeitar(comissao.id)}
-                        >
-                          <X className="h-4 w-4 text-red-600" />
-                        </Button>
-                      </>
-                    )}
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => setSelectedComissao(comissao)}
-                    >
-                      <Eye className="h-4 w-4" />
-                    </Button>
-                  </div>
+            {loading ? (
+              <TableRow>
+                <TableCell colSpan={10} className="text-center py-12">
+                  <TrendingUp className="h-12 w-12 text-muted-foreground mx-auto mb-3 animate-pulse" />
+                  <p className="text-muted-foreground">Carregando comissões...</p>
                 </TableCell>
               </TableRow>
-            ))}
+            ) : filteredComissoes.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={10} className="text-center py-12">
+                  <PackageOpen className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+                  <h3 className="text-lg font-semibold mb-2">Nenhuma comissão encontrada</h3>
+                  <p className="text-muted-foreground">
+                    {searchTerm || statusFilter !== 'todos' || nivelFilter !== 'todos'
+                      ? 'Tente ajustar os filtros de busca'
+                      : 'Nenhuma comissão registrada ainda'}
+                  </p>
+                </TableCell>
+              </TableRow>
+            ) : (
+              filteredComissoes.map((comissao) => (
+                <TableRow key={comissao.id}>
+                  <TableCell className="font-medium">#{comissao.id.slice(0, 8)}</TableCell>
+                  <TableCell>
+                    <div>
+                      <p className="font-medium">{comissao.affiliate?.name || 'N/A'}</p>
+                      <p className="text-xs text-muted-foreground">#{comissao.affiliate_id.slice(0, 8)}</p>
+                    </div>
+                  </TableCell>
+                  <TableCell>#{comissao.order?.id?.slice(0, 8) || 'N/A'}</TableCell>
+                  <TableCell>{comissao.order?.customer?.name || 'N/A'}</TableCell>
+                  <TableCell>
+                    <p className="text-sm">{comissao.order?.order_items?.[0]?.product?.name || 'N/A'}</p>
+                  </TableCell>
+                  <TableCell>
+                    <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-primary/10 text-primary text-xs font-medium">
+                      N{comissao.level} ({comissao.percentage}%)
+                    </span>
+                  </TableCell>
+                  <TableCell>
+                    R$ {(comissao.order?.total_amount || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                  </TableCell>
+                  <TableCell className="font-bold text-green-600">
+                    R$ {comissao.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                  </TableCell>
+                  <TableCell>
+                    <StatusBadge status={comissao.status as any} />
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex items-center justify-end gap-2">
+                      {comissao.status === "pending" && (
+                        <>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleAprovar(comissao.id)}
+                          >
+                            <Check className="h-4 w-4 text-green-600" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleRejeitar(comissao.id)}
+                          >
+                            <X className="h-4 w-4 text-red-600" />
+                          </Button>
+                        </>
+                      )}
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => setSelectedComissao(comissao)}
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
           </TableBody>
         </Table>
       </Card>
@@ -346,7 +367,7 @@ export default function GestaoComissoes() {
           <DialogHeader>
             <DialogTitle>Detalhes da Comissão</DialogTitle>
             <DialogDescription>
-              Informações completas da comissão {selectedComissao?.id}
+              Informações completas da comissão #{selectedComissao?.id.slice(0, 8)}
             </DialogDescription>
           </DialogHeader>
 
@@ -358,20 +379,20 @@ export default function GestaoComissoes() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <p className="text-sm text-muted-foreground">ID da Venda</p>
-                    <p className="font-medium">{selectedComissao.vendaId}</p>
+                    <p className="font-medium">#{selectedComissao.order?.id?.slice(0, 8) || 'N/A'}</p>
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Cliente</p>
-                    <p className="font-medium">{selectedComissao.cliente}</p>
+                    <p className="font-medium">{selectedComissao.order?.customer?.name || 'N/A'}</p>
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Produto</p>
-                    <p className="font-medium">{selectedComissao.produto}</p>
+                    <p className="font-medium">{selectedComissao.order?.order_items?.[0]?.product?.name || 'N/A'}</p>
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Valor da Venda</p>
                     <p className="font-medium text-lg">
-                      R$ {selectedComissao.valorVenda.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      R$ {(selectedComissao.order?.total_amount || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                     </p>
                   </div>
                 </div>
@@ -383,11 +404,11 @@ export default function GestaoComissoes() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <p className="text-sm text-muted-foreground">Nome</p>
-                    <p className="font-medium">{selectedComissao.afiliadoNome}</p>
+                    <p className="font-medium">{selectedComissao.affiliate?.name || 'N/A'}</p>
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">ID do Afiliado</p>
-                    <p className="font-medium">{selectedComissao.afiliadoId}</p>
+                    <p className="font-medium">#{selectedComissao.affiliate_id.slice(0, 8)}</p>
                   </div>
                 </div>
               </div>
@@ -400,19 +421,19 @@ export default function GestaoComissoes() {
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Nível da Comissão:</span>
                       <span className="font-medium">
-                        Nível {selectedComissao.nivel} ({selectedComissao.percentual}%)
+                        Nível {selectedComissao.level} ({selectedComissao.percentage}%)
                       </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Valor da Venda:</span>
                       <span className="font-medium">
-                        R$ {selectedComissao.valorVenda.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        R$ {(selectedComissao.order?.total_amount || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                       </span>
                     </div>
                     <div className="flex justify-between pt-2 border-t">
                       <span className="font-semibold">Valor da Comissão:</span>
                       <span className="font-bold text-lg text-green-600">
-                        R$ {selectedComissao.valorComissao.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        R$ {selectedComissao.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                       </span>
                     </div>
                   </div>
@@ -426,24 +447,28 @@ export default function GestaoComissoes() {
                   <div>
                     <p className="text-sm text-muted-foreground">Status Atual</p>
                     <div className="mt-1">
-                      <StatusBadge status={selectedComissao.status} />
+                      <StatusBadge status={selectedComissao.status as any} />
                     </div>
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Data de Criação</p>
-                    <p className="font-medium">{selectedComissao.dataCriacao}</p>
+                    <p className="font-medium">
+                      {new Date(selectedComissao.created_at).toLocaleDateString('pt-BR')}
+                    </p>
                   </div>
-                  {selectedComissao.dataPagamento && (
+                  {selectedComissao.paid_at && (
                     <div>
                       <p className="text-sm text-muted-foreground">Data de Pagamento</p>
-                      <p className="font-medium">{selectedComissao.dataPagamento}</p>
+                      <p className="font-medium">
+                        {new Date(selectedComissao.paid_at).toLocaleDateString('pt-BR')}
+                      </p>
                     </div>
                   )}
                 </div>
               </div>
 
               {/* Ações */}
-              {selectedComissao.status === "pendente" && (
+              {selectedComissao.status === "pending" && (
                 <div className="flex gap-3 pt-4 border-t">
                   <Button
                     className="gap-2"

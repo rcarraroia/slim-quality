@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -24,119 +24,131 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { StatusBadge } from "@/components/dashboard/StatusBadge";
-import { Search, Eye, UserCheck, UserX, Download } from "lucide-react";
+import { Search, Eye, UserCheck, UserX, Download, PackageOpen } from "lucide-react";
+import { supabase } from "@/config/supabase";
+import { useToast } from "@/hooks/use-toast";
 
-// Mock data expandido para admin
-const mockAfiliadosAdmin = [
-  {
-    id: "A001",
-    nome: "Carlos Mendes",
-    email: "carlos.mendes@email.com",
-    telefone: "(31) 99999-8888",
-    cidade: "Belo Horizonte - MG",
-    dataCadastro: "15/Ago/25",
-    status: "ativo" as const,
-    nivel: 3,
-    totalIndicados: 12,
-    vendasGeradas: 8,
-    comissoesTotais: 12450.00,
-    saldoDisponivel: 3200.00,
-    pixChave: "carlos.mendes@email.com",
-  },
-  {
-    id: "A002",
-    nome: "Juliana Santos",
-    email: "juliana.santos@email.com",
-    telefone: "(11) 98888-7777",
-    cidade: "São Paulo - SP",
-    dataCadastro: "20/Ago/25",
-    status: "ativo" as const,
-    nivel: 2,
-    totalIndicados: 8,
-    vendasGeradas: 5,
-    comissoesTotais: 8750.00,
-    saldoDisponivel: 2100.00,
-    pixChave: "11988887777",
-  },
-  {
-    id: "A003",
-    nome: "Roberto Oliveira",
-    email: "roberto.oliveira@email.com",
-    telefone: "(21) 97777-6666",
-    cidade: "Rio de Janeiro - RJ",
-    dataCadastro: "25/Ago/25",
-    status: "pendente" as const,
-    nivel: 1,
-    totalIndicados: 3,
-    vendasGeradas: 1,
-    comissoesTotais: 429.00,
-    saldoDisponivel: 429.00,
-    pixChave: "roberto.oliveira@email.com",
-  },
-  {
-    id: "A004",
-    nome: "Fernanda Costa",
-    email: "fernanda.costa@email.com",
-    telefone: "(31) 96666-5555",
-    cidade: "Contagem - MG",
-    dataCadastro: "01/Set/25",
-    status: "ativo" as const,
-    nivel: 2,
-    totalIndicados: 6,
-    vendasGeradas: 4,
-    comissoesTotais: 6890.00,
-    saldoDisponivel: 1200.00,
-    pixChave: "31966665555",
-  },
-  {
-    id: "A005",
-    nome: "Paulo Rocha",
-    email: "paulo.rocha@email.com",
-    telefone: "(11) 95555-4444",
-    cidade: "Campinas - SP",
-    dataCadastro: "05/Set/25",
-    status: "inativo" as const,
-    nivel: 1,
-    totalIndicados: 2,
-    vendasGeradas: 0,
-    comissoesTotais: 0,
-    saldoDisponivel: 0,
-    pixChave: "paulo.rocha@email.com",
-  },
-  {
-    id: "A006",
-    nome: "Amanda Silva",
-    email: "amanda.silva@email.com",
-    telefone: "(21) 94444-3333",
-    cidade: "Niterói - RJ",
-    dataCadastro: "10/Set/25",
-    status: "ativo" as const,
-    nivel: 3,
-    totalIndicados: 15,
-    vendasGeradas: 10,
-    comissoesTotais: 15200.00,
-    saldoDisponivel: 4500.00,
-    pixChave: "amanda.silva@email.com",
-  },
-];
+interface Affiliate {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  city: string;
+  created_at: string;
+  status: string;
+  level: number;
+  available_balance: number;
+  pending_balance: number;
+  pix_key: string;
+}
 
 export default function ListaAfiliados() {
-  const [selectedAfiliado, setSelectedAfiliado] = useState<typeof mockAfiliadosAdmin[0] | null>(null);
+  const [afiliados, setAfiliados] = useState<Affiliate[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedAfiliado, setSelectedAfiliado] = useState<Affiliate | null>(null);
   const [statusFilter, setStatusFilter] = useState("todos");
   const [searchTerm, setSearchTerm] = useState("");
+  const [stats, setStats] = useState({
+    totalIndicados: 0,
+    vendasGeradas: 0,
+    comissoesTotais: 0
+  });
+  const { toast } = useToast();
 
-  const filteredAfiliados = mockAfiliadosAdmin.filter(afiliado => {
+  useEffect(() => {
+    loadAfiliados();
+  }, []);
+
+  const loadAfiliados = async () => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('affiliates')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setAfiliados(data || []);
+      
+      // Carregar estatísticas
+      await loadStats(data || []);
+    } catch (error) {
+      console.error('Erro ao carregar afiliados:', error);
+      toast({
+        title: "Erro ao carregar afiliados",
+        description: "Não foi possível carregar a lista de afiliados.",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadStats = async (affiliates: Affiliate[]) => {
+    try {
+      // Buscar comissões pagas
+      const { data: commissions } = await supabase
+        .from('commissions')
+        .select('amount')
+        .eq('status', 'paid');
+
+      const comissoesTotais = commissions?.reduce((acc, c) => acc + c.amount, 0) || 0;
+
+      // Buscar vendas geradas por afiliados
+      const { count: vendasCount } = await supabase
+        .from('orders')
+        .select('*', { count: 'exact', head: true })
+        .not('affiliate_id', 'is', null);
+
+      // Buscar total de indicados (referrals)
+      const { count: indicadosCount } = await supabase
+        .from('referrals')
+        .select('*', { count: 'exact', head: true });
+
+      setStats({
+        totalIndicados: indicadosCount || 0,
+        vendasGeradas: vendasCount || 0,
+        comissoesTotais
+      });
+    } catch (error) {
+      console.error('Erro ao carregar estatísticas:', error);
+    }
+  };
+
+  const filteredAfiliados = afiliados.filter(afiliado => {
     const matchesStatus = statusFilter === "todos" || afiliado.status === statusFilter;
-    const matchesSearch = afiliado.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         afiliado.email.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = 
+      afiliado.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      afiliado.email?.toLowerCase().includes(searchTerm.toLowerCase());
     return matchesStatus && matchesSearch;
   });
 
-  const handleStatusChange = (afiliadoId: string, newStatus: "ativo" | "inativo") => {
-    console.log(`Alterando status do afiliado ${afiliadoId} para ${newStatus}`);
-    // Aqui virá a lógica real de atualização
+  const handleStatusChange = async (afiliadoId: string, newStatus: "active" | "inactive") => {
+    try {
+      const { error } = await supabase
+        .from('affiliates')
+        .update({ status: newStatus })
+        .eq('id', afiliadoId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Status atualizado",
+        description: `Afiliado ${newStatus === 'active' ? 'ativado' : 'desativado'} com sucesso.`,
+      });
+
+      loadAfiliados();
+      setSelectedAfiliado(null);
+    } catch (error) {
+      console.error('Erro ao atualizar status:', error);
+      toast({
+        title: "Erro ao atualizar status",
+        description: "Não foi possível atualizar o status do afiliado.",
+        variant: "destructive"
+      });
+    }
   };
 
   return (
@@ -147,7 +159,7 @@ export default function ListaAfiliados() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-muted-foreground">Total de Afiliados</p>
-              <p className="text-2xl font-bold">{mockAfiliadosAdmin.length}</p>
+              <p className="text-2xl font-bold">{loading ? "..." : afiliados.length}</p>
             </div>
             <UserCheck className="h-8 w-8 text-primary" />
           </div>
@@ -158,7 +170,7 @@ export default function ListaAfiliados() {
             <div>
               <p className="text-sm text-muted-foreground">Afiliados Ativos</p>
               <p className="text-2xl font-bold">
-                {mockAfiliadosAdmin.filter(a => a.status === "ativo").length}
+                {loading ? "..." : afiliados.filter(a => a.status === "active").length}
               </p>
             </div>
             <UserCheck className="h-8 w-8 text-green-600" />
@@ -170,7 +182,7 @@ export default function ListaAfiliados() {
             <div>
               <p className="text-sm text-muted-foreground">Comissões Pagas</p>
               <p className="text-2xl font-bold">
-                R$ {mockAfiliadosAdmin.reduce((acc, a) => acc + a.comissoesTotais, 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                {loading ? "..." : `R$ ${stats.comissoesTotais.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
               </p>
             </div>
             <Download className="h-8 w-8 text-blue-600" />
@@ -182,7 +194,7 @@ export default function ListaAfiliados() {
             <div>
               <p className="text-sm text-muted-foreground">Vendas Geradas</p>
               <p className="text-2xl font-bold">
-                {mockAfiliadosAdmin.reduce((acc, a) => acc + a.vendasGeradas, 0)}
+                {loading ? "..." : stats.vendasGeradas}
               </p>
             </div>
             <Download className="h-8 w-8 text-secondary" />
@@ -200,22 +212,23 @@ export default function ListaAfiliados() {
               className="pl-9"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
+              disabled={loading}
             />
           </div>
 
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <Select value={statusFilter} onValueChange={setStatusFilter} disabled={loading}>
             <SelectTrigger className="w-full md:w-[200px]">
               <SelectValue placeholder="Status" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="todos">Todos os Status</SelectItem>
-              <SelectItem value="ativo">Ativos</SelectItem>
-              <SelectItem value="pendente">Pendentes</SelectItem>
-              <SelectItem value="inativo">Inativos</SelectItem>
+              <SelectItem value="active">Ativos</SelectItem>
+              <SelectItem value="pending">Pendentes</SelectItem>
+              <SelectItem value="inactive">Inativos</SelectItem>
             </SelectContent>
           </Select>
 
-          <Button variant="outline" className="gap-2">
+          <Button variant="outline" className="gap-2" disabled={loading}>
             <Download className="h-4 w-4" />
             Exportar CSV
           </Button>
@@ -231,61 +244,83 @@ export default function ListaAfiliados() {
               <TableHead>Contato</TableHead>
               <TableHead>Cadastro</TableHead>
               <TableHead>Nível</TableHead>
-              <TableHead>Indicados</TableHead>
-              <TableHead>Vendas</TableHead>
-              <TableHead>Comissões</TableHead>
+              <TableHead>Saldo Disponível</TableHead>
+              <TableHead>Saldo Pendente</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="text-right">Ações</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredAfiliados.map((afiliado) => (
-              <TableRow key={afiliado.id}>
-                <TableCell>
-                  <div className="flex items-center gap-3">
-                    <Avatar>
-                      <AvatarImage src="/placeholder.svg" />
-                      <AvatarFallback>
-                        {afiliado.nome.split(" ").map(n => n[0]).join("")}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <p className="font-medium">{afiliado.nome}</p>
-                      <p className="text-sm text-muted-foreground">{afiliado.id}</p>
-                    </div>
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <div>
-                    <p className="text-sm">{afiliado.email}</p>
-                    <p className="text-xs text-muted-foreground">{afiliado.telefone}</p>
-                  </div>
-                </TableCell>
-                <TableCell>{afiliado.dataCadastro}</TableCell>
-                <TableCell>
-                  <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 text-primary font-bold">
-                    {afiliado.nivel}
-                  </span>
-                </TableCell>
-                <TableCell>{afiliado.totalIndicados}</TableCell>
-                <TableCell>{afiliado.vendasGeradas}</TableCell>
-                <TableCell className="font-medium">
-                  R$ {afiliado.comissoesTotais.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                </TableCell>
-                <TableCell>
-                  <StatusBadge status={afiliado.status} />
-                </TableCell>
-                <TableCell className="text-right">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => setSelectedAfiliado(afiliado)}
-                  >
-                    <Eye className="h-4 w-4" />
-                  </Button>
+            {loading ? (
+              <TableRow>
+                <TableCell colSpan={8} className="text-center py-12">
+                  <UserCheck className="h-12 w-12 text-muted-foreground mx-auto mb-3 animate-pulse" />
+                  <p className="text-muted-foreground">Carregando afiliados...</p>
                 </TableCell>
               </TableRow>
-            ))}
+            ) : filteredAfiliados.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={8} className="text-center py-12">
+                  <PackageOpen className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+                  <h3 className="text-lg font-semibold mb-2">Nenhum afiliado encontrado</h3>
+                  <p className="text-muted-foreground">
+                    {searchTerm || statusFilter !== 'todos'
+                      ? 'Tente ajustar os filtros de busca'
+                      : 'Nenhum afiliado cadastrado ainda'}
+                  </p>
+                </TableCell>
+              </TableRow>
+            ) : (
+              filteredAfiliados.map((afiliado) => (
+                <TableRow key={afiliado.id}>
+                  <TableCell>
+                    <div className="flex items-center gap-3">
+                      <Avatar>
+                        <AvatarFallback>
+                          {afiliado.name?.split(" ").map(n => n[0]).join("") || "?"}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <p className="font-medium">{afiliado.name || 'N/A'}</p>
+                        <p className="text-sm text-muted-foreground">#{afiliado.id.slice(0, 8)}</p>
+                      </div>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div>
+                      <p className="text-sm">{afiliado.email || 'N/A'}</p>
+                      <p className="text-xs text-muted-foreground">{afiliado.phone || 'N/A'}</p>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    {new Date(afiliado.created_at).toLocaleDateString('pt-BR')}
+                  </TableCell>
+                  <TableCell>
+                    <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 text-primary font-bold">
+                      {afiliado.level || 1}
+                    </span>
+                  </TableCell>
+                  <TableCell className="font-medium text-green-600">
+                    R$ {(afiliado.available_balance || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                  </TableCell>
+                  <TableCell className="font-medium text-yellow-600">
+                    R$ {(afiliado.pending_balance || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                  </TableCell>
+                  <TableCell>
+                    <StatusBadge status={afiliado.status as any} />
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => setSelectedAfiliado(afiliado)}
+                    >
+                      <Eye className="h-4 w-4" />
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
           </TableBody>
         </Table>
       </Card>
@@ -308,27 +343,29 @@ export default function ListaAfiliados() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <p className="text-sm text-muted-foreground">Nome Completo</p>
-                    <p className="font-medium">{selectedAfiliado.nome}</p>
+                    <p className="font-medium">{selectedAfiliado.name || 'N/A'}</p>
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">ID do Afiliado</p>
-                    <p className="font-medium">{selectedAfiliado.id}</p>
+                    <p className="font-medium">#{selectedAfiliado.id.slice(0, 8)}</p>
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Email</p>
-                    <p className="font-medium">{selectedAfiliado.email}</p>
+                    <p className="font-medium">{selectedAfiliado.email || 'N/A'}</p>
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Telefone</p>
-                    <p className="font-medium">{selectedAfiliado.telefone}</p>
+                    <p className="font-medium">{selectedAfiliado.phone || 'N/A'}</p>
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Cidade</p>
-                    <p className="font-medium">{selectedAfiliado.cidade}</p>
+                    <p className="font-medium">{selectedAfiliado.city || 'N/A'}</p>
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Data de Cadastro</p>
-                    <p className="font-medium">{selectedAfiliado.dataCadastro}</p>
+                    <p className="font-medium">
+                      {new Date(selectedAfiliado.created_at).toLocaleDateString('pt-BR')}
+                    </p>
                   </div>
                 </div>
               </div>
@@ -339,23 +376,13 @@ export default function ListaAfiliados() {
                 <div className="grid grid-cols-2 gap-4">
                   <Card className="p-4">
                     <p className="text-sm text-muted-foreground">Nível Atual</p>
-                    <p className="text-2xl font-bold text-primary">{selectedAfiliado.nivel}</p>
+                    <p className="text-2xl font-bold text-primary">{selectedAfiliado.level || 1}</p>
                   </Card>
                   <Card className="p-4">
-                    <p className="text-sm text-muted-foreground">Total Indicados</p>
-                    <p className="text-2xl font-bold">{selectedAfiliado.totalIndicados}</p>
-                  </Card>
-                  <Card className="p-4">
-                    <p className="text-sm text-muted-foreground">Vendas Geradas</p>
-                    <p className="text-2xl font-bold">{selectedAfiliado.vendasGeradas}</p>
-                  </Card>
-                  <Card className="p-4">
-                    <p className="text-sm text-muted-foreground">Taxa de Conversão</p>
-                    <p className="text-2xl font-bold">
-                      {selectedAfiliado.totalIndicados > 0
-                        ? ((selectedAfiliado.vendasGeradas / selectedAfiliado.totalIndicados) * 100).toFixed(1)
-                        : 0}%
-                    </p>
+                    <p className="text-sm text-muted-foreground">Status</p>
+                    <div className="mt-2">
+                      <StatusBadge status={selectedAfiliado.status as any} />
+                    </div>
                   </Card>
                 </div>
               </div>
@@ -365,31 +392,31 @@ export default function ListaAfiliados() {
                 <h3 className="font-semibold text-lg">Financeiro</h3>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <p className="text-sm text-muted-foreground">Comissões Totais</p>
+                    <p className="text-sm text-muted-foreground">Saldo Disponível</p>
                     <p className="text-xl font-bold text-green-600">
-                      R$ {selectedAfiliado.comissoesTotais.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      R$ {(selectedAfiliado.available_balance || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                     </p>
                   </div>
                   <div>
-                    <p className="text-sm text-muted-foreground">Saldo Disponível</p>
-                    <p className="text-xl font-bold text-primary">
-                      R$ {selectedAfiliado.saldoDisponivel.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    <p className="text-sm text-muted-foreground">Saldo Pendente</p>
+                    <p className="text-xl font-bold text-yellow-600">
+                      R$ {(selectedAfiliado.pending_balance || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                     </p>
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Chave PIX</p>
-                    <p className="font-medium">{selectedAfiliado.pixChave}</p>
+                    <p className="font-medium">{selectedAfiliado.pix_key || 'Não cadastrada'}</p>
                   </div>
                 </div>
               </div>
 
               {/* Ações Administrativas */}
               <div className="flex gap-3 pt-4 border-t">
-                {selectedAfiliado.status === "ativo" ? (
+                {selectedAfiliado.status === "active" ? (
                   <Button
                     variant="destructive"
                     className="gap-2"
-                    onClick={() => handleStatusChange(selectedAfiliado.id, "inativo")}
+                    onClick={() => handleStatusChange(selectedAfiliado.id, "inactive")}
                   >
                     <UserX className="h-4 w-4" />
                     Desativar Afiliado
@@ -398,7 +425,7 @@ export default function ListaAfiliados() {
                   <Button
                     variant="default"
                     className="gap-2"
-                    onClick={() => handleStatusChange(selectedAfiliado.id, "ativo")}
+                    onClick={() => handleStatusChange(selectedAfiliado.id, "active")}
                   >
                     <UserCheck className="h-4 w-4" />
                     Ativar Afiliado
