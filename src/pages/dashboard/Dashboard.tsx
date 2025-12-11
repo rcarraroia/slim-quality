@@ -13,7 +13,7 @@ interface Conversation {
   customer: {
     name: string;
   };
-  last_message: string;
+  last_message_at: string;
   updated_at: string;
   status: string;
 }
@@ -21,15 +21,11 @@ interface Conversation {
 interface Order {
   id: string;
   created_at: string;
-  total_amount: number;
+  total_cents: number;
   status: string;
-  customer: {
-    name: string;
-  };
+  customer_name: string;
   order_items: {
-    product: {
-      name: string;
-    };
+    product_name: string;
   }[];
 }
 
@@ -68,7 +64,7 @@ export default function Dashboard() {
       .from('conversations')
       .select(`
         id,
-        last_message,
+        last_message_at,
         updated_at,
         status,
         customer:customers(name)
@@ -89,10 +85,10 @@ export default function Dashboard() {
       .select(`
         id,
         created_at,
-        total_amount,
+        total_cents,
         status,
-        customer:customers(name),
-        order_items(product:products(name))
+        customer_name,
+        order_items(product_name)
       `)
       .order('created_at', { ascending: false })
       .limit(5);
@@ -118,10 +114,10 @@ export default function Dashboard() {
 
     const { data: ordersData } = await supabase
       .from('orders')
-      .select('total_amount')
+      .select('total_cents')
       .gte('created_at', startOfMonth.toISOString());
 
-    const vendasMes = ordersData?.reduce((acc, order) => acc + order.total_amount, 0) || 0;
+    const vendasMes = ordersData?.reduce((acc, order) => acc + (order.total_cents / 100), 0) || 0;
     const quantidadeVendas = ordersData?.length || 0;
     const ticketMedio = quantidadeVendas > 0 ? vendasMes / quantidadeVendas : 0;
 
@@ -207,7 +203,7 @@ export default function Dashboard() {
                       <StatusBadge status={conversa.status as any} />
                     </div>
                     <p className="text-sm text-muted-foreground truncate">
-                      {conversa.last_message || 'Sem mensagens'}
+                      {conversa.last_message_at ? 'Última mensagem em ' + new Date(conversa.last_message_at).toLocaleString('pt-BR') : 'Sem mensagens'}
                     </p>
                   </div>
                   <span className="text-sm text-muted-foreground">
@@ -257,12 +253,12 @@ export default function Dashboard() {
                       className={index % 2 === 0 ? 'bg-background' : 'bg-muted/30'}
                     >
                       <td className="p-3 text-sm">#{venda.id.slice(0, 8)}</td>
-                      <td className="p-3 text-sm">{venda.customer?.name || 'N/A'}</td>
+                      <td className="p-3 text-sm">{venda.customer_name || 'N/A'}</td>
                       <td className="p-3 text-sm">
-                        {venda.order_items?.[0]?.product?.name || 'N/A'}
+                        {venda.order_items?.[0]?.product_name || 'N/A'}
                       </td>
                       <td className="p-3 text-sm font-medium">
-                        R$ {venda.total_amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        R$ {(venda.total_cents / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                       </td>
                       <td className="p-3">
                         <StatusBadge status={venda.status as any} />
