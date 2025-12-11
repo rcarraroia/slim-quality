@@ -50,9 +50,7 @@ export default function Produtos() {
     description: '',
     price: '',
     dimensions: '',
-    stock_quantity: '',
-    status: 'active',
-    product_type: 'mattress'
+    status: 'active'
   });
 
   useEffect(() => {
@@ -88,9 +86,7 @@ export default function Produtos() {
       description: produto.description || '',
       price: (produto.price_cents / 100).toString(),
       dimensions: `${produto.width_cm}x${produto.length_cm}x${produto.height_cm}cm`,
-      stock_quantity: '0', // Campo não existe mais na tabela
-      status: produto.is_active ? 'active' : 'inactive',
-      product_type: 'mattress'
+      status: produto.is_active ? 'active' : 'inactive'
     });
     setIsModalOpen(true);
   };
@@ -102,9 +98,7 @@ export default function Produtos() {
       description: '',
       price: '',
       dimensions: '',
-      stock_quantity: '',
-      status: 'active',
-      product_type: 'mattress'
+      status: 'active'
     });
     setImageFiles([]);
     setImagePreviews([]);
@@ -375,23 +369,7 @@ export default function Produtos() {
               />
             </div>
 
-            <div className="space-y-2">
-              <Label>Tipo de Produto</Label>
-              <Select 
-                value={formData.product_type}
-                onValueChange={(value) => setFormData({ ...formData, product_type: value })}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="mattress">Colchão</SelectItem>
-                  <SelectItem value="pillow">Travesseiro</SelectItem>
-                  <SelectItem value="accessory">Acessório</SelectItem>
-                  <SelectItem value="other">Outro</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+
 
             <div className="space-y-2">
               <Label>Dimensões</Label>
@@ -405,25 +383,14 @@ export default function Produtos() {
               </p>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Preço (R$) *</Label>
-                <Input 
-                  type="number" 
-                  placeholder="3690" 
-                  value={formData.price}
-                  onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Estoque *</Label>
-                <Input 
-                  type="number" 
-                  placeholder="42" 
-                  value={formData.stock_quantity}
-                  onChange={(e) => setFormData({ ...formData, stock_quantity: e.target.value })}
-                />
-              </div>
+            <div className="space-y-2">
+              <Label>Preço (R$) *</Label>
+              <Input 
+                type="number" 
+                placeholder="3690" 
+                value={formData.price}
+                onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+              />
             </div>
 
             <div className="space-y-2">
