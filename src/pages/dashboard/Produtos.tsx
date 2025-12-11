@@ -26,12 +26,17 @@ import {
 interface Product {
   id: string;
   name: string;
+  slug: string;
+  sku: string;
   description: string | null;
   price_cents: number;
   width_cm: number;
   length_cm: number;
   height_cm: number;
+  weight_kg: number | null;
   is_active: boolean;
+  is_featured: boolean;
+  display_order: number;
   product_images?: { image_url: string }[];
 }
 
@@ -47,10 +52,14 @@ export default function Produtos() {
   // Form state
   const [formData, setFormData] = useState({
     name: '',
+    sku: '',
     description: '',
     price: '',
     dimensions: '',
-    status: 'active'
+    weight: '',
+    status: 'active',
+    featured: false,
+    display_order: '0'
   });
 
   useEffect(() => {
@@ -83,10 +92,14 @@ export default function Produtos() {
     setEditingProduto(produto);
     setFormData({
       name: produto.name,
+      sku: produto.sku,
       description: produto.description || '',
       price: (produto.price_cents / 100).toString(),
       dimensions: `${produto.width_cm}x${produto.length_cm}x${produto.height_cm}cm`,
-      status: produto.is_active ? 'active' : 'inactive'
+      weight: produto.weight_kg?.toString() || '',
+      status: produto.is_active ? 'active' : 'inactive',
+      featured: produto.is_featured,
+      display_order: produto.display_order.toString()
     });
     setIsModalOpen(true);
   };
@@ -95,10 +108,14 @@ export default function Produtos() {
     setEditingProduto(null);
     setFormData({
       name: '',
+      sku: '',
       description: '',
       price: '',
       dimensions: '',
-      status: 'active'
+      weight: '',
+      status: 'active',
+      featured: false,
+      display_order: '0'
     });
     setImageFiles([]);
     setImagePreviews([]);
@@ -170,12 +187,16 @@ export default function Produtos() {
 
       const productData = {
         name: formData.name,
+        sku: formData.sku || `COL-${Date.now().toString(36).toUpperCase()}`, // Gerar SKU se não fornecido
         description: formData.description || null,
         price_cents: Math.round(parseFloat(formData.price) * 100), // Converter para centavos
         width_cm,
         length_cm,
         height_cm,
-        is_active: formData.status === 'active'
+        weight_kg: formData.weight ? parseFloat(formData.weight) : null,
+        is_active: formData.status === 'active',
+        is_featured: formData.featured,
+        display_order: parseInt(formData.display_order) || 0
       };
 
       if (editingProduto) {
@@ -302,14 +323,25 @@ export default function Produtos() {
                   <div>
                     <h3 className="text-xl font-bold">{produto.name}</h3>
                     <p className="text-sm text-muted-foreground font-normal mt-1">
+                      SKU: {produto.sku}
+                    </p>
+                    <p className="text-sm text-muted-foreground font-normal">
                       {produto.width_cm}x{produto.length_cm}x{produto.height_cm}cm
+                      {produto.weight_kg && ` • ${produto.weight_kg}kg`}
                     </p>
                   </div>
-                  {produto.is_active && (
-                    <Badge className="bg-success/10 text-success border-success/20">
-                      Ativo
-                    </Badge>
-                  )}
+                  <div className="flex flex-col gap-1">
+                    {produto.is_active && (
+                      <Badge className="bg-success/10 text-success border-success/20">
+                        Ativo
+                      </Badge>
+                    )}
+                    {produto.is_featured && (
+                      <Badge className="bg-yellow-100 text-yellow-800 border-yellow-200">
+                        Destaque
+                      </Badge>
+                    )}
+                  </div>
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -322,6 +354,22 @@ export default function Produtos() {
                     <span className="text-muted-foreground">📏 Dimensões:</span>
                     <span className="font-medium">{produto.width_cm}x{produto.length_cm}x{produto.height_cm}cm</span>
                   </div>
+                  {produto.weight_kg && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground">⚖️ Peso:</span>
+                      <span className="font-medium">{produto.weight_kg}kg</span>
+                    </div>
+                  )}
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">📦 SKU:</span>
+                    <span className="font-medium font-mono text-xs">{produto.sku}</span>
+                  </div>
+                  {produto.display_order > 0 && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground">🔢 Ordem:</span>
+                      <span className="font-medium">{produto.display_order}</span>
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex gap-2 pt-2">
@@ -369,6 +417,18 @@ export default function Produtos() {
               />
             </div>
 
+            <div className="space-y-2">
+              <Label>SKU (Código do Produto)</Label>
+              <Input 
+                placeholder="Ex: COL-CASAL-001 (deixe vazio para gerar automaticamente)" 
+                value={formData.sku}
+                onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
+              />
+              <p className="text-xs text-muted-foreground">
+                Se não informado, será gerado automaticamente
+              </p>
+            </div>
+
 
 
             <div className="space-y-2">
@@ -383,14 +443,26 @@ export default function Produtos() {
               </p>
             </div>
 
-            <div className="space-y-2">
-              <Label>Preço (R$) *</Label>
-              <Input 
-                type="number" 
-                placeholder="3690" 
-                value={formData.price}
-                onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-              />
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Preço (R$) *</Label>
+                <Input 
+                  type="number" 
+                  placeholder="3690" 
+                  value={formData.price}
+                  onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Peso (kg)</Label>
+                <Input 
+                  type="number" 
+                  step="0.1"
+                  placeholder="25.5" 
+                  value={formData.weight}
+                  onChange={(e) => setFormData({ ...formData, weight: e.target.value })}
+                />
+              </div>
             </div>
 
             <div className="space-y-2">
@@ -403,21 +475,45 @@ export default function Produtos() {
               />
             </div>
 
-            <div className="space-y-2">
-              <Label>Status</Label>
-              <Select 
-                value={formData.status}
-                onValueChange={(value) => setFormData({ ...formData, status: value })}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="active">Ativo</SelectItem>
-                  <SelectItem value="inactive">Inativo</SelectItem>
-                  <SelectItem value="out_of_stock">Sem Estoque</SelectItem>
-                </SelectContent>
-              </Select>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Status</Label>
+                <Select 
+                  value={formData.status}
+                  onValueChange={(value) => setFormData({ ...formData, status: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="active">Ativo</SelectItem>
+                    <SelectItem value="inactive">Inativo</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Ordem de Exibição</Label>
+                <Input 
+                  type="number" 
+                  placeholder="0" 
+                  value={formData.display_order}
+                  onChange={(e) => setFormData({ ...formData, display_order: e.target.value })}
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                id="featured"
+                checked={formData.featured}
+                onChange={(e) => setFormData({ ...formData, featured: e.target.checked })}
+                className="rounded border-gray-300"
+              />
+              <Label htmlFor="featured">Produto em Destaque</Label>
+              <p className="text-xs text-muted-foreground ml-2">
+                Aparecerá em seções especiais do site
+              </p>
             </div>
 
             {/* Upload de Imagens */}
