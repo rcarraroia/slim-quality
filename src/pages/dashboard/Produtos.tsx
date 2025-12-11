@@ -165,10 +165,14 @@ export default function Produtos() {
       setUploading(true);
 
       // Converter dimensões do formato "138x188x28cm" para campos separados
-      const dimensions = formData.dimensions.split('x');
-      const width_cm = dimensions[0] ? parseFloat(dimensions[0]) : 138;
-      const length_cm = dimensions[1] ? parseFloat(dimensions[1]) : 188;
-      const height_cm = dimensions[2] ? parseFloat(dimensions[2].replace('cm', '')) : 28;
+      let width_cm = 138, length_cm = 188, height_cm = 28;
+      
+      if (formData.dimensions && formData.dimensions.trim()) {
+        const dimensions = formData.dimensions.split('x');
+        width_cm = dimensions[0] ? parseFloat(dimensions[0]) : 138;
+        length_cm = dimensions[1] ? parseFloat(dimensions[1]) : 188;
+        height_cm = dimensions[2] ? parseFloat(dimensions[2].replace('cm', '')) : 28;
+      }
 
       const productData = {
         name: formData.name,
