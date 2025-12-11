@@ -1,0 +1,108 @@
+-- ============================================
+-- Script de Seed - Usuários de Teste
+-- Sprint 1: Sistema de Autenticação
+-- ============================================
+-- ATENÇÃO: Este script deve ser executado APENAS em ambiente de desenvolvimento
+-- ============================================
+
+-- Usuários de teste já devem ser criados via API /auth/register
+-- Este script apenas atribui roles adicionais para testes
+
+-- ============================================
+-- 1. CRIAR USUÁRIO ADMIN
+-- ============================================
+-- Execute via API:
+-- POST /api/auth/register
+-- {
+--   "email": "admin@slimquality.com",
+--   "password": "admin123456",
+--   "full_name": "Admin Sistema"
+-- }
+
+-- Depois execute este SQL para atribuir role admin:
+-- INSERT INTO user_roles (user_id, role)
+-- SELECT id, 'admin'
+-- FROM profiles
+-- WHERE email = 'admin@slimquality.com'
+-- AND NOT EXISTS (
+--   SELECT 1 FROM user_roles
+--   WHERE user_id = profiles.id AND role = 'admin'
+-- );
+
+-- ============================================
+-- 2. CRIAR USUÁRIO VENDEDOR
+-- ============================================
+-- Execute via API:
+-- POST /api/auth/register
+-- {
+--   "email": "vendedor@slimquality.com",
+--   "password": "vendedor123456",
+--   "full_name": "Vendedor Teste"
+-- }
+
+-- Depois execute este SQL para atribuir role vendedor:
+-- INSERT INTO user_roles (user_id, role)
+-- SELECT id, 'vendedor'
+-- FROM profiles
+-- WHERE email = 'vendedor@slimquality.com'
+-- AND NOT EXISTS (
+--   SELECT 1 FROM user_roles
+--   WHERE user_id = profiles.id AND role = 'vendedor'
+-- );
+
+-- ============================================
+-- 3. CRIAR USUÁRIO AFILIADO (Preparação Sprint 4)
+-- ============================================
+-- Execute via API:
+-- POST /api/auth/register
+-- {
+--   "email": "afiliado@slimquality.com",
+--   "password": "afiliado123456",
+--   "full_name": "Afiliado Teste"
+-- }
+
+-- Depois execute este SQL para atribuir role afiliado:
+-- INSERT INTO user_roles (user_id, role)
+-- SELECT id, 'afiliado'
+-- FROM profiles
+-- WHERE email = 'afiliado@slimquality.com'
+-- AND NOT EXISTS (
+--   SELECT 1 FROM user_roles
+--   WHERE user_id = profiles.id AND role = 'afiliado'
+-- );
+
+-- ============================================
+-- 4. CRIAR USUÁRIO CLIENTE (já tem role padrão)
+-- ============================================
+-- Execute via API:
+-- POST /api/auth/register
+-- {
+--   "email": "cliente@slimquality.com",
+--   "password": "cliente123456",
+--   "full_name": "Cliente Teste"
+-- }
+
+-- ============================================
+-- VERIFICAR USUÁRIOS CRIADOS
+-- ============================================
+-- SELECT 
+--   p.id,
+--   p.email,
+--   p.full_name,
+--   array_agg(ur.role) as roles,
+--   p.created_at
+-- FROM profiles p
+-- LEFT JOIN user_roles ur ON ur.user_id = p.id AND ur.deleted_at IS NULL
+-- WHERE p.deleted_at IS NULL
+-- GROUP BY p.id, p.email, p.full_name, p.created_at
+-- ORDER BY p.created_at DESC;
+
+-- ============================================
+-- LIMPAR DADOS DE TESTE (se necessário)
+-- ============================================
+-- ⚠️ CUIDADO: Isso remove TODOS os usuários de teste
+-- 
+-- DELETE FROM auth.users WHERE email LIKE '%@slimquality.com';
+-- 
+-- Nota: O trigger handle_user_delete() fará soft delete automático
+-- dos profiles e roles associados
