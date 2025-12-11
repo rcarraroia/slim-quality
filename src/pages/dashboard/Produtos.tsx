@@ -26,11 +26,12 @@ import {
 interface Product {
   id: string;
   name: string;
-  description: string;
-  price: number;
-  dimensions: string;
-  stock_quantity: number;
-  status: string;
+  description: string | null;
+  price_cents: number;
+  width_cm: number;
+  length_cm: number;
+  height_cm: number;
+  is_active: boolean;
   product_images?: { image_url: string }[];
 }
 
@@ -85,10 +86,10 @@ export default function Produtos() {
     setFormData({
       name: produto.name,
       description: produto.description || '',
-      price: produto.price.toString(),
-      dimensions: produto.dimensions || '',
-      stock_quantity: produto.stock_quantity.toString(),
-      status: produto.status,
+      price: (produto.price_cents / 100).toString(),
+      dimensions: `${produto.width_cm}x${produto.length_cm}x${produto.height_cm}cm`,
+      stock_quantity: '0', // Campo não existe mais na tabela
+      status: produto.is_active ? 'active' : 'inactive',
       product_type: 'mattress'
     });
     setIsModalOpen(true);
@@ -163,14 +164,20 @@ export default function Produtos() {
     try {
       setUploading(true);
 
+      // Converter dimensões do formato "138x188x28cm" para campos separados
+      const dimensions = formData.dimensions.split('x');
+      const width_cm = dimensions[0] ? parseFloat(dimensions[0]) : 138;
+      const length_cm = dimensions[1] ? parseFloat(dimensions[1]) : 188;
+      const height_cm = dimensions[2] ? parseFloat(dimensions[2].replace('cm', '')) : 28;
+
       const productData = {
         name: formData.name,
-        description: formData.description,
-        price: parseFloat(formData.price),
-        dimensions: formData.dimensions,
-        stock_quantity: parseInt(formData.stock_quantity),
-        status: formData.status,
-        product_type: formData.product_type
+        description: formData.description || null,
+        price_cents: Math.round(parseFloat(formData.price) * 100), // Converter para centavos
+        width_cm,
+        length_cm,
+        height_cm,
+        is_active: formData.status === 'active'
       };
 
       if (editingProduto) {
@@ -296,13 +303,11 @@ export default function Produtos() {
                 <CardTitle className="flex items-start justify-between">
                   <div>
                     <h3 className="text-xl font-bold">{produto.name}</h3>
-                    {produto.dimensions && (
-                      <p className="text-sm text-muted-foreground font-normal mt-1">
-                        {produto.dimensions}
-                      </p>
-                    )}
+                    <p className="text-sm text-muted-foreground font-normal mt-1">
+                      {produto.width_cm}x{produto.length_cm}x{produto.height_cm}cm
+                    </p>
                   </div>
-                  {produto.status === 'active' && (
+                  {produto.is_active && (
                     <Badge className="bg-success/10 text-success border-success/20">
                       Ativo
                     </Badge>
@@ -311,13 +316,13 @@ export default function Produtos() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <p className="text-3xl font-bold text-primary">
-                  R$ {produto.price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                  R$ {(produto.price_cents / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                 </p>
                 
                 <div className="space-y-2 text-sm">
                   <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">📦 Em estoque:</span>
-                    <span className="font-medium">{produto.stock_quantity} unidades</span>
+                    <span className="text-muted-foreground">📏 Dimensões:</span>
+                    <span className="font-medium">{produto.width_cm}x{produto.length_cm}x{produto.height_cm}cm</span>
                   </div>
                 </div>
 
