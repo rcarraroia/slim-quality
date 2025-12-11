@@ -34,6 +34,7 @@ interface Product {
   length_cm: number;
   height_cm: number;
   weight_kg: number | null;
+  product_type: string;
   is_active: boolean;
   is_featured: boolean;
   display_order: number;
@@ -57,6 +58,7 @@ export default function Produtos() {
     price: '',
     dimensions: '',
     weight: '',
+    product_type: 'mattress',
     status: 'active',
     featured: false,
     display_order: '0'
@@ -97,6 +99,7 @@ export default function Produtos() {
       price: (produto.price_cents / 100).toString(),
       dimensions: `${produto.width_cm}x${produto.length_cm}x${produto.height_cm}cm`,
       weight: produto.weight_kg?.toString() || '',
+      product_type: produto.product_type || 'mattress',
       status: produto.is_active ? 'active' : 'inactive',
       featured: produto.is_featured,
       display_order: produto.display_order.toString()
@@ -113,6 +116,7 @@ export default function Produtos() {
       price: '',
       dimensions: '',
       weight: '',
+      product_type: 'mattress',
       status: 'active',
       featured: false,
       display_order: '0'
@@ -194,6 +198,7 @@ export default function Produtos() {
         length_cm,
         height_cm,
         weight_kg: formData.weight ? parseFloat(formData.weight) : null,
+        product_type: formData.product_type,
         is_active: formData.status === 'active',
         is_featured: formData.featured,
         display_order: parseInt(formData.display_order) || 0
@@ -417,16 +422,35 @@ export default function Produtos() {
               />
             </div>
 
-            <div className="space-y-2">
-              <Label>SKU (Código do Produto)</Label>
-              <Input 
-                placeholder="Ex: COL-CASAL-001 (deixe vazio para gerar automaticamente)" 
-                value={formData.sku}
-                onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
-              />
-              <p className="text-xs text-muted-foreground">
-                Se não informado, será gerado automaticamente
-              </p>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>SKU (Código do Produto)</Label>
+                <Input 
+                  placeholder="Ex: COL-CASAL-001" 
+                  value={formData.sku}
+                  onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Deixe vazio para gerar automaticamente
+                </p>
+              </div>
+              <div className="space-y-2">
+                <Label>Tipo de Produto *</Label>
+                <Select 
+                  value={formData.product_type}
+                  onValueChange={(value) => setFormData({ ...formData, product_type: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="mattress">Colchão</SelectItem>
+                    <SelectItem value="pillow">Travesseiro</SelectItem>
+                    <SelectItem value="accessory">Acessório</SelectItem>
+                    <SelectItem value="other">Outro</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
 
