@@ -29,6 +29,7 @@ import { StatusBadge } from "@/components/dashboard/StatusBadge";
 import { Search, Eye, UserCheck, UserX, Download, PackageOpen } from "lucide-react";
 import { supabase } from "@/config/supabase";
 import { useToast } from "@/hooks/use-toast";
+import { affiliateFrontendService } from "@/services/frontend/affiliate.service";
 
 interface Affiliate {
   id: string;
@@ -64,7 +65,7 @@ export default function ListaAfiliados() {
   const loadAfiliados = async () => {
     try {
       setLoading(true);
-      const result = await AffiliateFrontendService.getAllAffiliates();
+      const result = await affiliateFrontendService.getAllAffiliates();
       
       if (result.success) {
         setAfiliados(result.data || []);

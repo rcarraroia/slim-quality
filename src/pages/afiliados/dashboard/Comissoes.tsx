@@ -39,58 +39,26 @@ interface Comissao {
   status: "pago" | "pendente" | "processando";
 }
 
-const mockComissoes: Comissao[] = [
-  {
-    id: "C001",
-    tipo: "N1",
-    valor: 523.50, // 15% de 3490 (Queen)
-    venda: "#1047",
-    cliente: "Maria Silva",
-    produto: "Slim Quality Queen",
-    data: "2024-10-12",
-    status: "pago"
-  },
-  {
-    id: "C002",
-    tipo: "N2",
-    valor: 98.70, // 3% de 3290 (Padrão)
-    venda: "#1046",
-    cliente: "Roberto Lima",
-    produto: "Slim Quality Padrão",
-    data: "2024-10-11",
-    status: "pago"
-  },
-  {
-    id: "C003",
-    tipo: "N1",
-    valor: 733.50, // 15% de 4890 (King)
-    venda: "#1045",
-    cliente: "Fernanda Costa",
-    produto: "Slim Quality King",
-    data: "2024-10-10",
-    status: "pendente"
-  },
-  {
-    id: "C004",
-    tipo: "N3",
-    valor: 63.80, // 2% de 3190 (Solteiro)
-    venda: "#1044",
-    cliente: "Paulo Santos",
-    produto: "Slim Quality Solteiro",
-    data: "2024-10-09",
-    status: "pago"
-  },
-  {
-    id: "C005",
-    tipo: "N1",
-    valor: 493.50, // 15% de 3290 (Padrão)
-    venda: "#1043",
-    cliente: "Juliana Rocha",
-    produto: "Slim Quality Padrão",
-    data: "2024-10-08",
-    status: "processando"
+// Dados mockados removidos - agora usa apenas dados reais do Supabase
+
+/**
+ * Mapeia status da comissão do banco para o formato do componente
+ */
+const mapCommissionStatus = (status: string): "pago" | "pendente" | "processando" => {
+  switch (status?.toLowerCase()) {
+    case 'paid':
+    case 'completed':
+      return 'pago';
+    case 'pending':
+    case 'waiting':
+      return 'pendente';
+    case 'processing':
+    case 'calculating':
+      return 'processando';
+    default:
+      return 'pendente';
   }
-];
+};
 
 export default function AffiliateDashboardComissoes() {
   const [selectedComissao, setSelectedComissao] = useState<Comissao | null>(null);
@@ -109,18 +77,20 @@ export default function AffiliateDashboardComissoes() {
     try {
       setLoading(true);
       const result = await affiliateFrontendService.getMyCommissions();
-      // Converter dados da API para o formato esperado
+      
+      // Converter dados da API para o formato esperado pelo componente
       const comissoesData = result.commissions.map((item: any) => ({
-          id: item.id,
-          tipo: `N${item.level}` as "N1" | "N2" | "N3",
-          valor: item.amount,
-          venda: `#${item.order_id?.slice(0, 8) || 'N/A'}`,
-          cliente: item.customer_name || 'Cliente',
-          produto: item.product_name || 'Produto',
-          data: item.created_at,
-          status: item.status as "pago" | "pendente" | "processando"
-        }));
-        setComissoes(comissoesData);
+        id: item.id,
+        tipo: `N${item.level || 1}` as "N1" | "N2" | "N3",
+        valor: (item.amount_cents || 0) / 100, // Converter centavos para reais
+        venda: item.order?.id ? `#${item.order.id.slice(0, 8)}` : '#N/A',
+        cliente: item.order?.customer_name || 'Cliente não informado',
+        produto: 'Slim Quality', // Produto padrão por enquanto
+        data: item.created_at,
+        status: mapCommissionStatus(item.status)
+      }));
+      
+      setComissoes(comissoesData);
     } catch (error) {
       console.error('Erro ao carregar comissões:', error);
       toast({

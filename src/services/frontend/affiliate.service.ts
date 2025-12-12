@@ -625,6 +625,65 @@ export class AffiliateFrontendService {
   }
 
   /**
+   * Busca todos os afiliados (para dashboard administrativo)
+   */
+  async getAllAffiliates(): Promise<any> {
+    try {
+      // Buscar todos os afiliados com informações básicas
+      const { data: affiliates, error } = await supabase
+        .from('affiliates')
+        .select(`
+          id,
+          name,
+          email,
+          phone,
+          document,
+          wallet_id,
+          referral_code,
+          status,
+          total_clicks,
+          total_conversions,
+          total_commissions_cents,
+          created_at,
+          updated_at
+        `)
+        .eq('deleted_at', null)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        throw new Error(`Erro ao buscar afiliados: ${error.message}`);
+      }
+
+      // Mapear dados para o formato esperado pelo frontend
+      const mappedAffiliates = (affiliates || []).map(affiliate => ({
+        id: affiliate.id,
+        name: affiliate.name,
+        email: affiliate.email,
+        phone: affiliate.phone || '',
+        city: 'N/A', // TODO: Adicionar campo cidade se necessário
+        created_at: affiliate.created_at,
+        status: affiliate.status,
+        level: 1, // TODO: Calcular nível real na rede
+        available_balance: (affiliate.total_commissions_cents || 0) / 100,
+        pending_balance: 0, // TODO: Calcular saldo pendente
+        pix_key: affiliate.wallet_id
+      }));
+
+      return {
+        success: true,
+        data: mappedAffiliates
+      };
+
+    } catch (error) {
+      console.error('Erro ao buscar todos os afiliados:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Erro interno'
+      };
+    }
+  }
+
+  /**
    * Constrói árvore hierárquica da rede de afiliados
    */
   private async buildNetworkTree(affiliateId: string): Promise<any[]> {
