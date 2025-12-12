@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,8 +8,11 @@ import {
   ChevronDown, 
   ChevronRight,
   DollarSign,
-  TrendingUp
+  TrendingUp,
+  Loader2
 } from "lucide-react";
+import { AffiliateFrontendService } from "@/services/frontend/affiliate.service";
+import { useToast } from "@/hooks/use-toast";
 
 interface NetworkNode {
   id: string;
@@ -94,8 +97,55 @@ const mockNetwork: NetworkNode[] = [
 ];
 
 export default function AffiliateDashboardMinhaRede() {
-  const [network, setNetwork] = useState<NetworkNode[]>(mockNetwork);
+  const [network, setNetwork] = useState<NetworkNode[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
+
+  useEffect(() => {
+    loadNetworkData();
+  }, []);
+
+  const loadNetworkData = async () => {
+    try {
+      setLoading(true);
+      const result = await AffiliateFrontendService.getMyNetwork();
+      if (result.success) {
+        // Converter dados da API para o formato esperado pelo componente
+        const networkData = convertApiDataToNetworkNodes(result.data);
+        setNetwork(networkData);
+      } else {
+        toast({
+          title: "Erro ao carregar rede",
+          description: "Não foi possível carregar os dados da sua rede",
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      console.error('Erro ao carregar rede:', error);
+      toast({
+        title: "Erro ao carregar rede",
+        description: "Ocorreu um erro inesperado",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const convertApiDataToNetworkNodes = (apiData: any): NetworkNode[] => {
+    if (!apiData || !Array.isArray(apiData)) return [];
+    
+    return apiData.map((item: any) => ({
+      id: item.id,
+      nome: item.name,
+      nivel: item.level,
+      vendas: item.sales_count || 0,
+      comissaoGerada: item.commission_generated || 0,
+      expanded: false,
+      indicados: item.children ? convertApiDataToNetworkNodes(item.children) : []
+    }));
+  };
 
   const toggleNode = (id: string, nodes: NetworkNode[]): NetworkNode[] => {
     return nodes.map(node => {
@@ -213,6 +263,31 @@ export default function AffiliateDashboardMinhaRede() {
   };
 
   const totals = calculateTotals(network);
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="grid gap-6 md:grid-cols-3">
+          {[1, 2, 3].map((i) => (
+            <Card key={i} className="p-6">
+              <div className="flex items-center justify-between">
+                <div className="space-y-2">
+                  <div className="h-4 bg-muted animate-pulse rounded" />
+                  <div className="h-8 bg-muted animate-pulse rounded" />
+                  <div className="h-4 bg-muted animate-pulse rounded" />
+                </div>
+                <div className="h-12 w-12 bg-muted animate-pulse rounded-full" />
+              </div>
+            </Card>
+          ))}
+        </div>
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          <span className="ml-2 text-muted-foreground">Carregando sua rede...</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

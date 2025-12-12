@@ -448,9 +448,10 @@ CREATE POLICY "Admins can view all orders"
   ON orders FOR SELECT
   USING (
     EXISTS (
-      SELECT 1 FROM profiles
-      WHERE profiles.id = auth.uid()
-      AND profiles.role = 'admin'
+      SELECT 1 FROM user_roles
+      WHERE user_roles.user_id = auth.uid()
+      AND user_roles.role IN ('admin', 'super_admin')
+      AND user_roles.deleted_at IS NULL
     )
   );
 
@@ -458,9 +459,10 @@ CREATE POLICY "Admins can update orders"
   ON orders FOR UPDATE
   USING (
     EXISTS (
-      SELECT 1 FROM profiles
-      WHERE profiles.id = auth.uid()
-      AND profiles.role = 'admin'
+      SELECT 1 FROM user_roles
+      WHERE user_roles.user_id = auth.uid()
+      AND user_roles.role IN ('admin', 'super_admin')
+      AND user_roles.deleted_at IS NULL
     )
   );
 
@@ -480,9 +482,10 @@ CREATE POLICY "Admins can view all order items"
   ON order_items FOR SELECT
   USING (
     EXISTS (
-      SELECT 1 FROM profiles
-      WHERE profiles.id = auth.uid()
-      AND profiles.role = 'admin'
+      SELECT 1 FROM user_roles
+      WHERE user_roles.user_id = auth.uid()
+      AND user_roles.role IN ('admin', 'super_admin')
+      AND user_roles.deleted_at IS NULL
     )
   );
 
@@ -502,9 +505,10 @@ CREATE POLICY "Admins can view all payments"
   ON payments FOR SELECT
   USING (
     EXISTS (
-      SELECT 1 FROM profiles
-      WHERE profiles.id = auth.uid()
-      AND profiles.role = 'admin'
+      SELECT 1 FROM user_roles
+      WHERE user_roles.user_id = auth.uid()
+      AND user_roles.role IN ('admin', 'super_admin')
+      AND user_roles.deleted_at IS NULL
     )
   );
 
@@ -524,9 +528,10 @@ CREATE POLICY "Admins can view all shipping addresses"
   ON shipping_addresses FOR SELECT
   USING (
     EXISTS (
-      SELECT 1 FROM profiles
-      WHERE profiles.id = auth.uid()
-      AND profiles.role = 'admin'
+      SELECT 1 FROM user_roles
+      WHERE user_roles.user_id = auth.uid()
+      AND user_roles.role IN ('admin', 'super_admin')
+      AND user_roles.deleted_at IS NULL
     )
   );
 
@@ -546,9 +551,10 @@ CREATE POLICY "Admins can view all order history"
   ON order_status_history FOR SELECT
   USING (
     EXISTS (
-      SELECT 1 FROM profiles
-      WHERE profiles.id = auth.uid()
-      AND profiles.role = 'admin'
+      SELECT 1 FROM user_roles
+      WHERE user_roles.user_id = auth.uid()
+      AND user_roles.role IN ('admin', 'super_admin')
+      AND user_roles.deleted_at IS NULL
     )
   );
 
@@ -557,9 +563,10 @@ CREATE POLICY "Admins can view asaas transactions"
   ON asaas_transactions FOR SELECT
   USING (
     EXISTS (
-      SELECT 1 FROM profiles
-      WHERE profiles.id = auth.uid()
-      AND profiles.role = 'admin'
+      SELECT 1 FROM user_roles
+      WHERE user_roles.user_id = auth.uid()
+      AND user_roles.role IN ('admin', 'super_admin')
+      AND user_roles.deleted_at IS NULL
     )
   );
 
@@ -568,9 +575,10 @@ CREATE POLICY "Admins can view asaas splits"
   ON asaas_splits FOR SELECT
   USING (
     EXISTS (
-      SELECT 1 FROM profiles
-      WHERE profiles.id = auth.uid()
-      AND profiles.role = 'admin'
+      SELECT 1 FROM user_roles
+      WHERE user_roles.user_id = auth.uid()
+      AND user_roles.role IN ('admin', 'super_admin')
+      AND user_roles.deleted_at IS NULL
     )
   );
 
@@ -579,9 +587,10 @@ CREATE POLICY "Admins can view webhook logs"
   ON asaas_webhook_logs FOR SELECT
   USING (
     EXISTS (
-      SELECT 1 FROM profiles
-      WHERE profiles.id = auth.uid()
-      AND profiles.role = 'admin'
+      SELECT 1 FROM user_roles
+      WHERE user_roles.user_id = auth.uid()
+      AND user_roles.role IN ('admin', 'super_admin')
+      AND user_roles.deleted_at IS NULL
     )
   );
 

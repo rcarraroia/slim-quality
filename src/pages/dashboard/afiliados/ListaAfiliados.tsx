@@ -64,16 +64,19 @@ export default function ListaAfiliados() {
   const loadAfiliados = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
-        .from('affiliates')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      setAfiliados(data || []);
+      const result = await AffiliateFrontendService.getAllAffiliates();
       
-      // Carregar estatísticas
-      await loadStats(data || []);
+      if (result.success) {
+        setAfiliados(result.data || []);
+        // Carregar estatísticas
+        await loadStats(result.data || []);
+      } else {
+        toast({
+          title: "Erro ao carregar afiliados",
+          description: result.error || "Não foi possível carregar a lista de afiliados.",
+          variant: "destructive"
+        });
+      }
     } catch (error) {
       console.error('Erro ao carregar afiliados:', error);
       toast({

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,17 +12,50 @@ import {
   Copy,
   QrCode,
   Share2,
-  ChevronRight
+  ChevronRight,
+  Loader2
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
+import { AffiliateFrontendService } from "@/services/frontend/affiliate.service";
 
 export default function AffiliateDashboardInicio() {
   const { toast } = useToast();
   const navigate = useNavigate();
   const [showQRCode, setShowQRCode] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [dashboardData, setDashboardData] = useState<any>(null);
   
-  const linkAfiliado = "https://slimquality.com.br/?ref=CM001";
+  const linkAfiliado = dashboardData?.referral_link || "https://slimquality.com.br/?ref=loading";
+
+  useEffect(() => {
+    loadDashboardData();
+  }, []);
+
+  const loadDashboardData = async () => {
+    try {
+      setLoading(true);
+      const data = await AffiliateFrontendService.getDashboard();
+      if (data.success) {
+        setDashboardData(data.data);
+      } else {
+        toast({
+          title: "Erro ao carregar dados",
+          description: "Não foi possível carregar os dados do dashboard",
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      console.error('Erro ao carregar dashboard:', error);
+      toast({
+        title: "Erro ao carregar dados",
+        description: "Ocorreu um erro inesperado",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleCopyLink = () => {
     navigator.clipboard.writeText(linkAfiliado);
@@ -44,6 +77,30 @@ export default function AffiliateDashboardInicio() {
     }
   };
 
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+          {[1, 2, 3, 4].map((i) => (
+            <Card key={i} className="p-6">
+              <div className="flex items-center justify-between">
+                <div className="space-y-2">
+                  <div className="h-4 bg-muted animate-pulse rounded" />
+                  <div className="h-8 bg-muted animate-pulse rounded" />
+                </div>
+                <div className="h-8 w-8 bg-muted animate-pulse rounded" />
+              </div>
+            </Card>
+          ))}
+        </div>
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          <span className="ml-2 text-muted-foreground">Carregando dashboard...</span>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Métricas Principais */}
@@ -51,28 +108,28 @@ export default function AffiliateDashboardInicio() {
         <StatCard
           icon={DollarSign}
           label="Total em Comissões"
-          value="R$ 12.450,00"
+          value={`R$ ${(dashboardData?.stats?.total_commissions || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
           trend={{ value: "+15% este mês", positive: true }}
           iconColor="text-primary"
         />
         <StatCard
           icon={Users}
           label="Indicados Ativos"
-          value="15"
+          value={dashboardData?.stats?.active_referrals?.toString() || "0"}
           trend={{ value: "+3 esta semana", positive: true }}
           iconColor="text-secondary"
         />
         <StatCard
           icon={TrendingUp}
           label="Vendas Geradas"
-          value="42"
+          value={dashboardData?.stats?.total_sales?.toString() || "0"}
           trend={{ value: "+8 este mês", positive: true }}
           iconColor="text-success"
         />
         <StatCard
           icon={LinkIcon}
           label="Taxa de Conversão"
-          value="34,2%"
+          value={`${(dashboardData?.stats?.conversion_rate || 0).toFixed(1)}%`}
           iconColor="text-muted-foreground"
         />
       </div>
@@ -150,29 +207,26 @@ export default function AffiliateDashboardInicio() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {[
-                { tipo: "N1", valor: 523.50, cliente: "Maria Silva", produto: "Queen", data: "Hoje, 10:34", status: "pago" }, // Atualizado
-                { tipo: "N2", valor: 98.70, cliente: "João Pereira", produto: "Padrão", data: "Ontem, 15:20", status: "pago" }, // Atualizado
-                { tipo: "N1", valor: 733.50, cliente: "Ana Costa", produto: "King", data: "Há 2 dias", status: "pendente" }, // Atualizado
-                { tipo: "N3", valor: 63.80, cliente: "Carlos Santos", produto: "Solteiro", data: "Há 3 dias", status: "pago" }, // Atualizado
-              ].map((comissao, i) => (
+              {(dashboardData?.recent_commissions || []).map((comissao: any, i: number) => (
                 <div key={i} className="flex items-center justify-between p-3 rounded-lg hover:bg-muted transition-colors">
                   <div className="flex items-center gap-3">
                     <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm ${
-                      comissao.tipo === "N1" ? "bg-primary/10 text-primary" :
-                      comissao.tipo === "N2" ? "bg-secondary/10 text-secondary" :
+                      comissao.level === 1 ? "bg-primary/10 text-primary" :
+                      comissao.level === 2 ? "bg-secondary/10 text-secondary" :
                       "bg-muted text-muted-foreground"
                     }`}>
-                      {comissao.tipo}
+                      N{comissao.level}
                     </div>
                     <div>
-                      <p className="font-medium text-sm">{comissao.cliente}</p>
-                      <p className="text-xs text-muted-foreground">{comissao.produto} • {comissao.data}</p>
+                      <p className="font-medium text-sm">{comissao.customer_name || 'Cliente'}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {comissao.product_name || 'Produto'} • {new Date(comissao.created_at).toLocaleDateString('pt-BR')}
+                      </p>
                     </div>
                   </div>
                   <div className="text-right">
                     <p className="font-bold text-primary">
-                      R$ {comissao.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      R$ {(comissao.amount || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                     </p>
                     <StatusBadge status={comissao.status as any} />
                   </div>
@@ -197,33 +251,30 @@ export default function AffiliateDashboardInicio() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {[
-                { nome: "Marina Silva", acao: "realizou uma venda", produto: "Padrão", nivel: "N1", tempo: "Há 2 horas" }, // Atualizado
-                { nome: "Roberto Costa", acao: "entrou para sua rede", produto: null, nivel: "N2", tempo: "Há 5 horas" },
-                { nome: "Juliana Rocha", acao: "realizou uma venda", produto: "Queen", nivel: "N2", tempo: "Ontem" },
-                { nome: "Paulo Santos", acao: "entrou para sua rede", produto: null, nivel: "N1", tempo: "Há 2 dias" },
-              ].map((atividade, i) => (
+              {(dashboardData?.network_activity || []).map((atividade: any, i: number) => (
                 <div key={i} className="flex items-start gap-3 p-3 rounded-lg hover:bg-muted transition-colors">
                   <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm flex-shrink-0">
-                    {atividade.nome.split(' ').map(n => n[0]).join('')}
+                    {(atividade.affiliate_name || 'U').split(' ').map((n: string) => n[0]).join('')}
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm">
-                      <span className="font-medium">{atividade.nome}</span>
-                      {' '}{atividade.acao}
-                      {atividade.produto && (
-                        <span className="font-medium"> {atividade.produto}</span>
+                      <span className="font-medium">{atividade.affiliate_name || 'Usuário'}</span>
+                      {' '}{atividade.action_type === 'sale' ? 'realizou uma venda' : 'entrou para sua rede'}
+                      {atividade.product_name && (
+                        <span className="font-medium"> {atividade.product_name}</span>
                       )}
                     </p>
                     <div className="flex items-center gap-2 mt-1">
                       <span className={`text-xs px-2 py-0.5 rounded-full ${
-                        atividade.nivel === "N1" ? "bg-primary/10 text-primary" :
-                        atividade.nivel === "N2" ? "bg-secondary/10 text-secondary" :
+                        atividade.level === 1 ? "bg-primary/10 text-primary" :
+                        atividade.level === 2 ? "bg-secondary/10 text-secondary" :
                         "bg-muted text-muted-foreground"
                       }`}>
-                        {atividade.nivel}
+                        N{atividade.level}
                       </span>
-                      <span className="text-xs text-muted-foreground">{atividade.tempo}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {new Date(atividade.created_at).toLocaleDateString('pt-BR')}
+                      </span>
                     </div>
                   </div>
                 </div>

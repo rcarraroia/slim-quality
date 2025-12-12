@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,7 +15,8 @@ import {
   Search, 
   Filter,
   Download,
-  Eye
+  Eye,
+  Loader2
 } from "lucide-react";
 import {
   Dialog,
@@ -23,6 +24,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { AffiliateFrontendService } from "@/services/frontend/affiliate.service";
+import { useToast } from "@/hooks/use-toast";
 
 interface Comissao {
   id: string;
@@ -93,8 +96,51 @@ export default function AffiliateDashboardComissoes() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("todos");
   const [tipoFilter, setTipoFilter] = useState("todos");
+  const [comissoes, setComissoes] = useState<Comissao[]>([]);
+  const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
 
-  const filteredComissoes = mockComissoes.filter(c => {
+  useEffect(() => {
+    loadComissoes();
+  }, []);
+
+  const loadComissoes = async () => {
+    try {
+      setLoading(true);
+      const result = await AffiliateFrontendService.getMyCommissions();
+      if (result.success) {
+        // Converter dados da API para o formato esperado
+        const comissoesData = result.data.map((item: any) => ({
+          id: item.id,
+          tipo: `N${item.level}` as "N1" | "N2" | "N3",
+          valor: item.amount,
+          venda: `#${item.order_id?.slice(0, 8) || 'N/A'}`,
+          cliente: item.customer_name || 'Cliente',
+          produto: item.product_name || 'Produto',
+          data: item.created_at,
+          status: item.status as "pago" | "pendente" | "processando"
+        }));
+        setComissoes(comissoesData);
+      } else {
+        toast({
+          title: "Erro ao carregar comissões",
+          description: "Não foi possível carregar suas comissões",
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      console.error('Erro ao carregar comissões:', error);
+      toast({
+        title: "Erro ao carregar comissões",
+        description: "Ocorreu um erro inesperado",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const filteredComissoes = comissoes.filter(c => {
     const matchesSearch = c.cliente.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          c.produto.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          c.venda.includes(searchTerm);
@@ -192,7 +238,13 @@ export default function AffiliateDashboardComissoes() {
           </div>
         </CardHeader>
         <CardContent>
-          <Table>
+          {loading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+              <span className="ml-2 text-muted-foreground">Carregando comissões...</span>
+            </div>
+          ) : (
+            <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>Tipo</TableHead>
@@ -241,10 +293,18 @@ export default function AffiliateDashboardComissoes() {
             </TableBody>
           </Table>
 
-          {filteredComissoes.length === 0 && (
+          {filteredComissoes.length === 0 && !loading && (
             <div className="text-center py-12">
-              <p className="text-muted-foreground">Nenhuma comissão encontrada</p>
+              <DollarSign className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+              <h3 className="text-lg font-semibold mb-2">Nenhuma comissão encontrada</h3>
+              <p className="text-muted-foreground">
+                {searchTerm || statusFilter !== 'todos' || tipoFilter !== 'todos'
+                  ? 'Tente ajustar os filtros de busca'
+                  : 'Suas comissões aparecerão aqui quando você gerar vendas'}
+              </p>
             </div>
+          )}
+          </Table>
           )}
         </CardContent>
       </Card>

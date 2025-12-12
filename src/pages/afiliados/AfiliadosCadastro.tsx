@@ -9,7 +9,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Info, CheckCircle2, ExternalLink } from "lucide-react";
+import { Info, CheckCircle2, ExternalLink, Loader2, X } from "lucide-react";
+import { AffiliateFrontendService } from "@/services/frontend/affiliate.service";
 
 const estados = [
   "AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS", "MG",
@@ -24,8 +25,49 @@ export default function AfiliadosCadastro() {
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [hasAsaasAccount, setHasAsaasAccount] = useState("sim");
   const [walletId, setWalletId] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [validatingWallet, setValidatingWallet] = useState(false);
+  const [walletValid, setWalletValid] = useState<boolean | null>(null);
+  
+  // Form data
+  const [formData, setFormData] = useState({
+    name: "",
+    cpf: "",
+    birthDate: "",
+    email: "",
+    phone: "",
+    city: "",
+    state: "",
+    referralCode: ""
+  });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // Validar Wallet ID em tempo real
+  const validateWallet = async (wallet: string) => {
+    if (!wallet || wallet.length < 10) {
+      setWalletValid(null);
+      return;
+    }
+
+    setValidatingWallet(true);
+    try {
+      const isValid = await AffiliateFrontendService.validateWallet(wallet);
+      setWalletValid(isValid);
+    } catch (error) {
+      setWalletValid(false);
+      console.error('Erro ao validar wallet:', error);
+    } finally {
+      setValidatingWallet(false);
+    }
+  };
+
+  const handleWalletChange = (value: string) => {
+    setWalletId(value);
+    // Debounce validation
+    const timeoutId = setTimeout(() => validateWallet(value), 500);
+    return () => clearTimeout(timeoutId);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!acceptedTerms) {
@@ -37,16 +79,69 @@ export default function AfiliadosCadastro() {
       return;
     }
 
-    if (!walletId.startsWith("wal_")) {
+    if (!walletId) {
       toast({
-        title: "Wallet ID inválida",
-        description: "A Wallet ID deve começar com 'wal_'",
+        title: "Wallet ID obrigatória",
+        description: "Informe sua Wallet ID do Asaas",
         variant: "destructive"
       });
       return;
     }
 
-    setShowSuccess(true);
+    if (walletValid === false) {
+      toast({
+        title: "Wallet ID inválida",
+        description: "A Wallet ID informada não é válida ou não existe",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Validar campos obrigatórios
+    if (!formData.name || !formData.email || !formData.phone) {
+      toast({
+        title: "Campos obrigatórios",
+        description: "Preencha todos os campos obrigatórios",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const affiliateData = {
+        name: formData.name,
+        email: formData.email,
+        phone: formData.phone,
+        cpf: formData.cpf,
+        birth_date: formData.birthDate,
+        city: formData.city,
+        state: formData.state,
+        wallet_id: walletId,
+        referral_code: formData.referralCode || undefined
+      };
+
+      const result = await AffiliateFrontendService.registerAffiliate(affiliateData);
+      
+      if (result.success) {
+        setShowSuccess(true);
+      } else {
+        toast({
+          title: "Erro no cadastro",
+          description: result.error || "Não foi possível completar o cadastro",
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      console.error('Erro ao cadastrar afiliado:', error);
+      toast({
+        title: "Erro no cadastro",
+        description: "Ocorreu um erro inesperado. Tente novamente.",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleSuccessClose = () => {
@@ -74,7 +169,13 @@ export default function AfiliadosCadastro() {
                   <Label htmlFor="nome">
                     Nome Completo <span className="text-destructive">*</span>
                   </Label>
-                  <Input id="nome" placeholder="Ex: Carlos Mendes" required />
+                  <Input 
+                    id="nome" 
+                    placeholder="Ex: Carlos Mendes" 
+                    value={formData.name}
+                    onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                    required 
+                  />
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
@@ -82,14 +183,26 @@ export default function AfiliadosCadastro() {
                     <Label htmlFor="cpf">
                       CPF <span className="text-destructive">*</span>
                     </Label>
-                    <Input id="cpf" placeholder="000.000.000-00" required />
+                    <Input 
+                      id="cpf" 
+                      placeholder="000.000.000-00" 
+                      value={formData.cpf}
+                      onChange={(e) => setFormData(prev => ({ ...prev, cpf: e.target.value }))}
+                      required 
+                    />
                   </div>
                   
                   <div className="space-y-2">
                     <Label htmlFor="nascimento">
                       Data de Nascimento <span className="text-destructive">*</span>
                     </Label>
-                    <Input id="nascimento" type="date" required />
+                    <Input 
+                      id="nascimento" 
+                      type="date" 
+                      value={formData.birthDate}
+                      onChange={(e) => setFormData(prev => ({ ...prev, birthDate: e.target.value }))}
+                      required 
+                    />
                   </div>
                 </div>
               </div>
@@ -102,25 +215,43 @@ export default function AfiliadosCadastro() {
                   <Label htmlFor="email">
                     Email <span className="text-destructive">*</span>
                   </Label>
-                  <Input id="email" type="email" placeholder="seu@email.com" required />
+                  <Input 
+                    id="email" 
+                    type="email" 
+                    placeholder="seu@email.com" 
+                    value={formData.email}
+                    onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
+                    required 
+                  />
                 </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="telefone">
                     Telefone/WhatsApp <span className="text-destructive">*</span>
                   </Label>
-                  <Input id="telefone" placeholder="(00) 00000-0000" required />
+                  <Input 
+                    id="telefone" 
+                    placeholder="(00) 00000-0000" 
+                    value={formData.phone}
+                    onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
+                    required 
+                  />
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="cidade">Cidade</Label>
-                    <Input id="cidade" placeholder="Belo Horizonte" />
+                    <Input 
+                      id="cidade" 
+                      placeholder="Belo Horizonte" 
+                      value={formData.city}
+                      onChange={(e) => setFormData(prev => ({ ...prev, city: e.target.value }))}
+                    />
                   </div>
                   
                   <div className="space-y-2">
                     <Label htmlFor="estado">Estado</Label>
-                    <Select>
+                    <Select value={formData.state} onValueChange={(value) => setFormData(prev => ({ ...prev, state: value }))}>
                       <SelectTrigger id="estado">
                         <SelectValue placeholder="Selecione" />
                       </SelectTrigger>
@@ -167,13 +298,38 @@ export default function AfiliadosCadastro() {
                   <Label htmlFor="walletId">
                     Wallet ID do Asaas <span className="text-destructive">*</span>
                   </Label>
-                  <Input 
-                    id="walletId" 
-                    placeholder="Ex: wal_000005162549" 
-                    value={walletId}
-                    onChange={(e) => setWalletId(e.target.value)}
-                    required 
-                  />
+                  <div className="relative">
+                    <Input 
+                      id="walletId" 
+                      placeholder="Ex: c0c3f8da-2481-4d3f-d5c6-91c3ff844f1f" 
+                      value={walletId}
+                      onChange={(e) => handleWalletChange(e.target.value)}
+                      className={`pr-10 ${
+                        walletValid === true ? 'border-green-500' : 
+                        walletValid === false ? 'border-red-500' : ''
+                      }`}
+                      required 
+                    />
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                      {validatingWallet ? (
+                        <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                      ) : walletValid === true ? (
+                        <CheckCircle2 className="h-4 w-4 text-green-500" />
+                      ) : walletValid === false ? (
+                        <X className="h-4 w-4 text-red-500" />
+                      ) : null}
+                    </div>
+                  </div>
+                  {walletValid === false && (
+                    <p className="text-sm text-red-500">
+                      Wallet ID inválida ou não encontrada
+                    </p>
+                  )}
+                  {walletValid === true && (
+                    <p className="text-sm text-green-600">
+                      Wallet ID válida ✓
+                    </p>
+                  )}
                   <button
                     type="button"
                     onClick={() => setShowWalletHelp(true)}
@@ -220,7 +376,12 @@ export default function AfiliadosCadastro() {
                 
                 <div className="space-y-2">
                   <Label htmlFor="codigo">Código de Indicação (opcional)</Label>
-                  <Input id="codigo" placeholder="Ex: CARLOS2024" />
+                  <Input 
+                    id="codigo" 
+                    placeholder="Ex: CARLOS2024" 
+                    value={formData.referralCode}
+                    onChange={(e) => setFormData(prev => ({ ...prev, referralCode: e.target.value }))}
+                  />
                   <p className="text-sm text-muted-foreground">
                     Foi indicado por alguém? Cole o código aqui para que ele ganhe comissão
                   </p>
@@ -257,8 +418,15 @@ export default function AfiliadosCadastro() {
                 >
                   Cancelar
                 </Button>
-                <Button type="submit" size="lg" className="px-8">
-                  Criar Minha Conta
+                <Button type="submit" size="lg" className="px-8" disabled={loading || validatingWallet}>
+                  {loading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Criando Conta...
+                    </>
+                  ) : (
+                    "Criar Minha Conta"
+                  )}
                 </Button>
               </div>
             </form>

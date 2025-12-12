@@ -82,7 +82,7 @@ CREATE TABLE IF NOT EXISTS affiliates (
   
   -- Dados de afiliado
   referral_code TEXT NOT NULL UNIQUE CHECK (referral_code ~ '^[A-Z0-9]{6}$'),
-  wallet_id TEXT NOT NULL CHECK (wallet_id ~ '^wal_[a-zA-Z0-9]{20}$'),
+  wallet_id TEXT NOT NULL CHECK (wallet_id ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'),
   wallet_validated_at TIMESTAMPTZ,
   
   -- Status e controle
@@ -281,7 +281,7 @@ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM user_roles
     WHERE user_roles.user_id = auth.uid()
-    AND user_roles.role = 'admin'
+    AND user_roles.role IN ('admin', 'super_admin')
     AND user_roles.deleted_at IS NULL
   ) THEN
     -- Proteger campos críticos para não-admins
@@ -338,7 +338,7 @@ CREATE POLICY "Admins can view all affiliates"
     EXISTS (
       SELECT 1 FROM user_roles
       WHERE user_roles.user_id = auth.uid()
-      AND user_roles.role = 'admin'
+      AND user_roles.role IN ('admin', 'super_admin')
       AND user_roles.deleted_at IS NULL
     )
   );
@@ -350,7 +350,7 @@ CREATE POLICY "Admins can create affiliates"
     EXISTS (
       SELECT 1 FROM user_roles
       WHERE user_roles.user_id = auth.uid()
-      AND user_roles.role = 'admin'
+      AND user_roles.role IN ('admin', 'super_admin')
       AND user_roles.deleted_at IS NULL
     )
   );
@@ -362,7 +362,7 @@ CREATE POLICY "Admins can update affiliates"
     EXISTS (
       SELECT 1 FROM user_roles
       WHERE user_roles.user_id = auth.uid()
-      AND user_roles.role = 'admin'
+      AND user_roles.role IN ('admin', 'super_admin')
       AND user_roles.deleted_at IS NULL
     )
   );
