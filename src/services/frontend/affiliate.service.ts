@@ -188,6 +188,13 @@ export class AffiliateFrontendService {
   }
 
   /**
+   * Busca comissões do afiliado (alias para compatibilidade)
+   */
+  async getMyCommissions(page = 1, limit = 20) {
+    return this.getCommissions(page, limit);
+  }
+
+  /**
    * Busca comissões do afiliado
    * Usando Supabase diretamente para queries mais complexas
    */

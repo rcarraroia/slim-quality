@@ -16,7 +16,8 @@ import {
   Filter,
   Download,
   Eye,
-  Loader2
+  Loader2,
+  DollarSign
 } from "lucide-react";
 import {
   Dialog,
@@ -24,7 +25,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { AffiliateFrontendService } from "@/services/frontend/affiliate.service";
+import { affiliateFrontendService } from "@/services/frontend/affiliate.service";
 import { useToast } from "@/hooks/use-toast";
 
 interface Comissao {
@@ -107,10 +108,9 @@ export default function AffiliateDashboardComissoes() {
   const loadComissoes = async () => {
     try {
       setLoading(true);
-      const result = await AffiliateFrontendService.getMyCommissions();
-      if (result.success) {
-        // Converter dados da API para o formato esperado
-        const comissoesData = result.data.map((item: any) => ({
+      const result = await affiliateFrontendService.getMyCommissions();
+      // Converter dados da API para o formato esperado
+      const comissoesData = result.commissions.map((item: any) => ({
           id: item.id,
           tipo: `N${item.level}` as "N1" | "N2" | "N3",
           valor: item.amount,
@@ -121,13 +121,6 @@ export default function AffiliateDashboardComissoes() {
           status: item.status as "pago" | "pendente" | "processando"
         }));
         setComissoes(comissoesData);
-      } else {
-        toast({
-          title: "Erro ao carregar comissões",
-          description: "Não foi possível carregar suas comissões",
-          variant: "destructive"
-        });
-      }
     } catch (error) {
       console.error('Erro ao carregar comissões:', error);
       toast({
@@ -244,7 +237,8 @@ export default function AffiliateDashboardComissoes() {
               <span className="ml-2 text-muted-foreground">Carregando comissões...</span>
             </div>
           ) : (
-            <Table>
+            <>
+              <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>Tipo</TableHead>
@@ -304,7 +298,7 @@ export default function AffiliateDashboardComissoes() {
               </p>
             </div>
           )}
-          </Table>
+            </>
           )}
         </CardContent>
       </Card>
