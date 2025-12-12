@@ -191,14 +191,7 @@ const ProductPage = () => {
                           className="w-full transition-all duration-300 hover:scale-[1.02]"
                           size="lg"
                         />
-                        <Button
-                          variant="outline"
-                          className="w-full transition-all duration-300 hover:scale-[1.02]"
-                          size="lg"
-                          onClick={() => setExpandedProduct(null)}
-                        >
-                          Comparar com outros tamanhos
-                        </Button>
+
                       </div>
                     </div>
                   </div>

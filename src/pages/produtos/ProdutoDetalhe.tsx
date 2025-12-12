@@ -161,11 +161,7 @@ export default function ProdutoDetalhe() {
               />
             </div>
             
-            <Link to="/produtos">
-              <Button variant="ghost" className="w-full">
-                Comparar Modelos
-              </Button>
-            </Link>
+
           </Card>
         </div>
 
