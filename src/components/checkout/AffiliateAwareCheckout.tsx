@@ -117,8 +117,21 @@ export default function AffiliateAwareCheckout({
         setOrderCreated(true);
         
         toast({
-          title: "Pedido criado com sucesso!",
-          description: `Pedido ${result.order_id} criado. Redirecionando para pagamento...`,
+          title: "🎉 Pedido criado com sucesso!",
+          description: (
+            <div className="space-y-2">
+              <p>Pedido #{result.order_id?.slice(-8)} criado</p>
+              <p className="text-sm text-muted-foreground">
+                Redirecionando para pagamento seguro...
+              </p>
+              {referralInfo && (
+                <p className="text-sm text-primary">
+                  ✨ Seu indicador receberá comissão automaticamente!
+                </p>
+              )}
+            </div>
+          ),
+          duration: 5000,
         });
 
         // Registrar conversão se houver afiliado
@@ -140,10 +153,38 @@ export default function AffiliateAwareCheckout({
 
     } catch (error) {
       console.error('Erro no checkout:', error);
+      
+      let errorMessage = "Não foi possível processar seu pedido. Tente novamente.";
+      let errorTitle = "Erro no checkout";
+      
+      if (error instanceof Error) {
+        if (error.message.includes('network') || error.message.includes('fetch')) {
+          errorTitle = "Problema de conexão";
+          errorMessage = "Verifique sua conexão com a internet e tente novamente.";
+        } else if (error.message.includes('validation')) {
+          errorTitle = "Dados inválidos";
+          errorMessage = "Verifique os dados informados e tente novamente.";
+        } else if (error.message.includes('Asaas')) {
+          errorTitle = "Problema no pagamento";
+          errorMessage = "Nosso sistema de pagamento está temporariamente indisponível. Tente novamente em alguns minutos ou entre em contato conosco.";
+        } else {
+          errorMessage = error.message;
+        }
+      }
+      
       toast({
-        title: "Erro no checkout",
-        description: error instanceof Error ? error.message : "Não foi possível processar seu pedido. Tente novamente.",
-        variant: "destructive"
+        title: errorTitle,
+        description: errorMessage,
+        variant: "destructive",
+        action: (
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={() => window.location.reload()}
+          >
+            Tentar Novamente
+          </Button>
+        )
       });
     } finally {
       setIsProcessing(false);
@@ -336,15 +377,15 @@ export default function AffiliateAwareCheckout({
             {isProcessing ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Processando...
+                Processando pagamento...
               </>
             ) : orderCreated ? (
               <>
                 <CheckCircle2 className="mr-2 h-4 w-4" />
-                Pedido Criado!
+                Pedido Criado com Sucesso!
               </>
             ) : (
-              'Finalizar Compra'
+              'Finalizar Compra - Pagamento Seguro'
             )}
           </Button>
 
