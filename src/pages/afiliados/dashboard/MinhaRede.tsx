@@ -11,7 +11,7 @@ import {
   TrendingUp,
   Loader2
 } from "lucide-react";
-import { AffiliateFrontendService } from "@/services/frontend/affiliate.service";
+import { affiliateFrontendService } from "@/services/frontend/affiliate.service";
 import { useToast } from "@/hooks/use-toast";
 
 interface NetworkNode {
@@ -24,77 +24,7 @@ interface NetworkNode {
   expanded?: boolean;
 }
 
-const mockNetwork: NetworkNode[] = [
-  {
-    id: "A002",
-    nome: "Marina Silva",
-    nivel: 1,
-    vendas: 8,
-    comissaoGerada: 2950.00,
-    expanded: true,
-    indicados: [
-      {
-        id: "A003",
-        nome: "Roberto Costa",
-        nivel: 2,
-        vendas: 4,
-        comissaoGerada: 738.00,
-        indicados: [
-          {
-            id: "A008",
-            nome: "Pedro Alves",
-            nivel: 3,
-            vendas: 2,
-            comissaoGerada: 195.60,
-            indicados: []
-          }
-        ]
-      },
-      {
-        id: "A006",
-        nome: "Juliana Rocha",
-        nivel: 2,
-        vendas: 3,
-        comissaoGerada: 553.50,
-        indicados: []
-      }
-    ]
-  },
-  {
-    id: "A004",
-    nome: "Paulo Santos",
-    nivel: 1,
-    vendas: 5,
-    comissaoGerada: 1990.00,
-    indicados: [
-      {
-        id: "A007",
-        nome: "Ana Beatriz",
-        nivel: 2,
-        vendas: 2,
-        comissaoGerada: 369.00,
-        indicados: [
-          {
-            id: "A009",
-            nome: "Carlos Mendes Jr",
-            nivel: 3,
-            vendas: 1,
-            comissaoGerada: 85.80,
-            indicados: []
-          }
-        ]
-      }
-    ]
-  },
-  {
-    id: "A005",
-    nome: "Fernanda Lima",
-    nivel: 1,
-    vendas: 2,
-    comissaoGerada: 858.00,
-    indicados: []
-  }
-];
+// Dados mockados removidos - agora usa apenas dados reais do Supabase
 
 export default function AffiliateDashboardMinhaRede() {
   const [network, setNetwork] = useState<NetworkNode[]>([]);
@@ -109,7 +39,7 @@ export default function AffiliateDashboardMinhaRede() {
   const loadNetworkData = async () => {
     try {
       setLoading(true);
-      const result = await AffiliateFrontendService.getMyNetwork();
+      const result = await affiliateFrontendService.getMyNetwork();
       if (result.success) {
         // Converter dados da API para o formato esperado pelo componente
         const networkData = convertApiDataToNetworkNodes(result.data);

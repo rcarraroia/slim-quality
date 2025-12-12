@@ -255,28 +255,50 @@ export class AffiliateFrontendService {
 
   /**
    * Busca rede do afiliado
-   * API: GET /api/affiliates/network
+   * Integração direta com Supabase
    */
   async getNetwork(): Promise<any> {
     try {
-      const response = await fetch(`${this.baseUrl}/network`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.error || 'Erro ao buscar rede');
+      // 1. Verificar se usuário está autenticado
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        throw new Error('Usuário não autenticado');
       }
 
-      return result.data;
+      // 2. Buscar afiliado atual
+      const { data: currentAffiliate } = await supabase
+        .from('affiliates')
+        .select('id, name')
+        .eq('user_id', user.id)
+        .eq('deleted_at', null)
+        .single();
+
+      if (!currentAffiliate) {
+        throw new Error('Afiliado não encontrado');
+      }
+
+      // 3. Buscar rede completa (3 níveis)
+      const networkTree = await this.buildNetworkTree(currentAffiliate.id);
+
+      return {
+        success: true,
+        data: networkTree
+      };
+
     } catch (error) {
       console.error('Erro ao buscar rede:', error);
-      throw error;
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Erro interno'
+      };
     }
+  }
+
+  /**
+   * Alias para compatibilidade com o frontend existente
+   */
+  async getMyNetwork(): Promise<any> {
+    return this.getNetwork();
   }
 
   /**
@@ -599,6 +621,91 @@ export class AffiliateFrontendService {
 
     } catch (error) {
       console.warn('Erro ao atualizar cache de wallet:', error);
+    }
+  }
+
+  /**
+   * Constrói árvore hierárquica da rede de afiliados
+   */
+  private async buildNetworkTree(affiliateId: string): Promise<any[]> {
+    try {
+      // Buscar todos os afiliados da rede (3 níveis)
+      const { data: networkData, error } = await supabase
+        .from('affiliate_network')
+        .select(`
+          affiliate_id,
+          parent_affiliate_id,
+          level,
+          affiliate:affiliates!affiliate_network_affiliate_id_fkey (
+            id,
+            name,
+            email,
+            status,
+            total_conversions,
+            total_commissions_cents,
+            created_at
+          )
+        `)
+        .or(`parent_affiliate_id.eq.${affiliateId},affiliate_id.eq.${affiliateId}`)
+        .eq('affiliate.deleted_at', null)
+        .order('level', { ascending: true });
+
+      if (error) {
+        console.warn('Erro ao buscar rede:', error);
+        return [];
+      }
+
+      if (!networkData || networkData.length === 0) {
+        return [];
+      }
+
+      // Organizar em estrutura hierárquica
+      const affiliateMap = new Map();
+      const rootNodes: any[] = [];
+
+      // Primeiro, criar mapa de todos os afiliados
+      networkData.forEach(item => {
+        if (!item.affiliate) return;
+
+        const affiliateData = Array.isArray(item.affiliate) ? item.affiliate[0] : item.affiliate;
+        
+        const affiliate = {
+          id: affiliateData.id,
+          name: affiliateData.name,
+          email: affiliateData.email,
+          level: item.level,
+          sales_count: affiliateData.total_conversions || 0,
+          commission_generated: (affiliateData.total_commissions_cents || 0) / 100,
+          status: affiliateData.status,
+          created_at: affiliateData.created_at,
+          children: []
+        };
+
+        affiliateMap.set(item.affiliate_id, affiliate);
+
+        // Se é filho direto do afiliado atual, adicionar como raiz
+        if (item.parent_affiliate_id === affiliateId) {
+          rootNodes.push(affiliate);
+        }
+      });
+
+      // Depois, organizar hierarquia
+      networkData.forEach(item => {
+        if (!item.affiliate || item.parent_affiliate_id === affiliateId) return;
+
+        const child = affiliateMap.get(item.affiliate_id);
+        const parent = affiliateMap.get(item.parent_affiliate_id);
+
+        if (child && parent) {
+          parent.children.push(child);
+        }
+      });
+
+      return rootNodes;
+
+    } catch (error) {
+      console.error('Erro ao construir árvore da rede:', error);
+      return [];
     }
   }
 }
