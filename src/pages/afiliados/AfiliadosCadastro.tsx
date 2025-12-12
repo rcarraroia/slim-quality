@@ -10,7 +10,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { Info, CheckCircle2, ExternalLink, Loader2, X } from "lucide-react";
-import { AffiliateFrontendService } from "@/services/frontend/affiliate.service";
+import { affiliateFrontendService } from "@/services/frontend/affiliate.service";
 
 const estados = [
   "AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS", "MG",
@@ -50,8 +50,8 @@ export default function AfiliadosCadastro() {
 
     setValidatingWallet(true);
     try {
-      const isValid = await AffiliateFrontendService.validateWallet(wallet);
-      setWalletValid(isValid);
+      const validation = await affiliateFrontendService.validateWallet(wallet);
+      setWalletValid(validation.isValid);
     } catch (error) {
       setWalletValid(false);
       console.error('Erro ao validar wallet:', error);
@@ -113,25 +113,15 @@ export default function AfiliadosCadastro() {
         name: formData.name,
         email: formData.email,
         phone: formData.phone,
-        cpf: formData.cpf,
-        birth_date: formData.birthDate,
-        city: formData.city,
-        state: formData.state,
-        wallet_id: walletId,
-        referral_code: formData.referralCode || undefined
+        document: formData.cpf,
+        walletId: walletId,
+        referralCode: formData.referralCode || undefined
       };
 
-      const result = await AffiliateFrontendService.registerAffiliate(affiliateData);
+      const result = await affiliateFrontendService.registerAffiliate(affiliateData);
       
-      if (result.success) {
-        setShowSuccess(true);
-      } else {
-        toast({
-          title: "Erro no cadastro",
-          description: result.error || "Não foi possível completar o cadastro",
-          variant: "destructive"
-        });
-      }
+      // Se chegou até aqui, o cadastro foi bem-sucedido
+      setShowSuccess(true);
     } catch (error) {
       console.error('Erro ao cadastrar afiliado:', error);
       toast({

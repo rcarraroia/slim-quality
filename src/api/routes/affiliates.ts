@@ -5,6 +5,7 @@
 
 import { Router } from 'express';
 import { z } from 'zod';
+import { supabase } from '@/config/supabase';
 import { affiliateService } from '@/services/affiliates/affiliate.service';
 import { walletValidator } from '@/services/asaas/wallet-validator.service';
 import { commissionCalculator } from '@/services/affiliates/commission-calculator.service';

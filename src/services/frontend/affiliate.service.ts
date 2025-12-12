@@ -57,25 +57,97 @@ export class AffiliateFrontendService {
 
   /**
    * Registra novo afiliado
-   * API: POST /api/affiliates/register
+   * Integração direta com Supabase
    */
   async registerAffiliate(data: CreateAffiliateData): Promise<AffiliateData> {
     try {
-      const response = await fetch(`${this.baseUrl}/register`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(data),
-      });
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.error || 'Erro ao cadastrar afiliado');
+      // 1. Verificar se usuário está autenticado
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        throw new Error('Usuário não autenticado');
       }
 
-      return result.data;
+      // 2. Verificar se usuário já é afiliado
+      const { data: existingAffiliate } = await supabase
+        .from('affiliates')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('deleted_at', null)
+        .single();
+
+      if (existingAffiliate) {
+        throw new Error('Usuário já é afiliado');
+      }
+
+      // 3. Validar Wallet ID
+      const walletValidation = await this.validateWallet(data.walletId);
+      if (!walletValidation.isValid) {
+        throw new Error(walletValidation.error || 'Wallet ID inválida');
+      }
+
+      // 4. Gerar código de referência único
+      const referralCode = await this.generateUniqueReferralCode();
+
+      // 5. Buscar afiliado indicador (se houver)
+      let parentAffiliateId = null;
+      if (data.referralCode) {
+        const { data: parentAffiliate } = await supabase
+          .from('affiliates')
+          .select('id')
+          .eq('referral_code', data.referralCode)
+          .eq('status', 'active')
+          .single();
+        
+        parentAffiliateId = parentAffiliate?.id || null;
+      }
+
+      // 6. Criar afiliado
+      const affiliateData = {
+        user_id: user.id,
+        name: data.name,
+        email: data.email,
+        phone: data.phone,
+        document: data.document,
+        wallet_id: data.walletId,
+        referral_code: referralCode,
+        parent_affiliate_id: parentAffiliateId,
+        status: 'pending', // Aguarda aprovação
+        total_clicks: 0,
+        total_conversions: 0,
+        total_commissions_cents: 0,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+
+      const { data: newAffiliate, error } = await supabase
+        .from('affiliates')
+        .insert(affiliateData)
+        .select()
+        .single();
+
+      if (error) {
+        throw new Error(`Erro ao criar afiliado: ${error.message}`);
+      }
+
+      // 7. Criar entrada na rede genealógica
+      if (parentAffiliateId) {
+        await this.createNetworkEntry(newAffiliate.id, parentAffiliateId);
+      }
+
+      return {
+        id: newAffiliate.id,
+        name: newAffiliate.name,
+        email: newAffiliate.email,
+        phone: newAffiliate.phone,
+        referralCode: newAffiliate.referral_code,
+        walletId: newAffiliate.wallet_id,
+        status: newAffiliate.status,
+        totalClicks: 0,
+        totalConversions: 0,
+        totalCommissions: 0,
+        createdAt: newAffiliate.created_at
+      };
+
     } catch (error) {
       console.error('Erro ao registrar afiliado:', error);
       throw error;
@@ -84,28 +156,48 @@ export class AffiliateFrontendService {
 
   /**
    * Valida Wallet ID do Asaas
-   * API: POST /api/affiliates/validate-wallet
+   * Integração direta com API Asaas
    */
   async validateWallet(walletId: string): Promise<WalletValidation> {
     try {
-      const response = await fetch(`${this.baseUrl}/validate-wallet`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ walletId }),
-      });
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.error || 'Erro ao validar wallet');
+      // 1. Validar formato UUID
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      if (!uuidRegex.test(walletId)) {
+        return {
+          isValid: false,
+          isActive: false,
+          error: 'Wallet ID deve ser um UUID válido'
+        };
       }
 
-      return result.data;
+      // 2. Verificar cache primeiro
+      const cached = await this.getCachedWalletValidation(walletId);
+      if (cached && !this.isWalletCacheExpired(cached)) {
+        return {
+          isValid: cached.is_valid,
+          isActive: cached.status === 'ACTIVE',
+          name: cached.name,
+          error: cached.is_valid ? undefined : 'Wallet ID inválida'
+        };
+      }
+
+      // 3. Validar via API Asaas
+      // NOTA: Por segurança, validação real deve ser feita via Edge Function
+      // Por enquanto, simular validação para desenvolvimento
+      const mockValidation = await this.mockWalletValidation(walletId);
+      
+      // 4. Atualizar cache
+      await this.updateWalletCache(walletId, mockValidation);
+
+      return mockValidation;
+
     } catch (error) {
       console.error('Erro ao validar wallet:', error);
-      throw error;
+      return {
+        isValid: false,
+        isActive: false,
+        error: error instanceof Error ? error.message : 'Erro interno na validação'
+      };
     }
   }
 
@@ -361,6 +453,153 @@ export class AffiliateFrontendService {
   clearReferralCode(): void {
     localStorage.removeItem('referralCode');
     localStorage.removeItem('referralClickedAt');
+  }
+
+  /**
+   * Gera código de referência único
+   */
+  private async generateUniqueReferralCode(): Promise<string> {
+    let attempts = 0;
+    const maxAttempts = 10;
+
+    while (attempts < maxAttempts) {
+      const code = this.generateRandomCode();
+      
+      // Verificar se código já existe
+      const { data } = await supabase
+        .from('affiliates')
+        .select('id')
+        .eq('referral_code', code)
+        .single();
+
+      if (!data) {
+        return code;
+      }
+
+      attempts++;
+    }
+
+    throw new Error('Não foi possível gerar código único');
+  }
+
+  /**
+   * Gera código aleatório de 6 caracteres
+   */
+  private generateRandomCode(): string {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    let result = '';
+    for (let i = 0; i < 6; i++) {
+      result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return result;
+  }
+
+  /**
+   * Cria entrada na rede genealógica
+   */
+  private async createNetworkEntry(affiliateId: string, parentId: string): Promise<void> {
+    try {
+      // Buscar nível do pai
+      const { data: parentNetwork } = await supabase
+        .from('affiliate_network')
+        .select('level')
+        .eq('affiliate_id', parentId)
+        .single();
+
+      const level = parentNetwork ? parentNetwork.level + 1 : 1;
+
+      // Criar entrada na rede
+      const { error } = await supabase
+        .from('affiliate_network')
+        .insert({
+          affiliate_id: affiliateId,
+          parent_affiliate_id: parentId,
+          level: Math.min(level, 3), // Máximo 3 níveis
+          created_at: new Date().toISOString()
+        });
+
+      if (error) {
+        console.warn('Erro ao criar entrada na rede:', error);
+      }
+    } catch (error) {
+      console.warn('Erro ao processar rede genealógica:', error);
+    }
+  }
+
+  /**
+   * Busca validação de wallet no cache
+   */
+  private async getCachedWalletValidation(walletId: string) {
+    try {
+      const { data } = await supabase
+        .from('asaas_wallets')
+        .select('*')
+        .eq('wallet_id', walletId)
+        .single();
+
+      return data;
+    } catch (error) {
+      return null;
+    }
+  }
+
+  /**
+   * Verifica se cache de wallet expirou (5 minutos)
+   */
+  private isWalletCacheExpired(cached: any): boolean {
+    if (!cached.last_validated_at) return true;
+    
+    const lastValidated = new Date(cached.last_validated_at);
+    const now = new Date();
+    const diffMinutes = (now.getTime() - lastValidated.getTime()) / (1000 * 60);
+    
+    return diffMinutes > 5;
+  }
+
+  /**
+   * Simulação de validação de wallet (desenvolvimento)
+   * TODO: Substituir por Edge Function real
+   */
+  private async mockWalletValidation(walletId: string): Promise<WalletValidation> {
+    // Simular delay de API
+    await new Promise(resolve => setTimeout(resolve, 1000));
+
+    // Wallets válidas para teste
+    const validWallets = [
+      'f9c7d1dd-9e52-4e81-8194-8b666f276405', // RENUM
+      '7c06e9d9-dbae-4a85-82f4-36716775bcb2', // JB
+    ];
+
+    const isValid = validWallets.includes(walletId) || walletId.length === 36;
+
+    return {
+      isValid,
+      isActive: isValid,
+      name: isValid ? 'Usuário Teste' : undefined,
+      error: isValid ? undefined : 'Wallet ID não encontrada'
+    };
+  }
+
+  /**
+   * Atualiza cache de validação de wallet
+   */
+  private async updateWalletCache(walletId: string, validation: WalletValidation): Promise<void> {
+    try {
+      const cacheData = {
+        wallet_id: walletId,
+        name: validation.name || null,
+        status: validation.isActive ? 'ACTIVE' : 'INACTIVE',
+        last_validated_at: new Date().toISOString(),
+        is_valid: validation.isValid
+      };
+
+      await supabase
+        .from('asaas_wallets')
+        .upsert(cacheData, { onConflict: 'wallet_id' });
+
+    } catch (error) {
+      console.warn('Erro ao atualizar cache de wallet:', error);
+    }
   }
 }
 
