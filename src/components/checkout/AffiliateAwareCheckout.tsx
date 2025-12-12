@@ -12,6 +12,7 @@ import { CheckCircle2, Users, Gift, Loader2 } from 'lucide-react';
 import { useReferralTracking } from '@/hooks/useReferralTracking';
 import { checkoutService } from '@/services/checkout.service';
 import { useToast } from '@/hooks/use-toast';
+import PaymentMethodSelector, { type PaymentMethod } from './PaymentMethodSelector';
 import type { CheckoutData, Product } from '@/types/database.types';
 
 interface CheckoutProduct {
@@ -39,6 +40,7 @@ export default function AffiliateAwareCheckout({
   const { toast } = useToast();
   const [isProcessing, setIsProcessing] = useState(false);
   const [orderCreated, setOrderCreated] = useState(false);
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentMethod>({ type: 'pix' });
   const [customerData, setCustomerData] = useState({
     name: '',
     email: '',
@@ -96,11 +98,11 @@ export default function AffiliateAwareCheckout({
           phone: customerData.phone
         },
         payment: {
-          method: 'pix' // Por padrão PIX
+          method: selectedPaymentMethod.type,
+          installments: selectedPaymentMethod.installments
         },
         affiliate: referralInfo ? {
-          referral_code: referralInfo.code,
-          affiliate_id: referralInfo.affiliateId
+          referral_code: referralInfo.code
         } : undefined,
         totals: {
           subtotal_cents: product.price_cents,
@@ -230,6 +232,16 @@ export default function AffiliateAwareCheckout({
               )}
             </div>
           </div>
+
+          {/* Seletor de Método de Pagamento */}
+          {!orderCreated && (
+            <PaymentMethodSelector
+              amount={product.price_cents}
+              onSelect={setSelectedPaymentMethod}
+              selected={selectedPaymentMethod}
+              className="mb-6"
+            />
+          )}
 
           {/* Formulário de Dados do Cliente */}
           {!orderCreated && (
@@ -397,7 +409,12 @@ export default function AffiliateAwareCheckout({
             </div>
             <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
               <CheckCircle2 className="h-4 w-4 text-green-600" />
-              <span>Pagamento via PIX ou Cartão</span>
+              <span>
+                {selectedPaymentMethod.type === 'pix' 
+                  ? 'Pagamento via PIX - Aprovação instantânea'
+                  : `Cartão de Crédito - ${selectedPaymentMethod.installments || 1}x ${selectedPaymentMethod.installments === 1 ? 'à vista' : 'sem juros'}`
+                }
+              </span>
             </div>
             {referralInfo && (
               <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">

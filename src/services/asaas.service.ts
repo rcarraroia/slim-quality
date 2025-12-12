@@ -258,6 +258,7 @@ export class AsaasService {
     description: string;
     externalReference: string;
     billingType: 'PIX' | 'CREDIT_CARD' | 'BOLETO';
+    installments?: number;
     splits?: AsaasSplit[];
   }) {
     try {
@@ -275,6 +276,12 @@ export class AsaasService {
         description: orderData.description,
         externalReference: orderData.externalReference
       };
+
+      // Adicionar parcelamento se for cartão de crédito
+      if (orderData.billingType === 'CREDIT_CARD' && orderData.installments && orderData.installments > 1) {
+        paymentData.installmentCount = orderData.installments;
+        paymentData.installmentValue = orderData.amount / orderData.installments;
+      }
 
       const payment = await this.createPayment(paymentData);
 

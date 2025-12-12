@@ -1,303 +1,230 @@
 #!/usr/bin/env python3
 """
-INVESTIGAÇÃO COMPLETA DAS POLÍTICAS RLS
-Analisa todas as tabelas, suas políticas RLS e dependências
+INVESTIGAÇÃO COMPLETA DAS RLS - SLIM QUALITY
+Analisa todas as políticas RLS e identifica problemas sistemáticos
 """
 
 import os
-import subprocess
 import json
-from dotenv import load_dotenv
+from supabase import create_client, Client
 
-load_dotenv()
-
-class RLSInvestigator:
-    def __init__(self):
-        print("🔍 INVESTIGAÇÃO COMPLETA DAS POLÍTICAS RLS")
-        print("=" * 60)
+def main():
+    # Configurar Supabase
+    url = "https://vtynmmtuvxreiwcxxlma.supabase.co"
+    key = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ0eW5tbXR1dnhyZWl3Y3h4bG1hIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1NjM4MTYwMiwiZXhwIjoyMDcxOTU3NjAyfQ.-vh-TMWwltqy8--3Ka9Fb9ToYwRw8nkdP49QtKZ77e0"
     
-    def execute_sql_query(self, query):
-        """Executa query SQL e retorna resultado"""
-        try:
-            # Usar psql diretamente via supabase
-            cmd = f'supabase db execute "{query}"'
-            result = subprocess.run(
-                cmd,
-                shell=True,
-                capture_output=True,
-                text=True,
-                timeout=30
-            )
-            
-            if result.returncode == 0:
-                return result.stdout
-            else:
-                print(f"❌ Erro SQL: {result.stderr}")
-                return None
-                
-        except Exception as e:
-            print(f"❌ Erro ao executar query: {e}")
-            return None
+    supabase: Client = create_client(url, key)
     
-    def get_all_tables_with_rls(self):
-        """Lista todas as tabelas com RLS ativo"""
-        print("\n📋 TABELAS COM RLS ATIVO:")
+    print("🔍 INVESTIGAÇÃO COMPLETA DAS RLS - SLIM QUALITY")
+    print("=" * 60)
+    
+    try:
+        # 1. Listar todas as políticas RLS
+        print("\n📋 1. POLÍTICAS RLS ATIVAS:")
         print("-" * 40)
         
-        query = """
+        policies_query = """
         SELECT 
-            schemaname,
-            tablename,
-            rowsecurity as rls_enabled
-        FROM pg_tables 
-        WHERE schemaname = 'public'
-        ORDER BY tablename;
-        """
-        
-        result = self.execute_sql_query(query)
-        if result:
-            print(result)
-        
-        # Query mais específica para RLS
-        rls_query = """
-        SELECT 
-            t.table_name,
-            CASE WHEN c.relrowsecurity THEN 'ENABLED' ELSE 'DISABLED' END as rls_status
-        FROM information_schema.tables t
-        JOIN pg_class c ON c.relname = t.table_name
-        WHERE t.table_schema = 'public' 
-        AND t.table_type = 'BASE TABLE'
-        ORDER BY t.table_name;
-        """
-        
-        print("\n🔒 STATUS RLS DETALHADO:")
-        print("-" * 40)
-        result = self.execute_sql_query(rls_query)
-        if result:
-            print(result)
-    
-    def get_all_rls_policies(self):
-        """Lista todas as políticas RLS existentes"""
-        print("\n📜 TODAS AS POLÍTICAS RLS:")
-        print("-" * 40)
-        
-        query = """
-        SELECT 
-            schemaname,
-            tablename,
-            policyname,
-            permissive,
-            roles,
-            cmd,
-            qual,
-            with_check
+          schemaname,
+          tablename,
+          policyname,
+          permissive,
+          roles,
+          cmd,
+          qual,
+          with_check
         FROM pg_policies 
         WHERE schemaname = 'public'
         ORDER BY tablename, policyname;
         """
         
-        result = self.execute_sql_query(query)
-        if result:
-            print(result)
-    
-    def analyze_checkout_tables(self):
-        """Analisa especificamente as tabelas do checkout"""
-        print("\n🛒 ANÁLISE DAS TABELAS DO CHECKOUT:")
+        result = supabase.rpc('execute_sql', {'query': policies_query}).execute()
+        
+        if result.data:
+            policies = result.data
+            print(f"Total de políticas encontradas: {len(policies)}")
+            
+            # Agrupar por tabela
+            tables_policies = {}
+            for policy in policies:
+                table = policy['tablename']
+                if table not in tables_policies:
+                    tables_policies[table] = []
+                tables_policies[table].append(policy)
+            
+            for table, table_policies in tables_policies.items():
+                print(f"\n📊 Tabela: {table}")
+                print(f"   Políticas: {len(table_policies)}")
+                
+                for policy in table_policies:
+                    print(f"   - {policy['policyname']}")
+                    print(f"     Comando: {policy['cmd']}")
+                    print(f"     Roles: {policy['roles']}")
+                    if policy['qual']:
+                        print(f"     Condição: {policy['qual'][:100]}...")
+        
+        # 2. Verificar tabelas com RLS habilitado
+        print("\n🔒 2. TABELAS COM RLS HABILITADO:")
         print("-" * 40)
         
-        checkout_tables = [
-            'customers',
-            'customer_timeline', 
-            'orders',
-            'order_items',
-            'shipping_addresses',
-            'referral_conversions',
-            'products',
-            'affiliates'
+        rls_query = """
+        SELECT 
+          schemaname,
+          tablename,
+          rowsecurity
+        FROM pg_tables 
+        WHERE schemaname = 'public'
+        ORDER BY tablename;
+        """
+        
+        result = supabase.rpc('execute_sql', {'query': rls_query}).execute()
+        
+        if result.data:
+            tables = result.data
+            rls_enabled = [t for t in tables if t['rowsecurity']]
+            rls_disabled = [t for t in tables if not t['rowsecurity']]
+            
+            print(f"✅ Tabelas com RLS habilitado: {len(rls_enabled)}")
+            for table in rls_enabled:
+                print(f"   - {table['tablename']}")
+            
+            print(f"\n❌ Tabelas SEM RLS: {len(rls_disabled)}")
+            for table in rls_disabled:
+                print(f"   - {table['tablename']}")
+        
+        # 3. Verificar funções que podem causar recursão
+        print("\n🔄 3. FUNÇÕES POTENCIALMENTE PROBLEMÁTICAS:")
+        print("-" * 40)
+        
+        functions_query = """
+        SELECT 
+          routine_name,
+          routine_definition
+        FROM information_schema.routines 
+        WHERE routine_schema = 'public'
+        AND routine_type = 'FUNCTION'
+        ORDER BY routine_name;
+        """
+        
+        result = supabase.rpc('execute_sql', {'query': functions_query}).execute()
+        
+        if result.data:
+            functions = result.data
+            print(f"Total de funções: {len(functions)}")
+            
+            # Procurar por funções que podem causar recursão
+            problematic_functions = []
+            for func in functions:
+                name = func['routine_name']
+                definition = func['routine_definition'] or ""
+                
+                # Verificar se a função faz referência a auth.uid() ou outras funções auth
+                if 'auth.uid()' in definition or 'has_role' in definition:
+                    problematic_functions.append(func)
+            
+            if problematic_functions:
+                print(f"⚠️ Funções que podem causar recursão: {len(problematic_functions)}")
+                for func in problematic_functions:
+                    print(f"   - {func['routine_name']}")
+            else:
+                print("✅ Nenhuma função problemática encontrada")
+        
+        # 4. Verificar roles e permissões
+        print("\n👥 4. ROLES E PERMISSÕES:")
+        print("-" * 40)
+        
+        roles_query = """
+        SELECT 
+          rolname,
+          rolsuper,
+          rolinherit,
+          rolcreaterole,
+          rolcreatedb,
+          rolcanlogin
+        FROM pg_roles 
+        WHERE rolname NOT LIKE 'pg_%'
+        AND rolname NOT LIKE 'rds_%'
+        ORDER BY rolname;
+        """
+        
+        result = supabase.rpc('execute_sql', {'query': roles_query}).execute()
+        
+        if result.data:
+            roles = result.data
+            print(f"Total de roles: {len(roles)}")
+            
+            for role in roles:
+                print(f"   - {role['rolname']}")
+                if role['rolsuper']:
+                    print(f"     ⚠️ SUPERUSER")
+                if role['rolcanlogin']:
+                    print(f"     🔑 Pode fazer login")
+        
+        # 5. Testar acesso a tabelas críticas
+        print("\n🧪 5. TESTE DE ACESSO A TABELAS CRÍTICAS:")
+        print("-" * 40)
+        
+        critical_tables = [
+            'customers', 'orders', 'order_items', 'shipping_addresses',
+            'affiliates', 'commissions', 'products', 'product_images'
         ]
         
-        for table in checkout_tables:
-            print(f"\n📊 TABELA: {table}")
-            print("=" * 30)
-            
-            # Verificar se tabela existe
-            exists_query = f"""
-            SELECT EXISTS (
-                SELECT FROM information_schema.tables 
-                WHERE table_schema = 'public' 
-                AND table_name = '{table}'
-            );
-            """
-            
-            exists_result = self.execute_sql_query(exists_query)
-            if exists_result and 't' in exists_result:
-                print(f"✅ Tabela existe")
+        for table in critical_tables:
+            try:
+                # Tentar fazer SELECT simples
+                result = supabase.table(table).select("*").limit(1).execute()
                 
-                # Verificar RLS
-                rls_query = f"""
-                SELECT 
-                    c.relname as table_name,
-                    c.relrowsecurity as rls_enabled
-                FROM pg_class c
-                WHERE c.relname = '{table}';
-                """
-                
-                rls_result = self.execute_sql_query(rls_query)
-                print(f"🔒 RLS Status: {rls_result}")
-                
-                # Listar políticas desta tabela
-                policies_query = f"""
-                SELECT 
-                    policyname,
-                    cmd,
-                    permissive,
-                    roles,
-                    qual,
-                    with_check
-                FROM pg_policies 
-                WHERE schemaname = 'public' 
-                AND tablename = '{table}'
-                ORDER BY policyname;
-                """
-                
-                policies_result = self.execute_sql_query(policies_query)
-                if policies_result and policies_result.strip():
-                    print(f"📜 Políticas:")
-                    print(policies_result)
+                if result.data is not None:
+                    print(f"   ✅ {table}: Acesso OK ({len(result.data)} registros)")
                 else:
-                    print("📜 Nenhuma política encontrada")
+                    print(f"   ❌ {table}: Sem dados ou erro de acesso")
                     
-            else:
-                print(f"❌ Tabela não existe")
-    
-    def check_table_dependencies(self):
-        """Verifica dependências entre tabelas (foreign keys)"""
-        print("\n🔗 DEPENDÊNCIAS ENTRE TABELAS (FOREIGN KEYS):")
-        print("-" * 50)
+            except Exception as e:
+                error_msg = str(e)
+                if "infinite recursion" in error_msg.lower():
+                    print(f"   🔄 {table}: RECURSÃO INFINITA detectada!")
+                elif "permission denied" in error_msg.lower():
+                    print(f"   🚫 {table}: Permissão negada")
+                else:
+                    print(f"   ❌ {table}: Erro - {error_msg[:50]}...")
         
-        fk_query = """
-        SELECT 
-            tc.table_name as source_table,
-            kcu.column_name as source_column,
-            ccu.table_name AS target_table,
-            ccu.column_name AS target_column,
-            tc.constraint_name
-        FROM information_schema.table_constraints AS tc 
-        JOIN information_schema.key_column_usage AS kcu
-            ON tc.constraint_name = kcu.constraint_name
-            AND tc.table_schema = kcu.table_schema
-        JOIN information_schema.constraint_column_usage AS ccu
-            ON ccu.constraint_name = tc.constraint_name
-            AND ccu.table_schema = tc.table_schema
-        WHERE tc.constraint_type = 'FOREIGN KEY' 
-        AND tc.table_schema = 'public'
-        ORDER BY tc.table_name, kcu.column_name;
-        """
-        
-        result = self.execute_sql_query(fk_query)
-        if result:
-            print(result)
-    
-    def check_triggers(self):
-        """Verifica triggers que podem estar criando registros automáticos"""
-        print("\n⚡ TRIGGERS ATIVOS:")
-        print("-" * 30)
-        
-        triggers_query = """
-        SELECT 
-            trigger_name,
-            event_manipulation,
-            event_object_table,
-            action_timing,
-            action_statement
-        FROM information_schema.triggers
-        WHERE trigger_schema = 'public'
-        ORDER BY event_object_table, trigger_name;
-        """
-        
-        result = self.execute_sql_query(triggers_query)
-        if result:
-            print(result)
-    
-    def test_insert_permissions(self):
-        """Testa permissões de inserção em cada tabela crítica"""
-        print("\n🧪 TESTE DE PERMISSÕES DE INSERÇÃO:")
+        # 6. Análise de dependências entre políticas
+        print("\n🔗 6. ANÁLISE DE DEPENDÊNCIAS:")
         print("-" * 40)
         
-        # Dados de teste mínimos para cada tabela
-        test_data = {
-            'customers': {
-                'name': 'Teste RLS',
-                'email': 'teste.rls@test.com',
-                'phone': '11999999999',
-                'street': 'Rua Teste',
-                'number': '123',
-                'neighborhood': 'Centro',
-                'city': 'São Paulo',
-                'state': 'SP',
-                'postal_code': '01000-000',
-                'source': 'website',
-                'status': 'active'
-            }
-        }
-        
-        for table, data in test_data.items():
-            print(f"\n🧪 Testando inserção em {table}...")
+        # Verificar se há políticas que referenciam outras tabelas
+        if 'policies' in locals():
+            cross_references = []
             
-            # Montar query de inserção
-            columns = ', '.join(data.keys())
-            values = ', '.join([f"'{v}'" for v in data.values()])
-            
-            insert_query = f"""
-            INSERT INTO {table} ({columns}) 
-            VALUES ({values})
-            RETURNING id;
-            """
-            
-            result = self.execute_sql_query(insert_query)
-            if result and result.strip():
-                print(f"✅ Inserção bem-sucedida em {table}")
+            for policy in policies:
+                qual = policy.get('qual', '') or ''
+                with_check = policy.get('with_check', '') or ''
                 
-                # Limpar o registro de teste
-                cleanup_query = f"DELETE FROM {table} WHERE email = 'teste.rls@test.com';"
-                self.execute_sql_query(cleanup_query)
+                # Procurar por referências a outras tabelas
+                for table in critical_tables:
+                    if table != policy['tablename']:
+                        if table in qual or table in with_check:
+                            cross_references.append({
+                                'policy_table': policy['tablename'],
+                                'policy_name': policy['policyname'],
+                                'references': table
+                            })
+            
+            if cross_references:
+                print(f"⚠️ Políticas com referências cruzadas: {len(cross_references)}")
+                for ref in cross_references:
+                    print(f"   - {ref['policy_table']}.{ref['policy_name']} → {ref['references']}")
             else:
-                print(f"❌ Falha na inserção em {table}")
-    
-    def generate_rls_report(self):
-        """Gera relatório completo das políticas RLS"""
-        print("\n📊 GERANDO RELATÓRIO COMPLETO...")
-        
-        report = []
-        report.append("# RELATÓRIO DE INVESTIGAÇÃO RLS")
-        report.append("=" * 50)
-        report.append(f"Data: {os.popen('date').read().strip()}")
-        report.append("")
-        
-        # Executar todas as análises
-        self.get_all_tables_with_rls()
-        self.get_all_rls_policies()
-        self.analyze_checkout_tables()
-        self.check_table_dependencies()
-        self.check_triggers()
-        self.test_insert_permissions()
+                print("✅ Nenhuma referência cruzada problemática encontrada")
         
         print("\n" + "=" * 60)
-        print("✅ INVESTIGAÇÃO RLS COMPLETA!")
-        print("📋 Analise os resultados acima para identificar problemas")
+        print("🎯 INVESTIGAÇÃO CONCLUÍDA")
         print("=" * 60)
-    
-    def run_investigation(self):
-        """Executa investigação completa"""
-        self.generate_rls_report()
-
-def main():
-    try:
-        investigator = RLSInvestigator()
-        investigator.run_investigation()
         
     except Exception as e:
-        print(f"\n💥 Erro na investigação: {e}")
+        print(f"❌ Erro na investigação: {e}")
+        import traceback
+        traceback.print_exc()
 
 if __name__ == "__main__":
     main()

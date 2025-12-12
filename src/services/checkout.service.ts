@@ -315,6 +315,7 @@ export class CheckoutService {
         description: `Pedido ${order.id} - ${firstItem.product_name}`,
         externalReference: order.id,
         billingType: payment.method.toUpperCase() as 'PIX' | 'CREDIT_CARD' | 'BOLETO',
+        installments: payment.installments,
         splits: splits
       });
       
