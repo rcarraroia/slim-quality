@@ -1,0 +1,16 @@
+{
+  "customers": {
+    "name": "João Silva Teste",
+    "email": "joao.teste@email.com",
+    "phone": "11999999999",
+    "street": "Rua Teste, 123",
+    "number": "123",
+    "complement": "Apto 1",
+    "neighborhood": "Centro",
+    "city": "São Paulo",
+    "state": "SP",
+    "postal_code": "01234-567",
+    "status": "active"
+  },
+  "orders": {}
+}

@@ -10,69 +10,139 @@ import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { CheckCircle2, Users, Gift, Loader2 } from 'lucide-react';
 import { useReferralTracking } from '@/hooks/useReferralTracking';
-import { OrderAffiliateProcessor } from '@/services/sales/order-affiliate-processor';
+import { checkoutService } from '@/services/checkout.service';
 import { useToast } from '@/hooks/use-toast';
+import type { CheckoutData, Product } from '@/types/database.types';
 
-interface Product {
+interface CheckoutProduct {
   id: string;
   name: string;
-  price: number;
+  sku: string;
+  price_cents: number;
   image?: string;
 }
 
 interface AffiliateAwareCheckoutProps {
-  product: Product;
+  product: CheckoutProduct;
   onOrderComplete?: (orderId: string) => void;
+  onClose?: () => void;
   className?: string;
 }
 
 export default function AffiliateAwareCheckout({ 
   product, 
   onOrderComplete,
+  onClose,
   className 
 }: AffiliateAwareCheckoutProps) {
   const { referralInfo, trackConversion, getCurrentReferralCode } = useReferralTracking();
   const { toast } = useToast();
   const [isProcessing, setIsProcessing] = useState(false);
   const [orderCreated, setOrderCreated] = useState(false);
+  const [customerData, setCustomerData] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    street: '',
+    number: '',
+    complement: '',
+    neighborhood: '',
+    city: '',
+    state: '',
+    postal_code: ''
+  });
 
   /**
-   * Processa o checkout com integração de afiliados
+   * Processa o checkout com integração real
    */
   const handleCheckout = async () => {
     try {
       setIsProcessing(true);
 
-      // 1. Criar pedido no sistema
-      const orderData = {
-        productId: product.id,
-        productName: product.name,
-        totalAmount: product.price,
-        referralCode: getCurrentReferralCode()
+      // Validar dados do cliente
+      if (!customerData.name || !customerData.email || !customerData.phone) {
+        toast({
+          title: "Dados incompletos",
+          description: "Preencha todos os campos obrigatórios.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      // Montar dados do checkout
+      const checkoutData: CheckoutData = {
+        customer: {
+          ...customerData,
+          source: referralInfo ? 'affiliate' : 'website',
+          referral_code: getCurrentReferralCode(),
+          status: 'active'
+        },
+        product: {
+          id: product.id,
+          name: product.name,
+          sku: product.sku,
+          price_cents: product.price_cents,
+          quantity: 1
+        },
+        shipping: {
+          recipient_name: customerData.name,
+          street: customerData.street,
+          number: customerData.number,
+          complement: customerData.complement,
+          neighborhood: customerData.neighborhood,
+          city: customerData.city,
+          state: customerData.state,
+          postal_code: customerData.postal_code,
+          phone: customerData.phone
+        },
+        payment: {
+          method: 'pix' // Por padrão PIX
+        },
+        affiliate: referralInfo ? {
+          referral_code: referralInfo.code,
+          affiliate_id: referralInfo.affiliateId
+        } : undefined,
+        totals: {
+          subtotal_cents: product.price_cents,
+          shipping_cents: 0, // Frete grátis
+          discount_cents: 0,
+          total_cents: product.price_cents
+        }
       };
 
-      const orderId = await createOrder(orderData);
-      
-      if (!orderId) {
-        throw new Error('Falha ao criar pedido');
+      // Processar checkout
+      const result = await checkoutService.processCheckout(checkoutData);
+
+      if (result.success) {
+        setOrderCreated(true);
+        
+        toast({
+          title: "Pedido criado com sucesso!",
+          description: `Pedido ${result.order_id} criado. Redirecionando para pagamento...`,
+        });
+
+        // Registrar conversão se houver afiliado
+        if (referralInfo && result.order_id) {
+          await trackConversion(result.order_id);
+        }
+
+        onOrderComplete?.(result.order_id!);
+
+        // Redirecionar para pagamento
+        if (result.payment_url) {
+          setTimeout(() => {
+            window.location.href = result.payment_url!;
+          }, 2000);
+        }
+      } else {
+        throw new Error(result.error || 'Erro desconhecido');
       }
-
-      // 2. Processar integração com afiliado (se houver)
-      if (referralInfo) {
-        await processAffiliateIntegration(orderId, orderData);
-      }
-
-      // 3. Redirecionar para pagamento (Asaas, PIX, etc.)
-      await redirectToPayment(orderId);
-
-      setOrderCreated(true);
-      onOrderComplete?.(orderId);
 
     } catch (error) {
       console.error('Erro no checkout:', error);
       toast({
         title: "Erro no checkout",
-        description: "Não foi possível processar seu pedido. Tente novamente.",
+        description: error instanceof Error ? error.message : "Não foi possível processar seu pedido. Tente novamente.",
         variant: "destructive"
       });
     } finally {
@@ -81,86 +151,13 @@ export default function AffiliateAwareCheckout({
   };
 
   /**
-   * Cria o pedido no sistema
+   * Atualiza dados do cliente
    */
-  const createOrder = async (orderData: any): Promise<string | null> => {
-    try {
-      const response = await fetch('/api/orders', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(orderData)
-      });
-
-      if (!response.ok) {
-        throw new Error('Falha ao criar pedido');
-      }
-
-      const result = await response.json();
-      return result.orderId;
-    } catch (error) {
-      console.error('Erro ao criar pedido:', error);
-      return null;
-    }
-  };
-
-  /**
-   * Processa a integração com afiliado
-   */
-  const processAffiliateIntegration = async (orderId: string, orderData: any) => {
-    try {
-      const result = await OrderAffiliateProcessor.processOrder({
-        orderId,
-        customerId: 'temp-customer', // Será atualizado após login/cadastro
-        totalAmount: orderData.totalAmount,
-        referralCode: orderData.referralCode
-      });
-
-      if (result.success && result.affiliateId) {
-        toast({
-          title: "Afiliado identificado!",
-          description: `Sua compra será creditada para ${result.affiliateName}`,
-        });
-      }
-    } catch (error) {
-      console.error('Erro ao processar afiliado:', error);
-      // Não falhar o checkout por isso
-    }
-  };
-
-  /**
-   * Redireciona para o pagamento
-   */
-  const redirectToPayment = async (orderId: string) => {
-    // Aqui você integraria com o Asaas ou outro gateway
-    // Por enquanto, simular redirecionamento
-    console.log(`Redirecionando para pagamento do pedido: ${orderId}`);
-    
-    // Simular processamento de pagamento
-    setTimeout(async () => {
-      // Simular confirmação de pagamento via webhook
-      await simulatePaymentConfirmation(orderId);
-    }, 2000);
-  };
-
-  /**
-   * Simula confirmação de pagamento (para desenvolvimento)
-   */
-  const simulatePaymentConfirmation = async (orderId: string) => {
-    try {
-      // Registrar conversão se houver afiliado
-      if (referralInfo) {
-        await trackConversion(orderId);
-      }
-
-      toast({
-        title: "Pagamento confirmado!",
-        description: "Seu pedido foi processado com sucesso.",
-      });
-    } catch (error) {
-      console.error('Erro ao simular pagamento:', error);
-    }
+  const updateCustomerData = (field: string, value: string) => {
+    setCustomerData(prev => ({
+      ...prev,
+      [field]: value
+    }));
   };
 
   return (
@@ -180,7 +177,7 @@ export default function AffiliateAwareCheckout({
               <div>
                 <h3 className="font-semibold">{product.name}</h3>
                 <p className="text-2xl font-bold text-primary">
-                  R$ {product.price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                  R$ {(product.price_cents / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                 </p>
               </div>
               {product.image && (
@@ -192,6 +189,103 @@ export default function AffiliateAwareCheckout({
               )}
             </div>
           </div>
+
+          {/* Formulário de Dados do Cliente */}
+          {!orderCreated && (
+            <div className="space-y-4">
+              <h4 className="font-semibold text-sm">Dados para entrega:</h4>
+              
+              <div className="grid grid-cols-1 gap-3">
+                <input
+                  type="text"
+                  placeholder="Nome completo *"
+                  value={customerData.name}
+                  onChange={(e) => updateCustomerData('name', e.target.value)}
+                  className="w-full px-3 py-2 border rounded-md text-sm"
+                  required
+                />
+                
+                <div className="grid grid-cols-2 gap-2">
+                  <input
+                    type="email"
+                    placeholder="Email *"
+                    value={customerData.email}
+                    onChange={(e) => updateCustomerData('email', e.target.value)}
+                    className="w-full px-3 py-2 border rounded-md text-sm"
+                    required
+                  />
+                  <input
+                    type="tel"
+                    placeholder="Telefone *"
+                    value={customerData.phone}
+                    onChange={(e) => updateCustomerData('phone', e.target.value)}
+                    className="w-full px-3 py-2 border rounded-md text-sm"
+                    required
+                  />
+                </div>
+                
+                <div className="grid grid-cols-3 gap-2">
+                  <input
+                    type="text"
+                    placeholder="Rua"
+                    value={customerData.street}
+                    onChange={(e) => updateCustomerData('street', e.target.value)}
+                    className="col-span-2 px-3 py-2 border rounded-md text-sm"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Número"
+                    value={customerData.number}
+                    onChange={(e) => updateCustomerData('number', e.target.value)}
+                    className="px-3 py-2 border rounded-md text-sm"
+                  />
+                </div>
+                
+                <input
+                  type="text"
+                  placeholder="Complemento"
+                  value={customerData.complement}
+                  onChange={(e) => updateCustomerData('complement', e.target.value)}
+                  className="w-full px-3 py-2 border rounded-md text-sm"
+                />
+                
+                <div className="grid grid-cols-2 gap-2">
+                  <input
+                    type="text"
+                    placeholder="Bairro"
+                    value={customerData.neighborhood}
+                    onChange={(e) => updateCustomerData('neighborhood', e.target.value)}
+                    className="px-3 py-2 border rounded-md text-sm"
+                  />
+                  <input
+                    type="text"
+                    placeholder="CEP"
+                    value={customerData.postal_code}
+                    onChange={(e) => updateCustomerData('postal_code', e.target.value)}
+                    className="px-3 py-2 border rounded-md text-sm"
+                  />
+                </div>
+                
+                <div className="grid grid-cols-2 gap-2">
+                  <input
+                    type="text"
+                    placeholder="Cidade"
+                    value={customerData.city}
+                    onChange={(e) => updateCustomerData('city', e.target.value)}
+                    className="px-3 py-2 border rounded-md text-sm"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Estado"
+                    value={customerData.state}
+                    onChange={(e) => updateCustomerData('state', e.target.value)}
+                    className="px-3 py-2 border rounded-md text-sm"
+                    maxLength={2}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Informações do Afiliado */}
           {referralInfo && (
@@ -218,7 +312,7 @@ export default function AffiliateAwareCheckout({
           <div className="space-y-3 pt-4 border-t">
             <div className="flex justify-between text-sm">
               <span>Subtotal:</span>
-              <span>R$ {product.price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+              <span>R$ {(product.price_cents / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
             </div>
             <div className="flex justify-between text-sm">
               <span>Frete:</span>
@@ -227,7 +321,7 @@ export default function AffiliateAwareCheckout({
             <div className="flex justify-between font-bold text-lg pt-2 border-t">
               <span>Total:</span>
               <span className="text-primary">
-                R$ {product.price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                R$ {(product.price_cents / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
               </span>
             </div>
           </div>

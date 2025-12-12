@@ -2,16 +2,22 @@ import { Link, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle, Package } from "lucide-react";
+import { CheckCircle, Package, ShoppingCart } from "lucide-react";
 import { WhatsAppButton } from "@/components/shared/WhatsAppButton";
 import { useProducts } from "@/hooks/useProducts";
+import { AffiliateAwareCheckout } from "@/components/checkout/AffiliateAwareCheckout";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { useState } from "react";
 
 export default function ProdutoDetalhe() {
   const { slug } = useParams<{ slug: string }>();
-  const { products, loading, error } = useProducts();
+  const { products, rawProducts, loading, error } = useProducts();
+  const [showCheckout, setShowCheckout] = useState(false);
   
-  // Encontrar produto pelo slug
-  const product = products.find(p => p.slug === slug);
+  // Encontrar produto pelo slug (usar dados formatados para exibição)
+  const displayProduct = products.find(p => p.slug === slug);
+  // Encontrar produto real pelo slug (usar dados reais para checkout)
+  const rawProduct = rawProducts.find(p => p.slug === slug);
 
   if (loading) {
     return (
@@ -32,7 +38,7 @@ export default function ProdutoDetalhe() {
     );
   }
 
-  if (error || !product) {
+  if (error || !displayProduct || !rawProduct) {
     return (
       <div className="container py-24 text-center">
         <Package className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
@@ -48,27 +54,42 @@ export default function ProdutoDetalhe() {
   }
 
   // Calcular preço formatado
-  const priceFormatted = product.price.toLocaleString('pt-BR', { 
+  const priceFormatted = (rawProduct.price_cents / 100).toLocaleString('pt-BR', { 
     minimumFractionDigits: 2,
     maximumFractionDigits: 2 
   });
+
+  // Preparar dados do produto para checkout
+  const checkoutProduct = {
+    id: rawProduct.id,
+    name: rawProduct.name,
+    sku: rawProduct.sku,
+    price_cents: rawProduct.price_cents,
+    image: rawProduct.product_images?.[0]?.image_url
+  };
+
+  const handleOrderComplete = (orderId: string) => {
+    console.log('Pedido criado:', orderId);
+    setShowCheckout(false);
+    // Aqui você pode redirecionar para página de confirmação
+  };
 
   // Features baseadas nos dados reais do produto
   const features = [
     "8 Tecnologias Terapêuticas",
     "15 Anos de Garantia",
-    `Dimensões: ${product.dimensions}`,
-    product.badge || "Qualidade Premium"
+    `Dimensões: ${rawProduct.width_cm}x${rawProduct.length_cm}x${rawProduct.height_cm}cm`,
+    "Qualidade Premium"
   ];
 
   return (
     <div className="container px-4 py-24">
       <div className="max-w-4xl mx-auto space-y-12">
         <div className="text-center space-y-4">
-          <h1 className="text-5xl font-bold">Slim Quality {product.name}</h1>
-          {product.badge && (
+          <h1 className="text-5xl font-bold">Slim Quality {displayProduct.name}</h1>
+          {displayProduct.badge && (
             <Badge className="bg-primary text-primary-foreground text-lg px-4 py-2">
-              {product.badge}
+              {displayProduct.badge}
             </Badge>
           )}
         </div>
@@ -76,16 +97,16 @@ export default function ProdutoDetalhe() {
         <div className="grid md:grid-cols-2 gap-8">
           {/* Imagem do Produto */}
           <div className="aspect-square bg-muted rounded-xl flex items-center justify-center overflow-hidden">
-            {product.image ? (
+            {displayProduct.image ? (
               <img 
-                src={product.image} 
-                alt={`Slim Quality ${product.name}`}
+                src={displayProduct.image} 
+                alt={`Slim Quality ${displayProduct.name}`}
                 className="w-full h-full object-cover"
               />
             ) : (
               <div className="text-center text-muted-foreground">
                 <div className="text-9xl mb-4">🛏️</div>
-                <p>Imagem do Colchão {product.name}</p>
+                <p>Imagem do Colchão {displayProduct.name}</p>
               </div>
             )}
           </div>
@@ -97,10 +118,10 @@ export default function ProdutoDetalhe() {
                 R$ {priceFormatted}
               </p>
               <p className="text-lg text-muted-foreground">
-                Ou R$ {product.pricePerDay}/dia
+                Ou R$ {(rawProduct.price_cents / 100 / 365).toFixed(2)}/dia
               </p>
               <p className="text-sm text-muted-foreground">
-                {product.comparison}
+                Menos que uma pizza por dia
               </p>
             </div>
             
@@ -115,18 +136,33 @@ export default function ProdutoDetalhe() {
 
             <div className="bg-primary/10 border-l-4 border-primary p-4 rounded-lg">
               <p className="font-semibold mb-1">Ideal para:</p>
-              <p className="text-muted-foreground">{product.ideal}</p>
+              <p className="text-muted-foreground">
+                Pessoas que buscam alívio de dores, melhora do sono e bem-estar geral
+              </p>
             </div>
             
-            <WhatsAppButton 
-              productName={`Slim Quality ${product.name}`}
-              message={`Olá BIA! Tenho interesse no Slim Quality ${product.name} (${product.dimensions}) - R$ ${priceFormatted}`}
-              className="w-full"
-              size="lg"
-            />
+            {/* Botões de Ação */}
+            <div className="space-y-3">
+              <Button 
+                onClick={() => setShowCheckout(true)}
+                className="w-full"
+                size="lg"
+              >
+                <ShoppingCart className="mr-2 h-5 w-5" />
+                Comprar Agora
+              </Button>
+              
+              <WhatsAppButton 
+                productName={`Slim Quality ${displayProduct.name}`}
+                message={`Olá BIA! Tenho interesse no Slim Quality ${displayProduct.name} (${rawProduct.width_cm}x${rawProduct.length_cm}cm) - R$ ${priceFormatted}`}
+                className="w-full"
+                size="lg"
+                variant="outline"
+              />
+            </div>
             
             <Link to="/produtos">
-              <Button variant="outline" className="w-full">
+              <Button variant="ghost" className="w-full">
                 Comparar Modelos
               </Button>
             </Link>
@@ -138,7 +174,7 @@ export default function ProdutoDetalhe() {
           <h3 className="text-2xl font-bold mb-6">Especificações Técnicas</h3>
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
             <div className="text-center p-4 bg-muted rounded-lg">
-              <p className="text-2xl font-bold text-primary">{product.dimensions}</p>
+              <p className="text-2xl font-bold text-primary">{displayProduct.dimensions}</p>
               <p className="text-sm text-muted-foreground">Dimensões</p>
             </div>
             <div className="text-center p-4 bg-muted rounded-lg">
@@ -165,6 +201,20 @@ export default function ProdutoDetalhe() {
           </Link>
         </div>
       </div>
+
+      {/* Modal de Checkout */}
+      <Dialog open={showCheckout} onOpenChange={setShowCheckout}>
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Finalizar Compra</DialogTitle>
+          </DialogHeader>
+          <AffiliateAwareCheckout
+            product={checkoutProduct}
+            onOrderComplete={handleOrderComplete}
+            onClose={() => setShowCheckout(false)}
+          />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

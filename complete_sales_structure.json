@@ -1,0 +1,24 @@
+{
+  "customers": {
+    "valid_sources": [
+      "affiliate",
+      "organic"
+    ],
+    "fields": [
+      "name",
+      "email",
+      "phone",
+      "street",
+      "number",
+      "complement",
+      "neighborhood",
+      "city",
+      "state",
+      "postal_code",
+      "source",
+      "status"
+    ]
+  },
+  "orders": null,
+  "order_items": null
+}
