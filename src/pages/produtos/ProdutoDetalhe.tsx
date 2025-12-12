@@ -1,6 +1,6 @@
 import { Link, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { CheckCircle, Package } from "lucide-react";
 import { WhatsAppButton } from "@/components/shared/WhatsAppButton";
@@ -33,8 +33,6 @@ export default function ProdutoDetalhe() {
   }
 
   if (error || !product) {
-
-  if (error || !product) {
     return (
       <div className="container py-24 text-center">
         <Package className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
@@ -50,7 +48,7 @@ export default function ProdutoDetalhe() {
   }
 
   // Calcular preço formatado
-  const priceFormatted = (product.price / 100).toLocaleString('pt-BR', { 
+  const priceFormatted = product.price.toLocaleString('pt-BR', { 
     minimumFractionDigits: 2,
     maximumFractionDigits: 2 
   });
