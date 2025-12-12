@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Edit, Trash2, Plus, Package, Upload, X, Image as ImageIcon } from 'lucide-react';
+import { Edit, Trash2, Plus, Package, Upload, X } from 'lucide-react';
 import { supabase } from '@/config/supabase';
 import { toast } from 'sonner';
 import {
@@ -104,6 +104,9 @@ export default function Produtos() {
       featured: produto.is_featured,
       display_order: produto.display_order.toString()
     });
+    // Limpar imagens do modal anterior
+    setImageFiles([]);
+    setImagePreviews([]);
     setIsModalOpen(true);
   };
 
@@ -239,6 +242,9 @@ export default function Produtos() {
 
       setIsModalOpen(false);
       loadProdutos();
+      
+      // Disparar evento para atualizar outras páginas
+      window.dispatchEvent(new CustomEvent('productsUpdated'));
     } catch (error) {
       console.error('Erro ao salvar produto:', error);
       toast.error('Erro ao salvar produto');

@@ -4,52 +4,12 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { WhatsAppButton } from "@/components/shared/WhatsAppButton";
 import { Link } from "react-router-dom";
+import { useProducts } from "@/hooks/useProducts";
+import { Package } from "lucide-react";
 
 const ProductPage = () => {
   const [expandedProduct, setExpandedProduct] = useState<string | null>(null);
-
-  const products = [
-    {
-      id: "solteiro",
-      name: "Solteiro",
-      dimensions: "88x188x28cm",
-      pricePerDay: "7,30", // Atualizado
-      comparison: "Menos que um café com pão de queijo",
-      ideal: "Moradores de apartamentos compactos, quartos de solteiro",
-      weight: "35kg",
-      badge: null,
-    },
-    {
-      id: "padrao", // Atualizado
-      name: "Padrão", // Atualizado
-      dimensions: "138x188x28cm",
-      pricePerDay: "7,54", // Atualizado
-      comparison: "Menos que uma pizza delivery",
-      ideal: "Casais em quartos padrão, máximo custo-benefício",
-      weight: "45kg",
-      badge: "Mais Vendido",
-    },
-    {
-      id: "queen",
-      name: "Queen",
-      dimensions: "158x198x28cm",
-      pricePerDay: "8,00", // Atualizado
-      comparison: "Menos que um combo de fast food",
-      ideal: "Casais que valorizam mais espaço para dormir confortavelmente",
-      weight: "52kg",
-      badge: null,
-    },
-    {
-      id: "king",
-      name: "King",
-      dimensions: "193x203x28cm",
-      pricePerDay: "11,20",
-      comparison: "Menos que um almoço no restaurante",
-      ideal: "Quem busca máximo luxo, conforto e espaço disponível",
-      weight: "62kg",
-      badge: "Máximo Conforto",
-    },
-  ];
+  const { products, loading, error } = useProducts();
 
   return (
     <div className="flex flex-col">
@@ -69,13 +29,41 @@ const ProductPage = () => {
 
         {/* Grid Interativo */}
         <div className="grid sm:grid-cols-2 gap-8 max-w-6xl mx-auto">
-          {products.map((product) => (
-            <Card 
-              key={product.id}
-              className={`transition-all duration-300 ${
-                expandedProduct === product.id ? 'col-span-full shadow-2xl' : 'hover:shadow-xl hover:scale-[1.02]'
-              }`}
-            >
+          {loading ? (
+            // Loading skeleton
+            Array.from({ length: 4 }).map((_, index) => (
+              <Card key={index} className="animate-pulse">
+                <CardContent className="p-0">
+                  <div className="aspect-[4/3] bg-muted" />
+                  <div className="p-6 space-y-4">
+                    <div className="h-6 bg-muted rounded w-3/4" />
+                    <div className="h-4 bg-muted rounded w-full" />
+                    <div className="h-8 bg-muted rounded w-1/2" />
+                    <div className="h-10 bg-muted rounded w-full" />
+                  </div>
+                </CardContent>
+              </Card>
+            ))
+          ) : error ? (
+            <div className="col-span-full text-center py-12">
+              <Package className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+              <h3 className="text-lg font-semibold mb-2">Erro ao carregar produtos</h3>
+              <p className="text-muted-foreground">Tente recarregar a página</p>
+            </div>
+          ) : products.length === 0 ? (
+            <div className="col-span-full text-center py-12">
+              <Package className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+              <h3 className="text-lg font-semibold mb-2">Nenhum produto disponível</h3>
+              <p className="text-muted-foreground">Em breve novos produtos serão adicionados</p>
+            </div>
+          ) : (
+            products.map((product) => (
+              <Card 
+                key={product.id}
+                className={`transition-all duration-300 ${
+                  expandedProduct === product.id ? 'col-span-full shadow-2xl' : 'hover:shadow-xl hover:scale-[1.02]'
+                }`}
+              >
               <CardContent className="p-0">
                 {expandedProduct !== product.id ? (
                   /* Card Collapsed */
@@ -215,9 +203,10 @@ const ProductPage = () => {
                     </div>
                   </div>
                 )}
-              </CardContent>
-            </Card>
-          ))}
+                </CardContent>
+              </Card>
+            ))
+          )}
         </div>
       </section>
 

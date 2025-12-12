@@ -2,10 +2,13 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { WhatsAppButton } from "@/components/shared/WhatsAppButton";
-import { CheckCircle, Star, Moon, Heart, Brain, Wind, User, Droplet } from "lucide-react";
+import { Moon, Heart, Brain, Wind, User, Droplet, Package } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useProducts } from "@/hooks/useProducts";
 
 const Index = () => {
+  const { products, loading: productsLoading, error: productsError } = useProducts();
+  
   const scrollToNext = () => {
     document.getElementById('problems')?.scrollIntoView({ behavior: 'smooth' });
   };
@@ -49,40 +52,7 @@ const Index = () => {
     },
   ];
 
-  const products = [
-    { 
-      name: "Solteiro", 
-      dimensions: "88x188x28cm", 
-      pricePerDay: "7,30", // Atualizado
-      comparison: "Menos que um café com pão de queijo",
-      ideal: "Ideal para 1 pessoa, quartos compactos",
-      badge: null 
-    },
-    { 
-      name: "Padrão", // Renomeado
-      dimensions: "138x188x28cm", 
-      pricePerDay: "7,54", // Atualizado
-      comparison: "Menos que uma pizza delivery",
-      ideal: "Casais em quartos padrão, máximo custo-benefício",
-      badge: "Mais Vendido" 
-    },
-    { 
-      name: "Queen", 
-      dimensions: "158x198x28cm", 
-      pricePerDay: "8,00", // Atualizado
-      comparison: "Menos que um combo de fast food",
-      ideal: "Casais que valorizam mais espaço",
-      badge: null 
-    },
-    { 
-      name: "King", 
-      dimensions: "193x203x28cm", 
-      pricePerDay: "11,20",
-      comparison: "Menos que um almoço no restaurante",
-      ideal: "Máximo luxo, conforto e espaço",
-      badge: "Máximo Conforto" 
-    },
-  ];
+
 
   const testimonials = [
     {
@@ -236,43 +206,83 @@ const Index = () => {
           </p>
         </div>
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-8 max-w-7xl mx-auto">
-          {products.map((product, index) => (
-            <Card key={index} className="transition-all duration-300 hover:shadow-xl hover:scale-[1.02] overflow-hidden">
-              <CardContent className="p-0">
-                <div className="relative aspect-[3/4] bg-muted flex items-center justify-center">
-                  <div className="text-center text-muted-foreground">
-                    <div className="text-6xl mb-2">🛏️</div>
-                    <p className="text-sm px-4">Imagem lifestyle do colchão</p>
+          {productsLoading ? (
+            // Loading skeleton
+            Array.from({ length: 4 }).map((_, index) => (
+              <Card key={index} className="overflow-hidden animate-pulse">
+                <CardContent className="p-0">
+                  <div className="aspect-[3/4] bg-muted" />
+                  <div className="p-6 space-y-4">
+                    <div className="h-4 bg-muted rounded w-3/4" />
+                    <div className="h-3 bg-muted rounded w-full" />
+                    <div className="h-8 bg-muted rounded w-1/2" />
+                    <div className="h-10 bg-muted rounded w-full" />
                   </div>
-                  <Badge className="absolute top-4 right-4 bg-muted text-muted-foreground border">
-                    {product.dimensions}
-                  </Badge>
-                  {product.badge && (
-                    <Badge className="absolute top-4 left-4 bg-primary text-primary-foreground">
-                      {product.badge}
+                </CardContent>
+              </Card>
+            ))
+          ) : productsError ? (
+            // Error state
+            <div className="col-span-full text-center py-12">
+              <Package className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+              <h3 className="text-lg font-semibold mb-2">Erro ao carregar produtos</h3>
+              <p className="text-muted-foreground">Tente recarregar a página</p>
+            </div>
+          ) : products.length === 0 ? (
+            // Empty state
+            <div className="col-span-full text-center py-12">
+              <Package className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+              <h3 className="text-lg font-semibold mb-2">Nenhum produto disponível</h3>
+              <p className="text-muted-foreground">Em breve novos produtos serão adicionados</p>
+            </div>
+          ) : (
+            // Products from database
+            products.map((product) => (
+              <Card key={product.id} className="transition-all duration-300 hover:shadow-xl hover:scale-[1.02] overflow-hidden">
+                <CardContent className="p-0">
+                  <div className="relative aspect-[3/4] bg-muted flex items-center justify-center">
+                    {product.image ? (
+                      <img 
+                        src={product.image} 
+                        alt={`Slim Quality ${product.name}`}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="text-center text-muted-foreground">
+                        <div className="text-6xl mb-2">🛏️</div>
+                        <p className="text-sm px-4">Imagem lifestyle do colchão</p>
+                      </div>
+                    )}
+                    <Badge className="absolute top-4 right-4 bg-muted text-muted-foreground border">
+                      {product.dimensions}
                     </Badge>
-                  )}
-                </div>
-                <div className="p-6 space-y-4">
-                  <div>
-                    <h3 className="font-semibold text-xl mb-1">Slim Quality {product.name}</h3>
-                    <p className="text-sm text-muted-foreground">{product.ideal}</p>
+                    {product.badge && (
+                      <Badge className="absolute top-4 left-4 bg-primary text-primary-foreground">
+                        {product.badge}
+                      </Badge>
+                    )}
                   </div>
-                  <div className="space-y-1">
-                    <p className="text-4xl font-bold text-primary">
-                      R$ {product.pricePerDay}/dia
-                    </p>
-                    <p className="text-sm text-muted-foreground">{product.comparison}</p>
+                  <div className="p-6 space-y-4">
+                    <div>
+                      <h3 className="font-semibold text-xl mb-1">Slim Quality {product.name}</h3>
+                      <p className="text-sm text-muted-foreground">{product.ideal}</p>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-4xl font-bold text-primary">
+                        R$ {product.pricePerDay}/dia
+                      </p>
+                      <p className="text-sm text-muted-foreground">{product.comparison}</p>
+                    </div>
+                    <Link to={`/produtos/${product.slug}`}>
+                      <Button className="w-full transition-all duration-300" size="lg">
+                        Conhecer Detalhes
+                      </Button>
+                    </Link>
                   </div>
-                  <Link to={`/produtos/${product.name.toLowerCase().replace(/\s/g, '-')}`}>
-                    <Button className="w-full transition-all duration-300" size="lg">
-                      Conhecer Detalhes
-                    </Button>
-                  </Link>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                </CardContent>
+              </Card>
+            ))
+          )}
         </div>
       </section>
 
