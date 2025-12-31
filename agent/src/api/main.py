@@ -57,6 +57,20 @@ try:
             print(f"Erro no chat endpoint: {e}", flush=True)
             return {"error": str(e), "status": "error"}
     
+    # Endpoint de teste para verificar se webhooks chegam
+    @app.post("/test/webhook")
+    async def test_webhook(request: Request):
+        try:
+            body = await request.body()
+            print(f"=== WEBHOOK TESTE RECEBIDO ===", flush=True)
+            print(f"Body: {body.decode('utf-8')}", flush=True)
+            print(f"Headers: {dict(request.headers)}", flush=True)
+            print(f"=== FIM WEBHOOK TESTE ===", flush=True)
+            return {"status": "received", "message": "Webhook teste OK"}
+        except Exception as e:
+            print(f"Erro no webhook teste: {e}", flush=True)
+            return {"error": str(e)}
+    
     # Função para processar mensagem com SICC
     async def process_with_sicc(message: str, phone: str):
         try:
