@@ -76,24 +76,41 @@ try:
         try:
             print(f"Processando mensagem: {message} de {phone}", flush=True)
             
+            # Verificar variáveis de ambiente críticas
+            import os
+            openai_key = os.getenv("OPENAI_API_KEY")
+            supabase_url = os.getenv("SUPABASE_URL")
+            
+            print(f"OpenAI Key presente: {'Sim' if openai_key else 'Não'}", flush=True)
+            print(f"Supabase URL: {supabase_url[:50] if supabase_url else 'Não configurada'}", flush=True)
+            
             # Importar SICC
+            print("Importando SICC...", flush=True)
             from src.services.sicc.sicc_service import SICCService
+            print("SICC importado com sucesso", flush=True)
+            
             sicc = SICCService()
+            print("SICC instanciado", flush=True)
             
             # Processar mensagem
+            print("Chamando process_message...", flush=True)
             response = await sicc.process_message(
                 message=message,
                 user_id=phone,
                 context={"platform": "whatsapp"}
             )
+            print(f"SICC processou: {response}", flush=True)
             
             return response.get('response', 'Desculpe, não consegui processar sua mensagem.')
             
         except Exception as e:
             print(f"Erro no SICC: {e}", flush=True)
+            import traceback
+            print(f"Traceback: {traceback.format_exc()}", flush=True)
             
             # Em caso de falha do SICC, tentar IA direta como emergência
             try:
+                print("Tentando IA direta de emergência...", flush=True)
                 from src.services.ai_service import get_ai_service
                 ai_service = get_ai_service()
                 
@@ -109,10 +126,13 @@ Seja empática, educativa e focada em ajudar o cliente com problemas de saúde e
                     temperature=0.7
                 )
                 
+                print(f"IA de emergência respondeu: {emergency_response}", flush=True)
                 return emergency_response.get('text', 'Desculpe, estou com dificuldades técnicas. Pode tentar novamente?')
                 
             except Exception as emergency_error:
                 print(f"Falha total do sistema: {emergency_error}", flush=True)
+                import traceback
+                print(f"Emergency Traceback: {traceback.format_exc()}", flush=True)
                 return "Desculpe, estou com dificuldades técnicas no momento. Pode tentar novamente em alguns instantes?"
     
     # Webhook Evolution API
