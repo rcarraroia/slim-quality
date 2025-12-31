@@ -31,6 +31,32 @@ try:
     async def health():
         return {"status": "healthy", "container": "ok"}
     
+    # Endpoint para teste direto da IA
+    @app.post("/api/chat")
+    async def chat_endpoint(request: Request):
+        try:
+            body = await request.json()
+            message = body.get("message", "")
+            lead_id = body.get("lead_id", "test_user")
+            
+            if not message:
+                return {"error": "Mensagem é obrigatória"}
+            
+            print(f"Chat direto - Mensagem: {message} de {lead_id}", flush=True)
+            
+            # Processar com SICC
+            response = await process_with_sicc(message, lead_id)
+            
+            return {
+                "response": response,
+                "lead_id": lead_id,
+                "status": "success"
+            }
+            
+        except Exception as e:
+            print(f"Erro no chat endpoint: {e}", flush=True)
+            return {"error": str(e), "status": "error"}
+    
     # Função para processar mensagem com SICC
     async def process_with_sicc(message: str, phone: str):
         try:
@@ -102,7 +128,8 @@ try:
         try:
             import httpx
             
-            url = "https://slimquality-evolution-api.wpjtfd.easypanel.host/message/sendText/Slim Quality"
+            # URL correta para enviar mensagem
+            url = "https://slimquality-evolution-api.wpjtfd.easypanel.host/message/sendText/Slim%20Quality"
             
             payload = {
                 "number": f"{phone}@s.whatsapp.net",
@@ -111,7 +138,12 @@ try:
             
             async with httpx.AsyncClient(timeout=10.0) as client:
                 response = await client.post(url, json=payload)
-                print(f"Mensagem enviada para {phone}: {response.status_code}", flush=True)
+                print(f"Mensagem enviada para {phone}: {response.status_code} - {response.text}", flush=True)
+                
+                if response.status_code == 200:
+                    print(f"✅ Mensagem enviada com sucesso para {phone}", flush=True)
+                else:
+                    print(f"❌ Erro ao enviar mensagem: {response.status_code} - {response.text}", flush=True)
                 
         except Exception as e:
             print(f"Erro ao enviar mensagem: {e}", flush=True)

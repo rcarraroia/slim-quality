@@ -520,6 +520,249 @@ class SICCService:
             logger.error(f"Erro na limpeza de dados: {e}")
             return {"error": str(e)}
     
+    async def process_message(
+        self,
+        message: str,
+        user_id: str,
+        context: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """
+        Processa uma mensagem usando o sistema SICC completo
+        
+        Args:
+            message: Mensagem do usuário
+            user_id: ID único do usuário
+            context: Contexto adicional (plataforma, histórico, etc.)
+            
+        Returns:
+            Resposta processada pelo sistema SICC
+        """
+        try:
+            if not self.is_initialized:
+                await self.initialize()
+            
+            # Usar user_id como conversation_id para WhatsApp
+            conversation_id = f"whatsapp_{user_id}"
+            
+            # Preparar contexto da mensagem
+            user_context = {
+                "message": message,
+                "user_id": user_id,
+                "platform": context.get("platform", "whatsapp") if context else "whatsapp",
+                "timestamp": datetime.now().isoformat()
+            }
+            
+            # Se é uma nova conversa, inicializar
+            if conversation_id not in self.active_conversations:
+                await self.process_conversation_start(
+                    conversation_id=conversation_id,
+                    user_context=user_context,
+                    sub_agent_type="sales_consultant"  # Tipo específico para vendas
+                )
+            
+            # Buscar padrões aplicáveis para a mensagem atual
+            applicable_patterns = await self.behavior_service.find_applicable_patterns(
+                context=user_context,
+                sub_agent_type="sales_consultant"
+            )
+            
+            # Gerar resposta usando AI Service
+            from ..ai_service import get_ai_service
+            ai_service = get_ai_service()
+            
+            # Construir prompt com contexto SICC
+            relevant_memories = self.active_conversations[conversation_id].get("memories_retrieved", [])
+            
+            prompt = self._build_sicc_prompt(
+                message=message,
+                user_context=user_context,
+                memories=relevant_memories,
+                patterns=applicable_patterns
+            )
+            
+            # Gerar resposta
+            ai_response = await ai_service.generate_text(
+                prompt=prompt,
+                max_tokens=500,
+                temperature=0.7
+            )
+            
+            response_text = ai_response.get('text', 'Desculpe, não consegui processar sua mensagem.')
+            
+            # Aplicar padrões relevantes se houver
+            if applicable_patterns:
+                for pattern in applicable_patterns[:2]:  # Máximo 2 padrões por mensagem
+                    pattern_result = await self.apply_pattern(
+                        conversation_id=conversation_id,
+                        pattern_id=pattern.get('id'),
+                        context=user_context
+                    )
+                    
+                    # Se padrão modificou a resposta, usar a nova
+                    if pattern_result.get('success') and pattern_result.get('modified_response'):
+                        response_text = pattern_result['modified_response']
+            
+            # Registrar métricas
+            if self.config.metrics_collection_enabled:
+                from .metrics_service import MetricType
+                await self.metrics_service.record_metric(
+                    MetricType.RESPONSE_TIME,
+                    1.0,  # Placeholder - seria tempo real de processamento
+                    context={"platform": "whatsapp"},
+                    agent_type="sales_consultant"
+                )
+            
+            # Atualizar contexto da conversa
+            self.active_conversations[conversation_id]["last_message"] = {
+                "user_message": message,
+                "bot_response": response_text,
+                "timestamp": datetime.now(),
+                "patterns_applied": len(applicable_patterns)
+            }
+            
+            return {
+                "response": response_text,
+                "conversation_id": conversation_id,
+                "patterns_applied": len(applicable_patterns),
+                "ai_provider": ai_response.get('provider', 'unknown'),
+                "success": True
+            }
+            
+        except Exception as e:
+            logger.error(f"Erro ao processar mensagem: {e}")
+            
+            # Resposta de fallback baseada no conteúdo
+            fallback_response = self._get_fallback_response(message)
+            
+            return {
+                "response": fallback_response,
+                "conversation_id": f"whatsapp_{user_id}",
+                "patterns_applied": 0,
+                "ai_provider": "fallback",
+                "success": False,
+                "error": str(e)
+            }
+    
+    def _build_sicc_prompt(
+        self,
+        message: str,
+        user_context: Dict[str, Any],
+        memories: List[Dict[str, Any]],
+        patterns: List[Dict[str, Any]]
+    ) -> str:
+        """
+        Constrói prompt inteligente usando contexto SICC
+        
+        Args:
+            message: Mensagem atual do usuário
+            user_context: Contexto do usuário
+            memories: Memórias relevantes recuperadas
+            patterns: Padrões aplicáveis
+            
+        Returns:
+            Prompt otimizado para IA
+        """
+        
+        # Base do prompt - identidade da BIA
+        prompt = """Você é a BIA, consultora especializada em colchões magnéticos terapêuticos da Slim Quality.
+
+PRODUTOS DISPONÍVEIS:
+- Solteiro (88x188x28cm): R$ 3.190,00
+- Padrão (138x188x28cm): R$ 3.290,00 (MAIS VENDIDO)
+- Queen (158x198x30cm): R$ 3.490,00
+- King (193x203x30cm): R$ 4.890,00
+
+TECNOLOGIAS (todos os modelos):
+- Sistema Magnético (240 ímãs de 800 Gauss)
+- Infravermelho Longo
+- Energia Bioquântica
+- Vibromassagem (8 motores)
+- Densidade Progressiva
+- Cromoterapia
+- Perfilado High-Tech
+- Tratamento Sanitário
+
+ABORDAGEM:
+- Seja consultiva, não vendedora
+- Foque em resolver problemas de saúde
+- Pergunte sobre dores, sono, circulação
+- Apresente preço como "menos que uma pizza por dia"
+- Seja empática e educativa
+
+"""
+        
+        # Adicionar contexto de memórias se houver
+        if memories:
+            prompt += "\nCONTEXTO DE CONVERSAS ANTERIORES:\n"
+            for memory in memories[:3]:  # Máximo 3 memórias
+                prompt += f"- {memory.get('content', '')[:100]}...\n"
+        
+        # Adicionar padrões aprendidos se houver
+        if patterns:
+            prompt += "\nPADRÕES APRENDIDOS APLICÁVEIS:\n"
+            for pattern in patterns[:2]:  # Máximo 2 padrões
+                prompt += f"- {pattern.get('description', 'Padrão sem descrição')}\n"
+        
+        # Adicionar mensagem atual
+        prompt += f"\nMENSAGEM DO CLIENTE: {message}\n\n"
+        prompt += "RESPONDA de forma natural, consultiva e focada em ajudar o cliente:"
+        
+        return prompt
+    
+    def _get_fallback_response(self, message: str) -> str:
+        """
+        Gera resposta de fallback baseada no conteúdo da mensagem
+        
+        Args:
+            message: Mensagem do usuário
+            
+        Returns:
+            Resposta de fallback apropriada
+        """
+        message_lower = message.lower()
+        
+        # Respostas baseadas em palavras-chave
+        if any(word in message_lower for word in ["colch", "produto", "preço", "valor"]):
+            return """Nossos colchões magnéticos são ideais para melhorar seu sono e saúde! 
+
+Temos 4 modelos:
+• Solteiro: R$ 3.190 (menos de R$ 9/dia)
+• Padrão: R$ 3.290 (menos de R$ 9/dia) - MAIS VENDIDO
+• Queen: R$ 3.490 (menos de R$ 10/dia)
+• King: R$ 4.890 (menos de R$ 13/dia)
+
+Todos com 8 tecnologias terapêuticas incluídas! Qual modelo te interessa?"""
+        
+        elif any(word in message_lower for word in ["dor", "sono", "dormir", "insônia", "costas"]):
+            return """Entendo sua preocupação! Nossos colchões magnéticos são desenvolvidos especificamente para problemas como:
+
+✅ Dores nas costas e articulações
+✅ Dificuldades para dormir
+✅ Má circulação sanguínea
+✅ Tensão muscular
+
+As 240 pastilhas magnéticas + infravermelho longo trabalham durante seu sono para aliviar dores e melhorar a circulação.
+
+Que tipo de problema você tem enfrentado?"""
+        
+        elif any(word in message_lower for word in ["oi", "olá", "bom dia", "boa tarde", "boa noite"]):
+            return """Olá! Sou a Bia, sua consultora especializada em colchões magnéticos terapêuticos! 😊
+
+Estou aqui para te ajudar a encontrar a solução ideal para melhorar seu sono e saúde.
+
+Me conta: você tem enfrentado algum problema com:
+• Dores nas costas ou articulações?
+• Dificuldade para dormir bem?
+• Má circulação?
+• Tensão muscular?"""
+        
+        else:
+            return """Olá! Sou a Bia, sua consultora de colchões magnéticos terapêuticos da Slim Quality! 
+
+Nossos colchões são desenvolvidos com 8 tecnologias para melhorar seu sono e saúde. 
+
+Como posso te ajudar hoje? Tem alguma dúvida sobre nossos produtos ou algum problema de saúde que gostaria de resolver?"""
+
     async def shutdown(self):
         """
         Desliga o sistema SICC graciosamente
