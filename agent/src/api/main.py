@@ -183,7 +183,7 @@ Seja empática, educativa e focada em ajudar o cliente com problemas de saúde e
             
             # Usar variáveis de ambiente
             evolution_url = os.getenv("EVOLUTION_URL", "https://slimquality-evolution-api.wpjtfd.easypanel.host")
-            evolution_instance = os.getenv("EVOLUTION_INSTANCE", "Slim Quality")
+            evolution_instance = os.getenv("EVOLUTION_INSTANCE", "SlimQualit")
             
             # URL correta para enviar mensagem
             url = f"{evolution_url}/message/sendText/{evolution_instance.replace(' ', '%20')}"
@@ -193,11 +193,22 @@ Seja empática, educativa e focada em ajudar o cliente com problemas de saúde e
                 "text": message
             }
             
+            # Headers com autenticação
+            headers = {
+                "Content-Type": "application/json"
+            }
+            
+            # Adicionar API Key se disponível (do webhook recebido)
+            api_key = os.getenv("EVOLUTION_API_KEY", "9A390AED6A45-4610-93B2-245591E39FDE")
+            if api_key:
+                headers["apikey"] = api_key
+            
             print(f"Enviando para URL: {url}", flush=True)
+            print(f"Headers: {headers}", flush=True)
             print(f"Payload: {payload}", flush=True)
             
             async with httpx.AsyncClient(timeout=10.0) as client:
-                response = await client.post(url, json=payload)
+                response = await client.post(url, json=payload, headers=headers)
                 print(f"Mensagem enviada para {phone}: {response.status_code} - {response.text}", flush=True)
                 
                 if response.status_code == 200:
