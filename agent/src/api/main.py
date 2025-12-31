@@ -77,11 +77,29 @@ try:
             
         except Exception as e:
             print(f"Erro no SICC: {e}", flush=True)
-            # Resposta de fallback
-            if "colch" in message.lower():
-                return "Nossos colchões magnéticos são ideais para melhorar seu sono e saúde! Temos modelos Solteiro (R$ 3.190), Padrão (R$ 3.290), Queen (R$ 3.490) e King (R$ 4.890). Qual modelo te interessa?"
-            else:
-                return "Olá! Sou a Bia, sua consultora de colchões magnéticos. Como posso te ajudar hoje?"
+            
+            # Em caso de falha do SICC, tentar IA direta como emergência
+            try:
+                from src.services.ai_service import get_ai_service
+                ai_service = get_ai_service()
+                
+                emergency_prompt = f"""Você é a BIA, consultora de colchões magnéticos terapêuticos da Slim Quality.
+
+Responda de forma natural e consultiva à mensagem: "{message}"
+
+Seja empática, educativa e focada em ajudar o cliente com problemas de saúde e sono."""
+                
+                emergency_response = await ai_service.generate_text(
+                    prompt=emergency_prompt,
+                    max_tokens=300,
+                    temperature=0.7
+                )
+                
+                return emergency_response.get('text', 'Desculpe, estou com dificuldades técnicas. Pode tentar novamente?')
+                
+            except Exception as emergency_error:
+                print(f"Falha total do sistema: {emergency_error}", flush=True)
+                return "Desculpe, estou com dificuldades técnicas no momento. Pode tentar novamente em alguns instantes?"
     
     # Webhook Evolution API
     @app.post("/webhooks/evolution")

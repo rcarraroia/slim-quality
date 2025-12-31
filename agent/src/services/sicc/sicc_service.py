@@ -631,17 +631,45 @@ class SICCService:
         except Exception as e:
             logger.error(f"Erro ao processar mensagem: {e}")
             
-            # Resposta de fallback baseada no conteúdo
-            fallback_response = self._get_fallback_response(message)
-            
-            return {
-                "response": fallback_response,
-                "conversation_id": f"whatsapp_{user_id}",
-                "patterns_applied": 0,
-                "ai_provider": "fallback",
-                "success": False,
-                "error": str(e)
-            }
+            # Em caso de falha técnica total, tentar IA básica sem SICC
+            try:
+                from ..ai_service import get_ai_service
+                ai_service = get_ai_service()
+                
+                # Prompt básico apenas para emergência técnica
+                emergency_prompt = f"""Você é a BIA, consultora de colchões magnéticos terapêuticos da Slim Quality.
+
+Responda de forma natural e consultiva à mensagem: "{message}"
+
+Seja empática, educativa e focada em ajudar o cliente com problemas de saúde e sono."""
+                
+                emergency_response = await ai_service.generate_text(
+                    prompt=emergency_prompt,
+                    max_tokens=300,
+                    temperature=0.7
+                )
+                
+                return {
+                    "response": emergency_response.get('text', 'Desculpe, estou com dificuldades técnicas. Pode tentar novamente?'),
+                    "conversation_id": f"whatsapp_{user_id}",
+                    "patterns_applied": 0,
+                    "ai_provider": f"emergency_{emergency_response.get('provider', 'unknown')}",
+                    "success": False,
+                    "error": str(e)
+                }
+                
+            except Exception as emergency_error:
+                logger.error(f"Falha total do sistema: {emergency_error}")
+                
+                # Apenas em caso de falha TOTAL de todos os sistemas
+                return {
+                    "response": "Desculpe, estou com dificuldades técnicas no momento. Pode tentar novamente em alguns instantes?",
+                    "conversation_id": f"whatsapp_{user_id}",
+                    "patterns_applied": 0,
+                    "ai_provider": "system_failure",
+                    "success": False,
+                    "error": f"SICC: {str(e)}, Emergency: {str(emergency_error)}"
+                }
     
     def _build_sicc_prompt(
         self,
@@ -709,60 +737,6 @@ ABORDAGEM:
         
         return prompt
     
-    def _get_fallback_response(self, message: str) -> str:
-        """
-        Gera resposta de fallback baseada no conteúdo da mensagem
-        
-        Args:
-            message: Mensagem do usuário
-            
-        Returns:
-            Resposta de fallback apropriada
-        """
-        message_lower = message.lower()
-        
-        # Respostas baseadas em palavras-chave
-        if any(word in message_lower for word in ["colch", "produto", "preço", "valor"]):
-            return """Nossos colchões magnéticos são ideais para melhorar seu sono e saúde! 
-
-Temos 4 modelos:
-• Solteiro: R$ 3.190 (menos de R$ 9/dia)
-• Padrão: R$ 3.290 (menos de R$ 9/dia) - MAIS VENDIDO
-• Queen: R$ 3.490 (menos de R$ 10/dia)
-• King: R$ 4.890 (menos de R$ 13/dia)
-
-Todos com 8 tecnologias terapêuticas incluídas! Qual modelo te interessa?"""
-        
-        elif any(word in message_lower for word in ["dor", "sono", "dormir", "insônia", "costas"]):
-            return """Entendo sua preocupação! Nossos colchões magnéticos são desenvolvidos especificamente para problemas como:
-
-✅ Dores nas costas e articulações
-✅ Dificuldades para dormir
-✅ Má circulação sanguínea
-✅ Tensão muscular
-
-As 240 pastilhas magnéticas + infravermelho longo trabalham durante seu sono para aliviar dores e melhorar a circulação.
-
-Que tipo de problema você tem enfrentado?"""
-        
-        elif any(word in message_lower for word in ["oi", "olá", "bom dia", "boa tarde", "boa noite"]):
-            return """Olá! Sou a Bia, sua consultora especializada em colchões magnéticos terapêuticos! 😊
-
-Estou aqui para te ajudar a encontrar a solução ideal para melhorar seu sono e saúde.
-
-Me conta: você tem enfrentado algum problema com:
-• Dores nas costas ou articulações?
-• Dificuldade para dormir bem?
-• Má circulação?
-• Tensão muscular?"""
-        
-        else:
-            return """Olá! Sou a Bia, sua consultora de colchões magnéticos terapêuticos da Slim Quality! 
-
-Nossos colchões são desenvolvidos com 8 tecnologias para melhorar seu sono e saúde. 
-
-Como posso te ajudar hoje? Tem alguma dúvida sobre nossos produtos ou algum problema de saúde que gostaria de resolver?"""
-
     async def shutdown(self):
         """
         Desliga o sistema SICC graciosamente
