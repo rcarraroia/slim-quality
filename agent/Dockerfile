@@ -68,5 +68,7 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
 # Mudar para usuário não-root
 USER app
 
-# Comando para rodar FastAPI (sem --reload em produção)
-CMD ["uvicorn", "src.api.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]
+# Comando para rodar FastAPI (com logs forçados)
+CMD echo "=== CONTAINER INICIANDO ===" && \
+    echo "Executando: uvicorn src.api.main:app --host 0.0.0.0 --port 8000" && \
+    uvicorn src.api.main:app --host 0.0.0.0 --port 8000 --log-level debug
