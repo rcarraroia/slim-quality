@@ -6,6 +6,8 @@ Este documento explica como configurar e acessar o Supabase para o projeto Slim 
 
 **ATENÇÃO:** As credenciais reais devem ser obtidas após criar o projeto no Supabase Dashboard.
 
+## ⚠️ ATENÇÃO - RESPOSTAS SEMPRE EM PORTUGUES-BR
+
 ---
 
 ## 🔑 CREDENCIAIS REAIS DO PROJETO

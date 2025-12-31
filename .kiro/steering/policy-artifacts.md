@@ -1,4 +1,5 @@
 # Política de Geração de Artefatos e Documentação
+## ⚠️ ATENÇÃO - RESPOSTAS SEMPRE EM PORTUGUES-BR
 
 ## 1. Foco e Prioridade do Agente (Kiro)
 

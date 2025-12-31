@@ -1,0 +1,41 @@
+# Ignorar pasta do backend (vai para Easypanel)
+agent/
+
+# Ignorar arquivos de desenvolvimento
+*.log
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Ignorar cache e builds
+.next/
+dist/
+build/
+node_modules/
+
+# Ignorar arquivos de teste
+tests/
+*.test.js
+*.test.ts
+*.spec.js
+*.spec.ts
+
+# Ignorar documentação de desenvolvimento
+docs/
+README.md
+
+# Ignorar scripts de deploy
+scripts/
+*.sh
+*.ps1
+
+# Ignorar arquivos temporários
+temp/
+tmp/
+*.tmp
+*.bak
+
+# Ignorar arquivos do Supabase CLI
+supabase/.temp/

@@ -1,0 +1,105 @@
+# Slim Quality Agent - Docker Compose para Desenvolvimento
+# Versão otimizada para desenvolvimento local e testes
+version: '3.8'
+
+services:
+  # ============================================
+  # Backend Agent (FastAPI + LangGraph + SICC)
+  # ============================================
+  agent:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    container_name: slim-agent-dev
+    ports:
+      - "8000:8000"
+    environment:
+      # Anthropic Claude
+      - CLAUDE_API_KEY=${CLAUDE_API_KEY}
+      - CLAUDE_MODEL=claude-3-5-sonnet-20241022
+      
+      # Supabase
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_KEY}
+      - SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
+      
+      # Redis (interno)
+      - REDIS_URL=redis://redis:6379
+      
+      # Evolution API
+      - EVOLUTION_URL=${EVOLUTION_URL:-https://slimquality-evolution-api.wpjtfd.easypanel.host}
+      - EVOLUTION_API_KEY=${EVOLUTION_API_KEY}
+      
+      # Aplicação
+      - ENVIRONMENT=development
+      - DEBUG=true
+      - LOG_LEVEL=DEBUG
+      - PYTHONPATH=/app
+      - PYTHONUNBUFFERED=1
+    
+    depends_on:
+      - redis
+    
+    volumes:
+      # Mount código fonte para hot reload
+      - ./src:/app/src:ro
+      - ./logs:/app/logs
+    
+    # Comando com reload para desenvolvimento
+    command: uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload --log-level debug
+    
+    networks:
+      - slim-network
+    
+    # Health check local
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    
+    restart: unless-stopped
+
+  # ============================================
+  # Redis (Cache, Queue e Session Storage)
+  # ============================================
+  redis:
+    image: redis:7-alpine
+    container_name: slim-redis-dev
+    ports:
+      - "6379:6379"
+    
+    # Configuração Redis otimizada para desenvolvimento
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    
+    volumes:
+      - redis_data:/data
+    
+    networks:
+      - slim-network
+    
+    # Health check Redis
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    
+    restart: unless-stopped
+
+# ============================================
+# Networks
+# ============================================
+networks:
+  slim-network:
+    driver: bridge
+    name: slim-network
+
+# ============================================
+# Volumes Persistentes
+# ============================================
+volumes:
+  redis_data:
+    driver: local
+    name: slim-redis-data

@@ -1,0 +1,134 @@
+# Slim Quality Agent - Docker Ignore
+# Otimizado para build rápido e imagem menor
+
+# ============================================
+# Git e Controle de Versão
+# ============================================
+.git
+.gitignore
+.gitattributes
+.github/
+
+# ============================================
+# Python Cache e Compilados
+# ============================================
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# ============================================
+# Ambientes Virtuais
+# ============================================
+venv/
+env/
+ENV/
+.venv/
+.env/
+
+# ============================================
+# Testes e Coverage
+# ============================================
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+tests/
+test_*.py
+*_test.py
+
+# ============================================
+# Desenvolvimento Local
+# ============================================
+.env
+.env.local
+.env.development
+.env.test
+*.log
+logs/
+tmp/
+temp/
+
+# ============================================
+# IDEs e Editores
+# ============================================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# ============================================
+# Documentação e Markdown
+# ============================================
+README.md
+CHANGELOG.md
+LICENSE
+docs/
+*.md
+
+# ============================================
+# Docker e Containers
+# ============================================
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+
+# ============================================
+# Configurações de Deploy
+# ============================================
+.kiro/
+scripts/
+migrations/
+mcp-servers/
+
+# ============================================
+# Arquivos Temporários
+# ============================================
+*.tmp
+*.temp
+.tmp/
+.temp/
+
+# ============================================
+# Dados e Backups
+# ============================================
+*.db
+*.sqlite
+*.sqlite3
+backup/
+data/
+
+# ============================================
+# Certificados e Chaves (SEGURANÇA)
+# ============================================
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+secrets/

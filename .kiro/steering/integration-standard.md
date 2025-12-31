@@ -1,4 +1,7 @@
 ADRÃO DE INTEGRAÇÃO BACKEND/FRONTEND
+
+## ⚠️ ATENÇÃO - RESPOSTAS SEMPRE EM PORTUGUES-BR
+
 ⚠️ REGRA FUNDAMENTAL
 TODA solicitação de sprint DEVE incluir EXPLICITAMENTE a integração frontend.
 Este documento serve como referência para Claude ao criar solicitações de specs.
