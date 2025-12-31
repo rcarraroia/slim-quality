@@ -211,7 +211,7 @@ Seja empática, educativa e focada em ajudar o cliente com problemas de saúde e
                 response = await client.post(url, json=payload, headers=headers)
                 print(f"Mensagem enviada para {phone}: {response.status_code} - {response.text}", flush=True)
                 
-                if response.status_code == 200:
+                if response.status_code in [200, 201]:
                     print(f"✅ Mensagem enviada com sucesso para {phone}", flush=True)
                 else:
                     print(f"❌ Erro ao enviar mensagem: {response.status_code} - {response.text}", flush=True)
