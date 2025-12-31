@@ -145,14 +145,22 @@ Seja empática, educativa e focada em ajudar o cliente com problemas de saúde e
     async def send_whatsapp_message(phone: str, message: str):
         try:
             import httpx
+            import os
+            
+            # Usar variáveis de ambiente
+            evolution_url = os.getenv("EVOLUTION_URL", "https://slimquality-evolution-api.wpjtfd.easypanel.host")
+            evolution_instance = os.getenv("EVOLUTION_INSTANCE", "Slim Quality")
             
             # URL correta para enviar mensagem
-            url = "https://slimquality-evolution-api.wpjtfd.easypanel.host/message/sendText/Slim%20Quality"
+            url = f"{evolution_url}/message/sendText/{evolution_instance.replace(' ', '%20')}"
             
             payload = {
                 "number": f"{phone}@s.whatsapp.net",
                 "text": message
             }
+            
+            print(f"Enviando para URL: {url}", flush=True)
+            print(f"Payload: {payload}", flush=True)
             
             async with httpx.AsyncClient(timeout=10.0) as client:
                 response = await client.post(url, json=payload)

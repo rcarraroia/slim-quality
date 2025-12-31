@@ -143,10 +143,13 @@ class SICCService:
             logger.info("Inicializando sistema SICC...")
             
             # Inicializar serviços em ordem de dependência
-            await self.memory_service.initialize()
-            await self.learning_service.initialize()
-            await self.behavior_service.initialize()
-            await self.supervisor_service.initialize()
+            # MemoryService não tem método initialize - já está pronto
+            # await self.memory_service.initialize()
+            # await self.learning_service.initialize()
+            # await self.behavior_service.initialize()
+            # await self.supervisor_service.initialize()
+            
+            logger.info("Serviços SICC carregados (lazy loading)")
             
             # Inicializar processamento assíncrono se habilitado
             if self.config.async_processing_enabled:
@@ -203,15 +206,14 @@ class SICCService:
             
             # Buscar contexto relevante das memórias
             relevant_context = await self.memory_service.get_relevant_context(
-                query=user_context.get("message", ""),
                 conversation_id=conversation_id,
-                limit=self.config.max_memories_per_conversation
+                current_message=user_context.get("message", "")
             )
             
             # Buscar padrões aplicáveis
             applicable_patterns = await self.behavior_service.find_applicable_patterns(
-                context=user_context,
-                sub_agent_type=sub_agent_type
+                message=user_context.get("message", ""),
+                context=user_context
             )
             
             # Registrar métricas
@@ -562,8 +564,8 @@ class SICCService:
             
             # Buscar padrões aplicáveis para a mensagem atual
             applicable_patterns = await self.behavior_service.find_applicable_patterns(
-                context=user_context,
-                sub_agent_type="sales_consultant"
+                message=message,
+                context=user_context
             )
             
             # Gerar resposta usando AI Service
