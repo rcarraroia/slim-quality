@@ -50,8 +50,9 @@ COPY --from=builder /root/.local /home/app/.local
 COPY --chown=app:app src/ ./src/
 
 # Criar diretórios necessários com permissões corretas
-RUN mkdir -p /app/logs /app/tmp \
-    && chown -R app:app /app
+RUN mkdir -p /app/logs /app/tmp /home/app/.cache \
+    && chown -R app:app /app /home/app/.cache \
+    && chmod -R 755 /app /home/app/.cache
 
 # Configurar PATH para incluir pacotes do usuário
 ENV PATH=/home/app/.local/bin:$PATH
