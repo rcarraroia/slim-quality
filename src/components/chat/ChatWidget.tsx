@@ -87,17 +87,43 @@ export function ChatWidget({
     setIsLoading(true);
 
     try {
-      const response = await fetch('/api/chat', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          message: inputMessage,
-          sessionId,
-          customerName: 'Visitante do Site'
-        }),
-      });
+      // Tentar múltiplos endpoints para garantir funcionamento
+      const endpoints = [
+        '/api/chat', // Vercel Serverless (se funcionar)
+        'https://slimquality.com.br/api/chat', // Servidor externo
+        'http://localhost:3001/api/chat' // Desenvolvimento local
+      ];
+
+      let response;
+      let success = false;
+
+      for (const endpoint of endpoints) {
+        try {
+          response = await fetch(endpoint, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              message: inputMessage,
+              sessionId,
+              customerName: 'Visitante do Site'
+            }),
+          });
+
+          if (response.ok) {
+            success = true;
+            break;
+          }
+        } catch (err) {
+          console.log(`Endpoint ${endpoint} falhou, tentando próximo...`);
+          continue;
+        }
+      }
+
+      if (!success || !response) {
+        throw new Error('Todos os endpoints falharam');
+      }
 
       const data = await response.json();
 
@@ -114,9 +140,19 @@ export function ChatWidget({
       }
     } catch (error) {
       console.error('Erro ao enviar mensagem:', error);
+      
+      // Resposta de fallback offline
+      const fallbackResponses = [
+        "Desculpe, estou com problemas de conexão no momento. 😔 Você pode entrar em contato conosco pelo WhatsApp: (11) 99999-9999",
+        "Ops! Parece que estou offline. 🔧 Mas posso te ajudar! Entre em contato pelo WhatsApp: (11) 99999-9999",
+        "Sistema temporariamente indisponível. 📱 Fale conosco diretamente: WhatsApp (11) 99999-9999"
+      ];
+      
+      const randomFallback = fallbackResponses[Math.floor(Math.random() * fallbackResponses.length)];
+      
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
-        content: 'Desculpe, ocorreu um erro. Tente novamente em alguns instantes.',
+        content: randomFallback,
         sender: 'agent',
         timestamp: new Date()
       };
