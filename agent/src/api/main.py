@@ -321,6 +321,9 @@ Seja empática, educativa e focada em ajudar o cliente com problemas de saúde e
             
             print(f"✅ Status de conexão salvo: {status}", flush=True)
             
+        except Exception as e:
+            print(f"Erro ao salvar status de conexão: {e}", flush=True)
+            
     # Função para salvar QR code
     async def save_qr_code(qr_code: str):
         try:
