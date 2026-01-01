@@ -88,38 +88,114 @@ export function ChatWidget({
     setIsLoading(true);
 
     try {
-      // CONECTAR COM AGENTE REAL - Tentar múltiplas URLs
+      // CONECTAR COM AGENTE REAL - Tentar múltiplas estratégias
       let agentResponse = null;
       
-      // 1. Tentar agente real em produção
+      // 1. Tentar proxy Vercel (mais confiável para CORS)
       try {
-        console.log('🤖 Tentando agente real...');
-        const agentUrl = 'https://slimquality-agent.wpjtfd.easypanel.host/api/chat';
-        
-        const response = await fetch(agentUrl, {
+        console.log('🔄 Tentando proxy Vercel...');
+        const response = await fetch('/api/chat-proxy', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
             message: currentMessage,
-            lead_id: `site_${sessionId}`,
-            platform: 'site'
+            sessionId
           }),
         });
 
         if (response.ok) {
           const data = await response.json();
-          if (data.status === 'success' && data.response) {
+          if (data.success && data.response) {
             agentResponse = data.response;
-            console.log('✅ Agente real respondeu');
+            console.log(`✅ Proxy Vercel respondeu (${data.source})`);
           }
+        } else {
+          console.log(`⚠️ Proxy Vercel falhou: ${response.status}`);
         }
       } catch (error) {
-        console.log('⚠️ Agente real não disponível:', error.message);
+        console.log('⚠️ Proxy Vercel não disponível:', error.message);
       }
 
-      // 2. Se agente real falhou, usar servidor Express local (se disponível)
+      // 2. Tentar múltiplas URLs do agente real
+      const agentUrls = [
+        'https://slimquality-agent.wpjtfd.easypanel.host/api/chat',
+        'https://api.slimquality.com.br/api/chat',
+        'http://slimquality-agent.wpjtfd.easypanel.host/api/chat'
+      ];
+
+      for (const agentUrl of agentUrls) {
+        try {
+          console.log(`🤖 Tentando agente real: ${agentUrl}`);
+          
+          const response = await fetch(agentUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              message: currentMessage,
+              lead_id: `site_${sessionId}`,
+              platform: 'site'
+            }),
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            if (data.status === 'success' && data.response) {
+              agentResponse = data.response;
+              console.log(`✅ Agente real respondeu via: ${agentUrl}`);
+              break; // Sucesso, sair do loop
+            }
+          } else {
+            console.log(`⚠️ ${agentUrl} retornou: ${response.status}`);
+          }
+        } catch (error) {
+          console.log(`⚠️ ${agentUrl} falhou:`, error.message);
+        }
+      }
+
+      // 3. Se agente real falhou, tentar webhook direto
+      if (!agentResponse) {
+        try {
+          console.log('🔄 Tentando webhook direto...');
+          const webhookUrl = 'https://slimquality-agent.wpjtfd.easypanel.host/webhooks/evolution';
+          
+          // Simular evento de mensagem como se fosse do WhatsApp
+          const webhookPayload = {
+            event: 'messages.upsert',
+            instance: 'SlimQualit',
+            data: {
+              key: {
+                remoteJid: `site_${sessionId}@s.whatsapp.net`,
+                fromMe: false,
+                id: `SITE_${Date.now()}`
+              },
+              message: {
+                conversation: currentMessage
+              }
+            }
+          };
+
+          const response = await fetch(webhookUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(webhookPayload),
+          });
+
+          if (response.ok) {
+            console.log('✅ Webhook direto aceito - aguardando resposta...');
+            // Para webhook, não temos resposta imediata, então usar fallback
+          }
+        } catch (error) {
+          console.log('⚠️ Webhook direto falhou:', error.message);
+        }
+      }
+
+      // 4. Se tudo falhou, usar servidor Express local (se disponível)
       if (!agentResponse) {
         try {
           console.log('🔄 Tentando servidor Express local...');
@@ -147,7 +223,7 @@ export function ChatWidget({
         }
       }
 
-      // 3. Se tudo falhou, usar mensagem de fallback
+      // 5. Se tudo falhou, usar mensagem de fallback
       if (!agentResponse) {
         throw new Error('Todos os serviços indisponíveis');
       }
