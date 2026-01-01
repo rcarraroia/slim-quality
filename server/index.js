@@ -51,6 +51,97 @@ function checkRateLimit(ip) {
   return true;
 }
 
+// Rota para salvar conversa (proxy para Supabase)
+app.post('/server/api/save-conversation', async (req, res) => {
+  try {
+    const { sessionId, userMessage, agentResponse, channel } = req.body;
+
+    if (!sessionId || !userMessage || !agentResponse) {
+      return res.status(400).json({ 
+        error: 'sessionId, userMessage e agentResponse são obrigatórios' 
+      });
+    }
+
+    console.log(`💾 Salvando conversa: ${sessionId} - ${channel}`);
+
+    // Buscar ou criar conversa
+    let conversation;
+    const { data: existingConversation } = await supabase
+      .from('conversations')
+      .select('*')
+      .eq('session_id', sessionId)
+      .eq('channel', channel || 'site')
+      .single();
+
+    if (existingConversation) {
+      conversation = existingConversation;
+      console.log(`🔄 Conversa existente: ${conversation.id}`);
+    } else {
+      // Criar nova conversa
+      const { data: newConversation, error: conversationError } = await supabase
+        .from('conversations')
+        .insert({
+          session_id: sessionId,
+          channel: channel || 'site',
+          status: 'open',
+          customer_name: 'Visitante do Site',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        })
+        .select()
+        .single();
+
+      if (conversationError) {
+        console.error('❌ Erro ao criar conversa:', conversationError);
+        return res.status(500).json({ error: 'Erro interno do servidor' });
+      }
+
+      conversation = newConversation;
+      console.log(`✅ Nova conversa criada: ${conversation.id}`);
+    }
+
+    // Salvar mensagem do usuário
+    await supabase
+      .from('messages')
+      .insert({
+        conversation_id: conversation.id,
+        content: userMessage,
+        sender_type: 'customer',
+        created_at: new Date().toISOString()
+      });
+
+    // Salvar resposta do agente
+    await supabase
+      .from('messages')
+      .insert({
+        conversation_id: conversation.id,
+        content: agentResponse,
+        sender_type: 'agent',
+        created_at: new Date().toISOString()
+      });
+
+    // Atualizar timestamp da conversa
+    await supabase
+      .from('conversations')
+      .update({ 
+        last_message_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', conversation.id);
+
+    console.log(`✅ Conversa salva com sucesso: ${conversation.id}`);
+
+    res.json({
+      success: true,
+      conversationId: conversation.id
+    });
+
+  } catch (error) {
+    console.error('❌ Erro ao salvar conversa:', error);
+    res.status(500).json({ error: 'Erro interno do servidor' });
+  }
+});
+
 // Rota principal do chat
 app.post('/api/chat', async (req, res) => {
   try {

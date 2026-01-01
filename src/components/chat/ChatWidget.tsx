@@ -1,5 +1,5 @@
 /**
- * Chat Widget para site público
+ * Chat Widget para site público - INTEGRAÇÃO REAL COM AGENTE
  * Sprint 5: Painel Admin - Agente IA
  */
 
@@ -24,7 +24,7 @@ interface ChatWidgetProps {
   subtitle?: string;
   placeholder?: string;
   onClose?: () => void;
-  autoOpen?: boolean; // Nova prop para controlar abertura automática
+  autoOpen?: boolean;
 }
 
 export function ChatWidget({
@@ -34,9 +34,9 @@ export function ChatWidget({
   subtitle = 'Como podemos ajudar?',
   placeholder = 'Digite sua mensagem...',
   onClose,
-  autoOpen = false // Por padrão não abre automaticamente
+  autoOpen = false
 }: ChatWidgetProps) {
-  const [isOpen, setIsOpen] = useState(autoOpen); // Usar prop autoOpen
+  const [isOpen, setIsOpen] = useState(autoOpen);
   const [isMinimized, setIsMinimized] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputMessage, setInputMessage] = useState('');
@@ -88,64 +88,71 @@ export function ChatWidget({
     setIsLoading(true);
 
     try {
-      // Tentar API real primeiro
-      const response = await fetch('/api/chat', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          message: currentMessage,
-          sessionId,
-          customerName: 'Visitante do Site'
-        }),
-      });
+      // CONECTAR COM AGENTE REAL - Tentar múltiplas URLs
+      let agentResponse = null;
+      
+      // 1. Tentar agente real em produção
+      try {
+        console.log('🤖 Tentando agente real...');
+        const agentUrl = 'https://slimquality-agent.wpjtfd.easypanel.host/api/chat';
+        
+        const response = await fetch(agentUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            message: currentMessage,
+            lead_id: `site_${sessionId}`,
+            platform: 'site'
+          }),
+        });
 
-      if (response.ok) {
-        const data = await response.json();
-        if (data.success) {
-          const agentMessage: Message = {
-            id: (Date.now() + 1).toString(),
-            content: data.response,
-            sender: 'agent',
-            timestamp: new Date()
-          };
-          setMessages(prev => [...prev, agentMessage]);
-          return;
+        if (response.ok) {
+          const data = await response.json();
+          if (data.status === 'success' && data.response) {
+            agentResponse = data.response;
+            console.log('✅ Agente real respondeu');
+          }
+        }
+      } catch (error) {
+        console.log('⚠️ Agente real não disponível:', error.message);
+      }
+
+      // 2. Se agente real falhou, tentar servidor Express local
+      if (!agentResponse) {
+        try {
+          console.log('🔄 Tentando servidor Express...');
+          const response = await fetch('/server/api/chat', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              message: currentMessage,
+              sessionId,
+              customerName: 'Visitante do Site'
+            }),
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            if (data.success && data.response) {
+              agentResponse = data.response;
+              console.log('✅ Servidor Express respondeu');
+            }
+          }
+        } catch (error) {
+          console.log('⚠️ Servidor Express não disponível:', error.message);
         }
       }
-    } catch (error) {
-      console.log('API não disponível, usando respostas locais...');
-    }
 
-    // Fallback: Respostas inteligentes locais
-    setTimeout(() => {
-      let agentResponse = "Obrigado pela sua mensagem! Sou a BIA, consultora da Slim Quality. Como posso te ajudar hoje?";
-      
-      const messageLower = currentMessage.toLowerCase();
-      
-      if (messageLower.includes('dor') || messageLower.includes('coluna') || messageLower.includes('costas') || messageLower.includes('lombar')) {
-        agentResponse = "Entendo que você tem dores nas costas! 😔 Nossos colchões magnéticos são especialmente desenvolvidos para alívio de dores e melhora da postura. A magnetoterapia ajuda a relaxar os músculos e melhorar a circulação. Gostaria de saber mais sobre como pode te ajudar?";
-      } else if (messageLower.includes('sono') || messageLower.includes('dormir') || messageLower.includes('insônia') || messageLower.includes('acordar')) {
-        agentResponse = "Problemas de sono são muito comuns! 😴 Nossos colchões com tecnologia magnética e infravermelho longo ajudam a relaxar o corpo e melhorar a qualidade do sono. Muitos clientes relatam dormir melhor já na primeira semana. Posso te explicar como funciona?";
-      } else if (messageLower.includes('preço') || messageLower.includes('valor') || messageLower.includes('quanto') || messageLower.includes('custa')) {
-        agentResponse = "Nossos colchões custam a partir de R$ 3.190 (solteiro) até R$ 4.890 (king). 💰 Isso dá menos de R$ 9 por dia - menos que uma pizza! Considerando os benefícios para sua saúde e qualidade de vida, é um investimento que vale muito a pena. Quer saber sobre as opções de pagamento?";
-      } else if (messageLower.includes('entrega') || messageLower.includes('frete') || messageLower.includes('prazo') || messageLower.includes('envio')) {
-        agentResponse = "Fazemos entrega para todo o Brasil! 🚚 O prazo varia de 5 a 15 dias úteis dependindo da sua região. O frete é calculado no checkout. Qual sua cidade para eu verificar o prazo exato?";
-      } else if (messageLower.includes('olá') || messageLower.includes('oi') || messageLower.includes('bom dia') || messageLower.includes('boa tarde') || messageLower.includes('boa noite')) {
-        agentResponse = "Olá! 👋 Sou a BIA, consultora da Slim Quality. Estou aqui para te ajudar a encontrar a solução ideal para seus problemas de sono e dores. Nossos colchões magnéticos já transformaram a vida de milhares de pessoas. Como posso te ajudar hoje?";
-      } else if (messageLower.includes('magnético') || messageLower.includes('magnetoterapia') || messageLower.includes('tecnologia')) {
-        agentResponse = "Que bom que você quer saber sobre nossa tecnologia! 🧲 Nossos colchões têm 240 ímãs de neodímio que criam um campo magnético terapêutico. Isso melhora a circulação, reduz dores e acelera a recuperação muscular. Também temos infravermelho longo, vibromassagem e outras 6 tecnologias. Quer que eu detalhe alguma específica?";
-      } else if (messageLower.includes('fibromialgia') || messageLower.includes('artrite') || messageLower.includes('artrose') || messageLower.includes('reumatismo')) {
-        agentResponse = "Entendo sua preocupação com essas condições. 🩺 Nossos colchões magnéticos são especialmente indicados para fibromialgia, artrite e outras condições inflamatórias. A magnetoterapia ajuda a reduzir a inflamação e a dor. Muitos clientes com essas condições relatam melhora significativa. Gostaria de conversar sobre seu caso específico?";
-      } else if (messageLower.includes('circulação') || messageLower.includes('varizes') || messageLower.includes('pernas') || messageLower.includes('inchaço')) {
-        agentResponse = "Problemas circulatórios são muito comuns! 🩸 A magnetoterapia do nosso colchão melhora significativamente a circulação sanguínea, ajudando com varizes, pernas pesadas e inchaço. O campo magnético estimula o fluxo sanguíneo durante toda a noite. Você sente esses sintomas com frequência?";
-      } else if (messageLower.includes('comprar') || messageLower.includes('pedido') || messageLower.includes('finalizar')) {
-        agentResponse = "Que ótimo que você quer adquirir seu colchão! 🛒 Para finalizar seu pedido com segurança e receber todas as orientações, vou te conectar com nossa equipe especializada. Entre em contato pelo WhatsApp: (33) 99838-4177 ou clique no botão WhatsApp do site. Eles vão te ajudar com tudo!";
-      } else if (messageLower.includes('whatsapp') || messageLower.includes('telefone') || messageLower.includes('contato')) {
-        agentResponse = "Claro! Você pode falar diretamente com nossa equipe pelo WhatsApp: (33) 99838-4177 📱 Eles estão disponíveis para tirar todas as suas dúvidas e te ajudar a escolher o colchão ideal. Também pode clicar no botão verde do WhatsApp aqui no site!";
+      // 3. Se tudo falhou, usar mensagem de fallback
+      if (!agentResponse) {
+        throw new Error('Todos os serviços indisponíveis');
       }
 
+      // Sucesso - mostrar resposta
       const agentMessage: Message = {
         id: (Date.now() + 1).toString(),
         content: agentResponse,
@@ -154,10 +161,55 @@ export function ChatWidget({
       };
       setMessages(prev => [...prev, agentMessage]);
       setIsLoading(false);
-    }, 1000 + Math.random() * 1000); // Simular tempo de resposta humano
+      
+      // Salvar conversa no Supabase para dashboard
+      await saveConversationToSupabase(currentMessage, agentResponse);
+      return;
+      
+    } catch (error) {
+      console.error('❌ Erro ao conectar com agente:', error);
+      
+      // Fallback: Mensagem de erro amigável direcionando para WhatsApp
+      const errorMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        content: "Desculpe, estou com dificuldades técnicas no momento. 😔 Para um atendimento imediato, entre em contato pelo WhatsApp: (33) 99838-4177. Nossa equipe está pronta para te ajudar!",
+        sender: 'agent',
+        timestamp: new Date()
+      };
+      setMessages(prev => [...prev, errorMessage]);
+      setIsLoading(false);
+    }
   };
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
+  // Função para salvar conversa no Supabase
+  const saveConversationToSupabase = async (userMessage: string, agentResponse: string) => {
+    try {
+      // Usar o servidor Express como proxy para Supabase
+      const response = await fetch('/server/api/save-conversation', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          sessionId,
+          userMessage,
+          agentResponse,
+          channel: 'site'
+        }),
+      });
+      
+      if (response.ok) {
+        console.log('✅ Conversa salva no dashboard');
+      } else {
+        console.log('⚠️ Erro ao salvar conversa no dashboard');
+      }
+    } catch (error) {
+      console.log('⚠️ Erro ao salvar conversa:', error);
+      // Não bloquear o chat por erro de salvamento
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       sendMessage();
@@ -253,7 +305,7 @@ export function ChatWidget({
                   <Input
                     value={inputMessage}
                     onChange={(e) => setInputMessage(e.target.value)}
-                    onKeyPress={handleKeyPress}
+                    onKeyDown={handleKeyDown}
                     placeholder={placeholder}
                     disabled={isLoading}
                     className="flex-1"
