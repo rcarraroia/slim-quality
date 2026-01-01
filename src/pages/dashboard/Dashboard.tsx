@@ -5,8 +5,10 @@ import { StatusBadge } from '@/components/dashboard/StatusBadge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
 import { Link } from 'react-router-dom';
 import { supabase } from '@/config/supabase';
+import { useRealtimeConversations } from '@/hooks/useRealtimeConversations';
 
 interface Conversation {
   id: string;
@@ -30,7 +32,6 @@ interface Order {
 }
 
 export default function Dashboard() {
-  const [conversasRecentes, setConversasRecentes] = useState<Conversation[]>([]);
   const [vendasRecentes, setVendasRecentes] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
@@ -40,6 +41,9 @@ export default function Dashboard() {
     ticketMedio: 0
   });
 
+  // Usar hook de conversas em tempo real
+  const { conversations: conversasRecentes, channelCounts } = useRealtimeConversations();
+
   useEffect(() => {
     loadDashboardData();
   }, []);
@@ -48,7 +52,6 @@ export default function Dashboard() {
     try {
       setLoading(true);
       await Promise.all([
-        loadConversations(),
         loadOrders(),
         loadStats()
       ]);
@@ -59,25 +62,7 @@ export default function Dashboard() {
     }
   };
 
-  const loadConversations = async () => {
-    const { data, error } = await supabase
-      .from('conversations')
-      .select(`
-        id,
-        last_message_at,
-        updated_at,
-        status,
-        customer:customers(name)
-      `)
-      .order('updated_at', { ascending: false })
-      .limit(5);
-
-    if (error) {
-      console.error('Erro ao carregar conversas:', error);
-      return;
-    }
-    setConversasRecentes(data || []);
-  };
+  // Remover loadConversations - agora usa useRealtimeConversations
 
   const loadOrders = async () => {
     const { data, error } = await supabase
@@ -173,7 +158,27 @@ export default function Dashboard() {
       {/* Conversas Recentes */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>Conversas Recentes</CardTitle>
+          <CardTitle className="flex items-center gap-2">
+            Conversas Recentes
+            {/* Badges de canal */}
+            <div className="flex gap-1">
+              {channelCounts.whatsapp > 0 && (
+                <Badge variant="secondary" className="text-xs">
+                  WhatsApp: {channelCounts.whatsapp}
+                </Badge>
+              )}
+              {channelCounts.site > 0 && (
+                <Badge variant="secondary" className="text-xs">
+                  Site: {channelCounts.site}
+                </Badge>
+              )}
+              {channelCounts.email > 0 && (
+                <Badge variant="secondary" className="text-xs">
+                  Email: {channelCounts.email}
+                </Badge>
+              )}
+            </div>
+          </CardTitle>
           <Link to="/dashboard/conversas">
             <Button variant="outline" size="sm">Ver Todas</Button>
           </Link>
@@ -201,6 +206,14 @@ export default function Dashboard() {
                     <div className="flex items-center gap-2 mb-1">
                       <p className="font-medium">{conversa.customer?.name || 'Cliente'}</p>
                       <StatusBadge status={conversa.status as any} />
+                      {/* Badge do canal */}
+                      <Badge variant="outline" className="text-xs">
+                        {conversa.channel === 'whatsapp' && '📱 WhatsApp'}
+                        {conversa.channel === 'site' && '🌐 Site'}
+                        {conversa.channel === 'email' && '📧 Email'}
+                        {conversa.channel === 'chat' && '💬 Chat'}
+                        {conversa.channel === 'phone' && '📞 Telefone'}
+                      </Badge>
                     </div>
                     <p className="text-sm text-muted-foreground truncate">
                       {conversa.last_message_at ? 'Última mensagem em ' + new Date(conversa.last_message_at).toLocaleString('pt-BR') : 'Sem mensagens'}

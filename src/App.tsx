@@ -25,6 +25,13 @@ import Analytics from "./pages/dashboard/Analytics";
 import ListaAfiliados from "./pages/dashboard/afiliados/ListaAfiliados";
 import GestaoComissoes from "./pages/dashboard/afiliados/GestaoComissoes";
 import Solicitacoes from "./pages/dashboard/afiliados/Solicitacoes";
+import AgenteIA from "./pages/dashboard/agente/AgenteIA";
+import AgenteConfiguracao from "./pages/dashboard/agente/AgenteConfiguracao";
+import AgenteSicc from "./pages/dashboard/agente/AgenteSicc";
+import ChatTest from "./pages/ChatTest";
+import AgenteMcp from "./pages/dashboard/agente/AgenteMcp";
+import AgenteMetricas from "./pages/dashboard/agente/AgenteMetricas";
+import AgenteAprendizados from "./pages/dashboard/agente/AgenteAprendizados";
 import AffiliateDashboardInicio from "./pages/afiliados/dashboard/Inicio";
 import AffiliateDashboardRede from "./pages/afiliados/dashboard/MinhaRede";
 import AffiliateDashboardComissoes from "./pages/afiliados/dashboard/Comissoes";
@@ -54,6 +61,9 @@ const App = () => (
           <Route path="/login" element={<Login />} />
           <Route path="/afiliados/cadastro" element={<AfiliadosCadastro />} />
           
+          {/* Teste do Chat Widget */}
+          <Route path="/chat-test" element={<ChatTest />} />
+          
           {/* 2. CONTEXTO ADMIN (Dashboard Administrativo) */}
           <Route path="/dashboard" element={<DashboardLayout />}>
             <Route index element={<Dashboard />} />
@@ -72,6 +82,14 @@ const App = () => (
             <Route path="afiliados" element={<ListaAfiliados />} />
             <Route path="afiliados/comissoes" element={<GestaoComissoes />} />
             <Route path="afiliados/solicitacoes" element={<Solicitacoes />} />
+            
+            {/* NOVO: Submenu Agente IA */}
+            <Route path="agente" element={<AgenteIA />} />
+            <Route path="agente/configuracao" element={<AgenteConfiguracao />} />
+            <Route path="agente/sicc" element={<AgenteSicc />} />
+            <Route path="agente/mcp" element={<AgenteMcp />} />
+            <Route path="agente/metricas" element={<AgenteMetricas />} />
+            <Route path="agente/aprendizados" element={<AgenteAprendizados />} />
           </Route>
 
           {/* 3. CONTEXTO AFILIADO (Dashboard do Afiliado) */}

@@ -1,0 +1,20 @@
+# Dockerfile de Diagnóstico - Versão Mínima
+FROM python:3.11-slim
+
+# Instalar apenas o essencial
+RUN pip install fastapi uvicorn
+
+# Copiar apenas o arquivo de diagnóstico
+WORKDIR /app
+COPY src/api/main_minimal.py ./src/api/main_minimal.py
+
+# Configurar variáveis básicas
+ENV PYTHONPATH=/app
+ENV PYTHONUNBUFFERED=1
+
+# Expor porta
+EXPOSE 8000
+
+# Comando de diagnóstico com logs verbosos
+CMD ["python", "-c", "import sys; print('Python iniciando...', flush=True); exec(open('src/api/main_minimal.py').read())"] && \
+    ["uvicorn", "src.api.main_minimal:app", "--host", "0.0.0.0", "--port", "8000", "--log-level", "debug"]

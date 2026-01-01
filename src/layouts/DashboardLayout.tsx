@@ -19,19 +19,27 @@ import {
   Bot,
   BarChart3,
   Menu,
-  X
+  X,
+  Brain,
+  Plug,
+  Lightbulb
 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
+import { usePendingLearningBadge } from '@/hooks/useRealtimeConversations';
 
 export function DashboardLayout() {
   const location = useLocation();
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   const [affiliatesMenuOpen, setAffiliatesMenuOpen] = useState(location.pathname.startsWith('/dashboard/afiliados'));
+  const [agentMenuOpen, setAgentMenuOpen] = useState(location.pathname.startsWith('/dashboard/agente'));
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false); // Novo estado para mobile
+  
+  // Hook para badge dinâmico de aprendizados pendentes
+  const { count: pendingLearningCount } = usePendingLearningBadge();
 
   const menuItems = [
     { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard', disabled: false },
@@ -46,6 +54,15 @@ export function DashboardLayout() {
     { label: 'Solicitações', path: '/dashboard/afiliados/solicitacoes', icon: CreditCard },
   ];
 
+  const agentSubmenu = [
+    { label: 'Overview', path: '/dashboard/agente', icon: LayoutDashboard },
+    { label: 'Configuração', path: '/dashboard/agente/configuracao', icon: Settings },
+    { label: 'SICC', path: '/dashboard/agente/sicc', icon: Brain },
+    { label: 'Integrações', path: '/dashboard/agente/mcp', icon: Plug },
+    { label: 'Métricas', path: '/dashboard/agente/metricas', icon: BarChart3 },
+    { label: 'Aprendizados', path: '/dashboard/agente/aprendizados', icon: Lightbulb },
+  ];
+
   const secondaryItems = [
     { icon: UserCircle, label: 'Clientes', path: '/dashboard/clientes', disabled: false },
     { icon: Calendar, label: 'Agendamentos', path: '/dashboard/agendamentos', disabled: false },
@@ -58,6 +75,7 @@ export function DashboardLayout() {
     const allItems = [
       ...menuItems, 
       ...affiliateSubmenu, 
+      ...agentSubmenu,
       ...secondaryItems
     ];
     const currentItem = allItems.find(item => item.path === location.pathname);
@@ -167,6 +185,63 @@ export function DashboardLayout() {
                   >
                     <Icon className="h-4 w-4" />
                     <span>{item.label}</span>
+                  </Link>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Agente IA Menu (Dropdown) */}
+        <div className="space-y-1">
+          <button
+            onClick={() => setAgentMenuOpen(!agentMenuOpen)}
+            className={cn(
+              "flex items-center w-full gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors relative",
+              location.pathname.startsWith('/dashboard/agente')
+                ? "bg-primary/10 text-primary"
+                : "text-foreground hover:bg-muted hover:text-primary"
+            )}
+          >
+            <Bot className="h-5 w-5" />
+            <span>🤖 Meu Agente</span>
+            {pendingLearningCount > 0 && (
+              <span className="ml-2 bg-red-500 text-white text-xs rounded-full px-2 py-1 min-w-[20px] h-5 flex items-center justify-center">
+                {pendingLearningCount}
+              </span>
+            )}
+            {agentMenuOpen ? (
+              <ChevronUp className="h-4 w-4 ml-auto" />
+            ) : (
+              <ChevronDown className="h-4 w-4 ml-auto" />
+            )}
+          </button>
+          
+          {agentMenuOpen && (
+            <div className="pl-8 space-y-1">
+              {agentSubmenu.map((item) => {
+                const Icon = item.icon;
+                const isActive = location.pathname === item.path;
+                return (
+                  <Link
+                    key={item.path}
+                    to={item.path}
+                    className={cn(
+                      "flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors",
+                      isActive 
+                        ? "bg-primary/20 text-primary font-medium" 
+                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                    )}
+                    onClick={() => handleNavigation(item.path)}
+                  >
+                    <Icon className="h-4 w-4" />
+                    <span>{item.label}</span>
+                    {/* Badge para Aprendizados - TODO: integrar com hook real */}
+                    {item.path === '/dashboard/agente/aprendizados' && (
+                      <span className="ml-auto bg-destructive text-destructive-foreground text-xs rounded-full px-2 py-0.5">
+                        3
+                      </span>
+                    )}
                   </Link>
                 );
               })}

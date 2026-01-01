@@ -144,8 +144,10 @@ Seja empática, educativa e focada em ajudar o cliente com problemas de saúde e
             
             print(f"Webhook recebido: {data}", flush=True)
             
-            # Extrair dados da mensagem
-            if data.get('event') == 'messages.upsert' and data.get('data'):
+            event_type = data.get('event', '')
+            
+            # MENSAGENS RECEBIDAS
+            if event_type == 'MESSAGES_UPSERT' and data.get('data'):
                 message_data = data['data']
                 
                 # Verificar se é mensagem de texto
@@ -156,12 +158,274 @@ Seja empática, educativa e focada em ajudar o cliente com problemas de saúde e
                     if phone and message_text:
                         # Processar em background
                         background_tasks.add_task(process_and_send, message_text, phone)
+                        
+                        # Salvar conversa no Supabase para dashboard
+                        background_tasks.add_task(save_whatsapp_conversation, phone, message_text, 'customer')
             
-            return {"status": "received"}
+            # MENSAGENS ENVIADAS
+            elif event_type == 'SEND_MESSAGE' and data.get('data'):
+                message_data = data['data']
+                phone = message_data.get('key', {}).get('remoteJid', '').replace('@s.whatsapp.net', '')
+                message_text = message_data.get('message', {}).get('conversation', '')
+                
+                if phone and message_text:
+                    # Salvar mensagem enviada no dashboard
+                    background_tasks.add_task(save_whatsapp_conversation, phone, message_text, 'agent')
+            
+            # STATUS DE CONEXÃO
+            elif event_type == 'CONNECTION_UPDATE':
+                connection_data = data.get('data', {})
+                status = connection_data.get('state', 'unknown')
+                print(f"Status de conexão WhatsApp: {status}", flush=True)
+                
+                # Salvar status no dashboard
+                background_tasks.add_task(save_connection_status, status)
+            
+            # APLICAÇÃO INICIADA
+            elif event_type == 'APPLICATION_STARTUP':
+                print("🚀 Evolution API iniciada!", flush=True)
+                background_tasks.add_task(save_connection_status, 'startup')
+            
+            # QR CODE ATUALIZADO
+            elif event_type == 'QRCODE_UPDATED':
+                qr_data = data.get('data', {})
+                qr_code = qr_data.get('qrcode', '')
+                print(f"📱 QR Code atualizado (tamanho: {len(qr_code)} chars)", flush=True)
+                
+                # Salvar QR code para dashboard (pode ser usado para reconexão)
+                background_tasks.add_task(save_qr_code, qr_code)
+            
+            # CONTATOS ATUALIZADOS
+            elif event_type == 'CONTACTS_UPSERT':
+                contacts_data = data.get('data', [])
+                print(f"👥 Contatos atualizados: {len(contacts_data)} contatos", flush=True)
+                
+                # Processar contatos em background
+                background_tasks.add_task(process_contacts_update, contacts_data)
+            
+            # STATUS DE PRESENÇA (usuário digitando, online, etc.)
+            elif event_type == 'PRESENCE_UPDATE':
+                presence_data = data.get('data', {})
+                phone = presence_data.get('id', '').replace('@s.whatsapp.net', '')
+                presence = presence_data.get('presences', {})
+                
+                if phone and presence:
+                    print(f"👤 Presença {phone}: {presence}", flush=True)
+                    # Pode ser usado para mostrar "digitando..." no dashboard
+                    background_tasks.add_task(save_presence_status, phone, presence)
+            
+            # MENSAGENS DELETADAS
+            elif event_type == 'MESSAGES_DELETE':
+                delete_data = data.get('data', {})
+                phone = delete_data.get('key', {}).get('remoteJid', '').replace('@s.whatsapp.net', '')
+                message_id = delete_data.get('key', {}).get('id', '')
+                
+                if phone and message_id:
+                    print(f"🗑️ Mensagem deletada: {message_id} de {phone}", flush=True)
+                    background_tasks.add_task(handle_message_delete, phone, message_id)
+            
+            # MENSAGENS ATUALIZADAS
+            elif event_type == 'MESSAGES_UPDATE':
+                update_data = data.get('data', {})
+                phone = update_data.get('key', {}).get('remoteJid', '').replace('@s.whatsapp.net', '')
+                
+                if phone:
+                    print(f"✏️ Mensagem atualizada de {phone}", flush=True)
+                    # Pode ser usado para status de leitura, etc.
+            
+            return {"status": "received", "event": event_type}
             
         except Exception as e:
             print(f"Erro no webhook: {e}", flush=True)
             return {"status": "error", "message": str(e)}
+    
+    # Função para salvar conversa do WhatsApp no Supabase
+    async def save_whatsapp_conversation(phone: str, message: str, sender_type: str = 'customer'):
+        try:
+            import os
+            from supabase import create_client, Client
+            
+            # Configurar Supabase
+            supabase_url = os.getenv("SUPABASE_URL")
+            supabase_key = os.getenv("SUPABASE_SERVICE_KEY")
+            
+            if not supabase_url or not supabase_key:
+                print("Supabase não configurado para salvar conversas", flush=True)
+                return
+            
+            supabase: Client = create_client(supabase_url, supabase_key)
+            
+            # Buscar ou criar conversa
+            conversation_result = supabase.table('conversations').select('*').eq('customer_phone', phone).eq('channel', 'whatsapp').execute()
+            
+            if conversation_result.data:
+                # Conversa existe - atualizar
+                conversation_id = conversation_result.data[0]['id']
+                supabase.table('conversations').update({
+                    'last_message_at': 'now()',
+                    'updated_at': 'now()',
+                    'status': 'open'
+                }).eq('id', conversation_id).execute()
+            else:
+                # Criar nova conversa
+                conversation_result = supabase.table('conversations').insert({
+                    'customer_phone': phone,
+                    'customer_name': f'Cliente {phone[-4:]}',
+                    'channel': 'whatsapp',
+                    'status': 'open',
+                    'created_at': 'now()',
+                    'updated_at': 'now()',
+                    'last_message_at': 'now()'
+                }).execute()
+                
+                if conversation_result.data:
+                    conversation_id = conversation_result.data[0]['id']
+                else:
+                    print("Erro ao criar conversa", flush=True)
+                    return
+            
+            # Salvar mensagem
+            supabase.table('messages').insert({
+                'conversation_id': conversation_id,
+                'content': message,
+                'sender_type': sender_type,  # 'customer' ou 'agent'
+                'created_at': 'now()'
+            }).execute()
+            
+            print(f"✅ Conversa WhatsApp salva: {phone} -> {conversation_id} ({sender_type})", flush=True)
+            
+        except Exception as e:
+            print(f"Erro ao salvar conversa WhatsApp: {e}", flush=True)
+    
+    # Função para salvar status de conexão
+    async def save_connection_status(status: str):
+        try:
+            import os
+            from supabase import create_client, Client
+            
+            supabase_url = os.getenv("SUPABASE_URL")
+            supabase_key = os.getenv("SUPABASE_SERVICE_KEY")
+            
+            if not supabase_url or not supabase_key:
+                return
+            
+            supabase: Client = create_client(supabase_url, supabase_key)
+            
+            # Salvar status de conexão (pode ser usado para métricas do agente)
+            supabase.table('agent_status').upsert({
+                'agent_type': 'whatsapp_evolution',
+                'status': status,
+                'last_update': 'now()',
+                'metadata': {'connection_state': status}
+            }).execute()
+            
+            print(f"✅ Status de conexão salvo: {status}", flush=True)
+            
+    # Função para salvar QR code
+    async def save_qr_code(qr_code: str):
+        try:
+            import os
+            from supabase import create_client, Client
+            
+            supabase_url = os.getenv("SUPABASE_URL")
+            supabase_key = os.getenv("SUPABASE_SERVICE_KEY")
+            
+            if not supabase_url or not supabase_key:
+                return
+            
+            supabase: Client = create_client(supabase_url, supabase_key)
+            
+            # Salvar QR code para reconexão
+            supabase.table('agent_status').upsert({
+                'agent_type': 'whatsapp_evolution',
+                'status': 'qr_code_updated',
+                'last_update': 'now()',
+                'metadata': {'qr_code': qr_code[:100]}  # Truncar para não sobrecarregar
+            }).execute()
+            
+            print(f"✅ QR Code salvo para dashboard", flush=True)
+            
+        except Exception as e:
+            print(f"Erro ao salvar QR code: {e}", flush=True)
+    
+    # Função para processar atualizações de contatos
+    async def process_contacts_update(contacts_data):
+        try:
+            import os
+            from supabase import create_client, Client
+            
+            supabase_url = os.getenv("SUPABASE_URL")
+            supabase_key = os.getenv("SUPABASE_SERVICE_KEY")
+            
+            if not supabase_url or not supabase_key:
+                return
+            
+            supabase: Client = create_client(supabase_url, supabase_key)
+            
+            # Atualizar contadores de contatos
+            contact_count = len(contacts_data) if isinstance(contacts_data, list) else 1
+            
+            supabase.table('agent_status').upsert({
+                'agent_type': 'whatsapp_evolution',
+                'status': 'contacts_updated',
+                'last_update': 'now()',
+                'metadata': {'contact_count': contact_count}
+            }).execute()
+            
+            print(f"✅ Contatos processados: {contact_count}", flush=True)
+            
+        except Exception as e:
+            print(f"Erro ao processar contatos: {e}", flush=True)
+    
+    # Função para salvar status de presença
+    async def save_presence_status(phone: str, presence: dict):
+        try:
+            import os
+            from supabase import create_client, Client
+            
+            supabase_url = os.getenv("SUPABASE_URL")
+            supabase_key = os.getenv("SUPABASE_SERVICE_KEY")
+            
+            if not supabase_url or not supabase_key:
+                return
+            
+            supabase: Client = create_client(supabase_url, supabase_key)
+            
+            # Atualizar status de presença na conversa
+            supabase.table('conversations').update({
+                'presence_status': presence,
+                'updated_at': 'now()'
+            }).eq('customer_phone', phone).eq('channel', 'whatsapp').execute()
+            
+            print(f"✅ Presença atualizada: {phone} -> {presence}", flush=True)
+            
+        except Exception as e:
+            print(f"Erro ao salvar presença: {e}", flush=True)
+    
+    # Função para lidar com mensagens deletadas
+    async def handle_message_delete(phone: str, message_id: str):
+        try:
+            import os
+            from supabase import create_client, Client
+            
+            supabase_url = os.getenv("SUPABASE_URL")
+            supabase_key = os.getenv("SUPABASE_SERVICE_KEY")
+            
+            if not supabase_url or not supabase_key:
+                return
+            
+            supabase: Client = create_client(supabase_url, supabase_key)
+            
+            # Marcar mensagem como deletada (soft delete)
+            supabase.table('messages').update({
+                'deleted_at': 'now()',
+                'updated_at': 'now()'
+            }).eq('external_id', message_id).execute()
+            
+            print(f"✅ Mensagem marcada como deletada: {message_id}", flush=True)
+            
+        except Exception as e:
+            print(f"Erro ao deletar mensagem: {e}", flush=True)
     
     # Função para processar e enviar resposta
     async def process_and_send(message: str, phone: str):
