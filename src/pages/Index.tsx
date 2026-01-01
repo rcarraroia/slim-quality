@@ -1,13 +1,15 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { WhatsAppButton } from "@/components/shared/WhatsAppButton";
+import { ChatWidget } from "@/components/chat/ChatWidget";
 import { Moon, Heart, Brain, Wind, User, Droplet, Package } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useProducts } from "@/hooks/useProducts";
+import { useState } from "react";
 
 const Index = () => {
   const { products, loading: productsLoading, error: productsError } = useProducts();
+  const [showChatWidget, setShowChatWidget] = useState(false);
   
   const scrollToNext = () => {
     document.getElementById('problems')?.scrollIntoView({ behavior: 'smooth' });
@@ -102,12 +104,14 @@ const Index = () => {
                 <Button size="lg" onClick={scrollToNext} className="text-lg px-8 py-6 transition-all duration-300 hover:scale-[1.02]">
                   Descubra Como
                 </Button>
-                <WhatsAppButton 
+                <Button 
                   size="lg" 
                   variant="outline"
-                  message="Olá! Quero conhecer os colchões Slim Quality"
+                  onClick={() => setShowChatWidget(true)}
                   className="text-lg px-8 py-6 transition-all duration-300 hover:scale-[1.02]"
-                />
+                >
+                  Fale com Especialista
+                </Button>
               </div>
             </div>
             <div className="relative aspect-square md:aspect-auto md:h-[500px] rounded-2xl bg-muted overflow-hidden order-first md:order-last">
@@ -326,17 +330,27 @@ const Index = () => {
             Converse com a BIA, nossa especialista virtual, sem compromisso
           </p>
           <div className="pt-4">
-            <WhatsAppButton 
+            <Button 
               size="lg"
-              message="Olá BIA! Quero saber mais sobre os colchões Slim Quality"
+              onClick={() => setShowChatWidget(true)}
               className="text-lg px-10 py-7 shadow-xl transition-all duration-300 hover:scale-[1.05]"
-            />
+            >
+              Fale com Especialista
+            </Button>
           </div>
           <p className="text-sm text-muted-foreground">
             Atendimento personalizado • Tire todas as suas dúvidas
           </p>
         </div>
       </section>
+
+      {/* Chat Widget */}
+      {showChatWidget && (
+        <ChatWidget 
+          autoOpen={true}
+          onClose={() => setShowChatWidget(false)} 
+        />
+      )}
     </div>
   );
 };

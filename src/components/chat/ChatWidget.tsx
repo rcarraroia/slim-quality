@@ -24,6 +24,7 @@ interface ChatWidgetProps {
   subtitle?: string;
   placeholder?: string;
   onClose?: () => void;
+  autoOpen?: boolean; // Nova prop para controlar abertura automática
 }
 
 export function ChatWidget({
@@ -32,9 +33,10 @@ export function ChatWidget({
   title = 'Fale Conosco',
   subtitle = 'Como podemos ajudar?',
   placeholder = 'Digite sua mensagem...',
-  onClose
+  onClose,
+  autoOpen = false // Por padrão não abre automaticamente
 }: ChatWidgetProps) {
-  const [isOpen, setIsOpen] = useState(true); // Abrir automaticamente
+  const [isOpen, setIsOpen] = useState(autoOpen); // Usar prop autoOpen
   const [isMinimized, setIsMinimized] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputMessage, setInputMessage] = useState('');
@@ -50,6 +52,13 @@ export function ChatWidget({
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  // Abrir automaticamente quando autoOpen for true
+  useEffect(() => {
+    if (autoOpen) {
+      setIsOpen(true);
+    }
+  }, [autoOpen]);
 
   // Mensagem de boas-vindas
   useEffect(() => {
