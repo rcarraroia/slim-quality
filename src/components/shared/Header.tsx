@@ -120,7 +120,7 @@ export function Header() {
 
       {/* Chat Widget */}
       {showChatWidget && (
-        <ChatWidget />
+        <ChatWidget onClose={() => setShowChatWidget(false)} />
       )}
     </>
   );

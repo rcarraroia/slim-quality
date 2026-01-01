@@ -23,6 +23,7 @@ interface ChatWidgetProps {
   title?: string;
   subtitle?: string;
   placeholder?: string;
+  onClose?: () => void;
 }
 
 export function ChatWidget({
@@ -30,9 +31,10 @@ export function ChatWidget({
   primaryColor = '#10b981',
   title = 'Fale Conosco',
   subtitle = 'Como podemos ajudar?',
-  placeholder = 'Digite sua mensagem...'
+  placeholder = 'Digite sua mensagem...',
+  onClose
 }: ChatWidgetProps) {
-  const [isOpen, setIsOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(true); // Abrir automaticamente
   const [isMinimized, setIsMinimized] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputMessage, setInputMessage] = useState('');
@@ -160,7 +162,10 @@ export function ChatWidget({
                   variant="ghost"
                   size="sm"
                   className="h-6 w-6 p-0 text-white hover:bg-white/20"
-                  onClick={() => setIsOpen(false)}
+                  onClick={() => {
+                    setIsOpen(false);
+                    onClose?.();
+                  }}
                 >
                   <X className="h-3 w-3" />
                 </Button>

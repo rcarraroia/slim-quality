@@ -1,8 +1,12 @@
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { CheckCircle } from "lucide-react";
 import { Link } from "react-router-dom";
+import { ChatWidget } from "@/components/chat/ChatWidget";
 
 const Sobre = () => {
+  const [showChatWidget, setShowChatWidget] = useState(false);
+  
   const technologies = [
     {
       id: "magnetico",
@@ -218,23 +222,22 @@ const Sobre = () => {
                 </Button>
               </Link>
               <Button 
-                asChild 
                 size="lg" 
                 variant="outline"
                 className="text-lg px-10 py-7"
+                onClick={() => setShowChatWidget(true)}
               >
-                <a 
-                  href="https://wa.me/5533998384177?text=Olá%20BIA!%20Quero%20saber%20mais%20sobre%20as%20tecnologias%20Slim%20Quality"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  Falar com a BIA
-                </a>
+                Falar com a BIA
               </Button>
             </div>
           </div>
         </div>
       </section>
+      
+      {/* Chat Widget */}
+      {showChatWidget && (
+        <ChatWidget onClose={() => setShowChatWidget(false)} />
+      )}
     </div>
   );
 };

@@ -13,11 +13,13 @@ import {
   Shield,
   Clock
 } from "lucide-react";
+import { ChatWidget } from "@/components/chat/ChatWidget";
 
 export default function AfiliadosLanding() {
   const [nivel1, setNivel1] = useState([10]);
   const [nivel2, setNivel2] = useState([5]);
   const [nivel3, setNivel3] = useState([15]); // Aumentei o mock para N3 para refletir o exemplo
+  const [showChatWidget, setShowChatWidget] = useState(false);
 
   // Ticket médio = (3190 + 3290 + 3490 + 4890) / 4 = 3715
   const ticketMedio = 3715;
@@ -69,10 +71,8 @@ export default function AfiliadosLanding() {
                     <ArrowRight className="h-5 w-5" />
                   </Link>
                 </Button>
-                <Button size="lg" variant="outline" asChild>
-                  <a href="https://wa.me/553199999999">
-                    Falar com Especialista
-                  </a>
+                <Button size="lg" variant="outline" onClick={() => setShowChatWidget(true)}>
+                  Falar com Especialista
                 </Button>
               </div>
 
@@ -494,10 +494,8 @@ export default function AfiliadosLanding() {
                     <ArrowRight className="h-5 w-5" />
                   </Link>
                 </Button>
-                <Button size="lg" variant="outline" asChild>
-                  <a href="https://wa.me/553199999999">
-                    Ainda Tenho Dúvidas
-                  </a>
+                <Button size="lg" variant="outline" onClick={() => setShowChatWidget(true)}>
+                  Ainda Tenho Dúvidas
                 </Button>
               </div>
               <p className="text-sm text-muted-foreground pt-4">
@@ -507,6 +505,11 @@ export default function AfiliadosLanding() {
           </Card>
         </div>
       </section>
+      
+      {/* Chat Widget */}
+      {showChatWidget && (
+        <ChatWidget onClose={() => setShowChatWidget(false)} />
+      )}
     </div>
   );
 }
