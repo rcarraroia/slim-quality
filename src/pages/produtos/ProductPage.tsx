@@ -2,13 +2,15 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { WhatsAppButton } from "@/components/shared/WhatsAppButton";
+import { MessageCircle } from "lucide-react";
+import { ChatWidget } from "@/components/chat/ChatWidget";
 import { Link } from "react-router-dom";
 import { useProducts } from "@/hooks/useProducts";
 import { Package } from "lucide-react";
 
 const ProductPage = () => {
   const [expandedProduct, setExpandedProduct] = useState<string | null>(null);
+  const [showChatWidget, setShowChatWidget] = useState(false);
   const { products, loading, error } = useProducts();
 
   return (
@@ -185,13 +187,14 @@ const ProductPage = () => {
 
                       {/* CTAs */}
                       <div className="space-y-3 pt-4">
-                        <WhatsAppButton
-                          productName={`Slim Quality ${product.name}`}
-                          message={`Olá BIA! Tenho interesse no Slim Quality ${product.name}`}
+                        <Button
+                          onClick={() => setShowChatWidget(true)}
                           className="w-full transition-all duration-300 hover:scale-[1.02]"
                           size="lg"
-                        />
-
+                        >
+                          <MessageCircle className="mr-2 h-5 w-5" />
+                          Falar com BIA sobre este produto
+                        </Button>
                       </div>
                     </div>
                   </div>
@@ -212,15 +215,26 @@ const ProductPage = () => {
               <p className="text-muted-foreground">
                 A BIA pode ajudar você a encontrar o modelo ideal
               </p>
-              <WhatsAppButton
-                message="Olá BIA! Preciso de ajuda para escolher o tamanho ideal do colchão"
+              <Button
+                onClick={() => setShowChatWidget(true)}
                 size="lg"
                 className="transition-all duration-300 hover:scale-[1.05]"
-              />
+              >
+                <MessageCircle className="mr-2 h-5 w-5" />
+                Falar com BIA
+              </Button>
             </CardContent>
           </Card>
         </div>
       </section>
+
+      {/* Chat Widget */}
+      {showChatWidget && (
+        <ChatWidget 
+          autoOpen={true}
+          onClose={() => setShowChatWidget(false)} 
+        />
+      )}
     </div>
   );
 };

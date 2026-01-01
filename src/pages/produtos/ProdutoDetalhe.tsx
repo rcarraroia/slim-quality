@@ -2,8 +2,8 @@ import { Link, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle, Package, ShoppingCart } from "lucide-react";
-import { WhatsAppButton } from "@/components/shared/WhatsAppButton";
+import { CheckCircle, Package, ShoppingCart, MessageCircle } from "lucide-react";
+import { ChatWidget } from "@/components/chat/ChatWidget";
 import { useProducts } from "@/hooks/useProducts";
 import { AffiliateAwareCheckout } from "@/components/checkout/AffiliateAwareCheckout";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -13,6 +13,7 @@ export default function ProdutoDetalhe() {
   const { slug } = useParams<{ slug: string }>();
   const { products, rawProducts, loading, error } = useProducts();
   const [showCheckout, setShowCheckout] = useState(false);
+  const [showChatWidget, setShowChatWidget] = useState(false);
   
   // Encontrar produto pelo slug (usar dados formatados para exibição)
   const displayProduct = products.find(p => p.slug === slug);
@@ -152,13 +153,15 @@ export default function ProdutoDetalhe() {
                 Comprar Agora
               </Button>
               
-              <WhatsAppButton 
-                productName={`Slim Quality ${displayProduct.name}`}
-                message={`Olá BIA! Tenho interesse no Slim Quality ${displayProduct.name} (${rawProduct.width_cm}x${rawProduct.length_cm}cm) - R$ ${priceFormatted}`}
+              <Button 
+                onClick={() => setShowChatWidget(true)}
+                variant="outline"
                 className="w-full"
                 size="lg"
-                variant="outline"
-              />
+              >
+                <MessageCircle className="mr-2 h-5 w-5" />
+                Falar com BIA sobre este produto
+              </Button>
             </div>
             
 
@@ -211,6 +214,14 @@ export default function ProdutoDetalhe() {
           />
         </DialogContent>
       </Dialog>
+
+      {/* Chat Widget */}
+      {showChatWidget && (
+        <ChatWidget 
+          autoOpen={true}
+          onClose={() => setShowChatWidget(false)} 
+        />
+      )}
     </div>
   );
 }
