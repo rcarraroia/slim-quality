@@ -83,83 +83,78 @@ export function ChatWidget({
     };
 
     setMessages(prev => [...prev, userMessage]);
+    const currentMessage = inputMessage;
     setInputMessage('');
     setIsLoading(true);
 
     try {
-      // Tentar múltiplos endpoints para garantir funcionamento
-      const endpoints = [
-        '/api/chat', // Vercel Serverless (se funcionar)
-        'https://slimquality.com.br/api/chat', // Servidor externo
-        'http://localhost:3001/api/chat' // Desenvolvimento local
-      ];
+      // Tentar API real primeiro
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          message: currentMessage,
+          sessionId,
+          customerName: 'Visitante do Site'
+        }),
+      });
 
-      let response;
-      let success = false;
-
-      for (const endpoint of endpoints) {
-        try {
-          response = await fetch(endpoint, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              message: inputMessage,
-              sessionId,
-              customerName: 'Visitante do Site'
-            }),
-          });
-
-          if (response.ok) {
-            success = true;
-            break;
-          }
-        } catch (err) {
-          console.log(`Endpoint ${endpoint} falhou, tentando próximo...`);
-          continue;
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          const agentMessage: Message = {
+            id: (Date.now() + 1).toString(),
+            content: data.response,
+            sender: 'agent',
+            timestamp: new Date()
+          };
+          setMessages(prev => [...prev, agentMessage]);
+          return;
         }
       }
-
-      if (!success || !response) {
-        throw new Error('Todos os endpoints falharam');
-      }
-
-      const data = await response.json();
-
-      if (data.success) {
-        const agentMessage: Message = {
-          id: (Date.now() + 1).toString(),
-          content: data.response,
-          sender: 'agent',
-          timestamp: new Date()
-        };
-        setMessages(prev => [...prev, agentMessage]);
-      } else {
-        throw new Error(data.error || 'Erro ao enviar mensagem');
-      }
     } catch (error) {
-      console.error('Erro ao enviar mensagem:', error);
+      console.log('API não disponível, usando respostas locais...');
+    }
+
+    // Fallback: Respostas inteligentes locais
+    setTimeout(() => {
+      let agentResponse = "Obrigado pela sua mensagem! Sou a BIA, consultora da Slim Quality. Como posso te ajudar hoje?";
       
-      // Resposta de fallback offline
-      const fallbackResponses = [
-        "Desculpe, estou com problemas de conexão no momento. 😔 Você pode entrar em contato conosco pelo WhatsApp: (11) 99999-9999",
-        "Ops! Parece que estou offline. 🔧 Mas posso te ajudar! Entre em contato pelo WhatsApp: (11) 99999-9999",
-        "Sistema temporariamente indisponível. 📱 Fale conosco diretamente: WhatsApp (11) 99999-9999"
-      ];
+      const messageLower = currentMessage.toLowerCase();
       
-      const randomFallback = fallbackResponses[Math.floor(Math.random() * fallbackResponses.length)];
-      
-      const errorMessage: Message = {
+      if (messageLower.includes('dor') || messageLower.includes('coluna') || messageLower.includes('costas') || messageLower.includes('lombar')) {
+        agentResponse = "Entendo que você tem dores nas costas! 😔 Nossos colchões magnéticos são especialmente desenvolvidos para alívio de dores e melhora da postura. A magnetoterapia ajuda a relaxar os músculos e melhorar a circulação. Gostaria de saber mais sobre como pode te ajudar?";
+      } else if (messageLower.includes('sono') || messageLower.includes('dormir') || messageLower.includes('insônia') || messageLower.includes('acordar')) {
+        agentResponse = "Problemas de sono são muito comuns! 😴 Nossos colchões com tecnologia magnética e infravermelho longo ajudam a relaxar o corpo e melhorar a qualidade do sono. Muitos clientes relatam dormir melhor já na primeira semana. Posso te explicar como funciona?";
+      } else if (messageLower.includes('preço') || messageLower.includes('valor') || messageLower.includes('quanto') || messageLower.includes('custa')) {
+        agentResponse = "Nossos colchões custam a partir de R$ 3.190 (solteiro) até R$ 4.890 (king). 💰 Isso dá menos de R$ 9 por dia - menos que uma pizza! Considerando os benefícios para sua saúde e qualidade de vida, é um investimento que vale muito a pena. Quer saber sobre as opções de pagamento?";
+      } else if (messageLower.includes('entrega') || messageLower.includes('frete') || messageLower.includes('prazo') || messageLower.includes('envio')) {
+        agentResponse = "Fazemos entrega para todo o Brasil! 🚚 O prazo varia de 5 a 15 dias úteis dependindo da sua região. O frete é calculado no checkout. Qual sua cidade para eu verificar o prazo exato?";
+      } else if (messageLower.includes('olá') || messageLower.includes('oi') || messageLower.includes('bom dia') || messageLower.includes('boa tarde') || messageLower.includes('boa noite')) {
+        agentResponse = "Olá! 👋 Sou a BIA, consultora da Slim Quality. Estou aqui para te ajudar a encontrar a solução ideal para seus problemas de sono e dores. Nossos colchões magnéticos já transformaram a vida de milhares de pessoas. Como posso te ajudar hoje?";
+      } else if (messageLower.includes('magnético') || messageLower.includes('magnetoterapia') || messageLower.includes('tecnologia')) {
+        agentResponse = "Que bom que você quer saber sobre nossa tecnologia! 🧲 Nossos colchões têm 240 ímãs de neodímio que criam um campo magnético terapêutico. Isso melhora a circulação, reduz dores e acelera a recuperação muscular. Também temos infravermelho longo, vibromassagem e outras 6 tecnologias. Quer que eu detalhe alguma específica?";
+      } else if (messageLower.includes('fibromialgia') || messageLower.includes('artrite') || messageLower.includes('artrose') || messageLower.includes('reumatismo')) {
+        agentResponse = "Entendo sua preocupação com essas condições. 🩺 Nossos colchões magnéticos são especialmente indicados para fibromialgia, artrite e outras condições inflamatórias. A magnetoterapia ajuda a reduzir a inflamação e a dor. Muitos clientes com essas condições relatam melhora significativa. Gostaria de conversar sobre seu caso específico?";
+      } else if (messageLower.includes('circulação') || messageLower.includes('varizes') || messageLower.includes('pernas') || messageLower.includes('inchaço')) {
+        agentResponse = "Problemas circulatórios são muito comuns! 🩸 A magnetoterapia do nosso colchão melhora significativamente a circulação sanguínea, ajudando com varizes, pernas pesadas e inchaço. O campo magnético estimula o fluxo sanguíneo durante toda a noite. Você sente esses sintomas com frequência?";
+      } else if (messageLower.includes('comprar') || messageLower.includes('pedido') || messageLower.includes('finalizar')) {
+        agentResponse = "Que ótimo que você quer adquirir seu colchão! 🛒 Para finalizar seu pedido com segurança e receber todas as orientações, vou te conectar com nossa equipe especializada. Entre em contato pelo WhatsApp: (33) 99838-4177 ou clique no botão WhatsApp do site. Eles vão te ajudar com tudo!";
+      } else if (messageLower.includes('whatsapp') || messageLower.includes('telefone') || messageLower.includes('contato')) {
+        agentResponse = "Claro! Você pode falar diretamente com nossa equipe pelo WhatsApp: (33) 99838-4177 📱 Eles estão disponíveis para tirar todas as suas dúvidas e te ajudar a escolher o colchão ideal. Também pode clicar no botão verde do WhatsApp aqui no site!";
+      }
+
+      const agentMessage: Message = {
         id: (Date.now() + 1).toString(),
-        content: randomFallback,
+        content: agentResponse,
         sender: 'agent',
         timestamp: new Date()
       };
-      setMessages(prev => [...prev, errorMessage]);
-    } finally {
+      setMessages(prev => [...prev, agentMessage]);
       setIsLoading(false);
-    }
+    }, 1000 + Math.random() * 1000); // Simular tempo de resposta humano
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
