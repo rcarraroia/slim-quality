@@ -119,11 +119,11 @@ export function ChatWidget({
         console.log('⚠️ Agente real não disponível:', error.message);
       }
 
-      // 2. Se agente real falhou, tentar servidor Express local
+      // 2. Se agente real falhou, usar servidor Express local (se disponível)
       if (!agentResponse) {
         try {
-          console.log('🔄 Tentando servidor Express...');
-          const response = await fetch('/server/api/chat', {
+          console.log('🔄 Tentando servidor Express local...');
+          const response = await fetch('http://localhost:3001/api/chat', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -139,11 +139,11 @@ export function ChatWidget({
             const data = await response.json();
             if (data.success && data.response) {
               agentResponse = data.response;
-              console.log('✅ Servidor Express respondeu');
+              console.log('✅ Servidor Express local respondeu');
             }
           }
         } catch (error) {
-          console.log('⚠️ Servidor Express não disponível:', error.message);
+          console.log('⚠️ Servidor Express local não disponível:', error.message);
         }
       }
 
