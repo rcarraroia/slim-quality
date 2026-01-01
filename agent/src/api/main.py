@@ -14,12 +14,18 @@ try:
     app = FastAPI(title="Slim Quality Agent", version="0.1.0")
     print("✅ App OK", flush=True)
     
-    # Configurar CORS
+    # Configurar CORS para site e localhost
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"],
+        allow_origins=[
+            "https://slimquality.com.br",
+            "https://slimquality.vercel.app", 
+            "http://localhost:8081",
+            "http://localhost:3000",
+            "http://localhost:5173"
+        ],
         allow_credentials=True,
-        allow_methods=["*"],
+        allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
         allow_headers=["*"],
     )
     
@@ -146,48 +152,52 @@ Seja empática, educativa e focada em ajudar o cliente com problemas de saúde e
             
             event_type = data.get('event', '')
             
-            # MENSAGENS RECEBIDAS
-            if event_type == 'MESSAGES_UPSERT' and data.get('data'):
+            # MENSAGENS RECEBIDAS - CORRIGIR EVENTO
+            if event_type == 'messages.upsert' and data.get('data'):
                 message_data = data['data']
                 
-                # Verificar se é mensagem de texto
-                if message_data.get('message', {}).get('conversation'):
+                # Verificar se é mensagem de texto e não é de nós mesmos
+                if (message_data.get('message', {}).get('conversation') and 
+                    not message_data.get('key', {}).get('fromMe', False)):
+                    
                     phone = message_data.get('key', {}).get('remoteJid', '').replace('@s.whatsapp.net', '')
                     message_text = message_data.get('message', {}).get('conversation', '')
                     
                     if phone and message_text:
+                        print(f"📱 Mensagem recebida de {phone}: {message_text}", flush=True)
                         # Processar em background
                         background_tasks.add_task(process_and_send, message_text, phone)
                         
                         # Salvar conversa no Supabase para dashboard
                         background_tasks.add_task(save_whatsapp_conversation, phone, message_text, 'customer')
             
-            # MENSAGENS ENVIADAS
-            elif event_type == 'SEND_MESSAGE' and data.get('data'):
+            # MENSAGENS ENVIADAS - CORRIGIR EVENTO
+            elif event_type == 'send.message' and data.get('data'):
                 message_data = data['data']
                 phone = message_data.get('key', {}).get('remoteJid', '').replace('@s.whatsapp.net', '')
                 message_text = message_data.get('message', {}).get('conversation', '')
                 
                 if phone and message_text:
+                    print(f"📤 Mensagem enviada para {phone}: {message_text}", flush=True)
                     # Salvar mensagem enviada no dashboard
                     background_tasks.add_task(save_whatsapp_conversation, phone, message_text, 'agent')
             
-            # STATUS DE CONEXÃO
-            elif event_type == 'CONNECTION_UPDATE':
+            # STATUS DE CONEXÃO - CORRIGIR EVENTO
+            elif event_type == 'connection.update':
                 connection_data = data.get('data', {})
                 status = connection_data.get('state', 'unknown')
-                print(f"Status de conexão WhatsApp: {status}", flush=True)
+                print(f"🔗 Status de conexão WhatsApp: {status}", flush=True)
                 
                 # Salvar status no dashboard
                 background_tasks.add_task(save_connection_status, status)
             
-            # APLICAÇÃO INICIADA
-            elif event_type == 'APPLICATION_STARTUP':
+            # APLICAÇÃO INICIADA - CORRIGIR EVENTO
+            elif event_type == 'application.startup':
                 print("🚀 Evolution API iniciada!", flush=True)
                 background_tasks.add_task(save_connection_status, 'startup')
             
-            # QR CODE ATUALIZADO
-            elif event_type == 'QRCODE_UPDATED':
+            # QR CODE ATUALIZADO - CORRIGIR EVENTO
+            elif event_type == 'qrcode.updated':
                 qr_data = data.get('data', {})
                 qr_code = qr_data.get('qrcode', '')
                 print(f"📱 QR Code atualizado (tamanho: {len(qr_code)} chars)", flush=True)
@@ -195,16 +205,16 @@ Seja empática, educativa e focada em ajudar o cliente com problemas de saúde e
                 # Salvar QR code para dashboard (pode ser usado para reconexão)
                 background_tasks.add_task(save_qr_code, qr_code)
             
-            # CONTATOS ATUALIZADOS
-            elif event_type == 'CONTACTS_UPSERT':
+            # CONTATOS ATUALIZADOS - CORRIGIR EVENTO
+            elif event_type == 'contacts.upsert':
                 contacts_data = data.get('data', [])
                 print(f"👥 Contatos atualizados: {len(contacts_data)} contatos", flush=True)
                 
                 # Processar contatos em background
                 background_tasks.add_task(process_contacts_update, contacts_data)
             
-            # STATUS DE PRESENÇA (usuário digitando, online, etc.)
-            elif event_type == 'PRESENCE_UPDATE':
+            # STATUS DE PRESENÇA - CORRIGIR EVENTO
+            elif event_type == 'presence.update':
                 presence_data = data.get('data', {})
                 phone = presence_data.get('id', '').replace('@s.whatsapp.net', '')
                 presence = presence_data.get('presences', {})
@@ -214,8 +224,8 @@ Seja empática, educativa e focada em ajudar o cliente com problemas de saúde e
                     # Pode ser usado para mostrar "digitando..." no dashboard
                     background_tasks.add_task(save_presence_status, phone, presence)
             
-            # MENSAGENS DELETADAS
-            elif event_type == 'MESSAGES_DELETE':
+            # MENSAGENS DELETADAS - CORRIGIR EVENTO
+            elif event_type == 'messages.delete':
                 delete_data = data.get('data', {})
                 phone = delete_data.get('key', {}).get('remoteJid', '').replace('@s.whatsapp.net', '')
                 message_id = delete_data.get('key', {}).get('id', '')
@@ -224,10 +234,10 @@ Seja empática, educativa e focada em ajudar o cliente com problemas de saúde e
                     print(f"🗑️ Mensagem deletada: {message_id} de {phone}", flush=True)
                     background_tasks.add_task(handle_message_delete, phone, message_id)
             
-            # MENSAGENS ATUALIZADAS
-            elif event_type == 'MESSAGES_UPDATE':
+            # MENSAGENS ATUALIZADAS - CORRIGIR EVENTO
+            elif event_type == 'messages.update':
                 update_data = data.get('data', {})
-                phone = update_data.get('key', {}).get('remoteJid', '').replace('@s.whatsapp.net', '')
+                phone = update_data.get('remoteJid', '').replace('@s.whatsapp.net', '')
                 
                 if phone:
                     print(f"✏️ Mensagem atualizada de {phone}", flush=True)
