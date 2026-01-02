@@ -118,10 +118,10 @@ export function ChatWidget({
         console.log('⚠️ Proxy Vercel não disponível:', error.message);
       }
 
-      // 2. Tentar múltiplas URLs do agente real
+      // 2. Tentar múltiplas URLs do agente real - CORRIGIDAS
       const agentUrls = [
+        'https://api.slimquality.com.br/api/chat',  // URL CORRETA
         'https://slimquality-agent.wpjtfd.easypanel.host/api/chat',
-        'https://api.slimquality.com.br/api/chat',
         'http://slimquality-agent.wpjtfd.easypanel.host/api/chat'
       ];
 
@@ -156,11 +156,11 @@ export function ChatWidget({
         }
       }
 
-      // 3. Se agente real falhou, tentar webhook direto
+      // 3. Se agente real falhou, tentar webhook direto - URL CORRIGIDA
       if (!agentResponse) {
         try {
           console.log('🔄 Tentando webhook direto...');
-          const webhookUrl = 'https://slimquality-agent.wpjtfd.easypanel.host/webhooks/evolution';
+          const webhookUrl = 'https://api.slimquality.com.br/webhooks/evolution';  // URL CORRETA
           
           // Simular evento de mensagem como se fosse do WhatsApp
           const webhookPayload = {
@@ -245,6 +245,14 @@ export function ChatWidget({
     } catch (error) {
       console.error('❌ Erro ao conectar com agente:', error);
       
+      // SEMPRE salvar conversa mesmo em caso de erro
+      try {
+        console.log('🔄 Salvando conversa do site mesmo com erro...');
+        await saveSiteConversationToWebhook(currentMessage, "Erro de conexão - mensagem não processada");
+      } catch (saveError) {
+        console.error('❌ Erro ao salvar conversa:', saveError);
+      }
+      
       // Fallback: Mensagem de erro amigável direcionando para WhatsApp
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
@@ -260,7 +268,9 @@ export function ChatWidget({
   // Função para salvar conversa do site no webhook do agente
   const saveSiteConversationToWebhook = async (userMessage: string, agentResponse: string) => {
     try {
-      const webhookUrl = 'https://slimquality-agent.wpjtfd.easypanel.host/webhooks/evolution';
+      console.log('🔄 Iniciando salvamento da conversa do site...', { userMessage: userMessage.substring(0, 50), agentResponse: agentResponse.substring(0, 50) });
+      
+      const webhookUrl = 'https://api.slimquality.com.br/webhooks/evolution';  // URL CORRETA
       
       // Salvar mensagem do usuário
       const userPayload = {
@@ -278,11 +288,14 @@ export function ChatWidget({
         }
       };
 
-      await fetch(webhookUrl, {
+      console.log('📤 Enviando mensagem do usuário para webhook...', userPayload);
+      const userResponse = await fetch(webhookUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(userPayload),
       });
+      
+      console.log('📥 Resposta webhook usuário:', userResponse.status, userResponse.ok);
 
       // Salvar resposta do agente
       const agentPayload = {
@@ -300,15 +313,22 @@ export function ChatWidget({
         }
       };
 
-      await fetch(webhookUrl, {
+      console.log('📤 Enviando resposta do agente para webhook...', agentPayload);
+      const agentResponseResult = await fetch(webhookUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(agentPayload),
       });
 
-      console.log('✅ Conversa do site salva no dashboard via webhook');
+      console.log('📥 Resposta webhook agente:', agentResponseResult.status, agentResponseResult.ok);
+
+      if (userResponse.ok && agentResponseResult.ok) {
+        console.log('✅ Conversa do site salva no dashboard via webhook');
+      } else {
+        console.log('⚠️ Webhook parcialmente falhou - user:', userResponse.ok, 'agent:', agentResponseResult.ok);
+      }
     } catch (error) {
-      console.log('⚠️ Erro ao salvar conversa do site:', error);
+      console.error('❌ Erro ao salvar conversa do site:', error);
     }
   };
 

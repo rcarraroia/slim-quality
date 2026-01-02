@@ -155,7 +155,7 @@ export default function ConversaDetalhes() {
   // Função para enviar mensagem via WhatsApp Evolution API
   const sendWhatsAppMessage = async (phone: string, message: string): Promise<boolean> => {
     try {
-      const agentUrl = 'https://slimquality-agent.wpjtfd.easypanel.host';
+      const agentUrl = 'https://api.slimquality.com.br';  // URL CORRETA
       const evolutionUrl = `${agentUrl}/send-whatsapp`;
       
       const response = await fetch(evolutionUrl, {

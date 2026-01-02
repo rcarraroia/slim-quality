@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,9 +12,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { StatusBadge } from "@/components/dashboard/StatusBadge";
 import { UserManagementModal } from "@/components/admin/UserManagementModal";
-import { mockUsers } from "@/data/mockData";
+import { supabase } from "@/config/supabase";
+import { useAuth } from "@/contexts/AuthContext";
 import { 
-  Settings, User, Building2, Users, CreditCard, Bell, Shield, Link, Palette, Edit, Trash2, CheckCircle, Clock, Plus
+  Settings, User, Building2, Users, CreditCard, Bell, Shield, Link, Palette, Edit, Trash2, CheckCircle, Clock, Plus, Loader2
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
@@ -31,21 +32,70 @@ const settingsTabs = [
 ];
 
 const cargoColors: Record<string, string> = {
-  Admin: 'bg-purple-600 text-white',
-  Vendedor: 'bg-blue-500 text-white',
-  Suporte: 'bg-success text-white',
-  Financeiro: 'bg-orange-500 text-white',
+  super_admin: 'bg-red-600 text-white',
+  admin: 'bg-purple-600 text-white',
+  vendedor: 'bg-blue-500 text-white',
+  suporte: 'bg-success text-white',
+  financeiro: 'bg-orange-500 text-white',
 };
 
-type UserData = typeof mockUsers[0];
+type UserData = {
+  id: string;
+  full_name: string;
+  email: string;
+  role: string;
+  status: 'ativo' | 'inativo' | 'bloqueado';
+  phone?: string;
+  avatar_url?: string;
+  wallet_id?: string;
+  is_affiliate: boolean;
+  affiliate_status?: string;
+  last_login_at?: string;
+  created_at: string;
+  updated_at: string;
+  deleted_at?: string;
+};
 
 export default function Configuracoes() {
-  const [activeTab, setActiveTab] = useState('pagamentos'); // Mantendo em pagamentos para visualização
+  const [activeTab, setActiveTab] = useState('usuarios'); // Mudando para usuarios por padrão
   const { toast } = useToast();
+  const { isSuperAdmin } = useAuth();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<UserData | null>(null);
   const [statusFilter, setStatusFilter] = useState('todos');
   const [cargoFilter, setCargoFilter] = useState('todos');
+  const [users, setUsers] = useState<UserData[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Carregar usuários do banco
+  const loadUsers = async () => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .is('deleted_at', null)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      setUsers(data || []);
+    } catch (error) {
+      console.error('Erro ao carregar usuários:', error);
+      toast({
+        title: "Erro ao carregar usuários",
+        description: "Não foi possível carregar a lista de usuários",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Carregar usuários ao montar componente
+  useEffect(() => {
+    loadUsers();
+  }, []);
 
   const handleSave = (section: string) => {
     toast({ title: "Configurações salvas!", description: `A seção ${section} foi atualizada.` });
@@ -61,24 +111,62 @@ export default function Configuracoes() {
     setIsModalOpen(true);
   };
 
-  const handleDeleteUser = (user: UserData) => {
-    toast({
-      title: "⚠️ Confirmação de Exclusão",
-      description: `Tem certeza que deseja excluir o usuário ${user.nome}?`,
-      variant: "destructive",
-    });
-    // Lógica de exclusão simulada
+  const handleDeleteUser = async (user: UserData) => {
+    if (!isSuperAdmin()) {
+      toast({
+        title: "Acesso negado",
+        description: "Apenas o Super Admin pode deletar usuários",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (user.email === 'rcarrarocoach@gmail.com') {
+      toast({
+        title: "Operação não permitida",
+        description: "Não é possível deletar o Super Admin",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      // Soft delete - marcar como deletado
+      const { error } = await supabase
+        .from('profiles')
+        .update({ 
+          deleted_at: new Date().toISOString(),
+          status: 'inativo'
+        })
+        .eq('id', user.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Usuário removido",
+        description: `${user.full_name} foi removido com sucesso`,
+      });
+
+      loadUsers(); // Recarregar lista
+    } catch (error) {
+      console.error('Erro ao deletar usuário:', error);
+      toast({
+        title: "Erro ao remover usuário",
+        description: "Não foi possível remover o usuário",
+        variant: "destructive",
+      });
+    }
   };
 
-  const filteredUsers = mockUsers.filter(user => {
+  const filteredUsers = users.filter(user => {
     const matchesStatus = statusFilter === 'todos' || user.status === statusFilter;
-    const matchesCargo = cargoFilter === 'todos' || user.cargo === cargoFilter;
+    const matchesCargo = cargoFilter === 'todos' || user.role === cargoFilter;
     return matchesStatus && matchesCargo;
   });
 
-  const totalUsers = mockUsers.length;
-  const activeUsers = mockUsers.filter(u => u.status === 'ativo').length;
-  const lastActiveUser = mockUsers.find(u => u.ultimoAcesso === 'Há 5 min' || u.ultimoAcesso === 'Agora');
+  const totalUsers = users.length;
+  const activeUsers = users.filter(u => u.status === 'ativo').length;
+  const lastActiveUser = users.find(u => u.last_login_at);
 
   const renderContent = () => {
     switch (activeTab) {
@@ -417,6 +505,7 @@ export default function Configuracoes() {
         user={editingUser}
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
+        onUserSaved={loadUsers}
       />
     </div>
   );

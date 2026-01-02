@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,19 +8,30 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { User, Lock, CheckCircle } from "lucide-react";
+import { supabase } from "@/config/supabase";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface UserData {
-  id?: number;
-  nome: string;
+  id?: string;
+  full_name: string;
   email: string;
-  cargo: string;
+  role: string;
   status: 'ativo' | 'inativo' | 'bloqueado';
+  phone?: string;
+  avatar_url?: string;
+  wallet_id?: string;
+  is_affiliate: boolean;
+  affiliate_status?: string;
+  last_login_at?: string;
+  created_at?: string;
+  updated_at?: string;
 }
 
 interface UserManagementModalProps {
   user: UserData | null;
   isOpen: boolean;
   onClose: () => void;
+  onUserSaved: () => void; // Callback para atualizar lista
 }
 
 const mockPermissions = [
@@ -37,24 +48,60 @@ const mockPermissions = [
 ];
 
 const rolePermissions: Record<string, string[]> = {
-  Admin: mockPermissions.map(p => p.id),
-  Vendedor: ['dashboard', 'conversas', 'clientes', 'agendamentos', 'produtos'],
-  Suporte: ['dashboard', 'conversas', 'produtos', 'clientes', 'analytics'],
-  Financeiro: ['dashboard', 'vendas', 'afiliados', 'analytics'],
-  Personalizado: [],
+  super_admin: mockPermissions.map(p => p.id), // Super admin tem todas as permissões
+  admin: ['dashboard', 'conversas', 'produtos', 'vendas', 'clientes', 'afiliados', 'agendamentos', 'analytics', 'configuracoes'],
+  vendedor: ['dashboard', 'conversas', 'clientes', 'agendamentos', 'produtos'],
+  suporte: ['dashboard', 'conversas', 'produtos', 'clientes', 'analytics'],
+  financeiro: ['dashboard', 'vendas', 'afiliados', 'analytics'],
+  personalizado: [],
 };
 
-export function UserManagementModal({ user, isOpen, onClose }: UserManagementModalProps) {
+export function UserManagementModal({ user, isOpen, onClose, onUserSaved }: UserManagementModalProps) {
   const { toast } = useToast();
+  const { isSuperAdmin } = useAuth();
   const isEditing = !!user;
-  const [formData, setFormData] = useState<UserData>(user || { nome: '', email: '', cargo: 'Vendedor', status: 'ativo' });
-  const [selectedPermissions, setSelectedPermissions] = useState<string[]>(isEditing ? rolePermissions[user.cargo] || [] : rolePermissions['Vendedor']);
-  const [selectedProfile, setSelectedProfile] = useState(isEditing ? user.cargo : 'Vendedor');
+  const [loading, setLoading] = useState(false);
+  const [formData, setFormData] = useState<UserData>(
+    user || { 
+      full_name: '', 
+      email: '', 
+      role: 'vendedor', 
+      status: 'ativo',
+      is_affiliate: false
+    }
+  );
+  const [selectedPermissions, setSelectedPermissions] = useState<string[]>(
+    isEditing ? rolePermissions[user.role] || [] : rolePermissions['vendedor']
+  );
+  const [selectedProfile, setSelectedProfile] = useState(isEditing ? user.role : 'vendedor');
+  const [password, setPassword] = useState('');
+
+  // Resetar form quando modal abrir/fechar
+  useEffect(() => {
+    if (isOpen) {
+      if (user) {
+        setFormData(user);
+        setSelectedProfile(user.role);
+        setSelectedPermissions(rolePermissions[user.role] || []);
+      } else {
+        setFormData({ 
+          full_name: '', 
+          email: '', 
+          role: 'vendedor', 
+          status: 'ativo',
+          is_affiliate: false
+        });
+        setSelectedProfile('vendedor');
+        setSelectedPermissions(rolePermissions['vendedor']);
+      }
+      setPassword('');
+    }
+  }, [isOpen, user]);
 
   const handleProfileChange = (profile: string) => {
     setSelectedProfile(profile);
-    setFormData(prev => ({ ...prev, cargo: profile }));
-    if (profile !== 'Personalizado') {
+    setFormData(prev => ({ ...prev, role: profile }));
+    if (profile !== 'personalizado') {
       setSelectedPermissions(rolePermissions[profile] || []);
     }
   };
@@ -65,19 +112,104 @@ export function UserManagementModal({ user, isOpen, onClose }: UserManagementMod
         ? prev.filter(id => id !== permissionId) 
         : [...prev, permissionId]
     );
-    setSelectedProfile('Personalizado');
-    setFormData(prev => ({ ...prev, cargo: 'Personalizado' }));
+    setSelectedProfile('personalizado');
+    setFormData(prev => ({ ...prev, role: 'personalizado' }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Simulação de salvamento
-    toast({
-      title: isEditing ? "Usuário Atualizado" : "Usuário Criado",
-      description: `O usuário ${formData.nome} foi salvo com sucesso.`,
-      action: <CheckCircle className="h-4 w-4 text-success" />,
-    });
-    onClose();
+    setLoading(true);
+
+    try {
+      if (isEditing) {
+        // Atualizar usuário existente
+        const { error } = await supabase
+          .from('profiles')
+          .update({
+            full_name: formData.full_name,
+            email: formData.email,
+            role: formData.role,
+            status: formData.status,
+            phone: formData.phone,
+            wallet_id: formData.wallet_id,
+            is_affiliate: formData.is_affiliate,
+            affiliate_status: formData.affiliate_status,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', formData.id);
+
+        if (error) throw error;
+
+        toast({
+          title: "Usuário Atualizado",
+          description: `${formData.full_name} foi atualizado com sucesso.`,
+          action: <CheckCircle className="h-4 w-4 text-success" />,
+        });
+      } else {
+        // Criar novo usuário
+        if (!password) {
+          toast({
+            title: "Erro",
+            description: "Senha é obrigatória para novos usuários",
+            variant: "destructive",
+          });
+          return;
+        }
+
+        // Criar usuário no Supabase Auth
+        const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+          email: formData.email,
+          password: password,
+          email_confirm: true,
+          user_metadata: {
+            full_name: formData.full_name,
+            role: formData.role
+          }
+        });
+
+        if (authError) throw authError;
+
+        if (authData.user) {
+          // Criar perfil na tabela profiles
+          const { error: profileError } = await supabase
+            .from('profiles')
+            .insert({
+              id: authData.user.id,
+              full_name: formData.full_name,
+              email: formData.email,
+              role: formData.role,
+              status: formData.status,
+              phone: formData.phone,
+              wallet_id: formData.wallet_id,
+              is_affiliate: formData.is_affiliate,
+              affiliate_status: formData.affiliate_status
+            });
+
+          if (profileError) {
+            console.error('Erro ao criar perfil:', profileError);
+            // Perfil pode ter sido criado automaticamente por trigger
+          }
+        }
+
+        toast({
+          title: "Usuário Criado",
+          description: `${formData.full_name} foi criado com sucesso.`,
+          action: <CheckCircle className="h-4 w-4 text-success" />,
+        });
+      }
+
+      onUserSaved(); // Atualizar lista de usuários
+      onClose();
+    } catch (error: any) {
+      console.error('Erro ao salvar usuário:', error);
+      toast({
+        title: "Erro ao salvar",
+        description: error.message || "Ocorreu um erro ao salvar o usuário",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -95,31 +227,48 @@ export function UserManagementModal({ user, isOpen, onClose }: UserManagementMod
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="nome">Nome Completo <span className="text-destructive">*</span></Label>
-              <Input id="nome" required defaultValue={user?.nome} onChange={(e) => setFormData(prev => ({ ...prev, nome: e.target.value }))} />
+              <Input 
+                id="nome" 
+                required 
+                value={formData.full_name}
+                onChange={(e) => setFormData(prev => ({ ...prev, full_name: e.target.value }))} 
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="email">Email <span className="text-destructive">*</span></Label>
-              <Input id="email" type="email" required defaultValue={user?.email} onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))} />
+              <Input 
+                id="email" 
+                type="email" 
+                required 
+                value={formData.email}
+                onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))} 
+              />
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="cargo">Cargo <span className="text-destructive">*</span></Label>
-              <Select value={formData.cargo} onValueChange={handleProfileChange}>
+              <Select value={formData.role} onValueChange={handleProfileChange}>
                 <SelectTrigger id="cargo">
                   <SelectValue placeholder="Selecione o cargo" />
                 </SelectTrigger>
                 <SelectContent>
-                  {Object.keys(rolePermissions).map(role => (
-                    <SelectItem key={role} value={role}>{role}</SelectItem>
-                  ))}
+                  {isSuperAdmin() && <SelectItem value="super_admin">Super Admin</SelectItem>}
+                  <SelectItem value="admin">Admin</SelectItem>
+                  <SelectItem value="vendedor">Vendedor</SelectItem>
+                  <SelectItem value="suporte">Suporte</SelectItem>
+                  <SelectItem value="financeiro">Financeiro</SelectItem>
+                  <SelectItem value="personalizado">Personalizado</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-2">
               <Label htmlFor="status">Status</Label>
-              <Select value={formData.status} onValueChange={(value) => setFormData(prev => ({ ...prev, status: value as UserData['status'] }))}>
+              <Select 
+                value={formData.status} 
+                onValueChange={(value) => setFormData(prev => ({ ...prev, status: value as UserData['status'] }))}
+              >
                 <SelectTrigger id="status">
                   <SelectValue />
                 </SelectTrigger>
@@ -137,7 +286,14 @@ export function UserManagementModal({ user, isOpen, onClose }: UserManagementMod
           {!isEditing && (
             <div className="space-y-2">
               <Label htmlFor="senha">Senha Temporária <span className="text-destructive">*</span></Label>
-              <Input id="senha" type="password" placeholder="••••••••" required />
+              <Input 
+                id="senha" 
+                type="password" 
+                placeholder="••••••••" 
+                required 
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
               <div className="flex items-center space-x-2 mt-2">
                 <Checkbox id="troca-senha" defaultChecked />
                 <Label htmlFor="troca-senha" className="text-sm font-normal">Solicitar troca de senha no primeiro login</Label>
@@ -162,7 +318,7 @@ export function UserManagementModal({ user, isOpen, onClose }: UserManagementMod
                     id={permission.id} 
                     checked={selectedPermissions.includes(permission.id)}
                     onCheckedChange={() => handlePermissionToggle(permission.id)}
-                    disabled={selectedProfile === 'Admin'}
+                    disabled={selectedProfile === 'super_admin'}
                   />
                   <Label htmlFor={permission.id} className="text-sm font-normal cursor-pointer">
                     {permission.label}
@@ -180,7 +336,7 @@ export function UserManagementModal({ user, isOpen, onClose }: UserManagementMod
                 size="sm"
                 onClick={() => {
                   setSelectedPermissions(mockPermissions.map(p => p.id));
-                  handleProfileChange('Personalizado');
+                  handleProfileChange('personalizado');
                 }}
               >
                 Selecionar Todas
@@ -191,7 +347,7 @@ export function UserManagementModal({ user, isOpen, onClose }: UserManagementMod
                 size="sm"
                 onClick={() => {
                   setSelectedPermissions([]);
-                  handleProfileChange('Personalizado');
+                  handleProfileChange('personalizado');
                 }}
               >
                 Desmarcar Todas
@@ -203,8 +359,8 @@ export function UserManagementModal({ user, isOpen, onClose }: UserManagementMod
             <Button variant="outline" type="button" onClick={onClose}>
               Cancelar
             </Button>
-            <Button type="submit">
-              {isEditing ? "Salvar Alterações" : "Criar Usuário"}
+            <Button type="submit" disabled={loading}>
+              {loading ? "Salvando..." : (isEditing ? "Salvar Alterações" : "Criar Usuário")}
             </Button>
           </DialogFooter>
         </form>
