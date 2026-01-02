@@ -1,14 +1,28 @@
-User-agent: Googlebot
+User-agent: *
 Allow: /
 
-User-agent: Bingbot
+# Permitir acesso a todas as páginas públicas
+Allow: /produtos
+Allow: /afiliados
+Allow: /afiliados/cadastro
+
+# Bloquear páginas administrativas e privadas
+Disallow: /dashboard
+Disallow: /admin
+Disallow: /api
+Disallow: /login
+Disallow: /_next
+Disallow: /node_modules
+
+# Permitir bots de redes sociais
+User-agent: facebookexternalhit
 Allow: /
 
 User-agent: Twitterbot
 Allow: /
 
-User-agent: facebookexternalhit
+User-agent: WhatsApp
 Allow: /
 
-User-agent: *
-Allow: /
+# Sitemap
+Sitemap: https://slimquality.com.br/sitemap.xml

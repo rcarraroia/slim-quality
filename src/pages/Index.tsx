@@ -2,6 +2,11 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ChatWidget } from "@/components/chat/ChatWidget";
+import { SEOHead } from "@/components/seo/SEOHead";
+import { SchemaOrg } from "@/components/seo/SchemaOrg";
+import { SectionBenefits } from "@/components/seo/SectionBenefits";
+import { SectionHowItWorks } from "@/components/seo/SectionHowItWorks";
+import { FAQ } from "@/components/seo/FAQ";
 import { Moon, Heart, Brain, Wind, User, Droplet, Package } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useProducts } from "@/hooks/useProducts";
@@ -88,17 +93,33 @@ const Index = () => {
   ];
 
   return (
-    <div className="flex flex-col">
+    <>
+      {/* SEO Head */}
+      <SEOHead 
+        title="Colchão Magnético Terapêutico Slim Quality - Alívio de Dores e Melhor Sono"
+        description="Colchão magnético terapêutico com 240 ímãs, infravermelho longo e vibromassagem. Alívio de dores, melhora da circulação e sono profundo. Entrega em todo Brasil."
+        keywords="colchão magnético, colchão terapêutico, magnetoterapia, alívio dores, insônia, circulação sanguínea, colchão ortopédico, fibromialgia, artrite"
+        ogImage="https://slimquality.com.br/og-image.jpg"
+        ogUrl="https://slimquality.com.br"
+        canonical="https://slimquality.com.br"
+        type="website"
+      />
+      
+      {/* Schema.org Organization */}
+      <SchemaOrg type="organization" />
+      
+      <div className="flex flex-col">
       {/* Hero Consultivo */}
       <section className="min-h-[90vh] flex items-center bg-gradient-to-b from-primary/10 via-background to-background">
         <div className="container px-4 py-16 md:py-24">
           <div className="grid md:grid-cols-2 gap-12 md:gap-16 items-center">
             <div className="space-y-6 md:space-y-8">
               <h1 className="text-5xl sm:text-6xl md:text-7xl font-bold tracking-tight leading-tight">
-                Você Merece Acordar Sem Dores
+                Colchão Magnético Terapêutico - Você Merece Acordar Sem Dores
               </h1>
               <p className="text-lg md:text-2xl text-muted-foreground leading-relaxed">
-                Descubra como a magnetoterapia pode transformar suas noites e seus dias
+                Descubra como a magnetoterapia com 240 ímãs pode transformar suas noites e seus dias. 
+                Alívio comprovado para dores crônicas, insônia e problemas circulatórios.
               </p>
               <div className="flex flex-col sm:flex-row gap-4 pt-4">
                 <Button size="lg" onClick={scrollToNext} className="text-lg px-8 py-6 transition-all duration-300 hover:scale-[1.02]">
@@ -290,6 +311,12 @@ const Index = () => {
         </div>
       </section>
 
+      {/* Seção Benefícios - SEO Otimizada */}
+      <SectionBenefits />
+
+      {/* Seção Como Funciona - SEO Otimizada */}
+      <SectionHowItWorks />
+
       {/* Depoimentos Reais */}
       <section className="bg-muted py-16 md:py-24">
         <div className="container px-4">
@@ -319,6 +346,9 @@ const Index = () => {
           </div>
         </div>
       </section>
+
+      {/* FAQ - SEO Otimizada */}
+      <FAQ />
 
       {/* CTA Final */}
       <section className="bg-gradient-to-br from-primary/20 via-secondary/20 to-primary/20 py-16 md:py-24">
@@ -351,7 +381,8 @@ const Index = () => {
           onClose={() => setShowChatWidget(false)} 
         />
       )}
-    </div>
+      </div>
+    </>
   );
 };
 
