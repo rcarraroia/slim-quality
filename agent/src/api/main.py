@@ -316,7 +316,7 @@ Seja empática, educativa e focada em ajudar o cliente com problemas de saúde e
                 'conversation_id': conversation_id,
                 'content': message,
                 'sender_type': sender_type,
-                'sender_id': customer_id if sender_type == 'customer' else None  # NULL para agent/system
+                'sender_id': customer_id  # Usar customer_id para ambos (customer e agent)
             }
             
             message_result = supabase.table('messages').insert(message_data).execute()
