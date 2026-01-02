@@ -68,4 +68,5 @@ async def get_instance_status() -> dict:
 
 
 if __name__ == "__main__":
-    mcp.run()
+    import uvicorn
+    uvicorn.run(mcp.app, host="0.0.0.0", port=3000)

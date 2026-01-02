@@ -3,6 +3,7 @@
  * Sprint 5: Painel Admin - Agente IA
  */
 
+import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import { createClient } from '@supabase/supabase-js';
@@ -12,6 +13,7 @@ import affiliatesRoutes from './api/routes/affiliates';
 import referralTrackingRoutes from './api/routes/referral-tracking';
 import asaasWebhookRoutes from './api/routes/webhooks/asaas-webhook';
 import adminAffiliatesRoutes from './api/routes/admin/affiliates';
+import mcpRoutes from './api/routes/mcp';
 
 const app = express();
 
@@ -34,6 +36,7 @@ app.use('/api/affiliates', affiliatesRoutes);
 app.use('/api/referral', referralTrackingRoutes);
 app.use('/api/webhooks', asaasWebhookRoutes);
 app.use('/api/admin/affiliates', adminAffiliatesRoutes);
+app.use('/api/mcp', mcpRoutes);
 
 // Nova rota para chat do site
 app.post('/api/chat', async (req, res) => {
@@ -139,6 +142,13 @@ app.post('/api/chat', async (req, res) => {
 // Health check
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+// Iniciar servidor
+const PORT = process.env.PORT || 3333;
+app.listen(PORT, () => {
+  console.log(`🚀 Servidor Express rodando na porta ${PORT}`);
+  console.log(`📡 MCP Gateway: ${process.env.MCP_GATEWAY_URL || 'http://localhost:8082'}`);
 });
 
 export default app;

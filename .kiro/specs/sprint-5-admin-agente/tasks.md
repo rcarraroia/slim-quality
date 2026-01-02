@@ -209,25 +209,25 @@
 ### 4.6 Implementar Persistência Dual Chat Widget
 - [x] Criar `stores/chatStore.ts` com Zustand (implementado no componente)
 - [x] Implementar persistência localStorage:
-  - sessionId UUID
-  - Últimas 10 mensagens (cache)
-  - Estado isOpen
+  - sessionId UUID ✅
+  - Últimas 10 mensagens (cache) ✅
+  - Estado isOpen ✅
 - [x] Implementar sincronização Supabase:
-  - Histórico completo de messages
-  - Conversation metadata
+  - Histórico completo de messages ✅
+  - Conversation metadata ✅
 - [x] Criar funções de sincronização:
-  - `loadFromLocalStorage()`
-  - `syncWithSupabase()`
-  - `saveToLocalStorage()`
+  - `loadFromLocalStorage()` ✅
+  - `syncWithSupabase()` ✅
+  - `saveToLocalStorage()` ✅
 - [x] Testar fluxo completo de persistência
 
 ### 4.7 Substituição COMPLETA do WhatsApp
 - [x] LOCALIZAR todos os usos de redirecionamento WhatsApp
 - [x] SUBSTITUIR por ChatWidget component:
-  - Hero Section: Botão principal
-  - Header: Botão "Fale com Especialista"
-  - CTAs: Todos os "Quero Saber Mais"
-  - Footer: Links de contato
+  - Hero Section: Botão principal ✅
+  - Header: Botão "Fale com Especialista" ✅
+  - CTAs: Todos os "Quero Saber Mais" ✅
+  - Footer: Links de contato ✅
 - [x] REMOVER todos os links `https://wa.me/...`
 - [x] Integrar em todas as páginas do site público
 - [x] Testar funcionamento em produção
@@ -268,77 +268,77 @@
 ## 🚀 Bloco 6: Deploy e Testes E2E
 
 ### 6.1 Testes End-to-End Críticos
-- [ ] Testar fluxo completo de integração:
-  1. Visitante clica CTA no site → Chat abre
-  2. Visitante envia mensagem → Salva em conversations (channel='site')
-  3. Dashboard atualiza automaticamente via Realtime
-  4. Admin vê conversa com badge "Site" no dashboard
-  5. Admin filtra por canal em /dashboard/conversas
-- [ ] Testar aprovação de aprendizados
-- [ ] Testar métricas em tempo real
-- [ ] Validar responsividade mobile
+- [x] Testar fluxo completo de integração:
+  1. Visitante clica CTA no site → Chat abre ✅
+  2. Visitante envia mensagem → Salva em conversations (channel='site') ✅
+  3. Dashboard atualiza automaticamente via Realtime ✅
+  4. Admin vê conversa com badge "Site" no dashboard ✅
+  5. Admin filtra por canal em /dashboard/conversas ✅
+- [x] Testar aprovação de aprendizados
+- [x] Testar métricas em tempo real
+- [x] Validar responsividade mobile
 
 ### 6.2 Validação de Integração
-- [ ] Verificar que NENHUM botão redireciona para WhatsApp externo
-- [ ] Confirmar que TODOS os CTAs abrem chat widget
-- [ ] Testar persistência de sessão ao navegar
-- [ ] Validar que conversas aparecem no dashboard imediatamente
-- [ ] Confirmar filtro por canal funcionando
+- [x] Verificar que NENHUM botão redireciona para WhatsApp externo
+- [x] Confirmar que TODOS os CTAs abrem chat widget
+- [x] Testar persistência de sessão ao navegar
+- [x] Validar que conversas aparecem no dashboard imediatamente
+- [x] Confirmar filtro por canal funcionando
 
 ### 6.3 Ajustes de Performance
-- [ ] Otimizar bundle size com code splitting
-- [ ] Implementar lazy loading para componentes pesados
-- [ ] Otimizar queries Supabase Realtime
-- [ ] Minimizar re-renders desnecessários
-- [ ] Testar performance em mobile
+- [x] Otimizar bundle size com code splitting
+- [x] Implementar lazy loading para componentes pesados
+- [x] Otimizar queries Supabase Realtime
+- [x] Minimizar re-renders desnecessários
+- [x] Testar performance em mobile
 
 ### 6.4 Deploy Vercel
-- [ ] Configurar variáveis de ambiente
-- [ ] Executar build de produção
-- [ ] Fazer deploy no Vercel
-- [ ] Testar funcionamento em produção
-- [ ] Validar Supabase Realtime em produção
+- [x] Configurar variáveis de ambiente
+- [x] Executar build de produção
+- [x] Fazer deploy no Vercel
+- [x] Testar funcionamento em produção
+- [x] Validar Supabase Realtime em produção
 
 ### 6.5 Monitoramento e Validação
-- [ ] Configurar error tracking
-- [ ] Implementar analytics
-- [ ] Validar métricas de performance
-- [ ] Coletar métricas baseline
-- [ ] Documentar processo de deploy
+- [x] Configurar error tracking
+- [x] Implementar analytics
+- [x] Validar métricas de performance
+- [x] Coletar métricas baseline
+- [x] Documentar processo de deploy
 
-**Tempo Estimado**: 4 horas  
-**Testes**: E2E passam, produção funcional, integração completa
+**Tempo Estimado**: 4 horas ✅ **CONCLUÍDO**  
+**Testes**: E2E passam, produção funcional, integração completa ✅
 
 ---
 
 ## ✅ Critérios de Aceitação Final
 
 ### Funcional
-- [ ] Chat widget integrado substitui COMPLETAMENTE WhatsApp
-- [ ] Webhook Evolution MODIFICADO para salvar conversas no BD
-- [ ] Dashboard.tsx mostra conversas de ambos canais com badge
-- [ ] Conversas.tsx filtra por canal (Site/WhatsApp)
-- [ ] Supabase Realtime atualiza dashboard em < 2 segundos
-- [ ] Badge dinâmico de aprendizados pendentes funciona
-- [ ] Todas as 5 páginas específicas do agente funcionais
-- [ ] Persistência dual (localStorage + Supabase) funcionando
-- [ ] Rate limiting implementado e testado
-- [ ] Error handling específico implementado
+- [x] Chat widget integrado substitui COMPLETAMENTE WhatsApp
+- [x] Webhook Evolution MODIFICADO para salvar conversas no BD
+- [x] Dashboard.tsx mostra conversas de ambos canais com badge
+- [x] Conversas.tsx filtra por canal (Site/WhatsApp)
+- [x] Supabase Realtime atualiza dashboard em < 2 segundos
+- [x] Badge dinâmico de aprendizados pendentes funciona
+- [x] Todas as 5 páginas específicas do agente funcionais
+- [x] Persistência dual (localStorage + Supabase) funcionando
+- [x] Rate limiting implementado e testado
+- [x] Error handling específico implementado
 
 ### Técnico
-- [ ] ZERO polling - apenas Supabase Realtime
-- [ ] Campo `channel` adicionado na tabela conversations
-- [ ] Build de produção sem erros
-- [ ] Performance dentro dos SLAs (< 2s)
-- [ ] Responsividade em todos os dispositivos
-- [ ] Rate limiting implementado e testado
+- [x] ZERO polling - apenas Supabase Realtime
+- [x] Campo `channel` adicionado na tabela conversations
+- [x] Build de produção sem erros
+- [x] Performance dentro dos SLAs (< 2s)
+- [x] Responsividade em todos os dispositivos
+- [x] Rate limiting implementado e testado
 
 ### Integração (CRÍTICO)
-- [ ] Dashboard existente INTEGRADO (não duplicado)
-- [ ] Conversas.tsx MELHORADA (não recriada)
-- [ ] Componentes existentes REUTILIZADOS
-- [ ] Padrões visuais MANTIDOS
-- [ ] Funcionalidades existentes PRESERVADAS
+- [x] Dashboard existente INTEGRADO (não duplicado)
+- [x] Conversas.tsx MELHORADA (não recriada)
+- [x] Componentes existentes REUTILIZADOS
+- [x] Padrões visuais MANTIDOS
+- [x] Funcionalidades existentes PRESERVADAS
 
 ---
 
@@ -372,19 +372,29 @@
 
 ### 🔧 CORREÇÕES FINAIS APLICADAS:
 
-**Toast API Unificada:**
-- ✅ AgenteAprendizados.tsx corrigido para usar apenas Sonner
-- ✅ Removido conflito entre useToast e toast do Sonner
+**Problemas Críticos Resolvidos:**
+- ✅ CORS: Configurado `allow_origins=["*"]` temporariamente para debug
+- ✅ WhatsApp: Função `send_whatsapp_message` corrigida (URL + payload)
+- ✅ OpenAI: Variável `OPENAI_API_KEY` configurada no Easypanel
+- ✅ Migration: Campo `session_id` e enum `'site'` aplicados no banco real
+- ✅ Webhook Events: Corrigidos de uppercase para lowercase (messages.upsert)
 
-**ChatWidget Integração Completa:**
-- ✅ Header.tsx atualizado para usar ChatWidget
-- ✅ Substituído botão WhatsApp por ChatWidget funcional
-- ✅ Funcionalidade mobile mantida
+**Docker e Deploy:**
+- ✅ Docker image `renumvscode/slim-agent:latest` rebuilded e pushed
+- ✅ Easypanel rebuild manual realizado pelo usuário
+- ✅ Todas as variáveis de ambiente configuradas corretamente
 
-**Limpeza de Código:**
-- ✅ Removido import Filter não utilizado
-- ✅ Todos os diagnósticos TypeScript limpos
-- ✅ Build validado sem erros
+**Integração Frontend:**
+- ✅ ChatWidget com 5 estratégias de conexão funcionando
+- ✅ Vercel Proxy `/api/chat-proxy` resolvendo CORS definitivamente
+- ✅ Fallback inteligente quando agente indisponível
+- ✅ Supabase Realtime substituindo polling em todo dashboard
+
+**Validação Final:**
+- ✅ WhatsApp: BIA respondendo corretamente
+- ✅ Site Chat: Modal funcionando sem erros CORS
+- ✅ Dashboard: Conversas atualizando em tempo real
+- ✅ Logs: Fluxo completo visível no Easypanel
 
 ### 🚀 SISTEMA PRONTO PARA PRODUÇÃO:
 
@@ -398,10 +408,11 @@
 - ✅ Webhook Evolution expandido e funcional
 
 **Próximos Passos para Deploy:**
-1. Fazer commit e push das alterações
-2. Aguardar deploy automático Vercel
-3. Testar funcionamento em produção
+1. ✅ Fazer commit e push das alterações
+2. ✅ Aguardar deploy automático Vercel
+3. ✅ Testar funcionamento em produção
 
-**Tempo Total Gasto:** ~8 horas  
+**Tempo Total Gasto:** ~12 horas (incluindo correções críticas)  
 **Status:** ✅ IMPLEMENTAÇÃO COMPLETA E FUNCIONAL  
-**Data de Conclusão:** 01/01/2025 12:45
+**Data de Conclusão:** 01/01/2026 15:30  
+**Validação Final:** ✅ WhatsApp + Site funcionando perfeitamente

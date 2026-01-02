@@ -14,6 +14,7 @@ import {
   Zap
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import axios from 'axios';
 
 interface IntegrationStatus {
   id: string;
@@ -25,57 +26,65 @@ interface IntegrationStatus {
   errorMessage?: string;
 }
 
+interface MCPStatusResponse {
+  success: boolean;
+  timestamp: string;
+  gateway: {
+    status: string;
+    latency: number;
+    url: string;
+  };
+  integrations: IntegrationStatus[];
+  error?: string;
+}
+
 export default function AgenteMcp() {
   const { toast } = useToast();
-  const [integrations, setIntegrations] = useState<IntegrationStatus[]>([
-    {
-      id: 'evolution-api',
-      name: 'Evolution API',
-      status: 'online',
-      lastConnection: 'há 2 minutos',
-      latency: 120,
-      description: 'API para integração com WhatsApp Business'
-    },
-    {
-      id: 'uazapi',
-      name: 'Uazapi',
-      status: 'online',
-      lastConnection: 'há 1 minuto',
-      latency: 85,
-      description: 'Serviço de mensageria alternativo'
-    },
-    {
-      id: 'supabase',
-      name: 'Supabase',
-      status: 'error',
-      lastConnection: 'há 15 minutos',
-      latency: 0,
-      description: 'Banco de dados e autenticação',
-      errorMessage: 'Connection timeout - verificar configuração'
-    },
-    {
-      id: 'redis',
-      name: 'Redis',
-      status: 'warning',
-      lastConnection: 'há 30 segundos',
-      latency: 450,
-      description: 'Cache e sessões',
-      errorMessage: 'Latência alta detectada'
-    }
-  ]);
-
+  const [integrations, setIntegrations] = useState<IntegrationStatus[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [lastUpdate, setLastUpdate] = useState<string>('');
+  const [gatewayStatus, setGatewayStatus] = useState<string>('unknown');
 
-  // Atualização manual via botão refresh (sem polling automático)
+  // Função para buscar status real da API
+  const fetchMCPStatus = async () => {
+    try {
+      console.log('🔍 Buscando status MCP da API...');
+      const response = await axios.get<MCPStatusResponse>('/api/mcp/status');
+      
+      if (response.data.success) {
+        setIntegrations(response.data.integrations);
+        setGatewayStatus(response.data.gateway.status);
+        setLastUpdate(new Date(response.data.timestamp).toLocaleString('pt-BR'));
+        
+        console.log('✅ Status MCP atualizado:', response.data);
+      } else {
+        throw new Error(response.data.error || 'Erro desconhecido');
+      }
+      
+    } catch (error) {
+      console.error('❌ Erro ao buscar status MCP:', error);
+      
+      // Manter dados existentes em caso de erro, mas mostrar alerta
+      toast({
+        title: "Erro ao atualizar status",
+        description: "Não foi possível conectar com o MCP Gateway. Dados podem estar desatualizados.",
+        variant: "destructive",
+      });
+      
+      setGatewayStatus('offline');
+    }
+  };
+
+  // Carregar dados na inicialização
+  useEffect(() => {
+    fetchMCPStatus();
+  }, []);
+
+  // Atualização manual via botão refresh
   const handleRefresh = async () => {
     setIsRefreshing(true);
-    // TODO: Integrar com API real para buscar status
-    console.log('Atualizando status das integrações...');
-    
-    // Simular delay de API
-    setTimeout(() => {
-      setIsRefreshing(false);
-    }, 1000);
+    await fetchMCPStatus();
+    setIsRefreshing(false);
   };
 
   const getStatusIcon = (status: string) => {
@@ -117,23 +126,30 @@ export default function AgenteMcp() {
 
   const handleTestConnection = async (integrationId: string) => {
     try {
-      // TODO: Integrar com API real para testar conexão
-      console.log(`Testando conexão: ${integrationId}`);
+      console.log(`🧪 Testando conexão: ${integrationId}`);
       
       toast({
         title: "Teste de conexão iniciado",
         description: `Testando conexão com ${integrations.find(i => i.id === integrationId)?.name}...`,
       });
 
-      // Simular teste
-      setTimeout(() => {
+      // Chamar API real para testar conexão
+      const response = await axios.post(`/api/mcp/test/${integrationId}`);
+      
+      if (response.data.success) {
         toast({
           title: "Teste concluído",
-          description: "Conexão testada com sucesso!",
+          description: response.data.message,
         });
-      }, 2000);
+        
+        // Atualizar status após teste
+        await fetchMCPStatus();
+      } else {
+        throw new Error(response.data.error || 'Erro no teste');
+      }
 
     } catch (error) {
+      console.error('❌ Erro no teste de conexão:', error);
       toast({
         title: "Erro no teste",
         description: "Não foi possível testar a conexão.",
@@ -146,24 +162,22 @@ export default function AgenteMcp() {
     setIsRefreshing(true);
     
     try {
-      // TODO: Integrar com API real para atualizar status
-      console.log('Atualizando status de todas as integrações...');
+      console.log('🔄 Atualizando status de todas as integrações...');
+      await fetchMCPStatus();
       
-      // Simular atualização
-      setTimeout(() => {
-        toast({
-          title: "Status atualizado",
-          description: "Status de todas as integrações foi atualizado.",
-        });
-        setIsRefreshing(false);
-      }, 2000);
+      toast({
+        title: "Status atualizado",
+        description: "Status de todas as integrações foi atualizado com sucesso.",
+      });
 
     } catch (error) {
+      console.error('❌ Erro ao atualizar status:', error);
       toast({
         title: "Erro na atualização",
         description: "Não foi possível atualizar o status das integrações.",
         variant: "destructive",
       });
+    } finally {
       setIsRefreshing(false);
     }
   };
@@ -215,6 +229,11 @@ export default function AgenteMcp() {
           <p className="text-muted-foreground">
             Monitore o status das integrações do Model Context Protocol
           </p>
+          {lastUpdate && (
+            <p className="text-xs text-muted-foreground mt-1">
+              Última atualização: {lastUpdate} | Gateway: {gatewayStatus}
+            </p>
+          )}
         </div>
         <Button onClick={handleRefreshAll} disabled={isRefreshing}>
           <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />

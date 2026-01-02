@@ -1,0 +1,45 @@
+# Slim Quality MCP Gateway Configuration
+# Docker MCP Toolkit - Production Ready
+
+gateway:
+  name: "Slim Quality MCP Gateway"
+  version: "1.0.0"
+  port: 8080
+
+redis:
+  url: "redis://redis:6379"
+  prefix: "mcp:"
+
+rate_limiting:
+  enabled: true
+  default_limit: 100  # requests/minute
+  per_server:
+    evolution: 60
+    uazapi: 60
+    google: 30
+    supabase: 120
+
+servers:
+  - name: "evolution"
+    url: "http://localhost:3001"
+    enabled: false  # Será habilitado na Task 0.2
+    
+  - name: "uazapi"
+    url: "http://localhost:3002"
+    enabled: false  # Será habilitado na Task 0.2
+    
+  - name: "google"
+    url: "http://localhost:3003"
+    enabled: false  # Será habilitado na Task 0.2
+    
+  - name: "supabase"
+    url: "http://localhost:3004"
+    enabled: false  # Será implementado na Task 0.2
+
+logging:
+  level: "info"
+  format: "json"
+
+health_check:
+  enabled: true
+  interval: 30  # seconds

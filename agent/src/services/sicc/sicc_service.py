@@ -524,7 +524,7 @@ class SICCService:
     
     async def process_message(
         self,
-        message: str,
+        message: Union[str, Dict[str, Any]],
         user_id: str,
         context: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
@@ -532,8 +532,8 @@ class SICCService:
         Processa uma mensagem usando o sistema SICC completo
         
         Args:
-            message: Mensagem do usuário
-            user_id: ID único do usuário
+            message: Mensagem do usuário (str) ou dados completos da mensagem (dict)
+            user_id: ID único do usuário (telefone para WhatsApp)
             context: Contexto adicional (plataforma, histórico, etc.)
             
         Returns:
@@ -543,15 +543,65 @@ class SICCService:
             if not self.is_initialized:
                 await self.initialize()
             
+            # Processar áudio se necessário
+            processed_message = await self._process_audio_if_needed(message, user_id)
+            
+            # Extrair texto da mensagem
+            if isinstance(processed_message, dict):
+                message_text = processed_message.get("content", processed_message.get("text", ""))
+                original_type = processed_message.get("original_type", "text")
+            else:
+                message_text = str(processed_message)
+                original_type = "text"
+            
+            if not message_text.strip():
+                logger.warning("Mensagem vazia após processamento", user_id=user_id)
+                return {
+                    "response": "Desculpe, não consegui processar sua mensagem. Pode tentar novamente?",
+                    "conversation_id": f"whatsapp_{user_id}",
+                    "patterns_applied": 0,
+                    "ai_provider": "system_fallback",
+                    "success": False,
+                    "error": "Empty message after processing"
+                }
+            
             # Usar user_id como conversation_id para WhatsApp
             conversation_id = f"whatsapp_{user_id}"
             
+            # Verificar histórico do cliente (user_id é o telefone)
+            customer_context = {}
+            try:
+                from ..customer_history_service import get_customer_history_service
+                customer_service = get_customer_history_service()
+                customer_context = await customer_service.get_customer_context(user_id)
+                logger.info("Contexto do cliente obtido", 
+                           phone=user_id, 
+                           is_returning=customer_context.get("is_returning_customer", False))
+            except Exception as e:
+                logger.warning("Erro ao obter contexto do cliente, usando padrão", error=str(e))
+                customer_context = {
+                    "is_returning_customer": False,
+                    "customer_name": None,
+                    "customer_source": "organic",
+                    "has_purchase_history": False,
+                    "personalized_greeting": None
+                }
+            
+            # Detectar se cliente está pedindo para ver produto
+            product_requested = self._detect_product_request(message_text)
+            if product_requested:
+                logger.info("Produto solicitado detectado", product_type=product_requested, phone=user_id)
+                # Enviar imagem do produto em paralelo (não bloquear resposta)
+                asyncio.create_task(self._send_product_image_async(user_id, product_requested, message_text))
+            
             # Preparar contexto da mensagem
             user_context = {
-                "message": message,
+                "message": message_text,
                 "user_id": user_id,
                 "platform": context.get("platform", "whatsapp") if context else "whatsapp",
-                "timestamp": datetime.now().isoformat()
+                "timestamp": datetime.now().isoformat(),
+                "customer_context": customer_context,  # Adicionar contexto do cliente
+                "original_type": original_type  # Adicionar tipo original (text/audio)
             }
             
             # Se é uma nova conversa, inicializar
@@ -564,7 +614,7 @@ class SICCService:
             
             # Buscar padrões aplicáveis para a mensagem atual
             applicable_patterns = await self.behavior_service.find_applicable_patterns(
-                message=message,
+                message=message_text,
                 context=user_context
             )
             
@@ -576,7 +626,7 @@ class SICCService:
             relevant_memories = self.active_conversations[conversation_id].get("memories_retrieved", [])
             
             prompt = self._build_sicc_prompt(
-                message=message,
+                message=message_text,
                 user_context=user_context,
                 memories=relevant_memories,
                 patterns=applicable_patterns
@@ -604,31 +654,75 @@ class SICCService:
                     if pattern_result.get('success') and pattern_result.get('modified_response'):
                         response_text = pattern_result['modified_response']
             
-            # Registrar métricas
-            if self.config.metrics_collection_enabled:
-                from .metrics_service import MetricType
-                await self.metrics_service.record_metric(
-                    MetricType.RESPONSE_TIME,
-                    1.0,  # Placeholder - seria tempo real de processamento
-                    context={"platform": "whatsapp"},
-                    agent_type="sales_consultant"
-                )
-            
-            # Atualizar contexto da conversa
-            self.active_conversations[conversation_id]["last_message"] = {
-                "user_message": message,
-                "bot_response": response_text,
-                "timestamp": datetime.now(),
-                "patterns_applied": len(applicable_patterns)
-            }
-            
-            return {
-                "response": response_text,
-                "conversation_id": conversation_id,
-                "patterns_applied": len(applicable_patterns),
-                "ai_provider": ai_response.get('provider', 'unknown'),
-                "success": True
-            }
+            # ESTRATÉGIA ESPELHADA: Se cliente mandou áudio, responder com áudio
+            if original_type == "audio":
+                logger.info("Aplicando estratégia espelhada - respondendo com áudio", user_id=user_id)
+                
+                # Enviar resposta em áudio (assíncrono para não bloquear)
+                asyncio.create_task(self._send_audio_response_async(user_id, response_text, user_context))
+                
+                # Registrar métricas
+                if self.config.metrics_collection_enabled:
+                    from .metrics_service import MetricType
+                    await self.metrics_service.record_metric(
+                        MetricType.RESPONSE_TIME,
+                        1.0,  # Placeholder - seria tempo real de processamento
+                        context={"platform": "whatsapp", "response_type": "audio"},
+                        agent_type="sales_consultant"
+                    )
+                
+                # Atualizar contexto da conversa
+                self.active_conversations[conversation_id]["last_message"] = {
+                    "user_message": message_text,
+                    "bot_response": response_text,
+                    "timestamp": datetime.now(),
+                    "patterns_applied": len(applicable_patterns),
+                    "original_type": original_type,
+                    "response_type": "audio"
+                }
+                
+                # Retornar resposta indicando que áudio será enviado
+                return {
+                    "response": response_text,
+                    "conversation_id": conversation_id,
+                    "patterns_applied": len(applicable_patterns),
+                    "ai_provider": ai_response.get('provider', 'unknown'),
+                    "success": True,
+                    "original_type": original_type,
+                    "response_type": "audio",
+                    "audio_being_sent": True
+                }
+            else:
+                # Cliente mandou texto, responder com texto (comportamento normal)
+                # Registrar métricas
+                if self.config.metrics_collection_enabled:
+                    from .metrics_service import MetricType
+                    await self.metrics_service.record_metric(
+                        MetricType.RESPONSE_TIME,
+                        1.0,  # Placeholder - seria tempo real de processamento
+                        context={"platform": "whatsapp", "response_type": "text"},
+                        agent_type="sales_consultant"
+                    )
+                
+                # Atualizar contexto da conversa
+                self.active_conversations[conversation_id]["last_message"] = {
+                    "user_message": message_text,
+                    "bot_response": response_text,
+                    "timestamp": datetime.now(),
+                    "patterns_applied": len(applicable_patterns),
+                    "original_type": original_type,
+                    "response_type": "text"
+                }
+                
+                return {
+                    "response": response_text,
+                    "conversation_id": conversation_id,
+                    "patterns_applied": len(applicable_patterns),
+                    "ai_provider": ai_response.get('provider', 'unknown'),
+                    "success": True,
+                    "original_type": original_type,
+                    "response_type": "text"
+                }
             
         except Exception as e:
             logger.error(f"Erro ao processar mensagem: {e}")
@@ -693,14 +787,16 @@ Seja empática, educativa e focada em ajudar o cliente com problemas de saúde e
             Prompt otimizado para IA
         """
         
+        # Obter contexto do cliente
+        customer_context = user_context.get("customer_context", {})
+        is_returning = customer_context.get("is_returning_customer", False)
+        customer_name = customer_context.get("customer_name")
+        
         # Base do prompt - identidade da BIA
         prompt = """Você é a BIA, consultora especializada em colchões magnéticos terapêuticos da Slim Quality.
 
 PRODUTOS DISPONÍVEIS:
-- Solteiro (88x188x28cm): R$ 3.190,00
-- Padrão (138x188x28cm): R$ 3.290,00 (MAIS VENDIDO)
-- Queen (158x198x30cm): R$ 3.490,00
-- King (193x203x30cm): R$ 4.890,00
+{dynamic_prices}
 
 TECNOLOGIAS (todos os modelos):
 - Sistema Magnético (240 ímãs de 800 Gauss)
@@ -721,6 +817,69 @@ ABORDAGEM:
 
 """
         
+        # Adicionar contexto do cliente se for retornando
+        if is_returning and customer_name:
+            prompt += f"""CONTEXTO DO CLIENTE:
+- Cliente retornando: {customer_name}
+- Use saudação personalizada na primeira interação
+- Mencione que é bom tê-lo de volta
+- Pergunte como está o colchão se apropriado
+
+"""
+        
+        # Buscar preços dinâmicos
+        try:
+            from .dynamic_pricing_service import get_pricing_service
+            pricing_service = get_pricing_service()
+            
+            # Buscar preços atuais (com timeout interno de 2s)
+            import asyncio
+            try:
+                # Executar de forma síncrona (prompt building deve ser rápido)
+                loop = asyncio.get_event_loop()
+                if loop.is_running():
+                    # Se já estamos em um loop, usar task
+                    task = asyncio.create_task(pricing_service.get_current_prices())
+                    # Não aguardar aqui, usar fallback
+                    prices = None
+                else:
+                    prices = loop.run_until_complete(pricing_service.get_current_prices())
+            except:
+                prices = None
+            
+            if prices:
+                # Formatar preços dinâmicos
+                price_lines = []
+                type_names = {
+                    "solteiro": "Solteiro (88x188x28cm)",
+                    "padrao": "Padrão (138x188x28cm)",
+                    "queen": "Queen (158x198x30cm)", 
+                    "king": "King (193x203x30cm)"
+                }
+                
+                for product_type, display_name in type_names.items():
+                    price_cents = prices.get(product_type)
+                    if price_cents:
+                        formatted_price = pricing_service.format_price_for_display(price_cents)
+                        is_bestseller = " (MAIS VENDIDO)" if product_type == "padrao" else ""
+                        price_lines.append(f"- {display_name}: {formatted_price}{is_bestseller}")
+                
+                if price_lines:
+                    dynamic_prices = "\n".join(price_lines)
+                else:
+                    # Fallback se não conseguiu formatar
+                    dynamic_prices = self._get_fallback_prices()
+            else:
+                # Fallback se serviço falhou
+                dynamic_prices = self._get_fallback_prices()
+                
+        except Exception as e:
+            logger.warning("Erro ao buscar preços dinâmicos, usando fallback", error=str(e))
+            dynamic_prices = self._get_fallback_prices()
+        
+        # Substituir placeholder pelos preços
+        prompt = prompt.format(dynamic_prices=dynamic_prices)
+        
         # Adicionar contexto de memórias se houver
         if memories:
             prompt += "\nCONTEXTO DE CONVERSAS ANTERIORES:\n"
@@ -735,9 +894,229 @@ ABORDAGEM:
         
         # Adicionar mensagem atual
         prompt += f"\nMENSAGEM DO CLIENTE: {message}\n\n"
-        prompt += "RESPONDA de forma natural, consultiva e focada em ajudar o cliente:"
+        
+        # Instrução final personalizada
+        if is_returning and customer_name:
+            prompt += f"RESPONDA de forma natural e personalizada para {customer_name}, mencionando que é bom tê-lo de volta:"
+        else:
+            prompt += "RESPONDA de forma natural, consultiva e focada em ajudar o cliente:"
         
         return prompt
+    
+    def _get_fallback_prices(self) -> str:
+        """
+        Retorna preços hardcoded como fallback
+        
+        Returns:
+            String formatada com preços de fallback
+        """
+        return """- Solteiro (88x188x28cm): R$ 3.190,00
+- Padrão (138x188x28cm): R$ 3.290,00 (MAIS VENDIDO)
+- Queen (158x198x30cm): R$ 3.490,00
+- King (193x203x30cm): R$ 4.890,00"""
+    
+    def _detect_product_request(self, message: str) -> Optional[str]:
+        """
+        Detecta se cliente está pedindo para ver produto específico
+        
+        Args:
+            message: Mensagem do cliente
+            
+        Returns:
+            Tipo do produto detectado ou None
+        """
+        message_lower = message.lower()
+        
+        # Palavras-chave que indicam pedido de produto
+        product_keywords = [
+            "quero ver", "mostrar", "mostra", "ver o colchão", "ver colchão",
+            "como é", "foto", "imagem", "visual", "aparência", "design"
+        ]
+        
+        # Verificar se há palavra-chave de produto
+        has_product_keyword = any(keyword in message_lower for keyword in product_keywords)
+        
+        if not has_product_keyword:
+            return None
+        
+        # Detectar tipo específico
+        if any(word in message_lower for word in ["solteiro", "88"]):
+            return "solteiro"
+        elif any(word in message_lower for word in ["queen", "158"]):
+            return "queen"
+        elif any(word in message_lower for word in ["king", "193"]):
+            return "king"
+        elif any(word in message_lower for word in ["padrão", "padrao", "casal", "138"]):
+            return "padrao"
+        else:
+            # Se não especificou, assumir padrão (mais vendido)
+            return "padrao"
+    
+    async def _send_product_image_async(self, phone: str, product_type: str, original_message: str):
+        """
+        Envia imagem do produto de forma assíncrona (não bloqueia resposta)
+        
+        Args:
+            phone: Telefone do cliente
+            product_type: Tipo do produto
+            original_message: Mensagem original do cliente
+        """
+        try:
+            from ..hybrid_image_service import get_hybrid_image_service
+            image_service = get_hybrid_image_service()
+            
+            # Enviar imagem + galeria
+            result = await image_service.send_product_visual(
+                phone=phone,
+                product_type=product_type,
+                context={"original_message": original_message}
+            )
+            
+            if result.get("success"):
+                logger.info("Imagem do produto enviada com sucesso", 
+                           phone=phone, product_type=product_type,
+                           image_sent=result.get("image_sent", False),
+                           gallery_sent=result.get("gallery_sent", False))
+            else:
+                logger.warning("Falha ao enviar imagem do produto", 
+                              phone=phone, product_type=product_type,
+                              error=result.get("details", {}))
+                
+        except Exception as e:
+            logger.error("Erro ao enviar imagem do produto", 
+                        phone=phone, product_type=product_type, error=str(e))
+    
+    async def _send_audio_response_async(self, phone: str, text: str, context: Dict[str, Any]):
+        """
+        Envia resposta em áudio de forma assíncrona (não bloqueia resposta)
+        
+        Args:
+            phone: Telefone do cliente
+            text: Texto para converter em áudio
+            context: Contexto da conversa
+        """
+        try:
+            from ..audio_response_service import get_audio_response_service
+            audio_response_service = get_audio_response_service()
+            
+            # Enviar resposta em áudio
+            result = await audio_response_service.send_audio_response(
+                phone=phone,
+                text=text,
+                context=context
+            )
+            
+            if result.get("success"):
+                logger.info("Resposta em áudio enviada com sucesso", 
+                           phone=phone, 
+                           response_type=result.get("response_type"),
+                           audio_sent=result.get("audio_sent", False),
+                           text_fallback_used=result.get("text_fallback_used", False))
+            else:
+                logger.warning("Falha ao enviar resposta em áudio", 
+                              phone=phone, 
+                              error=result.get("details", {}))
+                
+        except Exception as e:
+            logger.error("Erro ao enviar resposta em áudio", 
+                        phone=phone, error=str(e))
+    
+    async def _process_audio_if_needed(
+        self, 
+        message: Union[str, Dict[str, Any]], 
+        user_id: str
+    ) -> Union[str, Dict[str, Any]]:
+        """
+        Processa áudio se a mensagem contém áudio
+        
+        Args:
+            message: Mensagem original (str ou dict)
+            user_id: ID do usuário
+            
+        Returns:
+            Mensagem processada (texto transcrito se era áudio)
+        """
+        try:
+            # Se mensagem é string, não é áudio
+            if isinstance(message, str):
+                return message
+            
+            # Se mensagem é dict, verificar se contém áudio
+            if not isinstance(message, dict):
+                logger.warning("Tipo de mensagem não suportado", message_type=type(message))
+                return str(message)
+            
+            # Verificar se é mensagem de áudio
+            from ..audio_detection_service import get_audio_detection_service
+            audio_service = get_audio_detection_service()
+            
+            if not audio_service.is_audio_message(message):
+                # Não é áudio, extrair texto normal
+                text_content = (
+                    message.get("content") or 
+                    message.get("text") or 
+                    message.get("body") or 
+                    str(message)
+                )
+                return text_content
+            
+            logger.info("Mensagem de áudio detectada", user_id=user_id)
+            
+            # Download do áudio
+            audio_path = await audio_service.download_audio(message)
+            if not audio_path:
+                logger.warning("Falha no download do áudio", user_id=user_id)
+                return {
+                    "content": "Desculpe, não consegui baixar o áudio. Pode digitar sua mensagem?",
+                    "original_type": "audio",
+                    "transcription_failed": True
+                }
+            
+            # Transcrever áudio
+            from ..whisper_service import get_whisper_service
+            whisper_service = get_whisper_service()
+            
+            transcription = await whisper_service.transcribe_audio(audio_path)
+            
+            if transcription:
+                logger.info("Áudio transcrito com sucesso", 
+                           user_id=user_id, 
+                           text_length=len(transcription))
+                
+                return {
+                    "content": transcription,
+                    "original_type": "audio",
+                    "transcription_success": True,
+                    "audio_path": audio_path
+                }
+            else:
+                logger.warning("Falha na transcrição do áudio", user_id=user_id)
+                fallback_message = whisper_service.get_fallback_message()
+                
+                return {
+                    "content": fallback_message,
+                    "original_type": "audio",
+                    "transcription_failed": True,
+                    "audio_path": audio_path
+                }
+                
+        except Exception as e:
+            logger.error("Erro no processamento de áudio", user_id=user_id, error=str(e))
+            
+            # Fallback: tentar extrair texto da mensagem
+            if isinstance(message, dict):
+                fallback_text = (
+                    message.get("content") or 
+                    message.get("text") or 
+                    "Desculpe, tive problemas técnicos para processar sua mensagem."
+                )
+                return {
+                    "content": fallback_text,
+                    "original_type": "unknown",
+                    "processing_error": str(e)
+                }
+            else:
+                return str(message)
     
     async def shutdown(self):
         """

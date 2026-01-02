@@ -203,3 +203,23 @@ class MCPGateway:
         await self.http_client.aclose()
         if self.redis_client:
             await self.redis_client.close()
+
+
+# Singleton global
+_mcp_gateway: Optional[MCPGateway] = None
+
+
+def get_mcp_gateway() -> MCPGateway:
+    """
+    Retorna instância singleton do MCP Gateway
+    
+    Returns:
+        Instância configurada do MCP Gateway
+    """
+    global _mcp_gateway
+    
+    if _mcp_gateway is None:
+        _mcp_gateway = MCPGateway()
+        logger.info("MCP Gateway inicializado")
+    
+    return _mcp_gateway

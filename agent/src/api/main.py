@@ -14,17 +14,11 @@ try:
     app = FastAPI(title="Slim Quality Agent", version="0.1.0")
     print("✅ App OK", flush=True)
     
-    # Configurar CORS para site e localhost
+    # Configurar CORS CORRIGIDO - Permitir todos os domínios temporariamente para debug
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=[
-            "https://slimquality.com.br",
-            "https://slimquality.vercel.app", 
-            "http://localhost:8081",
-            "http://localhost:3000",
-            "http://localhost:5173"
-        ],
-        allow_credentials=True,
+        allow_origins=["*"],  # Temporário para debug
+        allow_credentials=False,  # Não pode ser True com allow_origins=["*"]
         allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
         allow_headers=["*"],
     )
@@ -164,7 +158,8 @@ Seja empática, educativa e focada em ajudar o cliente com problemas de saúde e
                     message_text = message_data.get('message', {}).get('conversation', '')
                     
                     if phone and message_text:
-                        print(f"📱 Mensagem recebida de {phone}: {message_text}", flush=True)
+                        print(f"📱 MENSAGEM RECEBIDA de {phone}: {message_text}", flush=True)
+                        
                         # Processar em background
                         background_tasks.add_task(process_and_send, message_text, phone)
                         
@@ -249,7 +244,7 @@ Seja empática, educativa e focada em ajudar o cliente com problemas de saúde e
             print(f"Erro no webhook: {e}", flush=True)
             return {"status": "error", "message": str(e)}
     
-    # Função para salvar conversa do WhatsApp no Supabase
+    # Função para salvar conversa do WhatsApp no Supabase - CORRIGIDA
     async def save_whatsapp_conversation(phone: str, message: str, sender_type: str = 'customer'):
         try:
             import os
@@ -265,47 +260,76 @@ Seja empática, educativa e focada em ajudar o cliente com problemas de saúde e
             
             supabase: Client = create_client(supabase_url, supabase_key)
             
-            # Buscar ou criar conversa
-            conversation_result = supabase.table('conversations').select('*').eq('customer_phone', phone).eq('channel', 'whatsapp').execute()
+            # 1. BUSCAR OU CRIAR CUSTOMER PRIMEIRO
+            customer_result = supabase.table('customers').select('id').eq('phone', phone).execute()
+            
+            if customer_result.data:
+                # Customer existe
+                customer_id = customer_result.data[0]['id']
+                print(f"✅ Customer encontrado: {customer_id} para {phone}", flush=True)
+            else:
+                # Criar novo customer com email obrigatório
+                customer_data = {
+                    'name': f'Cliente WhatsApp {phone[-4:]}',
+                    'email': f'whatsapp_{phone}@slimquality.temp',  # Email temporário obrigatório
+                    'phone': phone,
+                    'source': 'whatsapp',
+                    'status': 'active'
+                }
+                
+                customer_result = supabase.table('customers').insert(customer_data).execute()
+                
+                if customer_result.data:
+                    customer_id = customer_result.data[0]['id']
+                    print(f"✅ Customer criado: {customer_id} para {phone}", flush=True)
+                else:
+                    print(f"❌ Erro ao criar customer para {phone}", flush=True)
+                    return
+            
+            # 2. BUSCAR OU CRIAR CONVERSA USANDO CUSTOMER_ID
+            conversation_result = supabase.table('conversations').select('id').eq('customer_id', customer_id).eq('channel', 'whatsapp').eq('status', 'open').execute()
             
             if conversation_result.data:
-                # Conversa existe - atualizar
+                # Conversa ativa existe
                 conversation_id = conversation_result.data[0]['id']
-                supabase.table('conversations').update({
-                    'last_message_at': 'now()',
-                    'updated_at': 'now()',
-                    'status': 'open'
-                }).eq('id', conversation_id).execute()
+                print(f"✅ Conversa ativa encontrada: {conversation_id}", flush=True)
             else:
-                # Criar nova conversa
-                conversation_result = supabase.table('conversations').insert({
-                    'customer_phone': phone,
-                    'customer_name': f'Cliente {phone[-4:]}',
+                # Criar nova conversa usando schema correto
+                conversation_data = {
+                    'customer_id': customer_id,  # CAMPO CORRETO
                     'channel': 'whatsapp',
                     'status': 'open',
-                    'created_at': 'now()',
-                    'updated_at': 'now()',
-                    'last_message_at': 'now()'
-                }).execute()
+                    'subject': f'WhatsApp {phone[-4:]}'
+                }
+                
+                conversation_result = supabase.table('conversations').insert(conversation_data).execute()
                 
                 if conversation_result.data:
                     conversation_id = conversation_result.data[0]['id']
+                    print(f"✅ Conversa criada: {conversation_id} para customer {customer_id}", flush=True)
                 else:
-                    print("Erro ao criar conversa", flush=True)
+                    print(f"❌ Erro ao criar conversa para customer {customer_id}", flush=True)
                     return
             
-            # Salvar mensagem
-            supabase.table('messages').insert({
+            # 3. SALVAR MENSAGEM COM SENDER_ID CORRETO
+            message_data = {
                 'conversation_id': conversation_id,
                 'content': message,
-                'sender_type': sender_type,  # 'customer' ou 'agent'
-                'created_at': 'now()'
-            }).execute()
+                'sender_type': sender_type,
+                'sender_id': customer_id if sender_type == 'customer' else None  # NULL para agent/system
+            }
             
-            print(f"✅ Conversa WhatsApp salva: {phone} -> {conversation_id} ({sender_type})", flush=True)
+            message_result = supabase.table('messages').insert(message_data).execute()
+            
+            if message_result.data:
+                print(f"✅ Mensagem salva: {conversation_id} ({sender_type}) - {message[:50]}...", flush=True)
+            else:
+                print(f"❌ Erro ao salvar mensagem", flush=True)
             
         except Exception as e:
-            print(f"Erro ao salvar conversa WhatsApp: {e}", flush=True)
+            print(f"❌ Erro ao salvar conversa WhatsApp: {e}", flush=True)
+            import traceback
+            print(f"❌ Traceback: {traceback.format_exc()}", flush=True)
     
     # Função para salvar status de conexão
     async def save_connection_status(status: str):
@@ -440,19 +464,36 @@ Seja empática, educativa e focada em ajudar o cliente com problemas de saúde e
         except Exception as e:
             print(f"Erro ao deletar mensagem: {e}", flush=True)
     
-    # Função para processar e enviar resposta
+    # Função para processar e enviar resposta - CORRIGIDA
     async def process_and_send(message: str, phone: str):
         try:
+            print(f"🤖 PROCESSANDO mensagem de {phone}: {message}", flush=True)
+            
             # Processar com SICC
             response = await process_with_sicc(message, phone)
             
+            print(f"🧠 SICC respondeu: {response}", flush=True)
+            
             # Enviar resposta via Evolution API
-            await send_whatsapp_message(phone, response)
+            success = await send_whatsapp_message(phone, response)
+            
+            if success:
+                print(f"✅ FLUXO COMPLETO: {phone} -> processado e respondido", flush=True)
+            else:
+                print(f"❌ FALHA no envio para {phone}", flush=True)
             
         except Exception as e:
-            print(f"Erro ao processar e enviar: {e}", flush=True)
+            print(f"❌ ERRO CRÍTICO no process_and_send: {e}", flush=True)
+            import traceback
+            print(f"❌ TRACEBACK: {traceback.format_exc()}", flush=True)
+            
+            # Tentar enviar mensagem de erro
+            try:
+                await send_whatsapp_message(phone, "Desculpe, estou com dificuldades técnicas. Pode tentar novamente?")
+            except:
+                print(f"❌ Falha total para {phone}", flush=True)
     
-    # Função para enviar mensagem via Evolution API
+    # Função para enviar mensagem via Evolution API - CORRIGIDA
     async def send_whatsapp_message(phone: str, message: str):
         try:
             import httpx
@@ -462,39 +503,46 @@ Seja empática, educativa e focada em ajudar o cliente com problemas de saúde e
             evolution_url = os.getenv("EVOLUTION_URL", "https://slimquality-evolution-api.wpjtfd.easypanel.host")
             evolution_instance = os.getenv("EVOLUTION_INSTANCE", "SlimQualit")
             
-            # URL correta para enviar mensagem
-            url = f"{evolution_url}/message/sendText/{evolution_instance.replace(' ', '%20')}"
+            # URL correta para enviar mensagem - CORRIGIDA
+            url = f"{evolution_url}/message/sendText/{evolution_instance}"
             
             payload = {
-                "number": f"{phone}@s.whatsapp.net",
+                "number": phone,  # Sem @s.whatsapp.net aqui
                 "text": message
             }
             
-            # Headers com autenticação
+            # Headers com autenticação - CORRIGIDOS
             headers = {
-                "Content-Type": "application/json"
+                "Content-Type": "application/json",
+                "apikey": "9A390AED6A45-4610-93B2-245591E39FDE"  # API Key fixa
             }
             
-            # Adicionar API Key se disponível (do webhook recebido)
-            api_key = os.getenv("EVOLUTION_API_KEY", "9A390AED6A45-4610-93B2-245591E39FDE")
-            if api_key:
-                headers["apikey"] = api_key
-            
-            print(f"Enviando para URL: {url}", flush=True)
-            print(f"Headers: {headers}", flush=True)
+            print(f"🚀 Enviando mensagem para {phone}", flush=True)
+            print(f"URL: {url}", flush=True)
             print(f"Payload: {payload}", flush=True)
             
-            async with httpx.AsyncClient(timeout=10.0) as client:
+            async with httpx.AsyncClient(timeout=15.0) as client:
                 response = await client.post(url, json=payload, headers=headers)
-                print(f"Mensagem enviada para {phone}: {response.status_code} - {response.text}", flush=True)
+                
+                print(f"📤 Resposta Evolution: {response.status_code}", flush=True)
+                print(f"📤 Body: {response.text}", flush=True)
                 
                 if response.status_code in [200, 201]:
                     print(f"✅ Mensagem enviada com sucesso para {phone}", flush=True)
+                    
+                    # Salvar mensagem enviada no dashboard
+                    await save_whatsapp_conversation(phone, message, 'agent')
+                    
+                    return True
                 else:
                     print(f"❌ Erro ao enviar mensagem: {response.status_code} - {response.text}", flush=True)
+                    return False
                 
         except Exception as e:
-            print(f"Erro ao enviar mensagem: {e}", flush=True)
+            print(f"❌ ERRO CRÍTICO ao enviar mensagem: {e}", flush=True)
+            import traceback
+            print(f"❌ TRACEBACK: {traceback.format_exc()}", flush=True)
+            return False
     
     print("✅ Rotas OK", flush=True)
     print("=== CONTAINER PRONTO ===", flush=True)

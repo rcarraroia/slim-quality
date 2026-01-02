@@ -50,6 +50,7 @@ services:
     
     networks:
       - slim-network
+      - mcp-network
     
     # Health check local
     healthcheck:
@@ -78,6 +79,7 @@ services:
     
     networks:
       - slim-network
+      - mcp-network
     
     # Health check Redis
     healthcheck:
@@ -88,6 +90,120 @@ services:
     
     restart: unless-stopped
 
+  # ============================================
+  # MCP Gateway (Custom FastAPI)
+  # ============================================
+  mcp-gateway:
+    build:
+      context: ./mcp-gateway
+      dockerfile: Dockerfile
+    container_name: mcp-gateway
+    ports:
+      - "8085:8080"
+    environment:
+      - REDIS_URL=redis://redis:6379
+    networks:
+      - mcp-network
+    depends_on:
+      - redis
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8082/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+    restart: unless-stopped
+
+  # ============================================
+  # MCP Server Supabase
+  # ============================================
+  mcp-supabase:
+    build:
+      context: ./mcp-servers/supabase
+      dockerfile: Dockerfile
+    container_name: mcp-supabase
+    ports:
+      - "3005:3000"
+    environment:
+      # Credenciais Supabase
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_KEY}
+      - SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
+    networks:
+      - mcp-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+    restart: unless-stopped
+
+  # ============================================
+  # MCP Server WhatsApp Evolution
+  # ============================================
+  mcp-evolution:
+    build:
+      context: ./mcp-servers/whatsapp-evolution
+      dockerfile: Dockerfile
+    container_name: mcp-evolution
+    ports:
+      - "3006:3000"
+    environment:
+      - EVOLUTION_URL=${EVOLUTION_URL:-https://slimquality-evolution-api.wpjtfd.easypanel.host}
+      - EVOLUTION_API_KEY=${EVOLUTION_API_KEY}
+      - EVOLUTION_INSTANCE=${EVOLUTION_INSTANCE:-Slim Quality}
+    networks:
+      - mcp-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+    restart: unless-stopped
+
+  # ============================================
+  # MCP Server WhatsApp Uazapi
+  # ============================================
+  mcp-uazapi:
+    build:
+      context: ./mcp-servers/whatsapp-uazapi
+      dockerfile: Dockerfile
+    container_name: mcp-uazapi
+    ports:
+      - "3003:3000"
+    environment:
+      - UAZAPI_URL=${UAZAPI_URL}
+      - UAZAPI_INSTANCE_ID=${UAZAPI_INSTANCE_ID}
+      - UAZAPI_API_KEY=${UAZAPI_API_KEY}
+    networks:
+      - mcp-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+    restart: unless-stopped
+
+  # ============================================
+  # MCP Server Google
+  # ============================================
+  mcp-google:
+    build:
+      context: ./mcp-servers/google
+      dockerfile: Dockerfile
+    container_name: mcp-google
+    ports:
+      - "3004:3000"
+    environment:
+      - GOOGLE_CREDENTIALS_JSON=${GOOGLE_CREDENTIALS_JSON}
+    networks:
+      - mcp-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+    restart: unless-stopped
+
 # ============================================
 # Networks
 # ============================================
@@ -95,6 +211,9 @@ networks:
   slim-network:
     driver: bridge
     name: slim-network
+  mcp-network:
+    driver: bridge
+    name: mcp-network
 
 # ============================================
 # Volumes Persistentes

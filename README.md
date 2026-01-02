@@ -1,53 +1,183 @@
-# Welcome to your Lovable project
+# Slim Quality - Sistema de Vendas e Afiliados
 
-## Project info
+Sistema completo de e-commerce com programa de afiliados multinível, integração com Asaas e automação via N8N.
 
-**URL**: https://lovable.dev/projects/8889ffaf-97e0-4bb3-99da-1933727a3973
+## 🚀 Tecnologias
 
-## How can I edit this code?
+- **Frontend:** React + TypeScript + Vite + Tailwind CSS
+- **Backend:** Node.js + Express + TypeScript
+- **Banco:** PostgreSQL (Supabase)
+- **MCP:** Model Context Protocol para IA
+- **Pagamentos:** Asaas API
+- **Automação:** N8N + Evolution API
 
-There are several ways of editing your application.
+---
 
-**Use Lovable**
+## 🏗️ Arquitetura MCP
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/8889ffaf-97e0-4bb3-99da-1933727a3973) and start prompting.
+### **Sistema MCP Operacional:**
+```
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   MCP Gateway   │────│  MCP Supabase   │────│   PostgreSQL    │
+│   Port: 8085    │    │   Port: 3005    │    │   (Supabase)    │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
+         │
+         ▼
+┌─────────────────┐    ┌─────────────────┐
+│  Express API    │────│   Frontend      │
+│   Port: 3333    │    │   Port: 5173    │
+└─────────────────┘    └─────────────────┘
+```
 
-Changes made via Lovable will be committed automatically to this repo.
+### **Portas Configuradas:**
+- **MCP Gateway:** 8085
+- **MCP Supabase:** 3005  
+- **Redis:** 6379
+- **Express API:** 3333
+- **Frontend:** 5173
 
-**Use your preferred IDE**
+---
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+## 🛠️ Como Rodar o Projeto
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+### **Pré-requisitos:**
+- Node.js 18+ & npm
+- Docker & Docker Compose
+- Supabase CLI
 
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
+### **1. Clonar e Instalar:**
+```bash
 git clone <YOUR_GIT_URL>
+cd slim-quality
+npm install
+```
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+### **2. Configurar Variáveis:**
+```bash
+cp .env.example .env
+# Editar .env com suas credenciais
+```
 
-# Step 3: Install the necessary dependencies.
-npm i
+### **3. Iniciar MCP (Obrigatório):**
+```bash
+cd agent
+docker-compose up -d mcp-gateway mcp-supabase redis
+```
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
+### **4. Iniciar Aplicação:**
+```bash
+# Terminal 1: Backend
+npm run server
+
+# Terminal 2: Frontend  
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+---
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+## 📡 Endpoints MCP
 
-**Use GitHub Codespaces**
+### **MCP Gateway (8085):**
+- `GET /health` - Status do sistema
+- `GET /tools` - Tools disponíveis
+- `POST /execute` - Executar tool
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
+### **MCP Supabase (3005):**
+- `GET /health` - Status conexão
+- `GET /tools` - Tools Supabase
+- `POST /execute` - Query database
+
+### **Tools Disponíveis:**
+- `query_database` - Query genérica
+- `get_products` - Listar produtos
+- `insert_lead` - Inserir lead
+- `update_record` - Atualizar registro
+
+---
+
+## 🗄️ Banco de Dados
+
+### **Tabelas Principais:**
+- **products** (19 campos) - Catálogo de produtos
+- **customers** (21 campos) - Base de clientes
+- **orders** - Pedidos e vendas
+- **affiliates** - Rede de afiliados
+- **conversations** - Chat e atendimento
+
+### **Migrations:**
+```bash
+supabase migration list
+supabase db push
+```
+
+---
+
+## 🔧 Desenvolvimento
+
+### **Scripts Disponíveis:**
+```bash
+npm run dev          # Frontend (Vite)
+npm run server       # Backend (Express)
+npm run build        # Build produção
+npm run preview      # Preview build
+```
+
+### **Docker MCP:**
+```bash
+cd agent
+docker-compose build    # Build containers
+docker-compose up -d    # Iniciar serviços
+docker-compose logs     # Ver logs
+docker-compose down     # Parar serviços
+```
+
+---
+
+## 📋 Status do Projeto
+
+### ✅ **Bloco 0 - MCP Operacional (CONCLUÍDO)**
+- MCP Gateway funcionando
+- MCP Supabase integrado
+- Schemas validados
+- Storage configurado
+
+### 🔄 **Sprint 5.5 - Queries e Imagens (EM ANDAMENTO)**
+- Bloco 1: Queries inteligentes
+- Bloco 2: Preços dinâmicos  
+- Bloco 3: Envio de imagens
+
+---
+
+## 🌐 URLs Importantes
+
+- **Frontend:** http://localhost:5173
+- **Backend:** http://localhost:3333
+- **MCP Gateway:** http://localhost:8085
+- **Dashboard MCP:** http://localhost:5173/dashboard/agente/mcp
+
+---
+
+## 📚 Documentação
+
+- `BLOCO_0_COMPLETO.md` - Arquitetura MCP
+- `.kiro/steering/` - Regras de desenvolvimento
+- `docs/` - Documentação técnica
+
+---
+
+## 🤝 Contribuição
+
+Este projeto segue padrões rigorosos de desenvolvimento:
+- Análise preventiva obrigatória
+- Máximo 55min por task
+- Evidências documentadas
+- Testes funcionais
+
+---
+
+**Projeto:** Slim Quality  
+**Status:** Desenvolvimento Ativo  
+**Última Atualização:** 02/01/2026
 - Edit files directly within the Codespace and commit and push your changes once you're done.
 
 ## What technologies are used for this project?
