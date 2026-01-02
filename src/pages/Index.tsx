@@ -114,10 +114,10 @@ const Index = () => {
         <div className="container px-4 py-16 md:py-24">
           <div className="grid md:grid-cols-2 gap-12 md:gap-16 items-center">
             <div className="space-y-6 md:space-y-8">
-              <h1 className="text-5xl sm:text-6xl md:text-7xl font-bold tracking-tight leading-tight">
+              <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold tracking-tight leading-tight">
                 Colchão Magnético Terapêutico - Você Merece Acordar Sem Dores
               </h1>
-              <p className="text-lg md:text-2xl text-muted-foreground leading-relaxed">
+              <p className="text-base md:text-xl text-muted-foreground leading-relaxed">
                 Descubra como a magnetoterapia com 240 ímãs pode transformar suas noites e seus dias. 
                 Alívio comprovado para dores crônicas, insônia e problemas circulatórios.
               </p>
