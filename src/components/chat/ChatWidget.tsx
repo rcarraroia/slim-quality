@@ -238,7 +238,7 @@ export function ChatWidget({
       setMessages(prev => [...prev, agentMessage]);
       setIsLoading(false);
       
-      // Salvar conversa no dashboard via webhook
+      // Salvar conversa no dashboard via webhook - SEMPRE CHAMAR
       await saveSiteConversationToWebhook(currentMessage, agentResponse);
       return;
       

@@ -31,6 +31,31 @@ try:
     async def health():
         return {"status": "healthy", "container": "ok"}
     
+    # Endpoint para envio direto de WhatsApp (usado pelo dashboard)
+    @app.post("/send-whatsapp")
+    async def send_whatsapp_direct(request: Request):
+        try:
+            body = await request.json()
+            phone = body.get("phone", "")
+            message = body.get("message", "")
+            
+            if not phone or not message:
+                return {"error": "Phone e message são obrigatórios", "status": "error"}
+            
+            print(f"📤 Enviando mensagem direta para {phone}: {message}", flush=True)
+            
+            # Enviar via Evolution API
+            success = await send_whatsapp_message(phone, message)
+            
+            if success:
+                return {"status": "success", "message": "Mensagem enviada"}
+            else:
+                return {"error": "Falha ao enviar mensagem", "status": "error"}
+                
+        except Exception as e:
+            print(f"Erro no send-whatsapp: {e}", flush=True)
+            return {"error": str(e), "status": "error"}
+    
     # Endpoint para teste direto da IA
     @app.post("/api/chat")
     async def chat_endpoint(request: Request):

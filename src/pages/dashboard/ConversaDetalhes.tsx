@@ -104,6 +104,15 @@ export default function ConversaDetalhes() {
 
     setSending(true);
     try {
+      // Se for conversa do WhatsApp, enviar via Evolution API
+      if (conversation.channel === 'whatsapp' && conversation.customer.phone) {
+        const success = await sendWhatsAppMessage(conversation.customer.phone, newMessage);
+        if (!success) {
+          console.error('Falha ao enviar mensagem via WhatsApp');
+          // Continuar para salvar no banco mesmo assim
+        }
+      }
+
       const messageData = {
         conversation_id: conversation.id,
         content: newMessage,
@@ -140,6 +149,36 @@ export default function ConversaDetalhes() {
       console.error('Erro ao enviar mensagem:', error);
     } finally {
       setSending(false);
+    }
+  };
+
+  // Função para enviar mensagem via WhatsApp Evolution API
+  const sendWhatsAppMessage = async (phone: string, message: string): Promise<boolean> => {
+    try {
+      const agentUrl = 'https://slimquality-agent.wpjtfd.easypanel.host';
+      const evolutionUrl = `${agentUrl}/send-whatsapp`;
+      
+      const response = await fetch(evolutionUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          phone: phone.replace(/\D/g, ''), // Remover caracteres não numéricos
+          message: message
+        }),
+      });
+
+      if (response.ok) {
+        console.log('✅ Mensagem enviada via WhatsApp');
+        return true;
+      } else {
+        console.error('❌ Erro ao enviar via WhatsApp:', response.status);
+        return false;
+      }
+    } catch (error) {
+      console.error('❌ Erro na integração WhatsApp:', error);
+      return false;
     }
   };
 
