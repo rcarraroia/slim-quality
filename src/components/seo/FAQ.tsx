@@ -89,7 +89,7 @@ export function FAQ() {
                   onClick={() => toggleItem(index)}
                 >
                   <h3 
-                    className="font-semibold text-gray-900 pr-4"
+                    className="text-lg md:text-xl font-medium text-gray-900 pr-4"
                     itemProp="name"
                   >
                     {item.question}
@@ -109,7 +109,7 @@ export function FAQ() {
                     itemType="https://schema.org/Answer"
                   >
                     <p 
-                      className="text-gray-700 leading-relaxed"
+                      className="text-base text-gray-700 leading-relaxed"
                       itemProp="text"
                     >
                       {item.answer}
