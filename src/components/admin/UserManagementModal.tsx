@@ -156,25 +156,12 @@ export function UserManagementModal({ user, isOpen, onClose, onUserSaved }: User
           return;
         }
 
-        // Criar usuário no Supabase Auth
-        const { data: authData, error: authError } = await supabase.auth.admin.createUser({
-          email: formData.email,
-          password: password,
-          email_confirm: true,
-          user_metadata: {
-            full_name: formData.full_name,
-            role: formData.role
-          }
-        });
-
-        if (authError) throw authError;
-
-        if (authData.user) {
-          // Criar perfil na tabela profiles
-          const { error: profileError } = await supabase
-            .from('profiles')
-            .insert({
-              id: authData.user.id,
+        // Criar usuário via Edge Function (segura)
+        const { data: functionData, error: functionError } = await supabase.functions.invoke('admin-create-user', {
+          body: {
+            email: formData.email,
+            password: password,
+            userData: {
               full_name: formData.full_name,
               email: formData.email,
               role: formData.role,
@@ -183,13 +170,14 @@ export function UserManagementModal({ user, isOpen, onClose, onUserSaved }: User
               wallet_id: formData.wallet_id,
               is_affiliate: formData.is_affiliate,
               affiliate_status: formData.affiliate_status
-            });
-
-          if (profileError) {
-            console.error('Erro ao criar perfil:', profileError);
-            // Perfil pode ter sido criado automaticamente por trigger
+            }
           }
-        }
+        });
+
+        if (functionError) throw functionError;
+        if (functionData.error) throw new Error(functionData.error);
+
+        const authData = functionData.data;
 
         toast({
           title: "Usuário Criado",

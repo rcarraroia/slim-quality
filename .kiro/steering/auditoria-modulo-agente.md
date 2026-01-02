@@ -72,16 +72,39 @@
   - `POST /api/agent/test-prompt`
 
 ### **4. AgenteSicc.tsx**
-- **Status:** 🔍 NÃO AUDITADO (não fornecido)
-- **Ação:** Precisa ser auditado
+- **Status:** 🟡 FUNCIONAL MAS 100% MOCK
+- **Dados Mockados:**
+  - Configurações SICC (ativo/inativo, threshold, modelo embedding)
+  - Métricas (total memórias, quota, taxa auto-aprovação)
+  - Alertas do sistema (quota, aprendizados pendentes)
+- **APIs Necessárias:**
+  - `GET /api/sicc/config` - Configuração atual do SICC
+  - `POST /api/sicc/config` - Salvar configuração
+  - `GET /api/sicc/metrics` - Métricas do sistema
+  - `GET /api/sicc/alerts` - Alertas ativos
 
 ### **5. AgenteMetricas.tsx**
-- **Status:** 🔍 NÃO AUDITADO (não fornecido)
-- **Ação:** Precisa ser auditado
+- **Status:** 🟡 FUNCIONAL MAS 100% MOCK
+- **Dados Mockados:**
+  - Métricas principais (uptime, latência, accuracy, tokens)
+  - Gráficos (latência por hora, tokens por modelo, tipos pergunta)
+  - Dados de performance e comportamento
+- **APIs Necessárias:**
+  - `GET /api/agent/metrics` - Métricas gerais
+  - `GET /api/agent/performance` - Dados de performance
+  - `POST /api/agent/export` - Exportar dados (CSV/PDF)
 
 ### **6. AgenteAprendizados.tsx**
-- **Status:** 🔍 NÃO AUDITADO (não fornecido)
-- **Ação:** Precisa ser auditado
+- **Status:** 🟡 FUNCIONAL MAS 100% MOCK
+- **Dados Mockados:**
+  - Fila de aprendizados pendentes (padrões identificados)
+  - Aprendizados aprovados (em uso pelo agente)
+  - Ações (aprovar, rejeitar, editar respostas)
+- **APIs Necessárias:**
+  - `GET /api/sicc/learnings` - Lista de aprendizados
+  - `POST /api/sicc/learnings/:id/approve` - Aprovar aprendizado
+  - `POST /api/sicc/learnings/:id/reject` - Rejeitar aprendizado
+  - `PUT /api/sicc/learnings/:id` - Editar resposta
 
 ---
 
@@ -107,8 +130,8 @@
 - ❌ Conectar frontend com APIs reais
 - ❌ Substituir dados mock por dados reais
 
-### **FASE 3: AUDITORIA COMPLETA** (Pendente)
-- ❌ Auditar páginas restantes (AgenteSicc, AgenteMetricas, AgenteAprendizados)
+### **FASE 3: AUDITORIA COMPLETA** (Concluída)
+- ✅ Auditar páginas restantes (AgenteSicc, AgenteMetricas, AgenteAprendizados)
 - ❌ Verificar todas as integrações
 - ❌ Testar fluxo completo
 
@@ -182,14 +205,14 @@ async def test_prompt(prompt: str):
 - 🟢 Baixos: 0
 
 ### **Status das Páginas**
-- ✅ Funcionais: 1 (AgenteMcp)
-- 🟡 Mock: 2 (AgenteIA, AgenteConfiguracao)
-- 🔍 Não auditadas: 3
+- ✅ Funcionais: 1 (AgenteMcp com fallback mock)
+- 🟡 Mock: 5 (AgenteIA, AgenteConfiguracao, AgenteSicc, AgenteMetricas, AgenteAprendizados)
+- 🔍 Não auditadas: 0
 
 ### **APIs Necessárias**
-- Total: 8 endpoints
+- Total: 15 endpoints
 - Implementadas: 0
-- Pendentes: 8
+- Pendentes: 15
 
 ---
 
