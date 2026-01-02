@@ -42,10 +42,18 @@ interface UseRealtimeConversationsOptions {
 }
 
 interface UseRealtimeConversationsReturn {
+  conversations: Conversation[];
   data: Conversation[];
   loading: boolean;
   error: string | null;
   refetch: () => Promise<void>;
+  channelCounts: {
+    whatsapp: number;
+    site: number;
+    email: number;
+    chat: number;
+    phone: number;
+  };
 }
 
 export function useRealtimeConversations(
@@ -72,10 +80,6 @@ export function useRealtimeConversations(
             name,
             email,
             phone
-          ),
-          assigned_user:auth.users(
-            id,
-            name
           )
         `)
         .order('last_message_at', { ascending: false, nullsFirst: false })
@@ -109,7 +113,7 @@ export function useRealtimeConversations(
       const transformedData: Conversation[] = (data || []).map((item: any) => ({
         ...item,
         customer: item.customers,
-        assigned_user: item.assigned_user,
+        assigned_user: null, // Remover por enquanto até corrigir estrutura
         unread_count: 0 // TODO: Implementar contagem de não lidas
       }));
 
@@ -199,11 +203,22 @@ export function useRealtimeConversations(
     };
   }, [limit, JSON.stringify(status), JSON.stringify(channel), assigned_to, customer_id]);
 
+  // Calcular contagens por canal
+  const channelCounts = {
+    whatsapp: conversations.filter(c => c.channel === 'whatsapp').length,
+    site: conversations.filter(c => c.channel === 'site').length,
+    email: conversations.filter(c => c.channel === 'email').length,
+    chat: conversations.filter(c => c.channel === 'chat').length,
+    phone: conversations.filter(c => c.channel === 'phone').length,
+  };
+
   return {
+    conversations,
     data: conversations,
     loading,
     error,
-    refetch
+    refetch,
+    channelCounts
   };
 }
 
