@@ -157,7 +157,7 @@ const Index = () => {
 
       {/* Problemas que Resolvemos */}
       <section id="problems" className="container px-4 py-16 md:py-24">
-        <h2 className="text-4xl md:text-6xl font-bold text-center mb-8">
+        <h2 className="text-3xl md:text-5xl font-bold text-center mb-8">
           Problemas que Transformamos em Bem-Estar
         </h2>
         <p className="text-lg text-center text-muted-foreground mb-12 md:mb-16 max-w-3xl mx-auto">
@@ -189,7 +189,7 @@ const Index = () => {
         <div className="container px-4">
           <div className="grid md:grid-cols-2 gap-12 md:gap-16 items-center max-w-6xl mx-auto">
             <div className="space-y-6">
-              <h2 className="text-4xl md:text-5xl font-bold leading-tight">
+              <h2 className="text-3xl md:text-4xl font-bold leading-tight">
                 A Ciência Por Trás da Transformação
               </h2>
               <p className="text-base md:text-lg text-muted-foreground leading-relaxed">
@@ -223,7 +223,7 @@ const Index = () => {
       {/* Escolha Seu Tamanho */}
       <section id="products" className="container px-4 py-16 md:py-24">
         <div className="text-center mb-12 md:mb-16">
-          <h2 className="text-4xl md:text-6xl font-bold mb-6">
+          <h2 className="text-3xl md:text-5xl font-bold mb-6">
             Escolha o Tamanho Ideal para Você
           </h2>
           <p className="text-lg text-muted-foreground max-w-3xl mx-auto">
@@ -320,7 +320,7 @@ const Index = () => {
       {/* Depoimentos Reais */}
       <section className="bg-muted py-16 md:py-24">
         <div className="container px-4">
-          <h2 className="text-4xl md:text-6xl font-bold text-center mb-12 md:mb-16">
+          <h2 className="text-3xl md:text-5xl font-bold text-center mb-12 md:mb-16">
             Histórias de Transformação
           </h2>
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-8 max-w-7xl mx-auto">
@@ -353,7 +353,7 @@ const Index = () => {
       {/* CTA Final */}
       <section className="bg-gradient-to-br from-primary/20 via-secondary/20 to-primary/20 py-16 md:py-24">
         <div className="container px-4 text-center space-y-6 md:space-y-8">
-          <h2 className="text-4xl md:text-6xl font-bold max-w-4xl mx-auto leading-tight">
+          <h2 className="text-3xl md:text-5xl font-bold max-w-4xl mx-auto leading-tight">
             Pronta para Transformar Suas Noites?
           </h2>
           <p className="text-lg md:text-2xl text-muted-foreground max-w-2xl mx-auto">
