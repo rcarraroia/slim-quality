@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,6 +17,7 @@ import {
 } from "@/components/ui/select";
 
 export default function Conversas() {
+  const navigate = useNavigate();
   const [statusFilter, setStatusFilter] = useState('todas');
   const [channelFilter, setChannelFilter] = useState('todos');
   const [periodoFilter, setPeriodoFilter] = useState('7dias');
@@ -157,7 +159,12 @@ export default function Conversas() {
                     </div>
 
                     <div className="flex gap-2 pt-2">
-                      <Button variant="default">Ver Conversa</Button>
+                      <Button 
+                        variant="default"
+                        onClick={() => navigate(`/dashboard/conversas/${conversa.id}`)}
+                      >
+                        Ver Conversa
+                      </Button>
                       <Button variant="outline">Marcar como Prioridade</Button>
                     </div>
                   </div>

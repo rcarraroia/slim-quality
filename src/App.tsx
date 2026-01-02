@@ -16,6 +16,7 @@ import AfiliadosLanding from "./pages/afiliados/AfiliadosLanding";
 import AfiliadosCadastro from "./pages/afiliados/AfiliadosCadastro";
 import Dashboard from "./pages/dashboard/Dashboard";
 import Conversas from "./pages/dashboard/Conversas";
+import ConversaDetalhes from "./pages/dashboard/ConversaDetalhes";
 import Produtos from "./pages/dashboard/Produtos";
 import Vendas from "./pages/dashboard/Vendas";
 import Clientes from "./pages/dashboard/Clientes";
@@ -70,6 +71,7 @@ const App = () => (
           <Route path="/dashboard" element={<DashboardLayout />}>
             <Route index element={<Dashboard />} />
             <Route path="conversas" element={<Conversas />} />
+            <Route path="conversas/:id" element={<ConversaDetalhes />} />
             <Route path="produtos" element={<Produtos />} />
             <Route path="vendas" element={<Vendas />} />
             

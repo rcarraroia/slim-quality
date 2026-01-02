@@ -260,20 +260,41 @@ Seja empática, educativa e focada em ajudar o cliente com problemas de saúde e
             
             supabase: Client = create_client(supabase_url, supabase_key)
             
+            # Detectar se é conversa do site ou WhatsApp
+            is_site_conversation = phone.startswith('site_')
+            channel = 'site' if is_site_conversation else 'whatsapp'
+            
+            # Para conversas do site, usar sessionId como identificador
+            if is_site_conversation:
+                session_id = phone.replace('site_', '')
+                customer_name = f'Visitante Site {session_id[-8:]}'
+                customer_email = f'site_{session_id}@slimquality.temp'
+                customer_phone = None
+            else:
+                session_id = None
+                customer_name = f'Cliente WhatsApp {phone[-4:]}'
+                customer_email = f'whatsapp_{phone}@slimquality.temp'
+                customer_phone = phone
+            
             # 1. BUSCAR OU CRIAR CUSTOMER PRIMEIRO
-            customer_result = supabase.table('customers').select('id').eq('phone', phone).execute()
+            if is_site_conversation:
+                # Para site, buscar por email único
+                customer_result = supabase.table('customers').select('id').eq('email', customer_email).execute()
+            else:
+                # Para WhatsApp, buscar por telefone
+                customer_result = supabase.table('customers').select('id').eq('phone', phone).execute()
             
             if customer_result.data:
                 # Customer existe
                 customer_id = customer_result.data[0]['id']
-                print(f"✅ Customer encontrado: {customer_id} para {phone}", flush=True)
+                print(f"✅ Customer encontrado: {customer_id} para {channel} {phone}", flush=True)
             else:
-                # Criar novo customer com email obrigatório
+                # Criar novo customer
                 customer_data = {
-                    'name': f'Cliente WhatsApp {phone[-4:]}',
-                    'email': f'whatsapp_{phone}@slimquality.temp',  # Email temporário obrigatório
-                    'phone': phone,
-                    'source': 'whatsapp',
+                    'name': customer_name,
+                    'email': customer_email,
+                    'phone': customer_phone,
+                    'source': channel,
                     'status': 'active'
                 }
                 
@@ -281,13 +302,13 @@ Seja empática, educativa e focada em ajudar o cliente com problemas de saúde e
                 
                 if customer_result.data:
                     customer_id = customer_result.data[0]['id']
-                    print(f"✅ Customer criado: {customer_id} para {phone}", flush=True)
+                    print(f"✅ Customer criado: {customer_id} para {channel} {phone}", flush=True)
                 else:
-                    print(f"❌ Erro ao criar customer para {phone}", flush=True)
+                    print(f"❌ Erro ao criar customer para {channel} {phone}", flush=True)
                     return
             
             # 2. BUSCAR OU CRIAR CONVERSA USANDO CUSTOMER_ID
-            conversation_result = supabase.table('conversations').select('id').eq('customer_id', customer_id).eq('channel', 'whatsapp').eq('status', 'open').execute()
+            conversation_result = supabase.table('conversations').select('id').eq('customer_id', customer_id).eq('channel', channel).eq('status', 'open').execute()
             
             if conversation_result.data:
                 # Conversa ativa existe
@@ -297,18 +318,19 @@ Seja empática, educativa e focada em ajudar o cliente com problemas de saúde e
                 # Criar nova conversa usando schema correto
                 conversation_data = {
                     'customer_id': customer_id,  # CAMPO CORRETO
-                    'channel': 'whatsapp',
+                    'channel': channel,  # 'site' ou 'whatsapp'
                     'status': 'open',
-                    'subject': f'WhatsApp {phone[-4:]}'
+                    'subject': f'{channel.title()} {phone[-8:] if not is_site_conversation else session_id[-8:]}',
+                    'session_id': session_id  # Para conversas do site
                 }
                 
                 conversation_result = supabase.table('conversations').insert(conversation_data).execute()
                 
                 if conversation_result.data:
                     conversation_id = conversation_result.data[0]['id']
-                    print(f"✅ Conversa criada: {conversation_id} para customer {customer_id}", flush=True)
+                    print(f"✅ Conversa criada: {conversation_id} para customer {customer_id} ({channel})", flush=True)
                 else:
-                    print(f"❌ Erro ao criar conversa para customer {customer_id}", flush=True)
+                    print(f"❌ Erro ao criar conversa para customer {customer_id} ({channel})", flush=True)
                     return
             
             # 3. SALVAR MENSAGEM COM SENDER_ID CORRETO
@@ -322,12 +344,12 @@ Seja empática, educativa e focada em ajudar o cliente com problemas de saúde e
             message_result = supabase.table('messages').insert(message_data).execute()
             
             if message_result.data:
-                print(f"✅ Mensagem salva: {conversation_id} ({sender_type}) - {message[:50]}...", flush=True)
+                print(f"✅ Mensagem salva: {conversation_id} ({sender_type}) [{channel}] - {message[:50]}...", flush=True)
             else:
                 print(f"❌ Erro ao salvar mensagem", flush=True)
             
         except Exception as e:
-            print(f"❌ Erro ao salvar conversa WhatsApp: {e}", flush=True)
+            print(f"❌ Erro ao salvar conversa {channel}: {e}", flush=True)
             import traceback
             print(f"❌ Traceback: {traceback.format_exc()}", flush=True)
     

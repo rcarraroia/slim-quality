@@ -238,8 +238,8 @@ export function ChatWidget({
       setMessages(prev => [...prev, agentMessage]);
       setIsLoading(false);
       
-      // Salvar conversa no Supabase para dashboard
-      await saveConversationToSupabase(currentMessage, agentResponse);
+      // Salvar conversa no dashboard via webhook
+      await saveSiteConversationToWebhook(currentMessage, agentResponse);
       return;
       
     } catch (error) {
@@ -257,31 +257,58 @@ export function ChatWidget({
     }
   };
 
-  // Função para salvar conversa no Supabase
-  const saveConversationToSupabase = async (userMessage: string, agentResponse: string) => {
+  // Função para salvar conversa do site no webhook do agente
+  const saveSiteConversationToWebhook = async (userMessage: string, agentResponse: string) => {
     try {
-      // Usar o servidor Express como proxy para Supabase
-      const response = await fetch('/server/api/save-conversation', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          sessionId,
-          userMessage,
-          agentResponse,
-          channel: 'site'
-        }),
-      });
+      const webhookUrl = 'https://slimquality-agent.wpjtfd.easypanel.host/webhooks/evolution';
       
-      if (response.ok) {
-        console.log('✅ Conversa salva no dashboard');
-      } else {
-        console.log('⚠️ Erro ao salvar conversa no dashboard');
-      }
+      // Salvar mensagem do usuário
+      const userPayload = {
+        event: 'messages.upsert',
+        instance: 'SlimQualit',
+        data: {
+          key: {
+            remoteJid: `site_${sessionId}@s.whatsapp.net`,
+            fromMe: false,
+            id: `SITE_USER_${Date.now()}`
+          },
+          message: {
+            conversation: userMessage
+          }
+        }
+      };
+
+      await fetch(webhookUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(userPayload),
+      });
+
+      // Salvar resposta do agente
+      const agentPayload = {
+        event: 'send.message',
+        instance: 'SlimQualit', 
+        data: {
+          key: {
+            remoteJid: `site_${sessionId}@s.whatsapp.net`,
+            fromMe: true,
+            id: `SITE_AGENT_${Date.now()}`
+          },
+          message: {
+            conversation: agentResponse
+          }
+        }
+      };
+
+      await fetch(webhookUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(agentPayload),
+      });
+
+      console.log('✅ Conversa do site salva no dashboard via webhook');
     } catch (error) {
-      console.log('⚠️ Erro ao salvar conversa:', error);
-      // Não bloquear o chat por erro de salvamento
+      console.log('⚠️ Erro ao salvar conversa do site:', error);
     }
   };
 
