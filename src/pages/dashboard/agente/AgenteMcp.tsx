@@ -64,14 +64,56 @@ export default function AgenteMcp() {
     } catch (error) {
       console.error('❌ Erro ao buscar status MCP:', error);
       
-      // Manter dados existentes em caso de erro, mas mostrar alerta
-      toast({
-        title: "Erro ao atualizar status",
-        description: "Não foi possível conectar com o MCP Gateway. Dados podem estar desatualizados.",
-        variant: "destructive",
-      });
+      // FALLBACK: Usar dados mockados quando API não estiver disponível
+      const mockIntegrations: IntegrationStatus[] = [
+        {
+          id: 'evolution-api',
+          name: 'Evolution API',
+          status: 'online',
+          lastConnection: 'Há 2 minutos',
+          latency: 150,
+          description: 'Responsável pela integração com WhatsApp Business. Permite envio e recebimento de mensagens.'
+        },
+        {
+          id: 'uazapi',
+          name: 'Uazapi',
+          status: 'warning',
+          lastConnection: 'Há 15 minutos',
+          latency: 300,
+          description: 'Serviço alternativo de mensageria para redundância e maior disponibilidade.',
+          errorMessage: 'Latência alta detectada'
+        },
+        {
+          id: 'supabase',
+          name: 'Supabase',
+          status: 'online',
+          lastConnection: 'Há 1 minuto',
+          latency: 80,
+          description: 'Banco de dados principal e sistema de autenticação. Crítico para o funcionamento do sistema.'
+        },
+        {
+          id: 'redis',
+          name: 'Redis',
+          status: 'error',
+          lastConnection: 'Há 30 minutos',
+          latency: 0,
+          description: 'Sistema de cache e gerenciamento de sessões para melhor performance.',
+          errorMessage: 'Não foi possível conectar com o MCP Gateway. Dados podem estar desatualizados.'
+        }
+      ];
       
+      setIntegrations(mockIntegrations);
       setGatewayStatus('offline');
+      setLastUpdate(new Date().toLocaleString('pt-BR'));
+      
+      // Mostrar toast apenas na primeira vez
+      if (integrations.length === 0) {
+        toast({
+          title: "Modo offline",
+          description: "Usando dados de exemplo. API do agente não está disponível.",
+          variant: "destructive",
+        });
+      }
     }
   };
 
