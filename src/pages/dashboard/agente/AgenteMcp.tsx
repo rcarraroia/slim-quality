@@ -14,7 +14,7 @@ import {
   Zap
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { apiClient } from '@/lib/api';
+import { apiClient } from '@/lib/api.ts';
 
 interface IntegrationStatus {
   id: string;
