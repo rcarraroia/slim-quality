@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
-import { apiClient } from '@/lib/api';
+import { apiClient } from '../../lib/api';
 
 interface AgentStatus {
   status: string;
