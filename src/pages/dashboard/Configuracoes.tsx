@@ -71,6 +71,15 @@ export default function Configuracoes() {
   const loadUsers = async () => {
     try {
       setLoading(true);
+      
+      // Verificar se usuário está autenticado
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        console.log('Usuário não autenticado - não carregando usuários');
+        setUsers([]);
+        return;
+      }
+      
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
