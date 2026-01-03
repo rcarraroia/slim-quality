@@ -82,7 +82,7 @@ serve(async (req) => {
         .upsert({
           id: authData.user.id,
           full_name: userData.full_name,
-          email: userData.email,
+          email: email,  // ← Usar parâmetro email ao invés de userData.email
           role: userData.role,
           status: userData.status || 'ativo',
           phone: userData.phone,
