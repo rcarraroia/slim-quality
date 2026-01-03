@@ -3,6 +3,7 @@
  * Sprint 3: Sistema de Vendas
  * 
  * Compatível com frontend (Vite) e backend (Node.js)
+ * Atualizado: 04/01/2026 - Forçar rebuild após correções SQL
  */
 
 import { createClient } from '@supabase/supabase-js';
