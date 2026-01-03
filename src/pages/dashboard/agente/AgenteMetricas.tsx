@@ -293,7 +293,7 @@ export default function AgenteMetricas() {
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={metrics.latency_by_hour}>
+              <LineChart data={metrics.latency_by_hour || []}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="hour" />
                 <YAxis />
@@ -326,7 +326,7 @@ export default function AgenteMetricas() {
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={metrics.tokens_by_model}>
+              <BarChart data={metrics.tokens_by_model || []}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="model" />
                 <YAxis />
@@ -354,10 +354,10 @@ export default function AgenteMetricas() {
             <div className="relative w-48 h-48">
               <div className="absolute inset-0 flex items-center justify-center">
                 <div className="text-center">
-                  <div className="text-4xl font-bold text-green-500">{metrics.uptime}%</div>
+                  <div className="text-4xl font-bold text-green-500">{metrics.uptime || 0}%</div>
                   <div className="text-sm text-muted-foreground">Uptime</div>
                   <Badge variant="default" className="mt-2">
-                    {metrics.uptime >= 99 ? 'Excelente' : metrics.uptime >= 95 ? 'Bom' : 'Atenção'}
+                    {(metrics.uptime || 0) >= 99 ? 'Excelente' : (metrics.uptime || 0) >= 95 ? 'Bom' : 'Atenção'}
                   </Badge>
                 </div>
               </div>
@@ -379,7 +379,7 @@ export default function AgenteMetricas() {
                   strokeWidth="8"
                   fill="transparent"
                   strokeDasharray={`${2 * Math.PI * 88}`}
-                  strokeDashoffset={`${2 * Math.PI * 88 * (1 - metrics.uptime / 100)}`}
+                  strokeDashoffset={`${2 * Math.PI * 88 * (1 - (metrics.uptime || 0) / 100)}`}
                   className="text-green-500"
                 />
               </svg>
@@ -402,7 +402,7 @@ export default function AgenteMetricas() {
             <ResponsiveContainer width="100%" height={300}>
               <PieChart>
                 <Pie
-                  data={metrics.question_types}
+                  data={metrics.question_types || []}
                   cx="50%"
                   cy="50%"
                   labelLine={false}
@@ -411,7 +411,7 @@ export default function AgenteMetricas() {
                   fill="#8884d8"
                   dataKey="percentage"
                 >
-                  {metrics.question_types.map((entry, index) => (
+                  {(metrics.question_types || []).map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={entry.color} />
                   ))}
                 </Pie>
