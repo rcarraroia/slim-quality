@@ -20,7 +20,7 @@ import {
   RefreshCw
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { apiClient } from '../../lib/api';
+import { apiClient } from '../../../lib/api';
 
 interface Learning {
   id: string;
