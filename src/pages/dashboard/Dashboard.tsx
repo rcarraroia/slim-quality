@@ -50,13 +50,16 @@ export default function Dashboard() {
 
   const loadDashboardData = async () => {
     try {
+      console.log('📊 Carregando dados do dashboard...');
       setLoading(true);
       await Promise.all([
         loadOrders(),
         loadStats()
       ]);
+      console.log('✅ Dados do dashboard carregados com sucesso');
     } catch (error) {
-      console.error('Erro ao carregar dashboard:', error);
+      console.error('❌ Erro ao carregar dashboard:', error);
+      // Não bloquear o dashboard por erro - mostrar dados vazios
     } finally {
       setLoading(false);
     }
@@ -65,53 +68,77 @@ export default function Dashboard() {
   // Remover loadConversations - agora usa useRealtimeConversations
 
   const loadOrders = async () => {
-    const { data, error } = await supabase
-      .from('orders')
-      .select(`
-        id,
-        created_at,
-        total_cents,
-        status,
-        customer_name,
-        order_items(product_name)
-      `)
-      .order('created_at', { ascending: false })
-      .limit(5);
+    try {
+      console.log('📦 Carregando pedidos...');
+      const { data, error } = await supabase
+        .from('orders')
+        .select(`
+          id,
+          created_at,
+          total_cents,
+          status,
+          customer_name,
+          order_items(product_name)
+        `)
+        .order('created_at', { ascending: false })
+        .limit(5);
 
-    if (error) {
-      console.error('Erro ao carregar vendas:', error);
-      return;
+      if (error) {
+        console.error('❌ Erro ao carregar vendas:', error);
+        return;
+      }
+      
+      console.log(`✅ ${data?.length || 0} pedidos carregados`);
+      setVendasRecentes(data || []);
+    } catch (error) {
+      console.error('💥 Erro geral ao carregar pedidos:', error);
+      setVendasRecentes([]);
     }
-    setVendasRecentes(data || []);
   };
 
   const loadStats = async () => {
-    // Conversas ativas
-    const { count: conversasCount } = await supabase
-      .from('conversations')
-      .select('*', { count: 'exact', head: true })
-      .eq('status', 'open');
+    try {
+      console.log('📈 Carregando estatísticas...');
+      
+      // Conversas ativas
+      const { count: conversasCount } = await supabase
+        .from('conversations')
+        .select('*', { count: 'exact', head: true })
+        .eq('status', 'open');
 
-    // Vendas do mês atual
-    const startOfMonth = new Date();
-    startOfMonth.setDate(1);
-    startOfMonth.setHours(0, 0, 0, 0);
+      // Vendas do mês atual
+      const startOfMonth = new Date();
+      startOfMonth.setDate(1);
+      startOfMonth.setHours(0, 0, 0, 0);
 
-    const { data: ordersData } = await supabase
-      .from('orders')
-      .select('total_cents')
-      .gte('created_at', startOfMonth.toISOString());
+      const { data: ordersData } = await supabase
+        .from('orders')
+        .select('total_cents')
+        .gte('created_at', startOfMonth.toISOString());
 
-    const vendasMes = ordersData?.reduce((acc, order) => acc + (order.total_cents / 100), 0) || 0;
-    const quantidadeVendas = ordersData?.length || 0;
-    const ticketMedio = quantidadeVendas > 0 ? vendasMes / quantidadeVendas : 0;
+      const vendasMes = ordersData?.reduce((acc, order) => acc + (order.total_cents / 100), 0) || 0;
+      const quantidadeVendas = ordersData?.length || 0;
+      const ticketMedio = quantidadeVendas > 0 ? vendasMes / quantidadeVendas : 0;
 
-    setStats({
-      conversasAtivas: conversasCount || 0,
-      vendasMes,
-      taxaConversao: 0, // Calcular depois se necessário
-      ticketMedio
-    });
+      const newStats = {
+        conversasAtivas: conversasCount || 0,
+        vendasMes,
+        taxaConversao: 0, // Calcular depois se necessário
+        ticketMedio
+      };
+      
+      console.log('✅ Estatísticas carregadas:', newStats);
+      setStats(newStats);
+    } catch (error) {
+      console.error('❌ Erro ao carregar estatísticas:', error);
+      // Manter stats padrão em caso de erro
+      setStats({
+        conversasAtivas: 0,
+        vendasMes: 0,
+        taxaConversao: 0,
+        ticketMedio: 0
+      });
+    }
   };
 
   if (loading) {

@@ -21,14 +21,20 @@ export default function Login() {
     setLoading(true);
 
     try {
+      console.log('🔐 Iniciando processo de login...');
       const result = await signIn(email, password);
       
       if (result.success) {
-        // Redirect to dashboard
-        setTimeout(() => {
-          navigate("/dashboard");
-        }, 1000);
+        console.log('✅ Login bem-sucedido, redirecionando...');
+        toast({
+          title: "Login realizado com sucesso!",
+          description: "Redirecionando para o dashboard...",
+        });
+        
+        // Redirecionar imediatamente
+        navigate("/dashboard");
       } else {
+        console.error('❌ Login falhou:', result.error);
         toast({
           title: "Erro no login",
           description: result.error || "Credenciais inválidas",
@@ -36,7 +42,7 @@ export default function Login() {
         });
       }
     } catch (error) {
-      console.error('Erro no login:', error);
+      console.error('💥 Erro no login:', error);
       toast({
         title: "Erro no login",
         description: "Ocorreu um erro interno. Tente novamente.",
