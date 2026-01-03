@@ -210,42 +210,54 @@ export function UserManagementModal({ user, isOpen, onClose, onUserSaved }: User
         if (functionError || !functionData) {
           console.log('🔄 Edge Function falhou, tentando fallback direto no banco...');
           
-          // Gerar ID único para o usuário
-          const userId = crypto.randomUUID();
-          
-          // Criar perfil diretamente na tabela profiles
-          const { error: profileError } = await supabase
-            .from('profiles')
-            .insert({
-              id: userId,
-              full_name: formData.full_name,
-              email: formData.email,
-              role: formData.role,
-              status: formData.status,
-              phone: formData.phone,
-              wallet_id: formData.wallet_id,
-              is_affiliate: formData.is_affiliate,
-              affiliate_status: formData.affiliate_status,
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString()
+          try {
+            // Gerar ID único para o usuário
+            const userId = crypto.randomUUID();
+            
+            // Criar perfil diretamente na tabela profiles
+            const { error: profileError } = await supabase
+              .from('profiles')
+              .insert({
+                id: userId,
+                full_name: formData.full_name,
+                email: formData.email,
+                role: formData.role,
+                status: formData.status,
+                phone: formData.phone,
+                wallet_id: formData.wallet_id,
+                is_affiliate: formData.is_affiliate,
+                affiliate_status: formData.affiliate_status,
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
+              });
+
+            if (profileError) {
+              console.log('❌ Erro no fallback:', profileError);
+              throw new Error(`Fallback falhou: ${profileError.message}`);
+            }
+
+            console.log('✅ Usuário criado via fallback direto no banco!');
+            
+            toast({
+              title: "Usuário Criado (Fallback)",
+              description: `${formData.full_name} foi criado com sucesso. Nota: Senha deve ser definida pelo usuário no primeiro login.`,
+              action: <CheckCircle className="h-4 w-4 text-success" />,
             });
-
-          if (profileError) {
-            console.log('❌ Erro no fallback:', profileError);
-            throw new Error(`Fallback falhou: ${profileError.message}`);
+            
+            // Sucesso do fallback - sair da função
+            onUserSaved();
+            onClose();
+            return;
+            
+          } catch (fallbackError) {
+            console.log('❌ Fallback também falhou:', fallbackError);
+            throw fallbackError;
           }
+        }
 
-          console.log('✅ Usuário criado via fallback direto no banco!');
-          
-          toast({
-            title: "Usuário Criado (Fallback)",
-            description: `${formData.full_name} foi criado com sucesso. Nota: Senha deve ser definida pelo usuário no primeiro login.`,
-            action: <CheckCircle className="h-4 w-4 text-success" />,
-          });
-        } else {
-          // Edge Function funcionou
-          if (functionData.error) throw new Error(functionData.error);
-          console.log('✅ Usuário criado com sucesso via Edge Function!');
+        // Edge Function funcionou
+        if (functionData.error) throw new Error(functionData.error);
+        console.log('✅ Usuário criado com sucesso via Edge Function!');
           
           toast({
             title: "Usuário Criado",
