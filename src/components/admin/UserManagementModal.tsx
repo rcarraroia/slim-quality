@@ -31,7 +31,7 @@ interface UserManagementModalProps {
   user: UserData | null;
   isOpen: boolean;
   onClose: () => void;
-  onUserSaved: () => void; // Callback para atualizar lista
+  onUserSaved: () => void;
 }
 
 const mockPermissions = [
@@ -48,7 +48,7 @@ const mockPermissions = [
 ];
 
 const rolePermissions: Record<string, string[]> = {
-  super_admin: mockPermissions.map(p => p.id), // Super admin tem todas as permissões
+  super_admin: mockPermissions.map(p => p.id),
   admin: ['dashboard', 'conversas', 'produtos', 'vendas', 'clientes', 'afiliados', 'agendamentos', 'analytics', 'configuracoes'],
   vendedor: ['dashboard', 'conversas', 'clientes', 'agendamentos', 'produtos'],
   suporte: ['dashboard', 'conversas', 'produtos', 'clientes', 'analytics'],
@@ -76,7 +76,6 @@ export function UserManagementModal({ user, isOpen, onClose, onUserSaved }: User
   const [selectedProfile, setSelectedProfile] = useState(isEditing ? user.role : 'vendedor');
   const [password, setPassword] = useState('');
 
-  // Resetar form quando modal abrir/fechar
   useEffect(() => {
     if (isOpen) {
       if (user) {
@@ -156,26 +155,11 @@ export function UserManagementModal({ user, isOpen, onClose, onUserSaved }: User
           return;
         }
 
-        // Criar usuário via Edge Function (segura)
         console.log('🚀 Chamando Edge Function admin-create-user...');
         console.log('📧 Email:', formData.email);
-        console.log('👤 UserData:', {
-          full_name: formData.full_name,
-          email: formData.email,
-          role: formData.role,
-          status: formData.status,
-          phone: formData.phone,
-          wallet_id: formData.wallet_id,
-          is_affiliate: formData.is_affiliate,
-          affiliate_status: formData.affiliate_status
-        });
+        console.log('👤 UserData:', formData);
         
-        // Implementar timeout manual para evitar travamento
-        const timeoutPromise = new Promise((_, reject) => {
-          setTimeout(() => reject(new Error('Timeout: Edge Function demorou mais de 30 segundos')), 30000);
-        });
-        
-        const functionPromise = supabase.functions.invoke('admin-create-user', {
+        const { data: functionData, error: functionError } = await supabase.functions.invoke('admin-create-user', {
           body: {
             email: formData.email,
             password: password,
@@ -192,85 +176,26 @@ export function UserManagementModal({ user, isOpen, onClose, onUserSaved }: User
           }
         });
         
-        console.log('⏳ Aguardando resposta da Edge Function...');
-        
-        const { data: functionData, error: functionError } = await Promise.race([
-          functionPromise,
-          timeoutPromise
-        ]).catch(error => {
-          console.log('💥 Erro capturado:', error);
-          return { data: null, error: error };
-        });
-        
         console.log('📊 Resposta da Edge Function:');
         console.log('✅ Data:', functionData);
         console.log('❌ Error:', functionError);
 
-        // Se Edge Function falhou, tentar fallback direto no banco
-        if (functionError || !functionData) {
-          console.log('🔄 Edge Function falhou, tentando fallback direto no banco...');
-          
-          try {
-            // Gerar ID único para o usuário
-            const userId = crypto.randomUUID();
-            
-            // Criar perfil diretamente na tabela profiles
-            const { error: profileError } = await supabase
-              .from('profiles')
-              .insert({
-                id: userId,
-                full_name: formData.full_name,
-                email: formData.email,
-                role: formData.role,
-                status: formData.status,
-                phone: formData.phone,
-                wallet_id: formData.wallet_id,
-                is_affiliate: formData.is_affiliate,
-                affiliate_status: formData.affiliate_status,
-                created_at: new Date().toISOString(),
-                updated_at: new Date().toISOString()
-              });
+        if (functionError) throw functionError;
+        if (functionData?.error) throw new Error(functionData.error);
 
-            if (profileError) {
-              console.log('❌ Erro no fallback:', profileError);
-              throw new Error(`Fallback falhou: ${profileError.message}`);
-            }
+        console.log('✅ Usuário criado com sucesso!');
 
-            console.log('✅ Usuário criado via fallback direto no banco!');
-            
-            toast({
-              title: "Usuário Criado (Fallback)",
-              description: `${formData.full_name} foi criado com sucesso. Nota: Senha deve ser definida pelo usuário no primeiro login.`,
-              action: <CheckCircle className="h-4 w-4 text-success" />,
-            });
-            
-            // Sucesso do fallback - sair da função
-            onUserSaved();
-            onClose();
-            return;
-            
-          } catch (fallbackError) {
-            console.log('❌ Fallback também falhou:', fallbackError);
-            throw fallbackError;
-          }
-        }
-
-        // Edge Function funcionou
-        if (functionData.error) throw new Error(functionData.error);
-        console.log('✅ Usuário criado com sucesso via Edge Function!');
-          
-          toast({
-            title: "Usuário Criado",
-            description: `${formData.full_name} foi criado com sucesso.`,
-            action: <CheckCircle className="h-4 w-4 text-success" />,
-          });
-        }
+        toast({
+          title: "Usuário Criado",
+          description: `${formData.full_name} foi criado com sucesso.`,
+          action: <CheckCircle className="h-4 w-4 text-success" />,
+        });
       }
 
-      onUserSaved(); // Atualizar lista de usuários
+      onUserSaved();
       onClose();
     } catch (error: any) {
-      console.error('Erro ao salvar usuário:', error);
+      console.error('❌ Erro ao salvar usuário:', error);
       toast({
         title: "Erro ao salvar",
         description: error.message || "Ocorreu um erro ao salvar o usuário",
@@ -286,12 +211,14 @@ export function UserManagementModal({ user, isOpen, onClose, onUserSaved }: User
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-2xl">
-            {isEditing ? `Editar Usuário: ${user?.nome}` : "Adicionar Novo Usuário"}
+            {isEditing ? `Editar Usuário: ${user?.full_name}` : "Adicionar Novo Usuário"}
           </DialogTitle>
         </DialogHeader>
         
         <form onSubmit={handleSubmit} className="space-y-6 py-4">
-          <h3 className="font-semibold text-lg border-b pb-2 flex items-center gap-2"><User className="h-5 w-5 text-primary" /> Dados Básicos</h3>
+          <h3 className="font-semibold text-lg border-b pb-2 flex items-center gap-2">
+            <User className="h-5 w-5 text-primary" /> Dados Básicos
+          </h3>
           
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
@@ -350,7 +277,9 @@ export function UserManagementModal({ user, isOpen, onClose, onUserSaved }: User
             </div>
           </div>
 
-          <h3 className="font-semibold text-lg border-b pb-2 flex items-center gap-2"><Lock className="h-5 w-5 text-primary" /> {isEditing ? 'Resetar Senha' : 'Senha Temporária'}</h3>
+          <h3 className="font-semibold text-lg border-b pb-2 flex items-center gap-2">
+            <Lock className="h-5 w-5 text-primary" /> {isEditing ? 'Resetar Senha' : 'Senha Temporária'}
+          </h3>
           
           {!isEditing && (
             <div className="space-y-2">
@@ -365,19 +294,16 @@ export function UserManagementModal({ user, isOpen, onClose, onUserSaved }: User
               />
               <div className="flex items-center space-x-2 mt-2">
                 <Checkbox id="troca-senha" defaultChecked />
-                <Label htmlFor="troca-senha" className="text-sm font-normal">Solicitar troca de senha no primeiro login</Label>
+                <Label htmlFor="troca-senha" className="text-sm font-normal">
+                  Solicitar troca de senha no primeiro login
+                </Label>
               </div>
             </div>
           )}
-          
-          {isEditing && (
-            <div className="space-y-2">
-              <Button variant="outline" type="button">Gerar Nova Senha Temporária</Button>
-              <p className="text-xs text-muted-foreground">A nova senha será enviada por email ao usuário.</p>
-            </div>
-          )}
 
-          <h3 className="font-semibold text-lg border-b pb-2 flex items-center gap-2"><CheckCircle className="h-5 w-5 text-primary" /> Permissões</h3>
+          <h3 className="font-semibold text-lg border-b pb-2 flex items-center gap-2">
+            <CheckCircle className="h-5 w-5 text-primary" /> Permissões
+          </h3>
           
           <div className="space-y-3">
             <div className="grid grid-cols-2 gap-4">

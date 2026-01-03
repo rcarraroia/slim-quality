@@ -32,10 +32,10 @@ def test_admin_creation():
     # Teste 1: Criar Admin
     print("🧪 TESTE 1: Criando usuário ADMIN...")
     data_admin = {
-        'email': 'novo.admin@slimquality.com.br',
+        'email': 'admin.final.teste@slimquality.com.br',
         'password': 'admin123456',
         'userData': {
-            'full_name': 'Novo Admin Sistema',
+            'full_name': 'Admin Final Teste',
             'role': 'admin',
             'status': 'ativo',
             'phone': '31987654321',
@@ -63,10 +63,10 @@ def test_admin_creation():
     # Teste 2: Criar Vendedor (para comparação)
     print("🧪 TESTE 2: Criando usuário VENDEDOR...")
     data_vendedor = {
-        'email': 'novo.vendedor@slimquality.com.br',
+        'email': 'vendedor.final.teste@slimquality.com.br',
         'password': 'vendedor123456',
         'userData': {
-            'full_name': 'Novo Vendedor Sistema',
+            'full_name': 'Vendedor Final Teste',
             'role': 'vendedor',
             'status': 'ativo',
             'phone': '31987654322',
