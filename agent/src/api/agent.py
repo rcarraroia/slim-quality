@@ -164,52 +164,43 @@ async def get_agent_config():
     try:
         logger.info("Obtendo configuração do agente")
         
-        # Obter configuração atual do AI Service
+        # Buscar configuração real do banco de dados
         try:
-            from ..services.ai_service import get_ai_service
-            ai_service = get_ai_service()
+            from ..services.supabase_client import get_supabase_client
+            supabase = get_supabase_client()
             
-            # Obter configurações atuais
-            current_model = "gpt-4o"
-            temperature = 0.7
-            max_tokens = 500
-            sicc_enabled = False
+            # Buscar configuração na tabela agent_config
+            result = supabase.table('agent_config').select('*').order('created_at', desc=True).limit(1).execute()
             
-            # Tentar obter do AI Service
-            if hasattr(ai_service, 'settings'):
-                settings = ai_service.settings
-                current_model = getattr(settings, 'openai_model', 'gpt-4o')
-            
-            # Verificar SICC
-            try:
-                from ..services.sicc.sicc_service import get_sicc_service
-                sicc_service = get_sicc_service()
-                sicc_enabled = sicc_service.is_initialized
-            except:
-                sicc_enabled = False
-            
-            # System prompt padrão
-            system_prompt = """Você é a BIA, consultora especializada em colchões magnéticos terapêuticos da Slim Quality.
-
-Seja consultiva, empática e focada em resolver problemas de saúde e sono dos clientes.
-Apresente os produtos de forma educativa, não apenas vendedora."""
-            
-            return AgentConfig(
-                model=current_model,
-                temperature=temperature,
-                max_tokens=max_tokens,
-                system_prompt=system_prompt,
-                sicc_enabled=sicc_enabled
-            )
-            
-        except Exception as service_error:
-            logger.warning("Erro ao obter configuração dos serviços", error=str(service_error))
+            if result.data and len(result.data) > 0:
+                config_data = result.data[0]
+                
+                return AgentConfig(
+                    model=config_data.get('model', 'gpt-4o'),
+                    temperature=float(config_data.get('temperature', 0.7)),
+                    max_tokens=int(config_data.get('max_tokens', 2000)),
+                    system_prompt=config_data.get('system_prompt', 'Sistema inicializando...'),
+                    sicc_enabled=bool(config_data.get('sicc_enabled', False))
+                )
+            else:
+                logger.warning("Nenhuma configuração encontrada no banco, usando padrão")
+                # Fallback: configuração padrão
+                return AgentConfig(
+                    model="gpt-4o",
+                    temperature=0.7,
+                    max_tokens=2000,
+                    system_prompt="Você é a BIA, consultora especializada em colchões magnéticos terapêuticos da Slim Quality. Seja consultiva, empática e focada em resolver problemas de saúde e sono dos clientes.",
+                    sicc_enabled=False
+                )
+                
+        except Exception as db_error:
+            logger.warning("Erro ao buscar configuração no banco", error=str(db_error))
             
             # Fallback: configuração padrão
             return AgentConfig(
                 model="gpt-4o",
                 temperature=0.7,
-                max_tokens=500,
+                max_tokens=2000,
                 system_prompt="Sistema inicializando...",
                 sicc_enabled=False
             )
@@ -233,42 +224,74 @@ async def save_agent_config(config: AgentConfig):
     try:
         logger.info("Salvando configuração do agente", config=config.dict())
         
-        # Aplicar configurações no AI Service
+        # Salvar configuração real no banco de dados
         try:
-            from ..services.ai_service import get_ai_service
-            ai_service = get_ai_service()
+            from ..services.supabase_client import get_supabase_client
+            supabase = get_supabase_client()
             
-            # Aplicar configurações se o serviço suportar
-            if hasattr(ai_service, 'update_config'):
-                ai_service.update_config({
-                    'model': config.model,
-                    'temperature': config.temperature,
-                    'max_tokens': config.max_tokens
-                })
+            # Verificar se já existe configuração
+            existing = supabase.table('agent_config').select('id').execute()
             
-            logger.info("Configurações aplicadas no AI Service")
+            config_data = {
+                'model': config.model,
+                'temperature': config.temperature,
+                'max_tokens': config.max_tokens,
+                'system_prompt': config.system_prompt,
+                'sicc_enabled': config.sicc_enabled,
+                'updated_at': 'now()'
+            }
             
-        except Exception as ai_error:
-            logger.warning("Erro ao aplicar configurações no AI Service", error=str(ai_error))
-        
-        # Aplicar configurações no SICC se necessário
-        if config.sicc_enabled:
+            if existing.data and len(existing.data) > 0:
+                # Atualizar configuração existente
+                result = supabase.table('agent_config').update(config_data).eq('id', existing.data[0]['id']).execute()
+                logger.info("Configuração atualizada no banco")
+            else:
+                # Inserir nova configuração
+                result = supabase.table('agent_config').insert(config_data).execute()
+                logger.info("Nova configuração inserida no banco")
+            
+            # Aplicar configurações no AI Service se disponível
             try:
-                from ..services.sicc.sicc_service import get_sicc_service
-                sicc_service = get_sicc_service()
+                from ..services.ai_service import get_ai_service
+                ai_service = get_ai_service()
                 
-                if not sicc_service.is_initialized:
-                    await sicc_service.initialize()
-                    logger.info("SICC inicializado via configuração")
+                if hasattr(ai_service, 'update_config'):
+                    ai_service.update_config({
+                        'model': config.model,
+                        'temperature': config.temperature,
+                        'max_tokens': config.max_tokens
+                    })
+                
+                logger.info("Configurações aplicadas no AI Service")
+                
+            except Exception as ai_error:
+                logger.warning("Erro ao aplicar configurações no AI Service", error=str(ai_error))
+            
+            # Aplicar configurações no SICC se necessário
+            if config.sicc_enabled:
+                try:
+                    from ..services.sicc.sicc_service import get_sicc_service
+                    sicc_service = get_sicc_service()
                     
-            except Exception as sicc_error:
-                logger.warning("Erro ao configurar SICC", error=str(sicc_error))
-        
-        return SuccessResponse(
-            success=True,
-            message="Configuração salva com sucesso",
-            data={"applied_settings": config.dict()}
-        )
+                    if not sicc_service.is_initialized:
+                        await sicc_service.initialize()
+                        logger.info("SICC inicializado via configuração")
+                        
+                except Exception as sicc_error:
+                    logger.warning("Erro ao configurar SICC", error=str(sicc_error))
+            
+            return SuccessResponse(
+                success=True,
+                message="Configuração salva com sucesso no banco de dados",
+                data={"applied_settings": config.dict(), "saved_to_db": True}
+            )
+            
+        except Exception as db_error:
+            logger.error("Erro ao salvar configuração no banco", error=str(db_error))
+            return SuccessResponse(
+                success=False,
+                message=f"Erro ao salvar no banco: {str(db_error)}"
+            )
         
     except Exception as e:
         logger.error("Erro ao salvar configuração", error=str(e))

@@ -57,13 +57,14 @@ class TestPromptResponse(BaseModel):
 
 class AgentMetrics(BaseModel):
     """Métricas do agente"""
-    uptime_hours: float = Field(..., description="Tempo ativo em horas")
-    total_conversations: int = Field(..., description="Total de conversas")
-    avg_response_time_ms: float = Field(..., description="Tempo médio de resposta")
-    success_rate: float = Field(..., description="Taxa de sucesso (0-1)")
-    tokens_used_today: int = Field(..., description="Tokens usados hoje")
-    hourly_latency: List[Dict[str, Union[str, float]]] = Field(..., description="Latência por hora")
-    model_usage: List[Dict[str, Union[str, int]]] = Field(..., description="Uso por modelo")
+    uptime: float = Field(..., description="Uptime em percentual (0-100)")
+    average_latency: float = Field(..., description="Latência média em segundos")
+    accuracy_rate: float = Field(..., description="Taxa de precisão em percentual (0-100)")
+    tokens_consumed: int = Field(..., description="Tokens consumidos no período")
+    responses_generated: int = Field(..., description="Respostas geradas no período")
+    latency_by_hour: List[Dict[str, Union[str, float]]] = Field(..., description="Latência por hora")
+    tokens_by_model: List[Dict[str, Union[str, int, str]]] = Field(..., description="Tokens por modelo")
+    question_types: List[Dict[str, Union[str, float]]] = Field(..., description="Tipos de pergunta")
 
 
 # ============================================

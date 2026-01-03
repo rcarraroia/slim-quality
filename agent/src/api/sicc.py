@@ -29,30 +29,43 @@ async def get_sicc_config():
     try:
         logger.info("Obtendo configuração do SICC")
         
-        # Integrar com SICCService para configurações reais
+        # Buscar configuração real do banco de dados
         try:
-            from ..services.sicc.sicc_service import get_sicc_service
-            sicc_service = get_sicc_service()
+            from ..services.supabase_client import get_supabase_client
+            supabase = get_supabase_client()
             
-            # Obter configuração atual do SICC
-            config = sicc_service.config
+            # Buscar configuração na tabela sicc_config
+            result = supabase.table('sicc_config').select('*').order('created_at', desc=True).limit(1).execute()
             
-            return SICCConfig(
-                enabled=sicc_service.is_initialized,
-                confidence_threshold=config.min_pattern_confidence,
-                max_memories=config.max_memories_per_conversation,
-                embedding_model=config.embedding_model,
-                auto_approval_enabled=config.sub_agents_enabled
-            )
-            
-        except Exception as sicc_error:
-            logger.warning("Erro ao obter configuração SICC", error=str(sicc_error))
+            if result.data and len(result.data) > 0:
+                config_data = result.data[0]
+                
+                return SICCConfig(
+                    enabled=bool(config_data.get('sicc_enabled', False)),
+                    confidence_threshold=float(config_data.get('auto_approval_threshold', 75)) / 100.0,  # Converter de % para decimal
+                    max_memories=int(config_data.get('memory_quota', 500)),
+                    embedding_model=config_data.get('embedding_model', 'sentence-transformers/all-MiniLM-L6-v2'),
+                    auto_approval_enabled=bool(config_data.get('sicc_enabled', False))  # Usar sicc_enabled como proxy
+                )
+            else:
+                logger.warning("Nenhuma configuração SICC encontrada no banco, usando padrão")
+                # Fallback: configuração padrão
+                return SICCConfig(
+                    enabled=False,
+                    confidence_threshold=0.75,
+                    max_memories=500,
+                    embedding_model="sentence-transformers/all-MiniLM-L6-v2",
+                    auto_approval_enabled=False
+                )
+                
+        except Exception as db_error:
+            logger.warning("Erro ao buscar configuração SICC no banco", error=str(db_error))
             
             # Fallback: configuração padrão
             return SICCConfig(
                 enabled=False,
-                confidence_threshold=0.7,
-                max_memories=100,
+                confidence_threshold=0.75,
+                max_memories=500,
                 embedding_model="sentence-transformers/all-MiniLM-L6-v2",
                 auto_approval_enabled=False
             )
@@ -76,40 +89,70 @@ async def save_sicc_config(config: SICCConfig):
     try:
         logger.info("Salvando configuração do SICC", config=config.dict())
         
-        # Integrar com SICCService para aplicar configurações
+        # Salvar configuração real no banco de dados
         try:
-            from ..services.sicc.sicc_service import get_sicc_service, SICCConfig as SICCServiceConfig
-            sicc_service = get_sicc_service()
+            from ..services.supabase_client import get_supabase_client
+            supabase = get_supabase_client()
             
-            # Criar nova configuração para o SICC
-            new_config = SICCServiceConfig(
-                min_pattern_confidence=config.confidence_threshold,
-                max_memories_per_conversation=config.max_memories,
-                embedding_model=config.embedding_model,
-                sub_agents_enabled=config.auto_approval_enabled,
-                async_processing_enabled=True,
-                metrics_collection_enabled=True
-            )
+            # Verificar se já existe configuração
+            existing = supabase.table('sicc_config').select('id').execute()
             
-            # Aplicar nova configuração
-            sicc_service.config = new_config
+            config_data = {
+                'sicc_enabled': config.enabled,
+                'auto_approval_threshold': int(config.confidence_threshold * 100),  # Converter decimal para %
+                'embedding_model': config.embedding_model,
+                'memory_quota': config.max_memories,
+                'updated_at': 'now()'
+            }
             
-            # Inicializar SICC se habilitado e não inicializado
-            if config.enabled and not sicc_service.is_initialized:
-                await sicc_service.initialize()
-                logger.info("SICC inicializado via configuração")
+            if existing.data and len(existing.data) > 0:
+                # Atualizar configuração existente
+                result = supabase.table('sicc_config').update(config_data).eq('id', existing.data[0]['id']).execute()
+                logger.info("Configuração SICC atualizada no banco")
+            else:
+                # Inserir nova configuração
+                result = supabase.table('sicc_config').insert(config_data).execute()
+                logger.info("Nova configuração SICC inserida no banco")
+            
+            # Aplicar configurações no SICC Service se disponível
+            try:
+                from ..services.sicc.sicc_service import get_sicc_service, SICCConfig as SICCServiceConfig
+                sicc_service = get_sicc_service()
+                
+                # Criar nova configuração para o SICC
+                new_config = SICCServiceConfig(
+                    min_pattern_confidence=config.confidence_threshold,
+                    max_memories_per_conversation=config.max_memories,
+                    embedding_model=config.embedding_model,
+                    sub_agents_enabled=config.auto_approval_enabled,
+                    async_processing_enabled=True,
+                    metrics_collection_enabled=True
+                )
+                
+                # Aplicar nova configuração
+                sicc_service.config = new_config
+                
+                # Inicializar SICC se habilitado e não inicializado
+                if config.enabled and not sicc_service.is_initialized:
+                    await sicc_service.initialize()
+                    logger.info("SICC inicializado via configuração")
+                
+                logger.info("Configurações aplicadas no SICC Service")
+                
+            except Exception as sicc_error:
+                logger.warning("Erro ao aplicar configurações no SICC Service", error=str(sicc_error))
             
             return SuccessResponse(
                 success=True,
-                message="Configuração SICC salva e aplicada com sucesso",
-                data={"sicc_initialized": sicc_service.is_initialized}
+                message="Configuração SICC salva com sucesso no banco de dados",
+                data={"applied_settings": config.dict(), "saved_to_db": True}
             )
             
-        except Exception as sicc_error:
-            logger.error("Erro ao aplicar configuração SICC", error=str(sicc_error))
+        except Exception as db_error:
+            logger.error("Erro ao salvar configuração SICC no banco", error=str(db_error))
             return SuccessResponse(
                 success=False,
-                message=f"Erro ao aplicar configuração: {str(sicc_error)}"
+                message=f"Erro ao salvar no banco: {str(db_error)}"
             )
         
     except Exception as e:

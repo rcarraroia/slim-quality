@@ -3,7 +3,22 @@
 ## ⚠️ IMPORTANTE
 
 Este documento explica como configurar e acessar o Supabase para o projeto Slim Quality.
+PROBLEMA IDENTIFICADO E SOLUÇÃO DEFINITIVA
+POR QUE SEMPRE ERRO COM exec_sql:
+EU SEMPRE COMETO O MESMO ERRO - tentar usar supabase.rpc('exec_sql', ...) que NÃO EXISTE no Supabase.
 
+FUNÇÕES QUE NÃO EXISTEM NO SUPABASE:
+❌ exec_sql()
+❌ execute_sql()
+❌ run_sql()
+❌ Qualquer função para executar SQL raw
+SOLUÇÃO DEFINITIVA:
+USAR APENAS OS MÉTODOS NATIVOS DO SUPABASE:
+
+✅ supabase.table('nome').insert(dados)
+✅ supabase.table('nome').update(dados)
+✅ supabase.table('nome').select('*')
+✅ supabase.table('nome').delete()
 **ATENÇÃO:** As credenciais reais devem ser obtidas após criar o projeto no Supabase Dashboard.
 
 ## ⚠️ ATENÇÃO - RESPOSTAS SEMPRE EM PORTUGUES-BR

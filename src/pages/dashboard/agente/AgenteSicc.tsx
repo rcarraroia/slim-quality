@@ -24,7 +24,7 @@ import { apiClient } from '@/lib/api.ts';
 
 interface SiccConfig {
   enabled: boolean;
-  confidence_threshold: number;
+  confidence_threshold: number; // Decimal 0-1 (ex: 0.75 = 75%)
   embedding_model: string;
   max_memories: number;
 }
@@ -50,7 +50,7 @@ export default function AgenteSicc() {
   // Estados
   const [config, setConfig] = useState<SiccConfig>({
     enabled: false,
-    confidence_threshold: 75,
+    confidence_threshold: 0.75, // Decimal 0-1 (75% = 0.75)
     embedding_model: 'gte-small',
     max_memories: 500
   });
@@ -203,10 +203,10 @@ export default function AgenteSicc() {
 
               {/* Threshold Auto-Aprovação */}
               <div className="space-y-2">
-                <Label>Threshold Auto-Aprovação: {config.confidence_threshold}%</Label>
+                <Label>Threshold Auto-Aprovação: {Math.round(config.confidence_threshold * 100)}%</Label>
                 <Slider
-                  value={[config.confidence_threshold]}
-                  onValueChange={(value) => setConfig(prev => ({ ...prev, confidence_threshold: value[0] }))}
+                  value={[config.confidence_threshold * 100]} // Converter para 0-100 para o slider
+                  onValueChange={(value) => setConfig(prev => ({ ...prev, confidence_threshold: value[0] / 100 }))} // Converter de volta para 0-1
                   max={100}
                   min={0}
                   step={5}
