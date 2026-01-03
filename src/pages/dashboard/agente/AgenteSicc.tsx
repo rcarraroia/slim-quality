@@ -20,7 +20,7 @@ import {
   RefreshCw
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import axios from 'axios';
+import { apiClient } from '@/lib/api';
 
 interface SiccConfig {
   sicc_enabled: boolean;
@@ -72,9 +72,9 @@ export default function AgenteSicc() {
   const loadData = async () => {
     try {
       const [configResponse, metricsResponse, alertsResponse] = await Promise.all([
-        axios.get<SiccConfig>('/api/sicc/config'),
-        axios.get<SiccMetrics>('/api/sicc/metrics'),
-        axios.get<SiccAlert[]>('/api/sicc/alerts')
+        apiClient.get<SiccConfig>('/api/sicc/config'),
+        apiClient.get<SiccMetrics>('/api/sicc/metrics'),
+        apiClient.get<SiccAlert[]>('/api/sicc/alerts')
       ]);
 
       setConfig(configResponse.data);
@@ -102,10 +102,20 @@ export default function AgenteSicc() {
     loadData();
   }, []);
 
+  // Auto-refresh para métricas e alertas a cada 60s
+  useEffect(() => {
+    const interval = setInterval(() => {
+      // Recarregar apenas métricas e alertas, não config
+      loadData();
+    }, 60000); // 60 segundos
+
+    return () => clearInterval(interval);
+  }, []);
+
   const handleSaveConfig = async () => {
     setIsSaving(true);
     try {
-      await axios.post('/api/sicc/config', config);
+      await apiClient.post('/api/sicc/config', config);
       
       toast({
         title: "Configuração SICC salva",

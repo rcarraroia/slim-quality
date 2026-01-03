@@ -20,7 +20,7 @@ import {
   RefreshCw
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import axios from 'axios';
+import { apiClient } from '@/lib/api';
 
 interface Learning {
   id: string;
@@ -52,11 +52,15 @@ export default function AgenteAprendizados() {
   // Carregar aprendizados
   const loadLearnings = async () => {
     try {
-      const response = await axios.get<Learning[]>('/api/sicc/learnings');
-      setLearnings(response.data);
-      console.log('✅ Aprendizados carregados:', response.data);
+      const response = await apiClient.get<Learning[]>('/api/sicc/learnings');
+      // Validar se response.data é um array
+      const learningsData = Array.isArray(response.data) ? response.data : [];
+      setLearnings(learningsData);
+      console.log('✅ Aprendizados carregados:', learningsData);
     } catch (error) {
       console.error('❌ Erro ao carregar aprendizados:', error);
+      // Em caso de erro, definir array vazio para evitar crashes
+      setLearnings([]);
       toast({
         title: "Erro ao carregar aprendizados",
         description: "Não foi possível carregar os aprendizados do sistema.",
@@ -94,7 +98,7 @@ export default function AgenteAprendizados() {
 
   const handleAprovar = async (id: string) => {
     try {
-      await axios.post(`/api/sicc/learnings/${id}/approve`);
+      await apiClient.post(`/api/sicc/learnings/${id}/approve`);
       
       // Atualizar estado local
       setLearnings(prev => 
@@ -126,7 +130,7 @@ export default function AgenteAprendizados() {
 
   const handleRejeitar = async (id: string) => {
     try {
-      await axios.post(`/api/sicc/learnings/${id}/reject`);
+      await apiClient.post(`/api/sicc/learnings/${id}/reject`);
       
       // Atualizar estado local
       setLearnings(prev => 
@@ -160,7 +164,7 @@ export default function AgenteAprendizados() {
     if (!editingId) return;
     
     try {
-      await axios.put(`/api/sicc/learnings/${editingId}`, {
+      await apiClient.put(`/api/sicc/learnings/${editingId}`, {
         suggested_response: editText
       });
       
@@ -192,7 +196,7 @@ export default function AgenteAprendizados() {
 
   const handleDesativar = async (id: string) => {
     try {
-      await axios.post(`/api/sicc/learnings/${id}/reject`);
+      await apiClient.post(`/api/sicc/learnings/${id}/reject`);
       
       // Atualizar estado local
       setLearnings(prev => 

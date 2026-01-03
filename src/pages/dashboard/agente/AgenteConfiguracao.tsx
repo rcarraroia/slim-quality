@@ -15,7 +15,7 @@ import {
   RefreshCw
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import axios from 'axios';
+import { apiClient } from '@/lib/api';
 
 interface AgentConfig {
   model: string;
@@ -64,7 +64,7 @@ export default function AgenteConfiguracao() {
   // Carregar configuração atual
   const loadConfig = async () => {
     try {
-      const response = await axios.get<AgentConfig>('/api/agent/config');
+      const response = await apiClient.get<AgentConfig>('/api/agent/config');
       setConfig(response.data);
       console.log('✅ Configuração carregada:', response.data);
     } catch (error) {
@@ -86,7 +86,7 @@ export default function AgenteConfiguracao() {
   const handleSaveConfig = async () => {
     setIsSaving(true);
     try {
-      await axios.post('/api/agent/config', config);
+      await apiClient.post('/api/agent/config', config);
       
       toast({
         title: "Configuração salva",
@@ -116,7 +116,7 @@ export default function AgenteConfiguracao() {
       setTestMessage('');
 
       // Testar com API real
-      const response = await axios.post<TestPromptResponse>('/api/agent/test-prompt', {
+      const response = await apiClient.post<TestPromptResponse>('/api/agent/test-prompt', {
         prompt: testMessage,
         temperature: config.temperature,
         max_tokens: Math.min(config.max_tokens, 300)

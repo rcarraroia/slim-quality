@@ -30,7 +30,7 @@ import {
   RefreshCw
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import axios from 'axios';
+import { apiClient } from '@/lib/api';
 
 interface AgentMetrics {
   uptime: number;
@@ -52,7 +52,7 @@ export default function AgenteMetricas() {
   // Carregar métricas
   const loadMetrics = async () => {
     try {
-      const response = await axios.get<AgentMetrics>(`/api/agent/metrics?period=${periodo}`);
+      const response = await apiClient.get<AgentMetrics>(`/api/agent/metrics?period=${periodo}`);
       setMetrics(response.data);
       console.log('✅ Métricas carregadas:', response.data);
     } catch (error) {
@@ -73,7 +73,7 @@ export default function AgenteMetricas() {
 
   const handleExportCSV = async () => {
     try {
-      const response = await axios.post('/api/agent/export', {
+      const response = await apiClient.post('/api/agent/export', {
         format: 'csv',
         period: periodo
       }, {
@@ -104,7 +104,7 @@ export default function AgenteMetricas() {
 
   const handleExportPDF = async () => {
     try {
-      const response = await axios.post('/api/agent/export', {
+      const response = await apiClient.post('/api/agent/export', {
         format: 'pdf',
         period: periodo
       }, {

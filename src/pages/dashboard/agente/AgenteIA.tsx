@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
-import axios from 'axios';
+import { apiClient } from '@/lib/api';
 
 interface AgentStatus {
   status: string;
@@ -57,7 +57,7 @@ export default function AgenteIA() {
   // Função para buscar status do agente
   const fetchAgentStatus = async () => {
     try {
-      const response = await axios.get<AgentStatus>('/api/agent/status');
+      const response = await apiClient.get<AgentStatus>('/api/agent/status');
       setAgentStatus(response.data);
       console.log('✅ Status do agente atualizado:', response.data);
     } catch (error) {
@@ -68,7 +68,7 @@ export default function AgenteIA() {
   // Função para buscar conversas recentes
   const fetchConversations = async () => {
     try {
-      const response = await axios.get<ConversationSummary[]>('/api/agent/conversations?limit=5');
+      const response = await apiClient.get<ConversationSummary[]>('/api/agent/conversations?limit=5');
       setConversations(response.data);
       console.log('✅ Conversas atualizadas:', response.data);
     } catch (error) {
@@ -79,7 +79,7 @@ export default function AgenteIA() {
   // Função para buscar métricas básicas
   const fetchMetrics = async () => {
     try {
-      const response = await axios.get<AgentMetrics>('/api/agent/metrics');
+      const response = await apiClient.get<AgentMetrics>('/api/agent/metrics');
       setMetrics(response.data);
       console.log('✅ Métricas atualizadas:', response.data);
     } catch (error) {
