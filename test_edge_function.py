@@ -30,15 +30,15 @@ def test_edge_function():
         'apikey': anon_key
     }
     
-    # Dados de teste
+    # Dados de teste - ADMIN
     data = {
-        'email': 'teste.edge@exemplo.com',
-        'password': 'senha123',
+        'email': 'admin.teste@exemplo.com',
+        'password': 'admin123',
         'userData': {
-            'full_name': 'Teste Edge Function',
-            'role': 'vendedor',
+            'full_name': 'Admin Teste',
+            'role': 'admin',
             'status': 'ativo',
-            'phone': '31999999999',
+            'phone': '31888888888',
             'is_affiliate': False
         }
     }
