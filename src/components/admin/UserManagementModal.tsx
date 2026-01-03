@@ -155,35 +155,44 @@ export function UserManagementModal({ user, isOpen, onClose, onUserSaved }: User
           return;
         }
 
-        console.log('🚀 Chamando Edge Function admin-create-user...');
+        console.log('🚀 Criando usuário via API Admin direta...');
         console.log('📧 Email:', formData.email);
-        console.log('👤 UserData:', formData);
         
-        const { data: functionData, error: functionError } = await supabase.functions.invoke('admin-create-user', {
-          body: {
-            email: formData.email,
-            password: password,
-            userData: {
-              full_name: formData.full_name,
-              email: formData.email,
-              role: formData.role,
-              status: formData.status,
-              phone: formData.phone,
-              wallet_id: formData.wallet_id,
-              is_affiliate: formData.is_affiliate,
-              affiliate_status: formData.affiliate_status
-            }
+        // Criar usuário diretamente via Admin API
+        const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+          email: formData.email,
+          password: password,
+          email_confirm: true,
+          user_metadata: {
+            full_name: formData.full_name,
+            role: formData.role
           }
         });
+
+        if (authError) throw authError;
         
-        console.log('📊 Resposta da Edge Function:');
-        console.log('✅ Data:', functionData);
-        console.log('❌ Error:', functionError);
+        console.log('✅ Usuário criado na auth:', authData.user.id);
 
-        if (functionError) throw functionError;
-        if (functionData?.error) throw new Error(functionData.error);
+        // Criar perfil na tabela profiles
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .upsert({
+            id: authData.user.id,
+            full_name: formData.full_name,
+            email: formData.email,
+            role: formData.role,
+            status: formData.status,
+            phone: formData.phone,
+            wallet_id: formData.wallet_id,
+            is_affiliate: formData.is_affiliate,
+            affiliate_status: formData.affiliate_status,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          });
 
-        console.log('✅ Usuário criado com sucesso!');
+        if (profileError) throw profileError;
+        
+        console.log('✅ Perfil criado com sucesso!');
 
         toast({
           title: "Usuário Criado",
