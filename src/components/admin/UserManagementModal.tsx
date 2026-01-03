@@ -155,44 +155,53 @@ export function UserManagementModal({ user, isOpen, onClose, onUserSaved }: User
           return;
         }
 
-        console.log('🚀 Criando usuário via API Admin direta...');
+        console.log('🚀 Chamando Edge Function admin-create-user...');
         console.log('📧 Email:', formData.email);
+        console.log('👤 UserData:', formData);
         
-        // Criar usuário diretamente via Admin API
-        const { data: authData, error: authError } = await supabase.auth.admin.createUser({
-          email: formData.email,
-          password: password,
-          email_confirm: true,
-          user_metadata: {
-            full_name: formData.full_name,
-            role: formData.role
-          }
-        });
-
-        if (authError) throw authError;
+        // SOLUÇÃO: Chamada fetch direta para contornar problema do supabase.functions.invoke()
+        const edgeFunctionUrl = `https://vtynmmtuvxreiwcxxlma.supabase.co/functions/v1/admin-create-user`;
+        const anonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ0eW5tbXR1dnhyZWl3Y3h4bG1hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTYzODE2MDIsImV4cCI6MjA3MTk1NzYwMn0.fd-WSqFh7QsSlB0Q62cXAZZ-yDcI0n0sXyJ4eWIRKH8';
         
-        console.log('✅ Usuário criado na auth:', authData.user.id);
-
-        // Criar perfil na tabela profiles
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .upsert({
-            id: authData.user.id,
-            full_name: formData.full_name,
+        console.log('🌐 Chamando diretamente:', edgeFunctionUrl);
+        
+        const response = await fetch(edgeFunctionUrl, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${anonKey}`,
+            'Content-Type': 'application/json',
+            'apikey': anonKey
+          },
+          body: JSON.stringify({
             email: formData.email,
-            role: formData.role,
-            status: formData.status,
-            phone: formData.phone,
-            wallet_id: formData.wallet_id,
-            is_affiliate: formData.is_affiliate,
-            affiliate_status: formData.affiliate_status,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-          });
-
-        if (profileError) throw profileError;
+            password: password,
+            userData: {
+              full_name: formData.full_name,
+              email: formData.email,
+              role: formData.role,
+              status: formData.status,
+              phone: formData.phone,
+              wallet_id: formData.wallet_id,
+              is_affiliate: formData.is_affiliate,
+              affiliate_status: formData.affiliate_status
+            }
+          })
+        });
         
-        console.log('✅ Perfil criado com sucesso!');
+        console.log('📊 Response Status:', response.status);
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.log('❌ Response Error:', errorText);
+          throw new Error(`Edge Function falhou: ${response.status} - ${errorText}`);
+        }
+        
+        const functionData = await response.json();
+        console.log('✅ Response Data:', functionData);
+        
+        if (functionData.error) {
+          throw new Error(functionData.error);
+        }
 
         toast({
           title: "Usuário Criado",
