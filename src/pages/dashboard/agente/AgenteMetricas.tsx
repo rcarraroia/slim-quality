@@ -218,7 +218,7 @@ export default function AgenteMetricas() {
             <Activity className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{metrics.uptime}%</div>
+            <div className="text-2xl font-bold">{metrics.uptime || 0}%</div>
             <p className="text-xs text-muted-foreground">
               Disponibilidade do agente
             </p>
@@ -231,7 +231,7 @@ export default function AgenteMetricas() {
             <Zap className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{metrics.average_latency}s</div>
+            <div className="text-2xl font-bold">{metrics.average_latency || 0}s</div>
             <p className="text-xs text-muted-foreground">
               Tempo de resposta
             </p>
@@ -244,7 +244,7 @@ export default function AgenteMetricas() {
             <Target className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{metrics.accuracy_rate}%</div>
+            <div className="text-2xl font-bold">{metrics.accuracy_rate || 0}%</div>
             <p className="text-xs text-muted-foreground">
               Respostas corretas
             </p>
@@ -257,7 +257,7 @@ export default function AgenteMetricas() {
             <Cpu className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{metrics.tokens_consumed.toLocaleString()}</div>
+            <div className="text-2xl font-bold">{(metrics.tokens_consumed || 0).toLocaleString()}</div>
             <p className="text-xs text-muted-foreground">
               {getPeriodoLabel(periodo)}
             </p>
@@ -270,7 +270,7 @@ export default function AgenteMetricas() {
             <MessageSquare className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{metrics.responses_generated}</div>
+            <div className="text-2xl font-bold">{metrics.responses_generated || 0}</div>
             <p className="text-xs text-muted-foreground">
               {getPeriodoLabel(periodo)}
             </p>
@@ -331,7 +331,7 @@ export default function AgenteMetricas() {
                 <XAxis dataKey="model" />
                 <YAxis />
                 <Tooltip 
-                  formatter={(value) => [value.toLocaleString(), 'Tokens']}
+                  formatter={(value) => [(value || 0).toLocaleString(), 'Tokens']}
                 />
                 <Bar dataKey="tokens" fill="#3b82f6" />
               </BarChart>
