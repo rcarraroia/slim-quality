@@ -260,8 +260,10 @@ export default function Configuracoes() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-muted-foreground">Último Acesso</p>
-                    <p className="text-lg font-bold text-warning">{lastActiveUser?.ultimoAcesso}</p>
-                    <p className="text-xs text-muted-foreground">{lastActiveUser?.nome}</p>
+                    <p className="text-lg font-bold text-warning">
+                      {lastActiveUser?.last_login_at ? new Date(lastActiveUser.last_login_at).toLocaleDateString('pt-BR') : 'Nunca'}
+                    </p>
+                    <p className="text-xs text-muted-foreground">{lastActiveUser?.full_name}</p>
                   </div>
                   <Clock className="h-8 w-8 text-warning/50" />
                 </div>
@@ -318,23 +320,25 @@ export default function Configuracoes() {
                       <TableCell>
                         <div className="flex items-center gap-3">
                           <Avatar>
-                            <AvatarFallback className={cn("text-white", cargoColors[user.cargo] || 'bg-gray-500')}>
-                              {user.nome.split(" ").map(n => n[0]).join("")}
+                            <AvatarFallback className={cn("text-white", cargoColors[user.role] || 'bg-gray-500')}>
+                              {user.full_name.split(" ").map(n => n[0]).join("")}
                             </AvatarFallback>
                           </Avatar>
-                          <p className="font-medium">{user.nome}</p>
+                          <p className="font-medium">{user.full_name}</p>
                         </div>
                       </TableCell>
                       <TableCell>{user.email}</TableCell>
                       <TableCell>
-                        <span className={cn("px-3 py-1 rounded-full text-xs font-medium", cargoColors[user.cargo])}>
-                          {user.cargo}
+                        <span className={cn("px-3 py-1 rounded-full text-xs font-medium", cargoColors[user.role])}>
+                          {user.role}
                         </span>
                       </TableCell>
                       <TableCell>
                         <StatusBadge status={user.status} />
                       </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">{user.ultimoAcesso}</TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {user.last_login_at ? new Date(user.last_login_at).toLocaleDateString('pt-BR') : 'Nunca'}
+                      </TableCell>
                       <TableCell className="text-right">
                         <Button variant="ghost" size="icon" onClick={() => handleEditUser(user)}>
                           <Edit className="h-4 w-4" />
