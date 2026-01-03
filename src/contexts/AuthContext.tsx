@@ -181,17 +181,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const isAdmin = () => {
     if (!profile) return false;
     
-    // Super admin tem acesso total
-    if (profile.email === 'rcarrarocoach@gmail.com') return true;
-    
-    // Verificar se tem role de admin (quando implementarmos)
-    // Por enquanto, apenas o super admin
-    return false;
+    // Verificar role do banco de dados
+    const role = (profile as any).role;
+    return role === 'admin' || role === 'super_admin';
   };
 
   // Verificar se é super admin
   const isSuperAdmin = () => {
-    return profile?.email === 'rcarrarocoach@gmail.com';
+    if (!profile) return false;
+    const role = (profile as any).role;
+    return role === 'super_admin';
   };
 
   // Atualizar perfil

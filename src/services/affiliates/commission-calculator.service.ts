@@ -168,7 +168,7 @@ export class CommissionCalculatorService {
         .select('id, wallet_id')
         .eq('id', order.affiliate_n1_id)
         .eq('status', 'active')
-        .eq('deleted_at', null)
+        .is('deleted_at', null)
         .single();
 
       if (!n1Data) {

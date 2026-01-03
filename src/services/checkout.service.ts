@@ -77,7 +77,7 @@ export class CheckoutService {
       .from('customers')
       .select('*')
       .eq('email', customerData.email)
-      .eq('deleted_at', null)
+      .is('deleted_at', null)
       .single();
     
     if (existingCustomer) {

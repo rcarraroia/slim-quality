@@ -53,7 +53,7 @@ router.post('/register', async (req, res) => {
       .from('affiliates')
       .select('id')
       .eq('user_id', userId)
-      .eq('deleted_at', null)
+      .is('deleted_at', null)
       .single();
 
     if (existingAffiliate) {
@@ -115,7 +115,7 @@ router.get('/dashboard', requireAuth, async (req, res) => {
       .from('affiliates')
       .select('*')
       .eq('user_id', req.user.id)
-      .eq('deleted_at', null)
+      .is('deleted_at', null)
       .single();
 
     if (!affiliate) {
@@ -159,7 +159,7 @@ router.get('/referral-link', requireAuth, async (req, res) => {
       .from('affiliates')
       .select('referral_code')
       .eq('user_id', req.user.id)
-      .eq('deleted_at', null)
+      .is('deleted_at', null)
       .single();
 
     if (!affiliate) {
@@ -193,7 +193,7 @@ router.get('/network', requireAuth, async (req, res) => {
       .from('affiliates')
       .select('id')
       .eq('user_id', req.user.id)
-      .eq('deleted_at', null)
+      .is('deleted_at', null)
       .single();
 
     if (!affiliate) {

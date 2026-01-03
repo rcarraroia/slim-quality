@@ -72,7 +72,7 @@ export class AffiliateFrontendService {
         .from('affiliates')
         .select('id')
         .eq('user_id', user.id)
-        .eq('deleted_at', null)
+        .is('deleted_at', null)
         .single();
 
       if (existingAffiliate) {
@@ -270,7 +270,7 @@ export class AffiliateFrontendService {
         .from('affiliates')
         .select('id, name')
         .eq('user_id', user.id)
-        .eq('deleted_at', null)
+        .is('deleted_at', null)
         .single();
 
       if (!currentAffiliate) {
@@ -373,7 +373,7 @@ export class AffiliateFrontendService {
         .from('affiliates')
         .select('*')
         .eq('user_id', user.id)
-        .eq('deleted_at', null)
+        .is('deleted_at', null)
         .single();
 
       if (!affiliate) {
@@ -647,7 +647,7 @@ export class AffiliateFrontendService {
           created_at,
           updated_at
         `)
-        .eq('deleted_at', null)
+        .is('deleted_at', null)
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -706,7 +706,7 @@ export class AffiliateFrontendService {
           )
         `)
         .or(`parent_affiliate_id.eq.${affiliateId},affiliate_id.eq.${affiliateId}`)
-        .eq('affiliate.deleted_at', null)
+        .is('affiliate.deleted_at', null)
         .order('level', { ascending: true });
 
       if (error) {

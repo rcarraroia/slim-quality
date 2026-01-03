@@ -73,7 +73,7 @@ export class AffiliateService {
         .from('affiliates')
         .select('id')
         .eq('email', data.email)
-        .eq('deleted_at', null)
+        .is('deleted_at', null)
         .single();
 
       if (existingAffiliate) {
@@ -85,7 +85,7 @@ export class AffiliateService {
         .from('affiliates')
         .select('id')
         .eq('wallet_id', data.walletId)
-        .eq('deleted_at', null)
+        .is('deleted_at', null)
         .single();
 
       if (existingWallet) {
@@ -151,7 +151,7 @@ export class AffiliateService {
         .from('affiliates')
         .select('id')
         .eq('referral_code', code)
-        .eq('deleted_at', null)
+        .is('deleted_at', null)
         .single();
 
       if (!data) {
@@ -174,7 +174,7 @@ export class AffiliateService {
         .from('affiliates')
         .select('*')
         .eq('referral_code', code.toUpperCase())
-        .eq('deleted_at', null)
+        .is('deleted_at', null)
         .single();
 
       if (error || !data) {
@@ -354,7 +354,7 @@ export class AffiliateService {
         .from('affiliates')
         .select('*')
         .eq('id', affiliateId)
-        .eq('deleted_at', null)
+        .is('deleted_at', null)
         .single();
 
       if (error || !data) {

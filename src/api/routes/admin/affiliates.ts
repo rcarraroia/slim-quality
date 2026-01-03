@@ -40,7 +40,7 @@ router.get('/', requireAdmin, async (req, res) => {
         user:auth.users(email),
         network:affiliate_network(level, parent_id)
       `, { count: 'exact' })
-      .eq('deleted_at', null);
+      .is('deleted_at', null);
 
     // Aplicar filtros
     if (query.status) {
@@ -109,7 +109,7 @@ router.get('/:id', requireAdmin, async (req, res) => {
         )
       `)
       .eq('id', id)
-      .eq('deleted_at', null)
+      .is('deleted_at', null)
       .single();
 
     if (error || !affiliate) {
