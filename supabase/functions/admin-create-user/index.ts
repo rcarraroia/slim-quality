@@ -49,7 +49,7 @@ serve(async (req) => {
       )
     }
 
-    // Criar perfil na tabela profiles (se necessário)
+    // Criar perfil na tabela profiles (usando campos que existem)
     if (authData.user) {
       const { error: profileError } = await supabaseAdmin
         .from('profiles')
@@ -57,12 +57,11 @@ serve(async (req) => {
           id: authData.user.id,
           full_name: userData.full_name,
           email: userData.email,
-          role: userData.role,
-          status: userData.status || 'ativo',
           phone: userData.phone,
           wallet_id: userData.wallet_id,
           is_affiliate: userData.is_affiliate || false,
           affiliate_status: userData.affiliate_status
+          // Removido: role e status (campos não existem na tabela)
         })
 
       if (profileError) {
