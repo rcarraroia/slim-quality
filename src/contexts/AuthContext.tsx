@@ -76,18 +76,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signIn = async (email: string, password: string) => {
     try {
       setLoading(true);
-      
-      console.log('🔐 Iniciando login:', { email, supabaseUrl: supabase.supabaseUrl });
 
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
-      console.log('📊 Resultado do login:', { data: !!data.user, error: error?.message });
-
       if (error) {
-        console.error('❌ Erro no login:', error);
+        console.error('Erro no login:', error);
         return { 
           success: false, 
           error: error.message === 'Invalid login credentials' 
@@ -97,12 +93,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       if (data.user) {
-        console.log('✅ Usuário autenticado:', data.user.email);
-        
         // Buscar perfil do usuário
         const userProfile = await fetchProfile(data.user.id);
-        
-        console.log('👤 Perfil encontrado:', !!userProfile);
         
         if (userProfile) {
           setProfile(userProfile);
@@ -120,7 +112,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       return { success: false, error: 'Erro desconhecido no login' };
     } catch (error) {
-      console.error('💥 Erro no login:', error);
+      console.error('Erro no login:', error);
       return { success: false, error: 'Erro interno do sistema' };
     } finally {
       setLoading(false);
