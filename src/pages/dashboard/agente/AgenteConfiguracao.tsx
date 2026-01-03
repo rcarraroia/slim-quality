@@ -22,7 +22,6 @@ interface AgentConfig {
   temperature: number;
   max_tokens: number;
   system_prompt: string;
-  sicc_enabled: boolean;
 }
 
 interface TestPromptResponse {
@@ -47,8 +46,7 @@ export default function AgenteConfiguracao() {
     model: 'gpt-4o',
     temperature: 0.7,
     max_tokens: 2000,
-    system_prompt: '',
-    sicc_enabled: false
+    system_prompt: ''
   });
 
   const [isLoading, setIsLoading] = useState(true);
@@ -217,20 +215,6 @@ export default function AgenteConfiguracao() {
                     min={100}
                     max={4000}
                   />
-                </div>
-
-                {/* SICC */}
-                <div className="flex items-center space-x-2">
-                  <input
-                    type="checkbox"
-                    id="sicc"
-                    checked={config.sicc_enabled}
-                    onChange={(e) => setConfig(prev => ({ ...prev, sicc_enabled: e.target.checked }))}
-                  />
-                  <Label htmlFor="sicc">Habilitar SICC</Label>
-                  <Badge variant={config.sicc_enabled ? "default" : "outline"}>
-                    {config.sicc_enabled ? "Ativo" : "Inativo"}
-                  </Badge>
                 </div>
 
                 <Button onClick={handleSaveConfig} disabled={isSaving} className="w-full">

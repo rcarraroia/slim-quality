@@ -23,10 +23,10 @@ import { useToast } from '@/hooks/use-toast';
 import { apiClient } from '@/lib/api.ts';
 
 interface SiccConfig {
-  sicc_enabled: boolean;
-  auto_approval_threshold: number;
+  enabled: boolean;
+  confidence_threshold: number;
   embedding_model: string;
-  memory_quota: number;
+  max_memories: number;
 }
 
 interface SiccMetrics {
@@ -49,10 +49,10 @@ export default function AgenteSicc() {
   
   // Estados
   const [config, setConfig] = useState<SiccConfig>({
-    sicc_enabled: true,
-    auto_approval_threshold: 75,
+    enabled: false,
+    confidence_threshold: 75,
     embedding_model: 'gte-small',
-    memory_quota: 500
+    max_memories: 500
   });
 
   const [metrics, setMetrics] = useState<SiccMetrics>({
@@ -121,6 +121,10 @@ export default function AgenteSicc() {
         title: "Configuração SICC salva",
         description: "As configurações do sistema de aprendizado foram atualizadas.",
       });
+
+      // Recarregar dados após salvar para refletir mudanças
+      await loadData();
+      
     } catch (error) {
       console.error('❌ Erro ao salvar configuração SICC:', error);
       toast({
@@ -192,22 +196,22 @@ export default function AgenteSicc() {
                 </div>
                 <Switch
                   id="sicc-ativo"
-                  checked={config.sicc_enabled}
-                  onCheckedChange={(checked) => setConfig(prev => ({ ...prev, sicc_enabled: checked }))}
+                  checked={config.enabled}
+                  onCheckedChange={(checked) => setConfig(prev => ({ ...prev, enabled: checked }))}
                 />
               </div>
 
               {/* Threshold Auto-Aprovação */}
               <div className="space-y-2">
-                <Label>Threshold Auto-Aprovação: {config.auto_approval_threshold}%</Label>
+                <Label>Threshold Auto-Aprovação: {config.confidence_threshold}%</Label>
                 <Slider
-                  value={[config.auto_approval_threshold]}
-                  onValueChange={(value) => setConfig(prev => ({ ...prev, auto_approval_threshold: value[0] }))}
+                  value={[config.confidence_threshold]}
+                  onValueChange={(value) => setConfig(prev => ({ ...prev, confidence_threshold: value[0] }))}
                   max={100}
                   min={0}
                   step={5}
                   className="w-full"
-                  disabled={!config.sicc_enabled}
+                  disabled={!config.enabled}
                 />
                 <Alert>
                   <AlertTriangle className="h-4 w-4" />
@@ -223,7 +227,7 @@ export default function AgenteSicc() {
                 <Select 
                   value={config.embedding_model} 
                   onValueChange={(value) => setConfig(prev => ({ ...prev, embedding_model: value }))}
-                  disabled={!config.sicc_enabled}
+                  disabled={!config.enabled}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Selecione o modelo" />
@@ -242,11 +246,11 @@ export default function AgenteSicc() {
                 <Input
                   id="quota-memoria"
                   type="number"
-                  value={config.memory_quota}
-                  onChange={(e) => setConfig(prev => ({ ...prev, memory_quota: parseInt(e.target.value) }))}
+                  value={config.max_memories}
+                  onChange={(e) => setConfig(prev => ({ ...prev, max_memories: parseInt(e.target.value) }))}
                   min={100}
                   max={2000}
-                  disabled={!config.sicc_enabled}
+                  disabled={!config.enabled}
                 />
                 <p className="text-xs text-muted-foreground">
                   Número máximo de memórias armazenadas
@@ -327,8 +331,8 @@ export default function AgenteSicc() {
 
               {/* Status Badge */}
               <div className="flex justify-center">
-                <Badge variant={config.sicc_enabled ? "default" : "secondary"} className="px-4 py-2">
-                  {config.sicc_enabled ? "✅ SICC Ativo" : "⏸️ SICC Inativo"}
+                <Badge variant={config.enabled ? "default" : "secondary"} className="px-4 py-2">
+                  {config.enabled ? "✅ SICC Ativo" : "⏸️ SICC Inativo"}
                 </Badge>
               </div>
             </CardContent>
