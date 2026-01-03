@@ -1,0 +1,5 @@
+// BACKUP DO AUTHCONTEXT ORIGINAL - 04/01/2026
+// Este arquivo contém a versão com autenticação real do Supabase
+// Salvo para restaurar quando refatorarmos o sistema de auth
+
+// [Conteúdo será copiado do arquivo original]

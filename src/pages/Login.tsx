@@ -1,4 +1,10 @@
-import { useState } from "react";
+/**
+ * Login Page - Versão MOCK Simplificada
+ * Redireciona automaticamente para o dashboard
+ * TODO: Reimplementar autenticação real após finalizar sistema
+ */
+
+import { useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,51 +12,28 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/contexts/AuthContext";
 
 export default function Login() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { signIn } = useAuth();
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-
-    try {
-      console.log('🔐 Iniciando processo de login...');
-      const result = await signIn(email, password);
-      
-      if (result.success) {
-        console.log('✅ Login bem-sucedido, redirecionando...');
-        toast({
-          title: "Login realizado com sucesso!",
-          description: "Redirecionando para o dashboard...",
-        });
-        
-        // Redirecionar imediatamente
-        navigate("/dashboard");
-      } else {
-        console.error('❌ Login falhou:', result.error);
-        toast({
-          title: "Erro no login",
-          description: result.error || "Credenciais inválidas",
-          variant: "destructive",
-        });
-      }
-    } catch (error) {
-      console.error('💥 Erro no login:', error);
+  // Mock login - redireciona automaticamente após 1 segundo
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      console.log('🔐 Mock login - redirecionando para dashboard...');
       toast({
-        title: "Erro no login",
-        description: "Ocorreu um erro interno. Tente novamente.",
-        variant: "destructive",
+        title: "Login automático realizado!",
+        description: "Entrando no sistema...",
       });
-    } finally {
-      setLoading(false);
-    }
+      navigate("/dashboard");
+    }, 1000);
+
+    return () => clearTimeout(timer);
+  }, [navigate, toast]);
+
+  const handleManualLogin = () => {
+    console.log('🔐 Login manual - redirecionando imediatamente...');
+    navigate("/dashboard");
   };
 
   return (
@@ -65,45 +48,42 @@ export default function Login() {
           </div>
           <CardTitle className="text-2xl">Entrar na Plataforma</CardTitle>
           <CardDescription>
-            Acesse sua conta Slim Quality
+            Acesso automático ativo (modo desenvolvimento)
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleLogin} className="space-y-4">
+          <div className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email">Email (mock)</Label>
               <Input
                 id="email"
                 type="email"
-                placeholder="seu@email.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
+                placeholder="admin@slimquality.com"
+                value="admin@slimquality.com"
+                disabled
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">Senha</Label>
+              <Label htmlFor="password">Senha (mock)</Label>
               <Input
                 id="password"
                 type="password"
                 placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
+                value="123456"
+                disabled
               />
             </div>
             
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "Entrando..." : "Entrar"}
+            <Button 
+              type="button" 
+              className="w-full" 
+              onClick={handleManualLogin}
+            >
+              Entrar Agora
             </Button>
             
-            <div className="text-center">
-              <Link 
-                to="/recuperar-senha" 
-                className="text-sm text-muted-foreground hover:text-primary transition-colors"
-              >
-                Esqueci minha senha
-              </Link>
+            <div className="text-center text-sm text-muted-foreground">
+              Redirecionamento automático em 1 segundo...
             </div>
             
             <Separator />
@@ -116,7 +96,7 @@ export default function Login() {
             >
               Quero Ser Afiliado
             </Button>
-          </form>
+          </div>
         </CardContent>
       </Card>
     </div>
