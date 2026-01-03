@@ -1,3 +1,9 @@
+/**
+ * AuthContext - Sistema de Autenticação Slim Quality
+ * Atualizado: 04/01/2026 - Correções de role e cache
+ * Versão: 2.0 - Forçar rebuild após correções SQL
+ */
+
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/config/supabase';
@@ -183,6 +189,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     
     // Verificar role do banco de dados
     const role = (profile as any).role;
+    console.log('🔍 DEBUG isAdmin:', { email: profile.email, role, result: role === 'admin' || role === 'super_admin' });
     return role === 'admin' || role === 'super_admin';
   };
 
@@ -190,6 +197,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const isSuperAdmin = () => {
     if (!profile) return false;
     const role = (profile as any).role;
+    console.log('🔍 DEBUG isSuperAdmin:', { email: profile.email, role, result: role === 'super_admin' });
     return role === 'super_admin';
   };
 
