@@ -36,11 +36,11 @@ interface ConversationSummary {
 }
 
 interface AgentMetrics {
-  uptime_hours: number;
-  total_conversations: number;
-  avg_response_time_ms: number;
-  success_rate: number;
-  tokens_used_today: number;
+  uptime: number;                    // ✅ Corrigido: backend retorna "uptime" (%)
+  average_latency: number;           // ✅ Corrigido: backend retorna "average_latency" (segundos)
+  accuracy_rate: number;             // ✅ Corrigido: backend retorna "accuracy_rate" (%)
+  tokens_consumed: number;           // ✅ Corrigido: backend retorna "tokens_consumed"
+  responses_generated: number;       // ✅ Corrigido: backend retorna "responses_generated"
 }
 
 export default function AgenteIA() {
@@ -206,10 +206,10 @@ export default function AgenteIA() {
           </CardHeader>
           <CardContent>
             <div className="flex items-center space-x-2">
-              <div className="text-2xl font-bold">{metrics?.total_conversations || 0}</div>
+              <div className="text-2xl font-bold">{metrics?.responses_generated || 0}</div>
             </div>
             <p className="text-xs text-muted-foreground">
-              Taxa de sucesso: {metrics ? (metrics.success_rate * 100).toFixed(1) : 0}%
+              Taxa de sucesso: {metrics ? metrics.accuracy_rate.toFixed(1) : 0}%
             </p>
           </CardContent>
         </Card>
@@ -221,10 +221,10 @@ export default function AgenteIA() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {metrics ? metrics.avg_response_time_ms.toFixed(0) : 0}ms
+              {metrics ? (metrics.average_latency * 1000).toFixed(0) : 0}ms
             </div>
             <p className="text-xs text-muted-foreground">
-              Tokens hoje: {metrics?.tokens_used_today || 0}
+              Tokens hoje: {metrics?.tokens_consumed || 0}
             </p>
           </CardContent>
         </Card>
