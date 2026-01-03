@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -16,23 +16,27 @@ import {
   ChevronRight,
   Lightbulb,
   TrendingUp,
-  Clock
+  Clock,
+  RefreshCw
 } from 'lucide-react';
-import { toast } from 'sonner';
+import { useToast } from '@/hooks/use-toast';
+import axios from 'axios';
 
-interface Aprendizado {
+interface Learning {
   id: string;
-  padrao: string;
-  confianca: number;
-  origem: number;
-  respostaSugerida: string;
-  dataIdentificacao: string;
-  status: 'pendente' | 'aprovado' | 'rejeitado';
-  dataAprovacao?: string;
-  usoCount?: number;
+  pattern: string;
+  confidence: number;
+  source_count: number;
+  suggested_response: string;
+  identified_at: string;
+  status: 'pending' | 'approved' | 'rejected';
+  approved_at?: string;
+  usage_count?: number;
 }
 
 export default function AgenteAprendizados() {
+  const { toast } = useToast();
+  
   // Estados
   const [activeTab, setActiveTab] = useState('fila');
   const [searchTerm, setSearchTerm] = useState('');
@@ -40,117 +44,110 @@ export default function AgenteAprendizados() {
   const [currentPage, setCurrentPage] = useState(1);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editText, setEditText] = useState('');
-
-  // Dados simulados - TODO: integrar com API real
-  const [aprendizados, setAprendizados] = useState<Aprendizado[]>([
-    {
-      id: '1',
-      padrao: 'Quanto custa o colchão queen?',
-      confianca: 85,
-      origem: 12,
-      respostaSugerida: 'O colchão Queen custa R$ 3.490. Posso explicar as tecnologias incluídas e condições de pagamento?',
-      dataIdentificacao: '2025-01-01 10:30',
-      status: 'pendente'
-    },
-    {
-      id: '2',
-      padrao: 'Colchão ajuda com dor nas costas?',
-      confianca: 72,
-      origem: 8,
-      respostaSugerida: 'Sim! O sistema magnético melhora a circulação sanguínea, reduzindo inflamações que causam dor nas costas. Muitos clientes relatam alívio já na primeira semana.',
-      dataIdentificacao: '2025-01-01 09:15',
-      status: 'pendente'
-    },
-    {
-      id: '3',
-      padrao: 'Qual a diferença entre os tamanhos?',
-      confianca: 68,
-      origem: 15,
-      respostaSugerida: 'Temos 4 tamanhos: Solteiro (88x188cm), Padrão (138x188cm), Queen (158x198cm) e King (193x203cm). Todos têm as mesmas tecnologias, diferindo apenas no tamanho.',
-      dataIdentificacao: '2025-01-01 08:45',
-      status: 'pendente'
-    },
-    {
-      id: '4',
-      padrao: 'Como funciona o pagamento?',
-      confianca: 91,
-      origem: 25,
-      respostaSugerida: 'Aceitamos PIX (5% desconto), cartão em até 12x sem juros, ou parcelamento próprio em até 24x. Qual forma prefere?',
-      dataIdentificacao: '2024-12-30 16:20',
-      status: 'aprovado',
-      dataAprovacao: '2024-12-31 09:00',
-      usoCount: 47
-    },
-    {
-      id: '5',
-      padrao: 'Tem garantia?',
-      confianca: 88,
-      origem: 18,
-      respostaSugerida: 'Sim! Oferecemos 10 anos de garantia contra defeitos de fabricação e 30 dias para teste em casa. Se não gostar, trocamos ou devolvemos o dinheiro.',
-      dataIdentificacao: '2024-12-29 14:10',
-      status: 'aprovado',
-      dataAprovacao: '2024-12-30 10:30',
-      usoCount: 32
-    }
-  ]);
+  const [learnings, setLearnings] = useState<Learning[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   const itemsPerPage = 5;
+
+  // Carregar aprendizados
+  const loadLearnings = async () => {
+    try {
+      const response = await axios.get<Learning[]>('/api/sicc/learnings');
+      setLearnings(response.data);
+      console.log('✅ Aprendizados carregados:', response.data);
+    } catch (error) {
+      console.error('❌ Erro ao carregar aprendizados:', error);
+      toast({
+        title: "Erro ao carregar aprendizados",
+        description: "Não foi possível carregar os aprendizados do sistema.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadLearnings();
+  }, []);
   
   // Filtrar aprendizados
-  const filteredAprendizados = aprendizados.filter(aprendizado => {
-    const matchesTab = activeTab === 'fila' ? aprendizado.status === 'pendente' : aprendizado.status === 'aprovado';
-    const matchesSearch = aprendizado.padrao.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         aprendizado.respostaSugerida.toLowerCase().includes(searchTerm.toLowerCase());
+  const filteredLearnings = learnings.filter(learning => {
+    const matchesTab = activeTab === 'fila' ? learning.status === 'pending' : learning.status === 'approved';
+    const matchesSearch = learning.pattern.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         learning.suggested_response.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesConfidence = confidenceFilter === 'all' || 
-                             (confidenceFilter === 'high' && aprendizado.confianca >= 80) ||
-                             (confidenceFilter === 'medium' && aprendizado.confianca >= 60 && aprendizado.confianca < 80) ||
-                             (confidenceFilter === 'low' && aprendizado.confianca < 60);
+                             (confidenceFilter === 'high' && learning.confidence >= 80) ||
+                             (confidenceFilter === 'medium' && learning.confidence >= 60 && learning.confidence < 80) ||
+                             (confidenceFilter === 'low' && learning.confidence < 60);
     
     return matchesTab && matchesSearch && matchesConfidence;
   });
 
-  const totalPages = Math.ceil(filteredAprendizados.length / itemsPerPage);
-  const paginatedAprendizados = filteredAprendizados.slice(
+  const totalPages = Math.ceil(filteredLearnings.length / itemsPerPage);
+  const paginatedLearnings = filteredLearnings.slice(
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
   );
 
-  const pendingCount = aprendizados.filter(a => a.status === 'pendente').length;
+  const pendingCount = learnings.filter(l => l.status === 'pending').length;
 
   const handleAprovar = async (id: string) => {
     try {
-      setAprendizados(prev => 
-        prev.map(aprendizado => 
-          aprendizado.id === id 
+      await axios.post(`/api/sicc/learnings/${id}/approve`);
+      
+      // Atualizar estado local
+      setLearnings(prev => 
+        prev.map(learning => 
+          learning.id === id 
             ? { 
-                ...aprendizado, 
-                status: 'aprovado' as const, 
-                dataAprovacao: new Date().toISOString(),
-                usoCount: 0
+                ...learning, 
+                status: 'approved' as const, 
+                approved_at: new Date().toISOString(),
+                usage_count: 0
               }
-            : aprendizado
+            : learning
         )
       );
       
-      toast.success("Aprendizado aprovado com sucesso! O padrão foi aprovado e será usado pelo agente.");
+      toast({
+        title: "Aprendizado aprovado",
+        description: "O padrão foi aprovado e será usado pelo agente.",
+      });
     } catch (error) {
-      toast.error("Erro ao aprovar aprendizado. Não foi possível aprovar o aprendizado. Tente novamente.");
+      console.error('❌ Erro ao aprovar aprendizado:', error);
+      toast({
+        title: "Erro ao aprovar",
+        description: "Não foi possível aprovar o aprendizado. Tente novamente.",
+        variant: "destructive",
+      });
     }
   };
 
   const handleRejeitar = async (id: string) => {
     try {
-      setAprendizados(prev => 
-        prev.map(aprendizado => 
-          aprendizado.id === id 
-            ? { ...aprendizado, status: 'rejeitado' as const }
-            : aprendizado
+      await axios.post(`/api/sicc/learnings/${id}/reject`);
+      
+      // Atualizar estado local
+      setLearnings(prev => 
+        prev.map(learning => 
+          learning.id === id 
+            ? { ...learning, status: 'rejected' as const }
+            : learning
         )
       );
       
-      toast.success("Aprendizado rejeitado. O padrão foi rejeitado e não será usado pelo agente.");
+      toast({
+        title: "Aprendizado rejeitado",
+        description: "O padrão foi rejeitado e não será usado pelo agente.",
+      });
     } catch (error) {
-      toast.error("Erro ao rejeitar aprendizado. Não foi possível rejeitar o aprendizado. Tente novamente.");
+      console.error('❌ Erro ao rejeitar aprendizado:', error);
+      toast({
+        title: "Erro ao rejeitar",
+        description: "Não foi possível rejeitar o aprendizado. Tente novamente.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -163,37 +160,89 @@ export default function AgenteAprendizados() {
     if (!editingId) return;
     
     try {
-      setAprendizados(prev => 
-        prev.map(aprendizado => 
-          aprendizado.id === editingId 
-            ? { ...aprendizado, respostaSugerida: editText }
-            : aprendizado
+      await axios.put(`/api/sicc/learnings/${editingId}`, {
+        suggested_response: editText
+      });
+      
+      // Atualizar estado local
+      setLearnings(prev => 
+        prev.map(learning => 
+          learning.id === editingId 
+            ? { ...learning, suggested_response: editText }
+            : learning
         )
       );
       
       setEditingId(null);
       setEditText('');
       
-      toast.success("Resposta editada com sucesso! A resposta sugerida foi atualizada.");
+      toast({
+        title: "Resposta editada",
+        description: "A resposta sugerida foi atualizada com sucesso.",
+      });
     } catch (error) {
-      toast.error("Erro ao editar resposta. Não foi possível salvar a edição. Tente novamente.");
+      console.error('❌ Erro ao editar resposta:', error);
+      toast({
+        title: "Erro ao editar",
+        description: "Não foi possível salvar a edição. Tente novamente.",
+        variant: "destructive",
+      });
     }
   };
 
   const handleDesativar = async (id: string) => {
     try {
-      // TODO: Implementar desativação
-      toast.success("Aprendizado desativado. O padrão foi desativado e não será mais usado.");
+      await axios.post(`/api/sicc/learnings/${id}/reject`);
+      
+      // Atualizar estado local
+      setLearnings(prev => 
+        prev.map(learning => 
+          learning.id === id 
+            ? { ...learning, status: 'rejected' as const }
+            : learning
+        )
+      );
+      
+      toast({
+        title: "Aprendizado desativado",
+        description: "O padrão foi desativado e não será mais usado.",
+      });
     } catch (error) {
-      toast.error("Erro ao desativar. Não foi possível desativar o aprendizado.");
+      console.error('❌ Erro ao desativar:', error);
+      toast({
+        title: "Erro ao desativar",
+        description: "Não foi possível desativar o aprendizado.",
+        variant: "destructive",
+      });
     }
   };
 
-  const getConfidenceBadge = (confianca: number) => {
-    if (confianca >= 80) return <Badge variant="default">Alta ({confianca}%)</Badge>;
-    if (confianca >= 60) return <Badge variant="secondary">Média ({confianca}%)</Badge>;
-    return <Badge variant="outline">Baixa ({confianca}%)</Badge>;
+  const getConfidenceBadge = (confidence: number) => {
+    if (confidence >= 80) return <Badge variant="default">Alta ({confidence}%)</Badge>;
+    if (confidence >= 60) return <Badge variant="secondary">Média ({confidence}%)</Badge>;
+    return <Badge variant="outline">Baixa ({confidence}%)</Badge>;
   };
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleString('pt-BR');
+  };
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Gestão de Aprendizados</h1>
+            <p className="text-muted-foreground">Carregando dados...</p>
+          </div>
+        </div>
+        <div className="text-center py-8">
+          <RefreshCw className="h-8 w-8 animate-spin mx-auto mb-4" />
+          <p>Carregando aprendizados do sistema...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -205,6 +254,10 @@ export default function AgenteAprendizados() {
             Revise e aprove padrões identificados pelo sistema de aprendizado
           </p>
         </div>
+        <Button onClick={loadLearnings}>
+          <RefreshCw className="h-4 w-4 mr-2" />
+          Atualizar
+        </Button>
       </div>
 
       {/* Filtros */}
@@ -253,7 +306,7 @@ export default function AgenteAprendizados() {
         </TabsList>
 
         <TabsContent value="fila" className="space-y-4">
-          {paginatedAprendizados.length === 0 ? (
+          {paginatedLearnings.length === 0 ? (
             <Card>
               <CardContent className="pt-6">
                 <div className="text-center py-8">
@@ -266,31 +319,31 @@ export default function AgenteAprendizados() {
               </CardContent>
             </Card>
           ) : (
-            paginatedAprendizados.map((aprendizado) => (
-              <Card key={aprendizado.id}>
+            paginatedLearnings.map((learning) => (
+              <Card key={learning.id}>
                 <CardHeader>
                   <div className="flex items-start justify-between">
                     <div className="space-y-1">
                       <CardTitle className="flex items-center gap-2">
                         <Brain className="h-5 w-5" />
-                        Aprendizado #{aprendizado.id}
+                        Aprendizado #{learning.id}
                       </CardTitle>
                       <CardDescription>
-                        Identificado em {aprendizado.dataIdentificacao} • {aprendizado.origem} conversas similares
+                        Identificado em {formatDate(learning.identified_at)} • {learning.source_count} conversas similares
                       </CardDescription>
                     </div>
-                    {getConfidenceBadge(aprendizado.confianca)}
+                    {getConfidenceBadge(learning.confidence)}
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div>
                     <h4 className="font-semibold mb-2">Padrão Identificado:</h4>
-                    <p className="text-sm bg-muted p-3 rounded-lg">"{aprendizado.padrao}"</p>
+                    <p className="text-sm bg-muted p-3 rounded-lg">"{learning.pattern}"</p>
                   </div>
                   
                   <div>
                     <h4 className="font-semibold mb-2">Resposta Sugerida:</h4>
-                    {editingId === aprendizado.id ? (
+                    {editingId === learning.id ? (
                       <div className="space-y-2">
                         <Textarea
                           value={editText}
@@ -307,15 +360,15 @@ export default function AgenteAprendizados() {
                         </div>
                       </div>
                     ) : (
-                      <p className="text-sm bg-muted p-3 rounded-lg">{aprendizado.respostaSugerida}</p>
+                      <p className="text-sm bg-muted p-3 rounded-lg">{learning.suggested_response}</p>
                     )}
                   </div>
                   
                   <div className="flex gap-2">
                     <Button 
                       size="sm" 
-                      onClick={() => handleAprovar(aprendizado.id)}
-                      disabled={editingId === aprendizado.id}
+                      onClick={() => handleAprovar(learning.id)}
+                      disabled={editingId === learning.id}
                     >
                       <CheckCircle className="h-4 w-4 mr-2" />
                       Aprovar
@@ -323,8 +376,8 @@ export default function AgenteAprendizados() {
                     <Button 
                       size="sm" 
                       variant="destructive" 
-                      onClick={() => handleRejeitar(aprendizado.id)}
-                      disabled={editingId === aprendizado.id}
+                      onClick={() => handleRejeitar(learning.id)}
+                      disabled={editingId === learning.id}
                     >
                       <XCircle className="h-4 w-4 mr-2" />
                       Rejeitar
@@ -332,7 +385,7 @@ export default function AgenteAprendizados() {
                     <Button 
                       size="sm" 
                       variant="outline" 
-                      onClick={() => handleEditar(aprendizado.id, aprendizado.respostaSugerida)}
+                      onClick={() => handleEditar(learning.id, learning.suggested_response)}
                       disabled={editingId !== null}
                     >
                       <Edit className="h-4 w-4 mr-2" />
@@ -346,7 +399,7 @@ export default function AgenteAprendizados() {
         </TabsContent>
 
         <TabsContent value="aprovados" className="space-y-4">
-          {paginatedAprendizados.length === 0 ? (
+          {paginatedLearnings.length === 0 ? (
             <Card>
               <CardContent className="pt-6">
                 <div className="text-center py-8">
@@ -368,17 +421,17 @@ export default function AgenteAprendizados() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {paginatedAprendizados.map((aprendizado) => (
-                    <div key={aprendizado.id} className="border rounded-lg p-4">
+                  {paginatedLearnings.map((learning) => (
+                    <div key={learning.id} className="border rounded-lg p-4">
                       <div className="flex items-start justify-between mb-2">
                         <div className="flex-1">
-                          <h4 className="font-semibold">{aprendizado.padrao}</h4>
+                          <h4 className="font-semibold">{learning.pattern}</h4>
                           <p className="text-sm text-muted-foreground mt-1">
-                            {aprendizado.respostaSugerida}
+                            {learning.suggested_response}
                           </p>
                         </div>
                         <div className="flex items-center gap-2 ml-4">
-                          {getConfidenceBadge(aprendizado.confianca)}
+                          {getConfidenceBadge(learning.confidence)}
                         </div>
                       </div>
                       
@@ -386,11 +439,11 @@ export default function AgenteAprendizados() {
                         <div className="flex items-center gap-4">
                           <span className="flex items-center gap-1">
                             <Clock className="h-3 w-3" />
-                            Aprovado em {aprendizado.dataAprovacao}
+                            Aprovado em {learning.approved_at ? formatDate(learning.approved_at) : 'N/A'}
                           </span>
                           <span className="flex items-center gap-1">
                             <TrendingUp className="h-3 w-3" />
-                            Usado {aprendizado.usoCount} vezes
+                            Usado {learning.usage_count || 0} vezes
                           </span>
                         </div>
                         
@@ -398,7 +451,7 @@ export default function AgenteAprendizados() {
                           <Button 
                             size="sm" 
                             variant="outline"
-                            onClick={() => handleEditar(aprendizado.id, aprendizado.respostaSugerida)}
+                            onClick={() => handleEditar(learning.id, learning.suggested_response)}
                           >
                             <Edit className="h-3 w-3 mr-1" />
                             Editar
@@ -406,7 +459,7 @@ export default function AgenteAprendizados() {
                           <Button 
                             size="sm" 
                             variant="destructive"
-                            onClick={() => handleDesativar(aprendizado.id)}
+                            onClick={() => handleDesativar(learning.id)}
                           >
                             Desativar
                           </Button>
@@ -425,7 +478,7 @@ export default function AgenteAprendizados() {
       {totalPages > 1 && (
         <div className="flex items-center justify-between">
           <p className="text-sm text-muted-foreground">
-            Mostrando {((currentPage - 1) * itemsPerPage) + 1} a {Math.min(currentPage * itemsPerPage, filteredAprendizados.length)} de {filteredAprendizados.length} resultados
+            Mostrando {((currentPage - 1) * itemsPerPage) + 1} a {Math.min(currentPage * itemsPerPage, filteredLearnings.length)} de {filteredLearnings.length} resultados
           </p>
           
           <div className="flex items-center gap-2">

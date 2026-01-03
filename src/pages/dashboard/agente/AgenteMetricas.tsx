@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -26,61 +26,111 @@ import {
   FileText,
   Activity,
   Cpu,
-  MessageSquare
+  MessageSquare,
+  RefreshCw
 } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import axios from 'axios';
+
+interface AgentMetrics {
+  uptime: number;
+  average_latency: number;
+  accuracy_rate: number;
+  tokens_consumed: number;
+  responses_generated: number;
+  latency_by_hour: Array<{ hour: string; latency: number }>;
+  tokens_by_model: Array<{ model: string; tokens: number; color: string }>;
+  question_types: Array<{ type: string; percentage: number; color: string }>;
+}
 
 export default function AgenteMetricas() {
+  const { toast } = useToast();
   const [periodo, setPeriodo] = useState('7d');
+  const [metrics, setMetrics] = useState<AgentMetrics | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Dados simulados - TODO: integrar com API real
-  const metricas = {
-    uptime: 99.2,
-    latenciaMedia: 1.2,
-    accuracyRate: 84.5,
-    tokensConsumidos: 125430,
-    respostasGeradas: 1247
+  // Carregar métricas
+  const loadMetrics = async () => {
+    try {
+      const response = await axios.get<AgentMetrics>(`/api/agent/metrics?period=${periodo}`);
+      setMetrics(response.data);
+      console.log('✅ Métricas carregadas:', response.data);
+    } catch (error) {
+      console.error('❌ Erro ao carregar métricas:', error);
+      toast({
+        title: "Erro ao carregar métricas",
+        description: "Não foi possível carregar as métricas do agente.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  // Dados para gráfico de latência por hora
-  const latenciaData = [
-    { hora: '00h', latencia: 0.8 },
-    { hora: '02h', latencia: 0.9 },
-    { hora: '04h', latencia: 0.7 },
-    { hora: '06h', latencia: 1.1 },
-    { hora: '08h', latencia: 1.4 },
-    { hora: '10h', latencia: 1.6 },
-    { hora: '12h', latencia: 1.8 },
-    { hora: '14h', latencia: 1.5 },
-    { hora: '16h', latencia: 1.3 },
-    { hora: '18h', latencia: 1.7 },
-    { hora: '20h', latencia: 1.4 },
-    { hora: '22h', latencia: 1.1 }
-  ];
+  useEffect(() => {
+    loadMetrics();
+  }, [periodo]);
 
-  // Dados para gráfico de tokens por modelo
-  const tokensData = [
-    { modelo: 'GPT-4o', tokens: 85430, cor: '#3b82f6' },
-    { modelo: 'GPT-4o Mini', tokens: 25000, cor: '#10b981' },
-    { modelo: 'Claude Sonnet', tokens: 15000, cor: '#f59e0b' }
-  ];
-
-  // Dados para gráfico de tipos de pergunta
-  const tiposPerguntaData = [
-    { tipo: 'Produtos', valor: 35, cor: '#3b82f6' },
-    { tipo: 'Preços', valor: 25, cor: '#10b981' },
-    { tipo: 'Dúvidas Técnicas', valor: 20, cor: '#f59e0b' },
-    { tipo: 'Suporte', valor: 15, cor: '#ef4444' },
-    { tipo: 'Outros', valor: 5, cor: '#8b5cf6' }
-  ];
-
-  const handleExportCSV = () => {
-    // TODO: Implementar exportação CSV
-    console.log('Exportando dados para CSV...');
+  const handleExportCSV = async () => {
+    try {
+      const response = await axios.post('/api/agent/export', {
+        format: 'csv',
+        period: periodo
+      }, {
+        responseType: 'blob'
+      });
+      
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `agent-metrics-${periodo}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      
+      toast({
+        title: "Exportação concluída",
+        description: "Dados exportados para CSV com sucesso.",
+      });
+    } catch (error) {
+      console.error('❌ Erro ao exportar CSV:', error);
+      toast({
+        title: "Erro na exportação",
+        description: "Não foi possível exportar os dados.",
+        variant: "destructive",
+      });
+    }
   };
 
-  const handleExportPDF = () => {
-    // TODO: Implementar exportação PDF
-    console.log('Exportando relatório PDF...');
+  const handleExportPDF = async () => {
+    try {
+      const response = await axios.post('/api/agent/export', {
+        format: 'pdf',
+        period: periodo
+      }, {
+        responseType: 'blob'
+      });
+      
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `agent-report-${periodo}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      
+      toast({
+        title: "Relatório gerado",
+        description: "Relatório PDF gerado com sucesso.",
+      });
+    } catch (error) {
+      console.error('❌ Erro ao gerar PDF:', error);
+      toast({
+        title: "Erro na geração",
+        description: "Não foi possível gerar o relatório PDF.",
+        variant: "destructive",
+      });
+    }
   };
 
   const getPeriodoLabel = (periodo: string) => {
@@ -92,6 +142,43 @@ export default function AgenteMetricas() {
       default: return 'Últimos 7 dias';
     }
   };
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Métricas do Agente IA</h1>
+            <p className="text-muted-foreground">Carregando dados...</p>
+          </div>
+        </div>
+        <div className="text-center py-8">
+          <RefreshCw className="h-8 w-8 animate-spin mx-auto mb-4" />
+          <p>Carregando métricas do agente...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!metrics) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Métricas do Agente IA</h1>
+            <p className="text-muted-foreground">Erro ao carregar dados</p>
+          </div>
+        </div>
+        <div className="text-center py-8">
+          <p>Não foi possível carregar as métricas. Tente novamente.</p>
+          <Button onClick={loadMetrics} className="mt-4">
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Tentar Novamente
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -105,6 +192,10 @@ export default function AgenteMetricas() {
         </div>
         
         <div className="flex items-center gap-2">
+          <Button onClick={loadMetrics} variant="outline">
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Atualizar
+          </Button>
           <Select value={periodo} onValueChange={setPeriodo}>
             <SelectTrigger className="w-[180px]">
               <SelectValue placeholder="Período" />
@@ -127,7 +218,7 @@ export default function AgenteMetricas() {
             <Activity className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{metricas.uptime}%</div>
+            <div className="text-2xl font-bold">{metrics.uptime}%</div>
             <p className="text-xs text-muted-foreground">
               Disponibilidade do agente
             </p>
@@ -140,7 +231,7 @@ export default function AgenteMetricas() {
             <Zap className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{metricas.latenciaMedia}s</div>
+            <div className="text-2xl font-bold">{metrics.average_latency}s</div>
             <p className="text-xs text-muted-foreground">
               Tempo de resposta
             </p>
@@ -153,7 +244,7 @@ export default function AgenteMetricas() {
             <Target className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{metricas.accuracyRate}%</div>
+            <div className="text-2xl font-bold">{metrics.accuracy_rate}%</div>
             <p className="text-xs text-muted-foreground">
               Respostas corretas
             </p>
@@ -166,7 +257,7 @@ export default function AgenteMetricas() {
             <Cpu className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{metricas.tokensConsumidos.toLocaleString()}</div>
+            <div className="text-2xl font-bold">{metrics.tokens_consumed.toLocaleString()}</div>
             <p className="text-xs text-muted-foreground">
               {getPeriodoLabel(periodo)}
             </p>
@@ -179,7 +270,7 @@ export default function AgenteMetricas() {
             <MessageSquare className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{metricas.respostasGeradas}</div>
+            <div className="text-2xl font-bold">{metrics.responses_generated}</div>
             <p className="text-xs text-muted-foreground">
               {getPeriodoLabel(periodo)}
             </p>
@@ -202,9 +293,9 @@ export default function AgenteMetricas() {
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={latenciaData}>
+              <LineChart data={metrics.latency_by_hour}>
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="hora" />
+                <XAxis dataKey="hour" />
                 <YAxis />
                 <Tooltip 
                   formatter={(value) => [`${value}s`, 'Latência']}
@@ -212,7 +303,7 @@ export default function AgenteMetricas() {
                 />
                 <Line 
                   type="monotone" 
-                  dataKey="latencia" 
+                  dataKey="latency" 
                   stroke="#3b82f6" 
                   strokeWidth={2}
                   dot={{ fill: '#3b82f6' }}
@@ -235,9 +326,9 @@ export default function AgenteMetricas() {
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={tokensData}>
+              <BarChart data={metrics.tokens_by_model}>
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="modelo" />
+                <XAxis dataKey="model" />
                 <YAxis />
                 <Tooltip 
                   formatter={(value) => [value.toLocaleString(), 'Tokens']}
@@ -263,10 +354,10 @@ export default function AgenteMetricas() {
             <div className="relative w-48 h-48">
               <div className="absolute inset-0 flex items-center justify-center">
                 <div className="text-center">
-                  <div className="text-4xl font-bold text-green-500">{metricas.uptime}%</div>
+                  <div className="text-4xl font-bold text-green-500">{metrics.uptime}%</div>
                   <div className="text-sm text-muted-foreground">Uptime</div>
                   <Badge variant="default" className="mt-2">
-                    Excelente
+                    {metrics.uptime >= 99 ? 'Excelente' : metrics.uptime >= 95 ? 'Bom' : 'Atenção'}
                   </Badge>
                 </div>
               </div>
@@ -288,7 +379,7 @@ export default function AgenteMetricas() {
                   strokeWidth="8"
                   fill="transparent"
                   strokeDasharray={`${2 * Math.PI * 88}`}
-                  strokeDashoffset={`${2 * Math.PI * 88 * (1 - metricas.uptime / 100)}`}
+                  strokeDashoffset={`${2 * Math.PI * 88 * (1 - metrics.uptime / 100)}`}
                   className="text-green-500"
                 />
               </svg>
@@ -311,17 +402,17 @@ export default function AgenteMetricas() {
             <ResponsiveContainer width="100%" height={300}>
               <PieChart>
                 <Pie
-                  data={tiposPerguntaData}
+                  data={metrics.question_types}
                   cx="50%"
                   cy="50%"
                   labelLine={false}
-                  label={({ tipo, valor }) => `${tipo}: ${valor}%`}
+                  label={({ type, percentage }) => `${type}: ${percentage}%`}
                   outerRadius={80}
                   fill="#8884d8"
-                  dataKey="valor"
+                  dataKey="percentage"
                 >
-                  {tiposPerguntaData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.cor} />
+                  {metrics.question_types.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
                   ))}
                 </Pie>
                 <Tooltip formatter={(value) => [`${value}%`, 'Percentual']} />

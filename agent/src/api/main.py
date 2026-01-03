@@ -23,6 +23,22 @@ try:
         allow_headers=["*"],
     )
     
+    # Importar e registrar novos routers para dashboard
+    print("3. Registrando routers do dashboard...", flush=True)
+    try:
+        from .agent import router as agent_router
+        from .mcp import router as mcp_router
+        from .sicc import router as sicc_router
+        
+        app.include_router(agent_router)
+        app.include_router(mcp_router)
+        app.include_router(sicc_router)
+        
+        print("✅ Routers do dashboard registrados", flush=True)
+    except Exception as router_error:
+        print(f"⚠️ Erro ao registrar routers do dashboard: {router_error}", flush=True)
+        # Continuar execução mesmo se routers falharem
+    
     @app.get("/")
     async def root():
         return {"status": "ok", "message": "Sistema funcionando"}

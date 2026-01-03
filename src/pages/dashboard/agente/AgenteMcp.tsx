@@ -19,23 +19,17 @@ import axios from 'axios';
 interface IntegrationStatus {
   id: string;
   name: string;
-  status: 'online' | 'offline' | 'warning' | 'error';
-  lastConnection: string;
-  latency: number;
-  description: string;
-  errorMessage?: string;
+  status: 'online' | 'offline' | 'error';
+  last_check: string;
+  response_time_ms?: number;
+  error_message?: string;
 }
 
 interface MCPStatusResponse {
-  success: boolean;
-  timestamp: string;
-  gateway: {
-    status: string;
-    latency: number;
-    url: string;
-  };
   integrations: IntegrationStatus[];
-  error?: string;
+  total_integrations: number;
+  online_count: number;
+  last_update: string;
 }
 
 export default function AgenteMcp() {
@@ -49,71 +43,29 @@ export default function AgenteMcp() {
   const fetchMCPStatus = async () => {
     try {
       console.log('🔍 Buscando status MCP da API...');
+      
+      // Conectar com API real implementada na Fase 1
       const response = await axios.get<MCPStatusResponse>('/api/mcp/status');
       
-      if (response.data.success) {
-        setIntegrations(response.data.integrations);
-        setGatewayStatus(response.data.gateway.status);
-        setLastUpdate(new Date(response.data.timestamp).toLocaleString('pt-BR'));
-        
-        console.log('✅ Status MCP atualizado:', response.data);
-      } else {
-        throw new Error(response.data.error || 'Erro desconhecido');
-      }
+      console.log('✅ Status MCP recebido:', response.data);
+      
+      setIntegrations(response.data.integrations);
+      setGatewayStatus(response.data.online_count === response.data.total_integrations ? 'online' : 'partial');
+      setLastUpdate(new Date(response.data.last_update).toLocaleString('pt-BR'));
       
     } catch (error) {
       console.error('❌ Erro ao buscar status MCP:', error);
       
-      // FALLBACK: Usar dados mockados quando API não estiver disponível
-      const mockIntegrations: IntegrationStatus[] = [
-        {
-          id: 'evolution-api',
-          name: 'Evolution API',
-          status: 'online',
-          lastConnection: 'Há 2 minutos',
-          latency: 150,
-          description: 'Responsável pela integração com WhatsApp Business. Permite envio e recebimento de mensagens.'
-        },
-        {
-          id: 'uazapi',
-          name: 'Uazapi',
-          status: 'warning',
-          lastConnection: 'Há 15 minutos',
-          latency: 300,
-          description: 'Serviço alternativo de mensageria para redundância e maior disponibilidade.',
-          errorMessage: 'Latência alta detectada'
-        },
-        {
-          id: 'supabase',
-          name: 'Supabase',
-          status: 'online',
-          lastConnection: 'Há 1 minuto',
-          latency: 80,
-          description: 'Banco de dados principal e sistema de autenticação. Crítico para o funcionamento do sistema.'
-        },
-        {
-          id: 'redis',
-          name: 'Redis',
-          status: 'error',
-          lastConnection: 'Há 30 minutos',
-          latency: 0,
-          description: 'Sistema de cache e gerenciamento de sessões para melhor performance.',
-          errorMessage: 'Não foi possível conectar com o MCP Gateway. Dados podem estar desatualizados.'
-        }
-      ];
-      
-      setIntegrations(mockIntegrations);
+      // Em caso de erro, mostrar estado de erro sem fallback mock
+      setIntegrations([]);
       setGatewayStatus('offline');
       setLastUpdate(new Date().toLocaleString('pt-BR'));
       
-      // Mostrar toast apenas na primeira vez
-      if (integrations.length === 0) {
-        toast({
-          title: "Modo offline",
-          description: "Usando dados de exemplo. API do agente não está disponível.",
-          variant: "destructive",
-        });
-      }
+      toast({
+        title: "Erro ao carregar status",
+        description: "Não foi possível conectar com a API do agente. Verifique se o backend está funcionando.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -135,8 +87,6 @@ export default function AgenteMcp() {
         return <CheckCircle className="h-5 w-5 text-green-500" />;
       case 'offline':
         return <XCircle className="h-5 w-5 text-red-500" />;
-      case 'warning':
-        return <AlertTriangle className="h-5 w-5 text-yellow-500" />;
       case 'error':
         return <XCircle className="h-5 w-5 text-red-500" />;
       default:
@@ -150,8 +100,6 @@ export default function AgenteMcp() {
         return <Badge variant="default" className="bg-green-500">Online</Badge>;
       case 'offline':
         return <Badge variant="destructive">Offline</Badge>;
-      case 'warning':
-        return <Badge variant="secondary" className="bg-yellow-500 text-white">Warning</Badge>;
       case 'error':
         return <Badge variant="destructive">Error</Badge>;
       default:
@@ -159,8 +107,8 @@ export default function AgenteMcp() {
     }
   };
 
-  const getLatencyColor = (latency: number) => {
-    if (latency === 0) return 'text-red-500';
+  const getLatencyColor = (latency?: number) => {
+    if (!latency || latency === 0) return 'text-red-500';
     if (latency < 200) return 'text-green-500';
     if (latency < 500) return 'text-yellow-500';
     return 'text-red-500';
@@ -175,26 +123,32 @@ export default function AgenteMcp() {
         description: `Testando conexão com ${integrations.find(i => i.id === integrationId)?.name}...`,
       });
 
-      // Chamar API real para testar conexão
+      // Chamar API real implementada na Fase 1
       const response = await axios.post(`/api/mcp/test/${integrationId}`);
+      
+      console.log('🧪 Resultado do teste:', response.data);
       
       if (response.data.success) {
         toast({
-          title: "Teste concluído",
-          description: response.data.message,
+          title: "Teste concluído com sucesso",
+          description: `Conexão testada em ${response.data.response_time_ms.toFixed(0)}ms`,
         });
-        
-        // Atualizar status após teste
-        await fetchMCPStatus();
       } else {
-        throw new Error(response.data.error || 'Erro no teste');
+        toast({
+          title: "Teste falhou",
+          description: response.data.error_message || "Erro desconhecido no teste",
+          variant: "destructive",
+        });
       }
+      
+      // Atualizar status após teste
+      await fetchMCPStatus();
 
     } catch (error) {
       console.error('❌ Erro no teste de conexão:', error);
       toast({
         title: "Erro no teste",
-        description: "Não foi possível testar a conexão.",
+        description: "Não foi possível executar o teste de conexão.",
         variant: "destructive",
       });
     }
@@ -336,28 +290,32 @@ export default function AgenteMcp() {
                 <div className="flex items-center justify-between text-sm">
                   <span className="flex items-center gap-2">
                     <Clock className="h-4 w-4" />
-                    Última conexão:
+                    Última verificação:
                   </span>
-                  <span className="text-muted-foreground">{integration.lastConnection}</span>
+                  <span className="text-muted-foreground">
+                    {new Date(integration.last_check).toLocaleString('pt-BR')}
+                  </span>
                 </div>
                 
-                <div className="flex items-center justify-between text-sm">
-                  <span className="flex items-center gap-2">
-                    <Zap className="h-4 w-4" />
-                    Latência:
-                  </span>
-                  <span className={getLatencyColor(integration.latency)}>
-                    {integration.latency > 0 ? `${integration.latency}ms` : 'N/A'}
-                  </span>
-                </div>
+                {integration.response_time_ms && (
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="flex items-center gap-2">
+                      <Zap className="h-4 w-4" />
+                      Tempo de resposta:
+                    </span>
+                    <span className={getLatencyColor(integration.response_time_ms)}>
+                      {integration.response_time_ms.toFixed(0)}ms
+                    </span>
+                  </div>
+                )}
               </div>
 
               {/* Mensagem de Erro */}
-              {integration.errorMessage && (
+              {integration.error_message && (
                 <Alert variant="destructive">
                   <AlertTriangle className="h-4 w-4" />
                   <AlertDescription>
-                    {integration.errorMessage}
+                    {integration.error_message}
                   </AlertDescription>
                 </Alert>
               )}

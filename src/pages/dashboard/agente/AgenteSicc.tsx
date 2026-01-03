@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -16,63 +16,131 @@ import {
   TrendingUp,
   Database,
   Clock,
-  Target
+  Target,
+  RefreshCw
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import axios from 'axios';
+
+interface SiccConfig {
+  sicc_enabled: boolean;
+  auto_approval_threshold: number;
+  embedding_model: string;
+  memory_quota: number;
+}
+
+interface SiccMetrics {
+  total_memories: number;
+  quota_max: number;
+  last_learning: string;
+  auto_approval_rate: number;
+  memories_this_week: number;
+  average_accuracy: number;
+}
+
+interface SiccAlert {
+  type: 'warning' | 'info' | 'error';
+  title: string;
+  description: string;
+}
 
 export default function AgenteSicc() {
   const { toast } = useToast();
   
-  // Estado das configurações SICC
-  const [config, setConfig] = useState({
-    siccAtivo: true,
-    thresholdAutoAprovacao: [75],
-    modeloEmbedding: 'gte-small',
-    quotaMemoria: 500
+  // Estados
+  const [config, setConfig] = useState<SiccConfig>({
+    sicc_enabled: true,
+    auto_approval_threshold: 75,
+    embedding_model: 'gte-small',
+    memory_quota: 500
   });
 
-  // Métricas SICC (simuladas - TODO: integrar com API real)
-  const metricas = {
-    totalMemorias: 347,
-    quotaMaxima: config.quotaMemoria,
-    ultimoAprendizado: '31/12/2025 14:30',
-    taxaAutoAprovacao: 68,
-    memoriasEstaSemanana: 23,
-    precisaoMedia: 84.5
+  const [metrics, setMetrics] = useState<SiccMetrics>({
+    total_memories: 0,
+    quota_max: 500,
+    last_learning: '',
+    auto_approval_rate: 0,
+    memories_this_week: 0,
+    average_accuracy: 0
+  });
+
+  const [alerts, setAlerts] = useState<SiccAlert[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Carregar dados
+  const loadData = async () => {
+    try {
+      const [configResponse, metricsResponse, alertsResponse] = await Promise.all([
+        axios.get<SiccConfig>('/api/sicc/config'),
+        axios.get<SiccMetrics>('/api/sicc/metrics'),
+        axios.get<SiccAlert[]>('/api/sicc/alerts')
+      ]);
+
+      setConfig(configResponse.data);
+      setMetrics(metricsResponse.data);
+      setAlerts(alertsResponse.data);
+      
+      console.log('✅ Dados SICC carregados:', {
+        config: configResponse.data,
+        metrics: metricsResponse.data,
+        alerts: alertsResponse.data
+      });
+    } catch (error) {
+      console.error('❌ Erro ao carregar dados SICC:', error);
+      toast({
+        title: "Erro ao carregar dados",
+        description: "Não foi possível carregar as informações do SICC.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const alertas = [
-    {
-      tipo: 'warning',
-      titulo: 'Quota próxima do limite',
-      descricao: `${Math.round((metricas.totalMemorias / metricas.quotaMaxima) * 100)}% da quota utilizada`
-    },
-    {
-      tipo: 'info',
-      titulo: 'Aprendizados pendentes',
-      descricao: '3 aprendizados aguardando aprovação manual'
-    }
-  ];
+  useEffect(() => {
+    loadData();
+  }, []);
 
   const handleSaveConfig = async () => {
+    setIsSaving(true);
     try {
-      // TODO: Integrar com API real
-      console.log('Salvando configuração SICC:', config);
+      await axios.post('/api/sicc/config', config);
       
       toast({
         title: "Configuração SICC salva",
         description: "As configurações do sistema de aprendizado foram atualizadas.",
       });
     } catch (error) {
+      console.error('❌ Erro ao salvar configuração SICC:', error);
       toast({
         title: "Erro ao salvar",
         description: "Não foi possível salvar as configurações SICC.",
         variant: "destructive",
       });
+    } finally {
+      setIsSaving(false);
     }
   };
 
-  const quotaPercentage = (metricas.totalMemorias / metricas.quotaMaxima) * 100;
+  const quotaPercentage = metrics.quota_max > 0 ? (metrics.total_memories / metrics.quota_max) * 100 : 0;
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Sistema de Aprendizado Contínuo (SICC)</h1>
+            <p className="text-muted-foreground">Carregando dados...</p>
+          </div>
+        </div>
+        <div className="text-center py-8">
+          <RefreshCw className="h-8 w-8 animate-spin mx-auto mb-4" />
+          <p>Carregando configurações do SICC...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -84,6 +152,10 @@ export default function AgenteSicc() {
             Configure e monitore o sistema inteligente de aprendizado do agente
           </p>
         </div>
+        <Button onClick={loadData}>
+          <RefreshCw className="h-4 w-4 mr-2" />
+          Atualizar
+        </Button>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
@@ -110,22 +182,22 @@ export default function AgenteSicc() {
                 </div>
                 <Switch
                   id="sicc-ativo"
-                  checked={config.siccAtivo}
-                  onCheckedChange={(checked) => setConfig(prev => ({ ...prev, siccAtivo: checked }))}
+                  checked={config.sicc_enabled}
+                  onCheckedChange={(checked) => setConfig(prev => ({ ...prev, sicc_enabled: checked }))}
                 />
               </div>
 
               {/* Threshold Auto-Aprovação */}
               <div className="space-y-2">
-                <Label>Threshold Auto-Aprovação: {config.thresholdAutoAprovacao[0]}%</Label>
+                <Label>Threshold Auto-Aprovação: {config.auto_approval_threshold}%</Label>
                 <Slider
-                  value={config.thresholdAutoAprovacao}
-                  onValueChange={(value) => setConfig(prev => ({ ...prev, thresholdAutoAprovacao: value }))}
+                  value={[config.auto_approval_threshold]}
+                  onValueChange={(value) => setConfig(prev => ({ ...prev, auto_approval_threshold: value[0] }))}
                   max={100}
                   min={0}
                   step={5}
                   className="w-full"
-                  disabled={!config.siccAtivo}
+                  disabled={!config.sicc_enabled}
                 />
                 <Alert>
                   <AlertTriangle className="h-4 w-4" />
@@ -139,9 +211,9 @@ export default function AgenteSicc() {
               <div className="space-y-2">
                 <Label htmlFor="modelo-embedding">Modelo Embedding</Label>
                 <Select 
-                  value={config.modeloEmbedding} 
-                  onValueChange={(value) => setConfig(prev => ({ ...prev, modeloEmbedding: value }))}
-                  disabled={!config.siccAtivo}
+                  value={config.embedding_model} 
+                  onValueChange={(value) => setConfig(prev => ({ ...prev, embedding_model: value }))}
+                  disabled={!config.sicc_enabled}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Selecione o modelo" />
@@ -160,11 +232,11 @@ export default function AgenteSicc() {
                 <Input
                   id="quota-memoria"
                   type="number"
-                  value={config.quotaMemoria}
-                  onChange={(e) => setConfig(prev => ({ ...prev, quotaMemoria: parseInt(e.target.value) }))}
+                  value={config.memory_quota}
+                  onChange={(e) => setConfig(prev => ({ ...prev, memory_quota: parseInt(e.target.value) }))}
                   min={100}
                   max={2000}
-                  disabled={!config.siccAtivo}
+                  disabled={!config.sicc_enabled}
                 />
                 <p className="text-xs text-muted-foreground">
                   Número máximo de memórias armazenadas
@@ -172,9 +244,9 @@ export default function AgenteSicc() {
               </div>
 
               {/* Botão Salvar */}
-              <Button onClick={handleSaveConfig} className="w-full">
+              <Button onClick={handleSaveConfig} disabled={isSaving} className="w-full">
                 <Save className="h-4 w-4 mr-2" />
-                Salvar Configurações
+                {isSaving ? 'Salvando...' : 'Salvar Configurações'}
               </Button>
             </CardContent>
           </Card>
@@ -198,7 +270,7 @@ export default function AgenteSicc() {
               <div className="space-y-2">
                 <div className="flex justify-between text-sm">
                   <span>Total Memórias</span>
-                  <span>{metricas.totalMemorias} / {metricas.quotaMaxima}</span>
+                  <span>{metrics.total_memories} / {metrics.quota_max}</span>
                 </div>
                 <Progress value={quotaPercentage} className="w-full" />
                 <p className="text-xs text-muted-foreground">
@@ -213,7 +285,9 @@ export default function AgenteSicc() {
                     <Clock className="h-4 w-4 text-muted-foreground" />
                     <span className="text-sm font-medium">Último Aprendizado</span>
                   </div>
-                  <p className="text-sm text-muted-foreground">{metricas.ultimoAprendizado}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {metrics.last_learning || 'Nenhum ainda'}
+                  </p>
                 </div>
 
                 <div className="space-y-1">
@@ -221,7 +295,7 @@ export default function AgenteSicc() {
                     <Target className="h-4 w-4 text-muted-foreground" />
                     <span className="text-sm font-medium">Taxa Auto-Aprovação</span>
                   </div>
-                  <p className="text-sm text-muted-foreground">{metricas.taxaAutoAprovacao}%</p>
+                  <p className="text-sm text-muted-foreground">{metrics.auto_approval_rate}%</p>
                 </div>
 
                 <div className="space-y-1">
@@ -229,7 +303,7 @@ export default function AgenteSicc() {
                     <Database className="h-4 w-4 text-muted-foreground" />
                     <span className="text-sm font-medium">Esta Semana</span>
                   </div>
-                  <p className="text-sm text-muted-foreground">{metricas.memoriasEstaSemanana} memórias</p>
+                  <p className="text-sm text-muted-foreground">{metrics.memories_this_week} memórias</p>
                 </div>
 
                 <div className="space-y-1">
@@ -237,14 +311,14 @@ export default function AgenteSicc() {
                     <TrendingUp className="h-4 w-4 text-muted-foreground" />
                     <span className="text-sm font-medium">Precisão Média</span>
                   </div>
-                  <p className="text-sm text-muted-foreground">{metricas.precisaoMedia}%</p>
+                  <p className="text-sm text-muted-foreground">{metrics.average_accuracy}%</p>
                 </div>
               </div>
 
               {/* Status Badge */}
               <div className="flex justify-center">
-                <Badge variant={config.siccAtivo ? "default" : "secondary"} className="px-4 py-2">
-                  {config.siccAtivo ? "✅ SICC Ativo" : "⏸️ SICC Inativo"}
+                <Badge variant={config.sicc_enabled ? "default" : "secondary"} className="px-4 py-2">
+                  {config.sicc_enabled ? "✅ SICC Ativo" : "⏸️ SICC Inativo"}
                 </Badge>
               </div>
             </CardContent>
@@ -262,14 +336,20 @@ export default function AgenteSicc() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
-              {alertas.map((alerta, index) => (
-                <Alert key={index} variant={alerta.tipo === 'warning' ? 'destructive' : 'default'}>
-                  <AlertTriangle className="h-4 w-4" />
-                  <AlertDescription>
-                    <strong>{alerta.titulo}:</strong> {alerta.descricao}
-                  </AlertDescription>
-                </Alert>
-              ))}
+              {alerts.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-4">
+                  Nenhum alerta no momento
+                </p>
+              ) : (
+                alerts.map((alerta, index) => (
+                  <Alert key={index} variant={alerta.type === 'warning' ? 'destructive' : 'default'}>
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertDescription>
+                      <strong>{alerta.title}:</strong> {alerta.description}
+                    </AlertDescription>
+                  </Alert>
+                ))
+              )}
             </CardContent>
           </Card>
         </div>

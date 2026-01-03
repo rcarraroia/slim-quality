@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,76 +7,100 @@ import { Slider } from '@/components/ui/slider';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
 import { 
   Settings, 
   Save, 
   TestTube, 
-  MessageSquare,
   Send,
-  Bot
+  RefreshCw
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import axios from 'axios';
+
+interface AgentConfig {
+  model: string;
+  temperature: number;
+  max_tokens: number;
+  system_prompt: string;
+  sicc_enabled: boolean;
+}
+
+interface TestPromptResponse {
+  response: string;
+  tokens_used: number;
+  response_time_ms: number;
+  model_used: string;
+}
+
+interface ChatMessage {
+  role: 'user' | 'assistant';
+  content: string;
+  tokens?: number;
+  time?: number;
+}
 
 export default function AgenteConfiguracao() {
   const { toast } = useToast();
   
   // Estado da configuração
-  const [config, setConfig] = useState({
-    modelo: 'gpt-4o',
-    temperatura: [0.7],
-    maxTokens: 2000,
-    systemPrompt: `Você é um especialista em colchões magnéticos terapêuticos da Slim Quality.
-
-Sua missão é ajudar clientes a encontrar a solução ideal para seus problemas de saúde relacionados ao sono, dores nas costas e circulação.
-
-PRODUTOS DISPONÍVEIS:
-- Solteiro (88x188x28cm): R$ 3.190,00
-- Padrão (138x188x28cm): R$ 3.290,00 (mais vendido)
-- Queen (158x198x30cm): R$ 3.490,00
-- King (193x203x30cm): R$ 4.890,00
-
-TECNOLOGIAS INCLUÍDAS:
-- Sistema Magnético (240 ímãs de 800 Gauss)
-- Infravermelho Longo
-- Energia Bioquântica
-- Vibromassagem (8 motores)
-- Densidade Progressiva
-- Cromoterapia
-- Perfilado High-Tech
-- Tratamento Sanitário
-
-ABORDAGEM:
-- Seja consultivo, não vendedor
-- Foque nos benefícios para a saúde
-- Faça perguntas sobre problemas específicos
-- Apresente preço como "investimento na saúde"
-- Ofereça condições de pagamento
-- Seja empático e educativo`
+  const [config, setConfig] = useState<AgentConfig>({
+    model: 'gpt-4o',
+    temperature: 0.7,
+    max_tokens: 2000,
+    system_prompt: '',
+    sicc_enabled: false
   });
 
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+
   // Estado do chat de teste
-  const [chatMessages, setChatMessages] = useState([
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
     { role: 'assistant', content: 'Olá! Como posso ajudá-lo hoje?' }
   ]);
   const [testMessage, setTestMessage] = useState('');
   const [isTestingPrompt, setIsTestingPrompt] = useState(false);
 
-  const handleSaveConfig = async () => {
+  // Carregar configuração atual
+  const loadConfig = async () => {
     try {
-      // TODO: Integrar com API real
-      console.log('Salvando configuração:', config);
+      const response = await axios.get<AgentConfig>('/api/agent/config');
+      setConfig(response.data);
+      console.log('✅ Configuração carregada:', response.data);
+    } catch (error) {
+      console.error('❌ Erro ao carregar configuração:', error);
+      toast({
+        title: "Erro ao carregar configuração",
+        description: "Usando configuração padrão.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadConfig();
+  }, []);
+
+  const handleSaveConfig = async () => {
+    setIsSaving(true);
+    try {
+      await axios.post('/api/agent/config', config);
       
       toast({
         title: "Configuração salva",
         description: "As configurações do agente foram atualizadas com sucesso.",
       });
     } catch (error) {
+      console.error('❌ Erro ao salvar configuração:', error);
       toast({
         title: "Erro ao salvar",
         description: "Não foi possível salvar as configurações. Tente novamente.",
         variant: "destructive",
       });
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -87,29 +111,32 @@ ABORDAGEM:
     
     try {
       // Adicionar mensagem do usuário
-      const newMessages = [...chatMessages, { role: 'user', content: testMessage }];
+      const newMessages = [...chatMessages, { role: 'user' as const, content: testMessage }];
       setChatMessages(newMessages);
       setTestMessage('');
 
-      // Simular resposta do agente (TODO: integrar com API real)
-      setTimeout(() => {
-        const responses = [
-          "Entendo sua preocupação com dores nas costas. Nosso colchão magnético pode realmente ajudar! O sistema de 240 ímãs melhora a circulação sanguínea, o que reduz inflamações e alivia dores. Qual é o seu principal problema: dor ao acordar, durante a noite, ou ambos?",
-          "Ótima pergunta sobre tamanhos! Para um casal, recomendo o Queen (158x198x30cm) por R$ 3.490. Ele oferece espaço confortável e todas as 8 tecnologias terapêuticas. O investimento se paga rapidamente com a melhoria na qualidade do sono. Posso explicar as condições de pagamento?",
-          "O colchão magnético é especialmente eficaz para problemas de circulação! O infravermelho longo penetra 4-5cm na pele, aquecendo os tecidos e melhorando o fluxo sanguíneo. Muitos clientes relatam redução no inchaço das pernas já na primeira semana. Você tem problemas específicos de circulação?"
-        ];
-        
-        const randomResponse = responses[Math.floor(Math.random() * responses.length)];
-        setChatMessages(prev => [...prev, { role: 'assistant', content: randomResponse }]);
-        setIsTestingPrompt(false);
-      }, 1500);
-      
-    } catch (error) {
-      toast({
-        title: "Erro no teste",
-        description: "Não foi possível testar o prompt. Tente novamente.",
-        variant: "destructive",
+      // Testar com API real
+      const response = await axios.post<TestPromptResponse>('/api/agent/test-prompt', {
+        prompt: testMessage,
+        temperature: config.temperature,
+        max_tokens: Math.min(config.max_tokens, 300)
       });
+
+      // Adicionar resposta do agente
+      setChatMessages(prev => [...prev, { 
+        role: 'assistant' as const, 
+        content: response.data.response,
+        tokens: response.data.tokens_used,
+        time: response.data.response_time_ms
+      }]);
+
+    } catch (error) {
+      console.error('❌ Erro no teste de prompt:', error);
+      setChatMessages(prev => [...prev, { 
+        role: 'assistant' as const, 
+        content: 'Erro ao processar mensagem. Verifique se o backend está funcionando.'
+      }]);
+    } finally {
       setIsTestingPrompt(false);
     }
   };
@@ -124,169 +151,174 @@ ABORDAGEM:
             Configure os parâmetros do modelo de IA e teste prompts
           </p>
         </div>
+        <Button onClick={loadConfig} disabled={isLoading}>
+          <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+          Recarregar
+        </Button>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        {/* Configurações */}
-        <div className="space-y-6">
+      {isLoading ? (
+        <div className="text-center py-8">Carregando configuração...</div>
+      ) : (
+        <div className="grid gap-6 lg:grid-cols-2">
+          {/* Configurações */}
+          <div className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Settings className="h-5 w-5" />
+                  Configurações do Modelo
+                </CardTitle>
+                <CardDescription>
+                  Ajuste os parâmetros do modelo de linguagem
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {/* Modelo LLM */}
+                <div className="space-y-2">
+                  <Label htmlFor="modelo">Modelo LLM</Label>
+                  <Select value={config.model} onValueChange={(value) => setConfig(prev => ({ ...prev, model: value }))}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione o modelo" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="gpt-4o">GPT-4o</SelectItem>
+                      <SelectItem value="gpt-4o-mini">GPT-4o Mini</SelectItem>
+                      <SelectItem value="claude-sonnet">Claude Sonnet</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Temperatura */}
+                <div className="space-y-2">
+                  <Label>Temperatura: {config.temperature}</Label>
+                  <Slider
+                    value={[config.temperature]}
+                    onValueChange={(value) => setConfig(prev => ({ ...prev, temperature: value[0] }))}
+                    max={2}
+                    min={0}
+                    step={0.1}
+                    className="w-full"
+                  />
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    <span>Mais conservador</span>
+                    <span>Mais criativo</span>
+                  </div>
+                </div>
+
+                {/* Max Tokens */}
+                <div className="space-y-2">
+                  <Label htmlFor="maxTokens">Máximo de Tokens</Label>
+                  <Input
+                    id="maxTokens"
+                    type="number"
+                    value={config.max_tokens}
+                    onChange={(e) => setConfig(prev => ({ ...prev, max_tokens: parseInt(e.target.value) }))}
+                    min={100}
+                    max={4000}
+                  />
+                </div>
+
+                {/* SICC */}
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    id="sicc"
+                    checked={config.sicc_enabled}
+                    onChange={(e) => setConfig(prev => ({ ...prev, sicc_enabled: e.target.checked }))}
+                  />
+                  <Label htmlFor="sicc">Habilitar SICC</Label>
+                  <Badge variant={config.sicc_enabled ? "default" : "outline"}>
+                    {config.sicc_enabled ? "Ativo" : "Inativo"}
+                  </Badge>
+                </div>
+
+                <Button onClick={handleSaveConfig} disabled={isSaving} className="w-full">
+                  <Save className="h-4 w-4 mr-2" />
+                  {isSaving ? 'Salvando...' : 'Salvar Configuração'}
+                </Button>
+              </CardContent>
+            </Card>
+
+            {/* System Prompt */}
+            <Card>
+              <CardHeader>
+                <CardTitle>System Prompt</CardTitle>
+                <CardDescription>
+                  Defina a personalidade e comportamento do agente
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Textarea
+                  value={config.system_prompt}
+                  onChange={(e) => setConfig(prev => ({ ...prev, system_prompt: e.target.value }))}
+                  rows={12}
+                  placeholder="Digite o prompt do sistema..."
+                />
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Chat de Teste */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Settings className="h-5 w-5" />
-                Configurações do Modelo
+                <TestTube className="h-5 w-5" />
+                Teste de Prompt
               </CardTitle>
               <CardDescription>
-                Ajuste os parâmetros do modelo de linguagem
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              {/* Modelo LLM */}
-              <div className="space-y-2">
-                <Label htmlFor="modelo">Modelo LLM</Label>
-                <Select value={config.modelo} onValueChange={(value) => setConfig(prev => ({ ...prev, modelo: value }))}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione o modelo" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="gpt-4o">GPT-4o</SelectItem>
-                    <SelectItem value="gpt-4o-mini">GPT-4o Mini</SelectItem>
-                    <SelectItem value="claude-sonnet">Claude Sonnet</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Temperatura */}
-              <div className="space-y-2">
-                <Label>Temperatura: {config.temperatura[0]}</Label>
-                <Slider
-                  value={config.temperatura}
-                  onValueChange={(value) => setConfig(prev => ({ ...prev, temperatura: value }))}
-                  max={1}
-                  min={0}
-                  step={0.1}
-                  className="w-full"
-                />
-                <p className="text-xs text-muted-foreground">
-                  Controla a criatividade das respostas (0 = conservador, 1 = criativo)
-                </p>
-              </div>
-
-              {/* Max Tokens */}
-              <div className="space-y-2">
-                <Label htmlFor="maxTokens">Max Tokens</Label>
-                <Input
-                  id="maxTokens"
-                  type="number"
-                  value={config.maxTokens}
-                  onChange={(e) => setConfig(prev => ({ ...prev, maxTokens: parseInt(e.target.value) }))}
-                  min={100}
-                  max={4000}
-                />
-                <p className="text-xs text-muted-foreground">
-                  Limite máximo de tokens por resposta
-                </p>
-              </div>
-
-              {/* System Prompt */}
-              <div className="space-y-2">
-                <Label htmlFor="systemPrompt">System Prompt</Label>
-                <Textarea
-                  id="systemPrompt"
-                  value={config.systemPrompt}
-                  onChange={(e) => setConfig(prev => ({ ...prev, systemPrompt: e.target.value }))}
-                  rows={12}
-                  className="font-mono text-sm"
-                />
-                <p className="text-xs text-muted-foreground">
-                  Instruções base para o comportamento do agente
-                </p>
-              </div>
-
-              {/* Botões de Ação */}
-              <div className="flex gap-2">
-                <Button onClick={handleSaveConfig} className="flex-1">
-                  <Save className="h-4 w-4 mr-2" />
-                  Salvar Configuração
-                </Button>
-                <Button variant="outline" onClick={handleTestPrompt}>
-                  <TestTube className="h-4 w-4 mr-2" />
-                  Testar
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Preview Chat */}
-        <div className="space-y-6">
-          <Card className="h-fit">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <MessageSquare className="h-5 w-5" />
-                Preview Chat
-              </CardTitle>
-              <CardDescription>
-                Teste o agente com as configurações atuais
+                Teste o comportamento do agente com suas configurações
               </CardDescription>
             </CardHeader>
             <CardContent>
-              {/* Mensagens */}
-              <div className="space-y-4 mb-4 max-h-96 overflow-y-auto">
-                {chatMessages.map((message, index) => (
-                  <div key={index} className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                    <div className={`max-w-[80%] p-3 rounded-lg ${
-                      message.role === 'user' 
-                        ? 'bg-primary text-primary-foreground' 
-                        : 'bg-muted'
-                    }`}>
-                      {message.role === 'assistant' && (
-                        <div className="flex items-center gap-2 mb-1">
-                          <Bot className="h-4 w-4" />
-                          <Badge variant="outline" className="text-xs">
-                            {config.modelo}
-                          </Badge>
-                        </div>
-                      )}
-                      <p className="text-sm">{message.content}</p>
-                    </div>
-                  </div>
-                ))}
-                
-                {isTestingPrompt && (
-                  <div className="flex justify-start">
-                    <div className="bg-muted p-3 rounded-lg">
-                      <div className="flex items-center gap-2">
-                        <Bot className="h-4 w-4" />
-                        <span className="text-sm">Digitando...</span>
+              <div className="space-y-4">
+                {/* Mensagens */}
+                <div className="h-96 overflow-y-auto border rounded-lg p-4 space-y-3">
+                  {chatMessages.map((message, index) => (
+                    <div key={index} className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                      <div className={`max-w-[80%] p-3 rounded-lg ${
+                        message.role === 'user' 
+                          ? 'bg-blue-500 text-white' 
+                          : 'bg-gray-100 text-gray-900'
+                      }`}>
+                        <p className="text-sm">{message.content}</p>
+                        {message.tokens && (
+                          <p className="text-xs opacity-70 mt-1">
+                            {message.tokens} tokens • {message.time?.toFixed(0)}ms
+                          </p>
+                        )}
                       </div>
                     </div>
-                  </div>
-                )}
-              </div>
+                  ))}
+                  {isTestingPrompt && (
+                    <div className="flex justify-start">
+                      <div className="bg-gray-100 p-3 rounded-lg">
+                        <div className="flex items-center space-x-2">
+                          <div className="animate-spin h-4 w-4 border-2 border-gray-400 border-t-transparent rounded-full"></div>
+                          <span className="text-sm text-gray-600">Processando...</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
 
-              <Separator className="my-4" />
-
-              {/* Input de Teste */}
-              <div className="flex gap-2">
-                <Input
-                  placeholder="Digite uma mensagem para testar..."
-                  value={testMessage}
-                  onChange={(e) => setTestMessage(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && handleTestPrompt()}
-                  disabled={isTestingPrompt}
-                />
-                <Button 
-                  onClick={handleTestPrompt} 
-                  disabled={!testMessage.trim() || isTestingPrompt}
-                  size="icon"
-                >
-                  <Send className="h-4 w-4" />
-                </Button>
+                {/* Input de teste */}
+                <div className="flex space-x-2">
+                  <Input
+                    value={testMessage}
+                    onChange={(e) => setTestMessage(e.target.value)}
+                    placeholder="Digite uma mensagem para testar..."
+                    onKeyDown={(e) => e.key === 'Enter' && handleTestPrompt()}
+                  />
+                  <Button onClick={handleTestPrompt} disabled={isTestingPrompt || !testMessage.trim()}>
+                    <Send className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
             </CardContent>
           </Card>
         </div>
-      </div>
+      )}
     </div>
   );
 }

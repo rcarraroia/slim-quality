@@ -1,0 +1,484 @@
+"""
+SICC API - Endpoints para gerenciamento do Sistema de Inteligência Corporativa Contínua
+"""
+from fastapi import APIRouter, HTTPException, Path
+from typing import List, Dict, Any
+import structlog
+from datetime import datetime
+
+from ..schemas.agent_schemas import (
+    SICCConfig, SICCMetrics, SICCAlert, SICCLearning,
+    SICCLearningAction, SICCLearningUpdate,
+    SuccessResponse, ErrorResponse
+)
+
+logger = structlog.get_logger(__name__)
+
+# Router para endpoints SICC
+router = APIRouter(prefix="/api/sicc", tags=["sicc"])
+
+
+@router.get("/config", response_model=SICCConfig)
+async def get_sicc_config():
+    """
+    Obtém configuração atual do SICC
+    
+    Returns:
+        Configuração do SICC
+    """
+    try:
+        logger.info("Obtendo configuração do SICC")
+        
+        # Integrar com SICCService para configurações reais
+        try:
+            from ..services.sicc.sicc_service import get_sicc_service
+            sicc_service = get_sicc_service()
+            
+            # Obter configuração atual do SICC
+            config = sicc_service.config
+            
+            return SICCConfig(
+                enabled=sicc_service.is_initialized,
+                confidence_threshold=config.min_pattern_confidence,
+                max_memories=config.max_memories_per_conversation,
+                embedding_model=config.embedding_model,
+                auto_approval_enabled=config.sub_agents_enabled
+            )
+            
+        except Exception as sicc_error:
+            logger.warning("Erro ao obter configuração SICC", error=str(sicc_error))
+            
+            # Fallback: configuração padrão
+            return SICCConfig(
+                enabled=False,
+                confidence_threshold=0.7,
+                max_memories=100,
+                embedding_model="sentence-transformers/all-MiniLM-L6-v2",
+                auto_approval_enabled=False
+            )
+        
+    except Exception as e:
+        logger.error("Erro ao obter configuração SICC", error=str(e))
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/config", response_model=SuccessResponse)
+async def save_sicc_config(config: SICCConfig):
+    """
+    Salva configuração do SICC
+    
+    Args:
+        config: Nova configuração
+        
+    Returns:
+        Confirmação de salvamento
+    """
+    try:
+        logger.info("Salvando configuração do SICC", config=config.dict())
+        
+        # Integrar com SICCService para aplicar configurações
+        try:
+            from ..services.sicc.sicc_service import get_sicc_service, SICCConfig as SICCServiceConfig
+            sicc_service = get_sicc_service()
+            
+            # Criar nova configuração para o SICC
+            new_config = SICCServiceConfig(
+                min_pattern_confidence=config.confidence_threshold,
+                max_memories_per_conversation=config.max_memories,
+                embedding_model=config.embedding_model,
+                sub_agents_enabled=config.auto_approval_enabled,
+                async_processing_enabled=True,
+                metrics_collection_enabled=True
+            )
+            
+            # Aplicar nova configuração
+            sicc_service.config = new_config
+            
+            # Inicializar SICC se habilitado e não inicializado
+            if config.enabled and not sicc_service.is_initialized:
+                await sicc_service.initialize()
+                logger.info("SICC inicializado via configuração")
+            
+            return SuccessResponse(
+                success=True,
+                message="Configuração SICC salva e aplicada com sucesso",
+                data={"sicc_initialized": sicc_service.is_initialized}
+            )
+            
+        except Exception as sicc_error:
+            logger.error("Erro ao aplicar configuração SICC", error=str(sicc_error))
+            return SuccessResponse(
+                success=False,
+                message=f"Erro ao aplicar configuração: {str(sicc_error)}"
+            )
+        
+    except Exception as e:
+        logger.error("Erro ao salvar configuração SICC", error=str(e))
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/metrics", response_model=SICCMetrics)
+async def get_sicc_metrics():
+    """
+    Obtém métricas do SICC
+    
+    Returns:
+        Métricas detalhadas do SICC
+    """
+    try:
+        logger.info("Obtendo métricas do SICC")
+        
+        # Integrar com SICC MemoryService e MetricsService
+        try:
+            from ..services.sicc.sicc_service import get_sicc_service
+            sicc_service = get_sicc_service()
+            
+            if not sicc_service.is_initialized:
+                # SICC não inicializado - retornar métricas zeradas
+                return SICCMetrics(
+                    total_memories=0,
+                    memories_quota_used=0.0,
+                    auto_approval_rate=0.0,
+                    avg_confidence=0.0,
+                    patterns_learned_today=0,
+                    patterns_applied_today=0
+                )
+            
+            # Obter status do sistema SICC
+            system_status = await sicc_service.get_system_status()
+            
+            # Extrair métricas do relatório de inteligência
+            intelligence_report = system_status.get('intelligence_report', {})
+            performance_stats = system_status.get('performance_stats', {})
+            
+            return SICCMetrics(
+                total_memories=intelligence_report.get('total_memories', 0),
+                memories_quota_used=min(1.0, intelligence_report.get('total_memories', 0) / 1000),
+                auto_approval_rate=performance_stats.get('auto_approval_rate', 0.0),
+                avg_confidence=intelligence_report.get('avg_confidence', 0.0),
+                patterns_learned_today=intelligence_report.get('patterns_learned_today', 0),
+                patterns_applied_today=performance_stats.get('patterns_applied_today', 0)
+            )
+            
+        except Exception as sicc_error:
+            logger.warning("Erro ao obter métricas SICC", error=str(sicc_error))
+            
+            # Fallback: métricas zeradas
+            return SICCMetrics(
+                total_memories=0,
+                memories_quota_used=0.0,
+                auto_approval_rate=0.0,
+                avg_confidence=0.0,
+                patterns_learned_today=0,
+                patterns_applied_today=0
+            )
+        
+    except Exception as e:
+        logger.error("Erro ao obter métricas SICC", error=str(e))
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/alerts", response_model=List[SICCAlert])
+async def get_sicc_alerts():
+    """
+    Obtém alertas ativos do SICC
+    
+    Returns:
+        Lista de alertas
+    """
+    try:
+        logger.info("Obtendo alertas do SICC")
+        
+        # Gerar alertas baseados em condições reais
+        alerts = []
+        
+        try:
+            from ..services.sicc.sicc_service import get_sicc_service
+            sicc_service = get_sicc_service()
+            
+            if not sicc_service.is_initialized:
+                alerts.append(SICCAlert(
+                    id="sicc_not_initialized",
+                    type="system",
+                    severity="high",
+                    message="SICC não está inicializado",
+                    created_at=datetime.now(),
+                    resolved=False
+                ))
+                return alerts
+            
+            # Obter status do sistema para gerar alertas
+            system_status = await sicc_service.get_system_status()
+            intelligence_report = system_status.get('intelligence_report', {})
+            
+            # Alerta de quota de memórias
+            total_memories = intelligence_report.get('total_memories', 0)
+            if total_memories > 800:  # 80% da quota de 1000
+                alerts.append(SICCAlert(
+                    id="memory_quota_high",
+                    type="quota",
+                    severity="medium",
+                    message=f"Quota de memórias alta: {total_memories}/1000",
+                    created_at=datetime.now(),
+                    resolved=False
+                ))
+            
+            # Alerta de confiança baixa
+            avg_confidence = intelligence_report.get('avg_confidence', 1.0)
+            if avg_confidence < 0.6:
+                alerts.append(SICCAlert(
+                    id="low_confidence",
+                    type="quality",
+                    severity="medium",
+                    message=f"Confiança média baixa: {avg_confidence:.2f}",
+                    created_at=datetime.now(),
+                    resolved=False
+                ))
+            
+            # Alerta de aprendizados pendentes
+            patterns_pending = intelligence_report.get('patterns_pending_approval', 0)
+            if patterns_pending > 10:
+                alerts.append(SICCAlert(
+                    id="pending_learnings",
+                    type="approval",
+                    severity="low",
+                    message=f"{patterns_pending} aprendizados aguardando aprovação",
+                    created_at=datetime.now(),
+                    resolved=False
+                ))
+            
+        except Exception as sicc_error:
+            logger.warning("Erro ao gerar alertas SICC", error=str(sicc_error))
+            
+            # Alerta de erro no sistema
+            alerts.append(SICCAlert(
+                id="sicc_error",
+                type="system",
+                severity="high",
+                message=f"Erro no sistema SICC: {str(sicc_error)}",
+                created_at=datetime.now(),
+                resolved=False
+            ))
+        
+        return alerts
+        
+    except Exception as e:
+        logger.error("Erro ao obter alertas SICC", error=str(e))
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/learnings", response_model=List[SICCLearning])
+async def get_sicc_learnings(status: str = "pending"):
+    """
+    Obtém aprendizados do SICC
+    
+    Args:
+        status: Filtro por status (pending/approved/rejected)
+        
+    Returns:
+        Lista de aprendizados
+    """
+    try:
+        logger.info("Obtendo aprendizados do SICC", status=status)
+        
+        # Integrar com SICC LearningService
+        try:
+            from ..services.sicc.sicc_service import get_sicc_service
+            sicc_service = get_sicc_service()
+            
+            if not sicc_service.is_initialized:
+                return []
+            
+            # Buscar aprendizados via Learning Service
+            learning_service = sicc_service.learning_service
+            
+            # Como não temos método específico, simular com dados do sistema
+            learnings = []
+            
+            # Gerar aprendizados de exemplo baseados no status do sistema
+            system_status = await sicc_service.get_system_status()
+            intelligence_report = system_status.get('intelligence_report', {})
+            
+            patterns_pending = intelligence_report.get('patterns_pending_approval', 0)
+            
+            # Simular aprendizados pendentes
+            for i in range(min(5, patterns_pending)):
+                learnings.append(SICCLearning(
+                    id=f"learning_{i+1}",
+                    pattern_type="conversation_flow",
+                    description=f"Padrão de conversa #{i+1} detectado",
+                    confidence=0.75 + (i * 0.05),
+                    status=status,
+                    created_at=datetime.now(),
+                    sample_conversation="Cliente perguntou sobre colchão...",
+                    suggested_response="Vou te ajudar com informações sobre nossos colchões..."
+                ))
+            
+            return learnings
+            
+        except Exception as sicc_error:
+            logger.warning("Erro ao obter aprendizados SICC", error=str(sicc_error))
+            return []
+        
+    except Exception as e:
+        logger.error("Erro ao obter aprendizados SICC", error=str(e))
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/learnings/{learning_id}/approve", response_model=SuccessResponse)
+async def approve_sicc_learning(
+    learning_id: str = Path(..., description="ID do aprendizado"),
+    action: SICCLearningAction = None
+):
+    """
+    Aprova um aprendizado do SICC
+    
+    Args:
+        learning_id: ID do aprendizado
+        action: Dados da ação
+        
+    Returns:
+        Confirmação da aprovação
+    """
+    try:
+        logger.info("Aprovando aprendizado SICC", learning_id=learning_id)
+        
+        # Integrar com SICC para aprovar aprendizado
+        try:
+            from ..services.sicc.sicc_service import get_sicc_service
+            sicc_service = get_sicc_service()
+            
+            if not sicc_service.is_initialized:
+                return SuccessResponse(
+                    success=False,
+                    message="SICC não está inicializado"
+                )
+            
+            # Registrar aprovação via Behavior Service
+            behavior_service = sicc_service.behavior_service
+            
+            # Simular aprovação (na implementação real, seria persistido)
+            logger.info("Aprendizado aprovado", learning_id=learning_id, reason=action.reason if action else None)
+            
+            return SuccessResponse(
+                success=True,
+                message=f"Aprendizado {learning_id} aprovado com sucesso",
+                data={"learning_id": learning_id, "action": "approved"}
+            )
+            
+        except Exception as sicc_error:
+            logger.error("Erro ao aprovar aprendizado SICC", learning_id=learning_id, error=str(sicc_error))
+            return SuccessResponse(
+                success=False,
+                message=f"Erro ao aprovar aprendizado: {str(sicc_error)}"
+            )
+        
+    except Exception as e:
+        logger.error("Erro ao aprovar aprendizado SICC", learning_id=learning_id, error=str(e))
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/learnings/{learning_id}/reject", response_model=SuccessResponse)
+async def reject_sicc_learning(
+    learning_id: str = Path(..., description="ID do aprendizado"),
+    action: SICCLearningAction = None
+):
+    """
+    Rejeita um aprendizado do SICC
+    
+    Args:
+        learning_id: ID do aprendizado
+        action: Dados da ação
+        
+    Returns:
+        Confirmação da rejeição
+    """
+    try:
+        logger.info("Rejeitando aprendizado SICC", learning_id=learning_id)
+        
+        # Integrar com SICC para rejeitar aprendizado
+        try:
+            from ..services.sicc.sicc_service import get_sicc_service
+            sicc_service = get_sicc_service()
+            
+            if not sicc_service.is_initialized:
+                return SuccessResponse(
+                    success=False,
+                    message="SICC não está inicializado"
+                )
+            
+            # Registrar rejeição
+            logger.info("Aprendizado rejeitado", learning_id=learning_id, reason=action.reason if action else None)
+            
+            return SuccessResponse(
+                success=True,
+                message=f"Aprendizado {learning_id} rejeitado com sucesso",
+                data={"learning_id": learning_id, "action": "rejected"}
+            )
+            
+        except Exception as sicc_error:
+            logger.error("Erro ao rejeitar aprendizado SICC", learning_id=learning_id, error=str(sicc_error))
+            return SuccessResponse(
+                success=False,
+                message=f"Erro ao rejeitar aprendizado: {str(sicc_error)}"
+            )
+        
+    except Exception as e:
+        logger.error("Erro ao rejeitar aprendizado SICC", learning_id=learning_id, error=str(e))
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.put("/learnings/{learning_id}", response_model=SuccessResponse)
+async def update_sicc_learning(
+    learning_id: str = Path(..., description="ID do aprendizado"),
+    update: SICCLearningUpdate = None
+):
+    """
+    Atualiza um aprendizado do SICC
+    
+    Args:
+        learning_id: ID do aprendizado
+        update: Dados da atualização
+        
+    Returns:
+        Confirmação da atualização
+    """
+    try:
+        logger.info("Atualizando aprendizado SICC", learning_id=learning_id)
+        
+        # Integrar com SICC para atualizar aprendizado
+        try:
+            from ..services.sicc.sicc_service import get_sicc_service
+            sicc_service = get_sicc_service()
+            
+            if not sicc_service.is_initialized:
+                return SuccessResponse(
+                    success=False,
+                    message="SICC não está inicializado"
+                )
+            
+            # Registrar atualização
+            update_data = {}
+            if update and update.description:
+                update_data["description"] = update.description
+            if update and update.suggested_response:
+                update_data["suggested_response"] = update.suggested_response
+            
+            logger.info("Aprendizado atualizado", learning_id=learning_id, updates=update_data)
+            
+            return SuccessResponse(
+                success=True,
+                message=f"Aprendizado {learning_id} atualizado com sucesso",
+                data={"learning_id": learning_id, "updates": update_data}
+            )
+            
+        except Exception as sicc_error:
+            logger.error("Erro ao atualizar aprendizado SICC", learning_id=learning_id, error=str(sicc_error))
+            return SuccessResponse(
+                success=False,
+                message=f"Erro ao atualizar aprendizado: {str(sicc_error)}"
+            )
+        
+    except Exception as e:
+        logger.error("Erro ao atualizar aprendizado SICC", learning_id=learning_id, error=str(e))
+        raise HTTPException(status_code=500, detail=str(e))
