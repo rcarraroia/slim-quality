@@ -157,6 +157,19 @@ export function UserManagementModal({ user, isOpen, onClose, onUserSaved }: User
         }
 
         // Criar usuário via Edge Function (segura)
+        console.log('🚀 Chamando Edge Function admin-create-user...');
+        console.log('📧 Email:', formData.email);
+        console.log('👤 UserData:', {
+          full_name: formData.full_name,
+          email: formData.email,
+          role: formData.role,
+          status: formData.status,
+          phone: formData.phone,
+          wallet_id: formData.wallet_id,
+          is_affiliate: formData.is_affiliate,
+          affiliate_status: formData.affiliate_status
+        });
+        
         const { data: functionData, error: functionError } = await supabase.functions.invoke('admin-create-user', {
           body: {
             email: formData.email,
@@ -173,6 +186,10 @@ export function UserManagementModal({ user, isOpen, onClose, onUserSaved }: User
             }
           }
         });
+        
+        console.log('📊 Resposta da Edge Function:');
+        console.log('✅ Data:', functionData);
+        console.log('❌ Error:', functionError);
 
         if (functionError) throw functionError;
         if (functionData.error) throw new Error(functionData.error);
