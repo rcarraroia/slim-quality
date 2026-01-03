@@ -170,7 +170,12 @@ export function UserManagementModal({ user, isOpen, onClose, onUserSaved }: User
           affiliate_status: formData.affiliate_status
         });
         
-        const { data: functionData, error: functionError } = await supabase.functions.invoke('admin-create-user', {
+        // Implementar timeout manual para evitar travamento
+        const timeoutPromise = new Promise((_, reject) => {
+          setTimeout(() => reject(new Error('Timeout: Edge Function demorou mais de 30 segundos')), 30000);
+        });
+        
+        const functionPromise = supabase.functions.invoke('admin-create-user', {
           body: {
             email: formData.email,
             password: password,
@@ -187,6 +192,16 @@ export function UserManagementModal({ user, isOpen, onClose, onUserSaved }: User
           }
         });
         
+        console.log('⏳ Aguardando resposta da Edge Function...');
+        
+        const { data: functionData, error: functionError } = await Promise.race([
+          functionPromise,
+          timeoutPromise
+        ]).catch(error => {
+          console.log('💥 Erro capturado:', error);
+          return { data: null, error: error };
+        });
+        
         console.log('📊 Resposta da Edge Function:');
         console.log('✅ Data:', functionData);
         console.log('❌ Error:', functionError);
@@ -194,6 +209,7 @@ export function UserManagementModal({ user, isOpen, onClose, onUserSaved }: User
         if (functionError) throw functionError;
         if (functionData.error) throw new Error(functionData.error);
 
+        console.log('✅ Usuário criado com sucesso via Edge Function!');
         const authData = functionData.data;
 
         toast({
