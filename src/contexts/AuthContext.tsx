@@ -42,6 +42,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Buscar perfil do usuário
   const fetchProfile = async (userId: string): Promise<Profile | null> => {
     try {
+      console.log('🔍 Buscando perfil para usuário:', userId);
+      
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
@@ -49,13 +51,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         .single();
 
       if (error) {
-        console.error('Erro ao buscar perfil:', error);
+        console.error('❌ Erro ao buscar perfil:', error);
+        // Se não encontrar perfil, criar um básico
+        if (error.code === 'PGRST116') {
+          console.log('⚠️ Perfil não encontrado, usuário pode continuar sem perfil');
+          return null;
+        }
         return null;
       }
 
+      console.log('✅ Perfil encontrado:', data.email);
       return data;
     } catch (error) {
-      console.error('Erro ao buscar perfil:', error);
+      console.error('💥 Erro geral ao buscar perfil:', error);
       return null;
     }
   };
@@ -76,6 +84,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signIn = async (email: string, password: string) => {
     try {
       setLoading(true);
+      console.log('🔐 Iniciando login:', email);
 
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
@@ -83,7 +92,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
 
       if (error) {
-        console.error('Erro no login:', error);
+        console.error('❌ Erro no login:', error);
         return { 
           success: false, 
           error: error.message === 'Invalid login credentials' 
@@ -93,13 +102,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       if (data.user) {
-        // Buscar perfil do usuário
+        console.log('✅ Usuário autenticado:', data.user.email);
+        
+        // Buscar perfil do usuário (não bloquear login se falhar)
         const userProfile = await fetchProfile(data.user.id);
         
         if (userProfile) {
+          console.log('✅ Perfil carregado:', userProfile.full_name);
           setProfile(userProfile);
           // Atualizar último login
           await updateLastLogin(data.user.id);
+        } else {
+          console.log('⚠️ Login sem perfil - usuário pode continuar');
+          // Criar perfil básico temporário
+          setProfile({
+            id: data.user.id,
+            email: data.user.email || '',
+            full_name: data.user.email?.split('@')[0] || 'Usuário',
+            phone: '',
+            avatar_url: '',
+            wallet_id: '',
+            is_affiliate: false,
+            affiliate_status: '',
+            last_login_at: new Date().toISOString(),
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          });
         }
 
         toast({
@@ -112,7 +140,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       return { success: false, error: 'Erro desconhecido no login' };
     } catch (error) {
-      console.error('Erro no login:', error);
+      console.error('💥 Erro no login:', error);
       return { success: false, error: 'Erro interno do sistema' };
     } finally {
       setLoading(false);
@@ -184,7 +212,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(session?.user ?? null);
       
       if (session?.user) {
-        fetchProfile(session.user.id).then(setProfile);
+        console.log('🔄 Sessão encontrada, buscando perfil...');
+        fetchProfile(session.user.id).then((userProfile) => {
+          if (userProfile) {
+            setProfile(userProfile);
+          } else {
+            console.log('⚠️ Perfil não encontrado, criando básico...');
+            // Criar perfil básico se não existir
+            setProfile({
+              id: session.user.id,
+              email: session.user.email || '',
+              full_name: session.user.email?.split('@')[0] || 'Usuário',
+              phone: '',
+              avatar_url: '',
+              wallet_id: '',
+              is_affiliate: false,
+              affiliate_status: '',
+              last_login_at: new Date().toISOString(),
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            });
+          }
+        });
       }
       
       setLoading(false);
@@ -194,14 +243,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('Auth state changed:', event, session?.user?.email);
+      console.log('🔄 Auth state changed:', event, session?.user?.email);
       
       setSession(session);
       setUser(session?.user ?? null);
 
       if (session?.user) {
         const userProfile = await fetchProfile(session.user.id);
-        setProfile(userProfile);
+        if (userProfile) {
+          setProfile(userProfile);
+        } else {
+          // Perfil básico se não encontrar
+          setProfile({
+            id: session.user.id,
+            email: session.user.email || '',
+            full_name: session.user.email?.split('@')[0] || 'Usuário',
+            phone: '',
+            avatar_url: '',
+            wallet_id: '',
+            is_affiliate: false,
+            affiliate_status: '',
+            last_login_at: new Date().toISOString(),
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          });
+        }
       } else {
         setProfile(null);
       }
