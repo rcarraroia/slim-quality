@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teste Direto - Supabase Auth</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .container { max-width: 600px; margin: 0 auto; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; }
+        input { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; }
+        button { padding: 10px 20px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        button:hover { background: #0056b3; }
+        .result { margin-top: 20px; padding: 15px; border-radius: 4px; }
+        .success { background: #d4edda; border: 1px solid #c3e6cb; color: #155724; }
+        .error { background: #f8d7da; border: 1px solid #f5c6cb; color: #721c24; }
+        .info { background: #d1ecf1; border: 1px solid #bee5eb; color: #0c5460; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔐 Teste Direto - Supabase Auth</h1>
+        
+        <div class="form-group">
+            <label for="email">Email:</label>
+            <input type="email" id="email" value="jbmkt01@gmail.com">
+        </div>
+        
+        <div class="form-group">
+            <label for="password">Senha:</label>
+            <input type="password" id="password" value="M&151173c@">
+        </div>
+        
+        <button onclick="testLogin()">Testar Login</button>
+        <button onclick="testConfig()">Testar Configuração</button>
+        
+        <div id="result"></div>
+    </div>
+
+    <script type="module">
+        // Importar Supabase diretamente via CDN
+        import { createClient } from 'https://cdn.skypack.dev/@supabase/supabase-js@2';
+        
+        // Configuração do Supabase (mesmas credenciais do .env)
+        const SUPABASE_URL = 'https://vtynmmtuvxreiwcxxlma.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ0eW5tbXR1dnhyZWl3Y3h4bG1hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTYzODE2MDIsImV4cCI6MjA3MTk1NzYwMn0.fd-WSqFh7QsSlB0Q62cXAZZ-yDcI0n0sXyJ4eWIRKH8';
+        
+        // Criar cliente Supabase
+        const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        
+        // Função para mostrar resultado
+        function showResult(message, type = 'info') {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = `<div class="${type}">${message}</div>`;
+        }
+        
+        // Testar configuração
+        window.testConfig = async function() {
+            showResult('🔍 Testando configuração do Supabase...', 'info');
+            
+            try {
+                // Testar conexão básica
+                const { data, error } = await supabase
+                    .from('profiles')
+                    .select('email')
+                    .limit(1);
+                
+                if (error) {
+                    showResult(`❌ Erro na configuração: ${error.message}`, 'error');
+                } else {
+                    showResult(`✅ Configuração OK! Encontrados ${data.length} perfis.`, 'success');
+                }
+            } catch (err) {
+                showResult(`💥 Erro geral: ${err.message}`, 'error');
+            }
+        };
+        
+        // Testar login
+        window.testLogin = async function() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            
+            showResult(`🔐 Testando login: ${email}...`, 'info');
+            
+            try {
+                const { data, error } = await supabase.auth.signInWithPassword({
+                    email: email,
+                    password: password
+                });
+                
+                if (error) {
+                    showResult(`❌ Erro no login: ${error.message}`, 'error');
+                } else if (data.user) {
+                    showResult(`✅ Login SUCESSO!<br>
+                        🆔 User ID: ${data.user.id}<br>
+                        📧 Email: ${data.user.email}<br>
+                        ✉️ Email confirmado: ${data.user.email_confirmed_at}<br>
+                        🔑 Último login: ${data.user.last_sign_in_at}`, 'success');
+                    
+                    // Buscar perfil
+                    const { data: profile, error: profileError } = await supabase
+                        .from('profiles')
+                        .select('*')
+                        .eq('id', data.user.id)
+                        .single();
+                    
+                    if (profile) {
+                        showResult(document.getElementById('result').innerHTML + `<br>
+                            👤 Nome: ${profile.full_name}<br>
+                            🎭 Role: ${profile.role}<br>
+                            📊 Status: ${profile.status}`, 'success');
+                    }
+                    
+                    // Fazer logout
+                    await supabase.auth.signOut();
+                } else {
+                    showResult('❌ Login falhou: Sem dados de usuário', 'error');
+                }
+            } catch (err) {
+                showResult(`💥 Erro geral: ${err.message}`, 'error');
+            }
+        };
+        
+        // Testar configuração automaticamente ao carregar
+        window.addEventListener('load', () => {
+            setTimeout(testConfig, 1000);
+        });
+    </script>
+</body>
+</html>

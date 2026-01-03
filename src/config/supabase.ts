@@ -19,7 +19,15 @@ const supabaseKey = isVite
   : process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || '';
 
 if (!supabaseUrl || !supabaseKey) {
-  console.warn('Supabase URL e ANON_KEY não configurados. Algumas funcionalidades podem não funcionar.');
+  console.warn('⚠️ Supabase URL e ANON_KEY não configurados. Algumas funcionalidades podem não funcionar.');
+  console.log('🔍 Debug Supabase Config:', {
+    supabaseUrl: supabaseUrl ? `${supabaseUrl.substring(0, 30)}...` : 'UNDEFINED',
+    supabaseKey: supabaseKey ? `${supabaseKey.substring(0, 30)}...` : 'UNDEFINED',
+    isVite,
+    env: isVite ? 'Vite' : 'Node.js'
+  });
+} else {
+  console.log('✅ Supabase configurado corretamente');
 }
 
 export const supabase = createClient(supabaseUrl, supabaseKey);
