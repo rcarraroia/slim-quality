@@ -14,11 +14,16 @@ try:
     app = FastAPI(title="Slim Quality Agent", version="0.1.0")
     print("✅ App OK", flush=True)
     
-    # Configurar CORS CORRIGIDO - Permitir todos os domínios temporariamente para debug
+    # Configurar CORS para produção
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"],  # Temporário para debug
-        allow_credentials=False,  # Não pode ser True com allow_origins=["*"]
+        allow_origins=[
+            "https://slimquality.com.br",
+            "https://www.slimquality.com.br",
+            "http://localhost:8080",  # Desenvolvimento local
+            "http://localhost:3000"   # Desenvolvimento alternativo
+        ],
+        allow_credentials=True,
         allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
         allow_headers=["*"],
     )

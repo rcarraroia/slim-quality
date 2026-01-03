@@ -14,7 +14,7 @@ import {
   Zap
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import axios from 'axios';
+import { apiClient } from '@/lib/api';
 
 interface IntegrationStatus {
   id: string;
@@ -45,7 +45,7 @@ export default function AgenteMcp() {
       console.log('🔍 Buscando status MCP da API...');
       
       // Conectar com API real implementada na Fase 1
-      const response = await axios.get<MCPStatusResponse>('/api/mcp/status');
+      const response = await apiClient.get<MCPStatusResponse>('/api/mcp/status');
       
       console.log('✅ Status MCP recebido:', response.data);
       
@@ -124,7 +124,7 @@ export default function AgenteMcp() {
       });
 
       // Chamar API real implementada na Fase 1
-      const response = await axios.post(`/api/mcp/test/${integrationId}`);
+      const response = await apiClient.post(`/api/mcp/test/${integrationId}`);
       
       console.log('🧪 Resultado do teste:', response.data);
       

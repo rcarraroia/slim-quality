@@ -12,8 +12,8 @@ YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
 # Configurações
-REGISTRY="registry.easypanel.host"
-IMAGE_NAME="slim-agent"
+REGISTRY="docker.io"
+IMAGE_NAME="renumvscode/slim-agent"
 TIMESTAMP=$(date +%Y%m%d-%H%M%S)
 
 echo -e "${YELLOW}🚀 Iniciando push das imagens Docker...${NC}"

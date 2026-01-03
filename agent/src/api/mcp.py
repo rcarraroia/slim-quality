@@ -8,7 +8,7 @@ from datetime import datetime
 
 from ..schemas.agent_schemas import (
     MCPStatusResponse, MCPTestRequest, MCPTestResponse,
-    SuccessResponse, ErrorResponse
+    MCPIntegrationStatus, SuccessResponse, ErrorResponse
 )
 
 logger = structlog.get_logger(__name__)

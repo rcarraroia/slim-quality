@@ -7,8 +7,8 @@ set -e  # Parar em caso de erro
 # ============================================
 # Configurações
 # ============================================
-IMAGE_NAME="slim-agent"
-REGISTRY="registry.easypanel.host"
+IMAGE_NAME="renumvscode/slim-agent"
+REGISTRY="docker.io"
 VERSION=$(date +%Y%m%d-%H%M%S)
 LATEST_TAG="latest"
 
