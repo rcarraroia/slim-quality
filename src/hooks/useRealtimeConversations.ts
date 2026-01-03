@@ -201,7 +201,7 @@ export function useRealtimeConversations(
       console.log('🔌 Desconectando Supabase Realtime - Conversas');
       supabase.removeChannel(channel);
     };
-  }, [limit, JSON.stringify(status), JSON.stringify(channel), assigned_to, customer_id]);
+  }, [limit, status?.join(','), channel?.join(','), assigned_to, customer_id]);
 
   // Calcular contagens por canal
   const channelCounts = {
