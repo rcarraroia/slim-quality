@@ -20,6 +20,7 @@ import Conversas from "./pages/dashboard/Conversas";
 import ConversaDetalhes from "./pages/dashboard/ConversaDetalhes";
 import Produtos from "./pages/dashboard/Produtos";
 import Vendas from "./pages/dashboard/Vendas";
+import Pedidos from "./pages/dashboard/Pedidos";
 import Clientes from "./pages/dashboard/Clientes";
 import Configuracoes from "./pages/dashboard/Configuracoes";
 import Agendamentos from "./pages/dashboard/Agendamentos";
@@ -76,6 +77,7 @@ const App = () => (
             <Route path="conversas/:id" element={<ConversaDetalhes />} />
             <Route path="produtos" element={<Produtos />} />
             <Route path="vendas" element={<Vendas />} />
+            <Route path="pedidos" element={<Pedidos />} />
             
             {/* Novos Itens da Fase 4 */}
             <Route path="clientes" element={<Clientes />} />

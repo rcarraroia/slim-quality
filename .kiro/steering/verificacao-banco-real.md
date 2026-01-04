@@ -11,7 +11,7 @@
 
 ANTES de criar qualquer migração ou script SQL:
 
-- [ ] Conectou ao banco real via Supabase CLI?
+- [ ] Conectou ao banco real via Power: Supabase Hosted Development?
 - [ ] Verificou se a tabela/estrutura já existe?
 - [ ] Contou quantos registros existem?
 - [ ] Analisou a estrutura atual dos dados?
@@ -24,91 +24,78 @@ ANTES de criar qualquer migração ou script SQL:
 
 ---
 
-## 🛠️ COMANDOS PARA VERIFICAÇÃO
+## 🛠️ ACESSO OFICIAL AO BANCO DE DADOS
 
-### 1. Conectar ao Projeto
-```bash
-# Fazer login
-supabase login
+### ⚠️ MÉTODO OFICIAL ÚNICO
 
-# Linkar ao projeto
-supabase link --project-ref vtynmmtuvxreiwcxxlma
+**A partir de agora, o acesso ao banco de dados Supabase deve ser feito EXCLUSIVAMENTE através do:**
 
-# Verificar conexão
-supabase projects list
+**🔌 Power: Supabase Hosted Development**
+
+### Como Usar o Power Supabase
+
+1. **Ativar o Power:**
+```
+Use o comando kiroPowers para ativar o power "supabase-hosted"
 ```
 
-### 2. Verificar Estrutura Geral
-```bash
-# Ver todas as tabelas
-supabase db execute "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' ORDER BY table_name;"
-
-# Ver estrutura completa
-supabase db dump --schema public
+2. **Verificar Estrutura de Tabelas:**
+```
+Use as ferramentas do power para listar tabelas e verificar estruturas
 ```
 
-### 3. Verificar Tabelas Específicas
-```bash
-# Verificar se tabela existe
-supabase db execute "SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'affiliates');"
-
-# Contar registros
-supabase db execute "SELECT COUNT(*) FROM affiliates;"
-
-# Ver estrutura da tabela
-supabase db execute "\\d affiliates"
+3. **Executar Queries de Verificação:**
+```
+Use as ferramentas do power para executar queries SELECT e verificar dados
 ```
 
-### 4. Verificar Migrations
-```bash
-# Ver histórico de migrations
-supabase migration list
-
-# Ver migrations pendentes
-supabase db diff
+4. **Aplicar Migrations:**
 ```
+Use as ferramentas do power para aplicar mudanças no banco
+```
+
+### Comandos Básicos via Power
+
+#### Verificar Estrutura Geral
+- Listar todas as tabelas do schema public
+- Verificar estrutura de tabelas específicas
+- Contar registros em tabelas
+
+#### Verificar Dados Existentes
+- Executar queries SELECT para análise
+- Verificar relacionamentos entre tabelas
+- Analisar políticas RLS ativas
+
+#### Aplicar Mudanças
+- Executar migrations de forma segura
+- Criar/alterar tabelas quando necessário
+- Aplicar políticas RLS
 
 ---
 
 ## 🎯 PROTOCOLO DE ANÁLISE PRÉVIA
 
-### Exemplo de Verificação Completa
-```bash
-# 1. Verificar tabelas de afiliados
-echo "=== VERIFICANDO TABELAS DE AFILIADOS ==="
-supabase db execute "
-SELECT 
-  table_name,
-  (SELECT COUNT(*) FROM information_schema.columns WHERE table_name = t.table_name) as column_count
-FROM information_schema.tables t 
-WHERE table_schema = 'public' 
-  AND table_name IN ('affiliates', 'affiliate_network', 'commissions', 'referral_clicks', 'referral_conversions', 'asaas_wallets')
-ORDER BY table_name;
-"
+### Exemplo de Verificação Completa via Power
 
-# 2. Se tabelas existem, verificar dados
-supabase db execute "
-SELECT 
-  'affiliates' as tabela, COUNT(*) as registros FROM affiliates
-UNION ALL
-SELECT 
-  'commissions' as tabela, COUNT(*) as registros FROM commissions
-UNION ALL
-SELECT 
-  'referral_clicks' as tabela, COUNT(*) as registros FROM referral_clicks;
-"
+```
+1. Ativar Power Supabase:
+   - Usar kiroPowers para ativar "supabase-hosted"
+   - Verificar conexão com o projeto
 
-# 3. Ver estrutura de uma tabela específica
-supabase db execute "
-SELECT 
-  column_name,
-  data_type,
-  is_nullable,
-  column_default
-FROM information_schema.columns 
-WHERE table_name = 'affiliates' 
-ORDER BY ordinal_position;
-"
+2. Verificar tabelas de afiliados:
+   - Listar tabelas relacionadas a afiliados
+   - Verificar estrutura das tabelas existentes
+   - Contar registros em cada tabela
+
+3. Analisar dados existentes:
+   - Verificar dados em affiliates, commissions, etc.
+   - Identificar relacionamentos
+   - Verificar políticas RLS ativas
+
+4. Documentar estado atual:
+   - Registrar estruturas encontradas
+   - Documentar dados importantes
+   - Planejar mudanças necessárias
 ```
 
 ---
@@ -116,13 +103,13 @@ ORDER BY ordinal_position;
 ## 🚨 SITUAÇÕES CRÍTICAS
 
 ### Se Tabelas NÃO Existem
-- ✅ Pode criar normalmente
-- ✅ Aplicar migrations
-- ✅ Inserir dados de teste
+- ✅ Pode criar normalmente via Power
+- ✅ Aplicar migrations via Power
+- ✅ Inserir dados de teste via Power
 
 ### Se Tabelas JÁ Existem
-- ⚠️ CUIDADO: Verificar estrutura atual
-- ⚠️ CUIDADO: Verificar dados existentes
+- ⚠️ CUIDADO: Verificar estrutura atual via Power
+- ⚠️ CUIDADO: Verificar dados existentes via Power
 - ⚠️ CUIDADO: Criar migration de alteração, não criação
 
 ### Se Há Dados Importantes
@@ -137,19 +124,23 @@ ORDER BY ordinal_position;
 ```markdown
 ## VERIFICAÇÃO DO BANCO DE DADOS - [DATA]
 
+### Método de Acesso:
+- ✅ Power: Supabase Hosted Development ativado
+- ✅ Conexão com projeto estabelecida
+
 ### Tabelas Verificadas:
 - [ ] affiliates: [EXISTE/NÃO EXISTE] - [X registros]
 - [ ] affiliate_network: [EXISTE/NÃO EXISTE] - [X registros]
 - [ ] commissions: [EXISTE/NÃO EXISTE] - [X registros]
 
 ### Estrutura Atual:
-[Descrever estrutura encontrada]
+[Descrever estrutura encontrada via Power]
 
 ### Dados Existentes:
-[Descrever dados importantes encontrados]
+[Descrever dados importantes encontrados via Power]
 
 ### Ações Necessárias:
-[Listar o que precisa ser feito]
+[Listar o que precisa ser feito via Power]
 
 ### Riscos Identificados:
 [Listar possíveis problemas]
@@ -157,4 +148,12 @@ ORDER BY ordinal_position;
 
 ---
 
-**LEMBRE-SE: Análise prévia é OBRIGATÓRIA antes de qualquer intervenção!**
+## ⚠️ IMPORTANTE
+
+**MÉTODO OFICIAL ÚNICO DE ACESSO:**
+- 🔌 **Power: Supabase Hosted Development**
+- ❌ **NÃO usar mais Supabase CLI diretamente**
+- ❌ **NÃO usar credenciais hardcoded**
+- ❌ **NÃO usar scripts Python com credenciais**
+
+**LEMBRE-SE: Análise prévia via Power é OBRIGATÓRIA antes de qualquer intervenção!**

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import { MessageSquare, DollarSign, TrendingUp, Target, PackageOpen } from 'lucide-react';
+import { MessageSquare, DollarSign, TrendingUp, Target, PackageOpen, Package, Clock, RefreshCw, AlertCircle } from 'lucide-react';
 import { StatCard } from '@/components/dashboard/StatCard';
+import { StatCardSkeleton } from '@/components/dashboard/StatCardSkeleton';
 import { StatusBadge } from '@/components/dashboard/StatusBadge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -9,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Link } from 'react-router-dom';
 import { supabase } from '@/config/supabase';
 import { useRealtimeConversations } from '@/hooks/useRealtimeConversations';
+import { SupabaseService } from '@/services/SupabaseService';
 
 interface Conversation {
   id: string;
@@ -37,9 +39,13 @@ export default function Dashboard() {
   const [stats, setStats] = useState({
     conversasAtivas: 0,
     vendasMes: 0,
+    pedidosRealizados: 0,
+    pedidosPendentes: 0,
     taxaConversao: 0,
     ticketMedio: 0
   });
+  const [error, setError] = useState<string | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
 
   // Usar hook de conversas em tempo real
   const { conversations: conversasRecentes, channelCounts } = useRealtimeConversations();
@@ -52,16 +58,39 @@ export default function Dashboard() {
     try {
       console.log('📊 Carregando dados do dashboard...');
       setLoading(true);
-      await Promise.all([
-        loadOrders(),
-        loadStats()
+      setError(null);
+      
+      // Timeout de 10 segundos
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Timeout: Operação demorou mais que 10 segundos')), 10000)
+      );
+      
+      await Promise.race([
+        Promise.all([
+          loadOrders(),
+          loadStats()
+        ]),
+        timeoutPromise
       ]);
+      
       console.log('✅ Dados do dashboard carregados com sucesso');
+      setRetryCount(0); // Reset retry count on success
     } catch (error) {
       console.error('❌ Erro ao carregar dashboard:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
+      setError(`Erro ao carregar dados: ${errorMessage}`);
       // Não bloquear o dashboard por erro - mostrar dados vazios
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleRetry = async () => {
+    if (retryCount < 3) {
+      setRetryCount(prev => prev + 1);
+      await loadDashboardData();
+    } else {
+      setError('Múltiplas tentativas falharam. Verifique sua conexão com a internet.');
     }
   };
 
@@ -69,29 +98,15 @@ export default function Dashboard() {
 
   const loadOrders = async () => {
     try {
-      console.log('📦 Carregando pedidos...');
-      const { data, error } = await supabase
-        .from('orders')
-        .select(`
-          id,
-          created_at,
-          total_cents,
-          status,
-          customer_name,
-          order_items(product_name)
-        `)
-        .order('created_at', { ascending: false })
-        .limit(5);
-
-      if (error) {
-        console.error('❌ Erro ao carregar vendas:', error);
-        return;
-      }
+      console.log('💰 Carregando APENAS vendas confirmadas (status paid)...');
       
-      console.log(`✅ ${data?.length || 0} pedidos carregados`);
-      setVendasRecentes(data || []);
+      // CORREÇÃO: Usar getSalesOnly para filtrar apenas vendas pagas
+      const vendas = await SupabaseService.getSalesOnly(5);
+      
+      console.log(`✅ ${vendas.length} vendas confirmadas carregadas`);
+      setVendasRecentes(vendas);
     } catch (error) {
-      console.error('💥 Erro geral ao carregar pedidos:', error);
+      console.error('💥 Erro geral ao carregar vendas:', error);
       setVendasRecentes([]);
     }
   };
@@ -106,25 +121,17 @@ export default function Dashboard() {
         .select('*', { count: 'exact', head: true })
         .eq('status', 'open');
 
-      // Vendas do mês atual
-      const startOfMonth = new Date();
-      startOfMonth.setDate(1);
-      startOfMonth.setHours(0, 0, 0, 0);
-
-      const { data: ordersData } = await supabase
-        .from('orders')
-        .select('total_cents')
-        .gte('created_at', startOfMonth.toISOString());
-
-      const vendasMes = ordersData?.reduce((acc, order) => acc + (order.total_cents / 100), 0) || 0;
-      const quantidadeVendas = ordersData?.length || 0;
-      const ticketMedio = quantidadeVendas > 0 ? vendasMes / quantidadeVendas : 0;
+      // CORREÇÃO: Usar SupabaseService para métricas corretas
+      console.log('💰 Buscando métricas reais do banco...');
+      const metricas = await SupabaseService.getDashboardMetrics('mes');
 
       const newStats = {
         conversasAtivas: conversasCount || 0,
-        vendasMes,
-        taxaConversao: 0, // Calcular depois se necessário
-        ticketMedio
+        vendasMes: metricas.valor_vendas_mes, // APENAS vendas pagas
+        pedidosRealizados: metricas.pedidos_realizados, // TODOS os pedidos
+        pedidosPendentes: metricas.pedidos_pendentes, // Apenas pendentes
+        taxaConversao: metricas.taxa_conversao,
+        ticketMedio: metricas.ticket_medio
       };
       
       console.log('✅ Estatísticas carregadas:', newStats);
@@ -135,6 +142,8 @@ export default function Dashboard() {
       setStats({
         conversasAtivas: 0,
         vendasMes: 0,
+        pedidosRealizados: 0,
+        pedidosPendentes: 0,
         taxaConversao: 0,
         ticketMedio: 0
       });
@@ -154,32 +163,82 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6">
+      {/* Error Banner */}
+      {error && (
+        <Card className="border-destructive bg-destructive/5">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <AlertCircle className="h-5 w-5 text-destructive" />
+              <div className="flex-1">
+                <p className="text-sm font-medium text-destructive">{error}</p>
+              </div>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={handleRetry}
+                disabled={retryCount >= 3}
+                className="gap-2"
+              >
+                <RefreshCw className="h-4 w-4" />
+                {retryCount >= 3 ? 'Limite atingido' : 'Tentar novamente'}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Métricas */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <StatCard
-          icon={MessageSquare}
-          label="Conversas Ativas"
-          value={stats.conversasAtivas}
-          iconColor="text-primary"
-        />
-        <StatCard
-          icon={DollarSign}
-          label="Vendas do Mês"
-          value={`R$ ${stats.vendasMes.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
-          iconColor="text-success"
-        />
-        <StatCard
-          icon={TrendingUp}
-          label="Taxa de Conversão"
-          value={`${stats.taxaConversao.toFixed(1)}%`}
-          iconColor="text-blue-500"
-        />
-        <StatCard
-          icon={Target}
-          label="Ticket Médio"
-          value={`R$ ${stats.ticketMedio.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
-          iconColor="text-secondary"
-        />
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-6">
+        {loading ? (
+          // Skeleton loading state
+          <>
+            <StatCardSkeleton />
+            <StatCardSkeleton />
+            <StatCardSkeleton />
+            <StatCardSkeleton />
+            <StatCardSkeleton />
+            <StatCardSkeleton />
+          </>
+        ) : (
+          <>
+            <StatCard
+              icon={MessageSquare}
+              label="Conversas Ativas"
+              value={stats.conversasAtivas}
+              iconColor="text-primary"
+            />
+            <StatCard
+              icon={DollarSign}
+              label="Vendas do Mês"
+              value={`R$ ${stats.vendasMes.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
+              iconColor="text-success"
+            />
+            <StatCard
+              icon={Package}
+              label="Pedidos Realizados"
+              value={stats.pedidosRealizados}
+              iconColor="text-blue-600"
+            />
+            <StatCard
+              icon={Clock}
+              label="Pedidos Pendentes"
+              value={stats.pedidosPendentes}
+              iconColor="text-orange-500"
+            />
+            <StatCard
+              icon={TrendingUp}
+              label="Taxa de Conversão"
+              value={`${stats.taxaConversao.toFixed(1)}%`}
+              iconColor="text-blue-500"
+            />
+            <StatCard
+              icon={Target}
+              label="Ticket Médio"
+              value={`R$ ${stats.ticketMedio.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
+              iconColor="text-secondary"
+            />
+          </>
+        )}
       </div>
 
       {/* Conversas Recentes */}
@@ -271,7 +330,10 @@ export default function Dashboard() {
           {vendasRecentes.length === 0 ? (
             <div className="text-center py-8">
               <DollarSign className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
-              <p className="text-muted-foreground">Nenhuma venda recente</p>
+              <p className="text-muted-foreground">Nenhuma venda confirmada</p>
+              <p className="text-sm text-muted-foreground mt-1">
+                Vendas aparecem aqui apenas após pagamento confirmado
+              </p>
             </div>
           ) : (
             <div className="overflow-x-auto">

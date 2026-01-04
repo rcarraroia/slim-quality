@@ -22,7 +22,8 @@ import {
   X,
   Brain,
   Plug,
-  Lightbulb
+  Lightbulb,
+  ShoppingCart
 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -46,6 +47,7 @@ export function DashboardLayout() {
     { icon: MessageSquare, label: 'Conversas', path: '/dashboard/conversas', badge: 8, disabled: false },
     { icon: Package, label: 'Produtos', path: '/dashboard/produtos', disabled: false },
     { icon: DollarSign, label: 'Vendas', path: '/dashboard/vendas', disabled: false },
+    { icon: ShoppingCart, label: 'Pedidos', path: '/dashboard/pedidos', disabled: false },
   ];
 
   const affiliateSubmenu = [

@@ -21,6 +21,7 @@ try:
             "https://slimquality.com.br",
             "https://www.slimquality.com.br",
             "http://localhost:8080",  # Desenvolvimento local
+            "http://localhost:8081",  # Painel administrativo (Browser)
             "http://localhost:3000"   # Desenvolvimento alternativo
         ],
         allow_credentials=True,

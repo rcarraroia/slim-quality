@@ -5,8 +5,8 @@ import { Input } from '@/components/ui/input';
 import { StatusBadge } from '@/components/dashboard/StatusBadge';
 import { StatCard } from '@/components/dashboard/StatCard';
 import { StatCardSkeleton } from '@/components/dashboard/StatCardSkeleton';
-import { DollarSign, ShoppingCart, TrendingUp, Target, Eye, Download, PackageOpen, RefreshCw, AlertCircle } from 'lucide-react';
-import { SupabaseService, Sale } from '@/services/SupabaseService';
+import { Package, Clock, CheckCircle, XCircle, Eye, Download, PackageOpen, RefreshCw, AlertCircle } from 'lucide-react';
+import { SupabaseService, Order } from '@/services/SupabaseService';
 import {
   Select,
   SelectContent,
@@ -21,14 +21,15 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 
-export default function Vendas() {
+export default function Pedidos() {
+  const [statusFilter, setStatusFilter] = useState('todos');
   const [periodoFilter, setPeriodoFilter] = useState('mes');
   const [clienteFilter, setClienteFilter] = useState('');
   const [produtoFilter, setProdutoFilter] = useState('');
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
-  const [selectedVenda, setSelectedVenda] = useState<Sale | null>(null);
-  const [vendas, setVendas] = useState<Sale[]>([]);
-  const [todasVendas, setTodasVendas] = useState<Sale[]>([]);
+  const [selectedPedido, setSelectedPedido] = useState<Order | null>(null);
+  const [pedidos, setPedidos] = useState<Order[]>([]);
+  const [todosPedidos, setTodosPedidos] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
@@ -36,44 +37,44 @@ export default function Vendas() {
   const [totalPages, setTotalPages] = useState(1);
   const itemsPerPage = 20;
   const [metricas, setMetricas] = useState({
-    totalVendas: 0,
-    quantidadeVendas: 0,
-    ticketMedio: 0,
-    taxaConversao: 0
+    totalPedidos: 0,
+    pedidosPendentes: 0,
+    pedidosPagos: 0,
+    pedidosCancelados: 0
   });
 
   useEffect(() => {
-    loadVendas();
+    loadPedidos();
   }, [periodoFilter]);
 
   useEffect(() => {
     applyFilters();
-  }, [clienteFilter, produtoFilter, currentPage, todasVendas]);
+  }, [statusFilter, clienteFilter, produtoFilter, currentPage, todosPedidos]);
 
-  const loadVendas = async () => {
+  const loadPedidos = async () => {
     try {
-      console.log('💰 Carregando página de vendas...');
+      console.log('📦 Carregando página de pedidos...');
       setLoading(true);
       setError(null);
       
-      // CORREÇÃO: Usar SupabaseService para buscar APENAS vendas pagas
-      const vendasData = await SupabaseService.getSalesOnly();
+      // Buscar TODOS os pedidos (não apenas vendas pagas)
+      const pedidosData = await SupabaseService.getAllOrders();
       const metricasData = await SupabaseService.getDashboardMetrics(periodoFilter as any);
       
-      setTodasVendas(vendasData);
+      setTodosPedidos(pedidosData);
       setMetricas({
-        totalVendas: metricasData.valor_vendas_mes,
-        quantidadeVendas: metricasData.vendas_confirmadas,
-        ticketMedio: metricasData.ticket_medio,
-        taxaConversao: metricasData.taxa_conversao
+        totalPedidos: metricasData.pedidos_realizados,
+        pedidosPendentes: metricasData.pedidos_pendentes,
+        pedidosPagos: metricasData.vendas_confirmadas,
+        pedidosCancelados: metricasData.pedidos_cancelados
       });
       
-      console.log(`✅ ${vendasData.length} vendas carregadas`);
+      console.log(`✅ ${pedidosData.length} pedidos carregados`);
       setRetryCount(0); // Reset retry count on success
     } catch (error) {
-      console.error('❌ Erro ao carregar vendas:', error);
-      setError('Erro ao carregar vendas. Verifique sua conexão.');
-      setTodasVendas([]);
+      console.error('❌ Erro ao carregar pedidos:', error);
+      setError('Erro ao carregar pedidos. Verifique sua conexão.');
+      setTodosPedidos([]);
     } finally {
       setLoading(false);
     }
@@ -82,46 +83,52 @@ export default function Vendas() {
   const handleRetry = async () => {
     if (retryCount < 3) {
       setRetryCount(prev => prev + 1);
-      await loadVendas();
+      await loadPedidos();
     } else {
       setError('Múltiplas tentativas falharam. Verifique sua conexão com a internet.');
     }
   };
 
   const applyFilters = () => {
-    let vendasFiltradas = [...todasVendas];
+    let pedidosFiltrados = [...todosPedidos];
+
+    // Filtro por status
+    if (statusFilter !== 'todos') {
+      pedidosFiltrados = pedidosFiltrados.filter(pedido => pedido.status === statusFilter);
+    }
 
     // Filtro por cliente
     if (clienteFilter) {
-      vendasFiltradas = vendasFiltradas.filter(venda => 
-        venda.customer_name?.toLowerCase().includes(clienteFilter.toLowerCase())
+      pedidosFiltrados = pedidosFiltrados.filter(pedido => 
+        pedido.customer_name?.toLowerCase().includes(clienteFilter.toLowerCase())
       );
     }
 
     // Filtro por produto
     if (produtoFilter) {
-      vendasFiltradas = vendasFiltradas.filter(venda => 
-        venda.order_items?.[0]?.product_name?.toLowerCase().includes(produtoFilter.toLowerCase())
+      pedidosFiltrados = pedidosFiltrados.filter(pedido => 
+        pedido.order_items?.[0]?.product_name?.toLowerCase().includes(produtoFilter.toLowerCase())
       );
     }
 
     // Implementar paginação
     const startIndex = (currentPage - 1) * itemsPerPage;
     const endIndex = startIndex + itemsPerPage;
-    const vendasPaginadas = vendasFiltradas.slice(startIndex, endIndex);
+    const pedidosPaginados = pedidosFiltrados.slice(startIndex, endIndex);
     
-    setVendas(vendasPaginadas);
-    setTotalPages(Math.ceil(vendasFiltradas.length / itemsPerPage));
+    setPedidos(pedidosPaginados);
+    setTotalPages(Math.ceil(pedidosFiltrados.length / itemsPerPage));
   };
 
   const resetFilters = () => {
+    setStatusFilter('todos');
     setClienteFilter('');
     setProdutoFilter('');
     setCurrentPage(1);
   };
 
-  const handleViewDetails = (venda: Sale) => {
-    setSelectedVenda(venda);
+  const handleViewDetails = (pedido: Order) => {
+    setSelectedPedido(pedido);
     setIsDetailModalOpen(true);
   };
 
@@ -163,28 +170,28 @@ export default function Vendas() {
         ) : (
           <>
             <StatCard
-              icon={DollarSign}
-              label="Total de Vendas"
-              value={`R$ ${metricas.totalVendas.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
+              icon={Package}
+              label="Total de Pedidos"
+              value={metricas.totalPedidos}
+              iconColor="text-blue-600"
+            />
+            <StatCard
+              icon={Clock}
+              label="Pedidos Pendentes"
+              value={metricas.pedidosPendentes}
+              iconColor="text-orange-500"
+            />
+            <StatCard
+              icon={CheckCircle}
+              label="Pedidos Pagos"
+              value={metricas.pedidosPagos}
               iconColor="text-success"
             />
             <StatCard
-              icon={ShoppingCart}
-              label="Vendas Realizadas"
-              value={metricas.quantidadeVendas}
-              iconColor="text-primary"
-            />
-            <StatCard
-              icon={Target}
-              label="Ticket Médio"
-              value={`R$ ${metricas.ticketMedio.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
-              iconColor="text-secondary"
-            />
-            <StatCard
-              icon={TrendingUp}
-              label="Taxa de Conversão"
-              value={`${metricas.taxaConversao.toFixed(1)}%`}
-              iconColor="text-blue-500"
+              icon={XCircle}
+              label="Pedidos Cancelados"
+              value={metricas.pedidosCancelados}
+              iconColor="text-destructive"
             />
           </>
         )}
@@ -194,6 +201,18 @@ export default function Vendas() {
       <Card>
         <CardContent className="p-4">
           <div className="flex flex-wrap gap-4 items-center">
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todos">Todos</SelectItem>
+                <SelectItem value="pending">Pendentes</SelectItem>
+                <SelectItem value="paid">Pagos</SelectItem>
+                <SelectItem value="cancelled">Cancelados</SelectItem>
+              </SelectContent>
+            </Select>
+
             <Select value={periodoFilter} onValueChange={setPeriodoFilter}>
               <SelectTrigger className="w-[180px]">
                 <SelectValue placeholder="Período" />
@@ -233,7 +252,7 @@ export default function Vendas() {
         </CardContent>
       </Card>
 
-      {/* Tabela de Vendas */}
+      {/* Tabela de Pedidos */}
       <Card>
         <CardContent className="p-0">
           <div className="overflow-x-auto">
@@ -245,7 +264,6 @@ export default function Vendas() {
                   <th className="text-left p-4 font-medium text-sm">Cliente</th>
                   <th className="text-left p-4 font-medium text-sm">Produto</th>
                   <th className="text-left p-4 font-medium text-sm">Valor</th>
-                  <th className="text-left p-4 font-medium text-sm">Pagamento</th>
                   <th className="text-left p-4 font-medium text-sm">Status</th>
                   <th className="text-left p-4 font-medium text-sm">Ações</th>
                 </tr>
@@ -253,50 +271,49 @@ export default function Vendas() {
               <tbody>
                 {loading ? (
                   <tr>
-                    <td colSpan={8} className="p-8 text-center text-muted-foreground">
-                      Carregando vendas...
+                    <td colSpan={7} className="p-8 text-center text-muted-foreground">
+                      Carregando pedidos...
                     </td>
                   </tr>
-                ) : vendas.length === 0 ? (
+                ) : pedidos.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="p-12">
+                    <td colSpan={7} className="p-12">
                       <div className="flex flex-col items-center justify-center text-center">
                         <PackageOpen className="h-16 w-16 text-muted-foreground mb-4" />
-                        <h3 className="text-lg font-semibold mb-2">Nenhuma venda confirmada</h3>
+                        <h3 className="text-lg font-semibold mb-2">Nenhum pedido encontrado</h3>
                         <p className="text-muted-foreground">
-                          Vendas aparecem aqui apenas após pagamento confirmado (status 'paid')
+                          Os pedidos aparecerão aqui quando forem realizados
                         </p>
                       </div>
                     </td>
                   </tr>
                 ) : (
-                  vendas.map((venda, index) => (
+                  pedidos.map((pedido, index) => (
                     <tr 
-                      key={venda.id}
+                      key={pedido.id}
                       className={`border-b hover:bg-muted/50 transition-colors ${
                         index % 2 === 0 ? 'bg-background' : 'bg-muted/20'
                       }`}
                     >
-                      <td className="p-4 text-sm font-medium">#{venda.id.slice(0, 8)}</td>
+                      <td className="p-4 text-sm font-medium">#{pedido.id.slice(0, 8)}</td>
                       <td className="p-4 text-sm">
-                        {new Date(venda.created_at).toLocaleDateString('pt-BR')}
+                        {new Date(pedido.created_at).toLocaleDateString('pt-BR')}
                       </td>
-                      <td className="p-4 text-sm">{venda.customer_name || 'N/A'}</td>
+                      <td className="p-4 text-sm">{pedido.customer_name || 'N/A'}</td>
                       <td className="p-4 text-sm">
-                        {venda.order_items?.[0]?.product_name || 'N/A'}
+                        {pedido.order_items?.[0]?.product_name || 'N/A'}
                       </td>
                       <td className="p-4 text-sm font-semibold">
-                        R$ {(venda.total_cents / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        R$ {(pedido.total_cents / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                       </td>
-                      <td className="p-4 text-sm text-muted-foreground">PIX/Cartão</td>
                       <td className="p-4">
-                        <StatusBadge status={venda.status} />
+                        <StatusBadge status={pedido.status as any} />
                       </td>
                       <td className="p-4">
                         <Button 
                           variant="ghost" 
                           size="sm"
-                          onClick={() => handleViewDetails(venda)}
+                          onClick={() => handleViewDetails(pedido)}
                         >
                           <Eye className="h-4 w-4" />
                         </Button>
@@ -345,30 +362,30 @@ export default function Vendas() {
       <Dialog open={isDetailModalOpen} onOpenChange={setIsDetailModalOpen}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Venda #{selectedVenda?.id}</DialogTitle>
+            <DialogTitle>Pedido #{selectedPedido?.id}</DialogTitle>
           </DialogHeader>
           
-          {selectedVenda && (
+          {selectedPedido && (
             <div className="space-y-6 py-4">
               <div className="space-y-3">
                 <h3 className="font-semibold text-lg">Informações do Cliente</h3>
                 <div className="grid grid-cols-2 gap-3 text-sm">
                   <div>
                     <span className="text-muted-foreground">Nome:</span>
-                    <p className="font-medium">{selectedVenda.customer_name || 'N/A'}</p>
+                    <p className="font-medium">{selectedPedido.customer_name || 'N/A'}</p>
                   </div>
                   <div>
                     <span className="text-muted-foreground">Email:</span>
-                    <p className="font-medium">{selectedVenda.customer_email || 'N/A'}</p>
+                    <p className="font-medium">{selectedPedido.customer_email || 'N/A'}</p>
                   </div>
                   <div>
                     <span className="text-muted-foreground">Telefone:</span>
-                    <p className="font-medium">{selectedVenda.customer_phone || 'N/A'}</p>
+                    <p className="font-medium">{selectedPedido.customer_phone || 'N/A'}</p>
                   </div>
                   <div>
                     <span className="text-muted-foreground">Data:</span>
                     <p className="font-medium">
-                      {new Date(selectedVenda.created_at).toLocaleDateString('pt-BR')}
+                      {new Date(selectedPedido.created_at).toLocaleDateString('pt-BR')}
                     </p>
                   </div>
                 </div>
@@ -380,29 +397,25 @@ export default function Vendas() {
                   <div>
                     <span className="text-muted-foreground">Produto:</span>
                     <p className="font-medium">
-                      {selectedVenda.order_items?.[0]?.product_name || 'N/A'}
+                      {selectedPedido.order_items?.[0]?.product_name || 'N/A'}
                     </p>
                   </div>
                   <div className="col-span-2">
                     <span className="text-muted-foreground">Preço:</span>
                     <p className="font-medium text-lg text-primary">
-                      R$ {(selectedVenda.total_cents / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      R$ {(selectedPedido.total_cents / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                     </p>
                   </div>
                 </div>
               </div>
 
               <div className="space-y-3">
-                <h3 className="font-semibold text-lg">Pagamento</h3>
+                <h3 className="font-semibold text-lg">Status do Pedido</h3>
                 <div className="grid grid-cols-2 gap-3 text-sm">
                   <div>
-                    <span className="text-muted-foreground">Forma:</span>
-                    <p className="font-medium">PIX/Cartão</p>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground">Status:</span>
+                    <span className="text-muted-foreground">Status Atual:</span>
                     <div className="mt-1">
-                      <StatusBadge status={selectedVenda.status} />
+                      <StatusBadge status={selectedPedido.status as any} />
                     </div>
                   </div>
                 </div>
@@ -412,8 +425,8 @@ export default function Vendas() {
                 <Button variant="outline" onClick={() => setIsDetailModalOpen(false)}>
                   Fechar
                 </Button>
-                <Button>Editar Status</Button>
-                <Button variant="secondary">Enviar Comprovante</Button>
+                <Button>Alterar Status</Button>
+                <Button variant="secondary">Enviar Notificação</Button>
               </div>
             </div>
           )}
