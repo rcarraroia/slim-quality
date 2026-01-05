@@ -791,23 +791,11 @@ export class AffiliateFrontendService {
 
       if (!affiliate) throw new Error('Afiliado não encontrado');
 
-      // Buscar withdrawals/recebimentos
+      // Buscar withdrawals (SEM JOIN com commissions - não há FK direto)
       const offset = (page - 1) * limit;
       const { data, error, count } = await supabase
         .from('withdrawals')
-        .select(`
-          *,
-          commission:commissions(
-            id,
-            level,
-            amount_cents,
-            order:orders(
-              id,
-              customer_name,
-              total_cents
-            )
-          )
-        `, { count: 'exact' })
+        .select('*', { count: 'exact' })
         .eq('affiliate_id', affiliate.id)
         .order('created_at', { ascending: false })
         .range(offset, offset + limit - 1);
