@@ -113,15 +113,6 @@ export function AffiliateDashboardLayout() {
           <h1 className="text-xl font-semibold">{getPageTitle()}</h1>
           
           <div className="ml-auto flex items-center gap-4">
-            {/* Comissões Este Mês Card */}
-            <Card className="bg-gradient-to-r from-primary/10 to-secondary/10 border-primary/20 px-4 py-2 w-[250px]">
-              <div className="flex flex-col">
-                <p className="text-xs text-muted-foreground">Comissões Este Mês</p>
-                <p className="text-xl font-bold text-success">R$ 892,00</p>
-                <p className="text-xs text-muted-foreground mt-1">Depositadas automaticamente via Asaas</p>
-              </div>
-            </Card>
-
             {/* Search */}
             <div className="relative w-64">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
