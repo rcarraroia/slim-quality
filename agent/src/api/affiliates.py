@@ -1028,3 +1028,20 @@ async def affiliates_health():
     except Exception as e:
         logger.error("Erro no health check de afiliados", error=str(e))
         raise HTTPException(status_code=500, detail=str(e))
+        Status do módulo
+    """
+    try:
+        return {
+            "status": "healthy",
+            "module": "affiliates",
+            "timestamp": datetime.now().isoformat(),
+            "endpoints_available": [
+                "GET /api/affiliates/dashboard",
+                "GET /api/affiliates/referral-link", 
+                "POST /api/affiliates/validate-wallet",
+                "GET /api/affiliates/{affiliate_id}/commissions"
+            ]
+        }
+    except Exception as e:
+        logger.error("Erro no health check de afiliados", error=str(e))
+        raise HTTPException(status_code=500, detail=str(e))
