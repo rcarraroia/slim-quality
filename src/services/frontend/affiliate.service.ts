@@ -91,7 +91,6 @@ export class AffiliateFrontendService {
         document: data.document,
         wallet_id: null, // Será configurado posteriormente
         referral_code: referralCode,
-        parent_affiliate_id: null, // Tracking automático via link substituirá isso
         status: 'pending', // Aguarda configuração de wallet
         total_clicks: 0,
         total_conversions: 0,
