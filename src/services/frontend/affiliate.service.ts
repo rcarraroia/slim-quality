@@ -82,13 +82,16 @@ export class AffiliateFrontendService {
       // 3. Gerar código de referência único
       const referralCode = await this.generateUniqueReferralCode();
 
-      // 4. Criar afiliado (sem wallet_id inicialmente)
+      // 4. Limpar documento (remover formatação)
+      const cleanDocument = data.document ? data.document.replace(/\D/g, '') : null;
+
+      // 5. Criar afiliado (sem wallet_id inicialmente)
       const affiliateData = {
         user_id: user.id,
         name: data.name,
         email: data.email,
         phone: data.phone,
-        document: data.document,
+        document: cleanDocument, // Documento limpo (apenas números)
         wallet_id: null, // Será configurado posteriormente
         referral_code: referralCode,
         status: 'pending', // Aguarda configuração de wallet
