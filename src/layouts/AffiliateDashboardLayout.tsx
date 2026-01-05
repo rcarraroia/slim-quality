@@ -1,4 +1,5 @@
 import { Outlet, useNavigate, useLocation, Link } from "react-router-dom";
+import { useState, useEffect } from "react";
 import { 
   LayoutDashboard, 
   Users, 
@@ -9,17 +10,66 @@ import {
   Search,
   CreditCard,
   Home,
-  TreeDeciduous
+  TreeDeciduous,
+  Loader2
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import { affiliateFrontendService } from "@/services/frontend/affiliate.service";
 
 export function AffiliateDashboardLayout() {
   const navigate = useNavigate();
   const location = useLocation();
+  
+  // Estados para dados do afiliado
+  const [affiliate, setAffiliate] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  // Carregar dados do afiliado ao montar
+  useEffect(() => {
+    loadAffiliateData();
+  }, []);
+
+  const loadAffiliateData = async () => {
+    try {
+      setLoading(true);
+      const { isAffiliate, affiliate: affiliateData } = await affiliateFrontendService.checkAffiliateStatus();
+      
+      if (isAffiliate && affiliateData) {
+        setAffiliate(affiliateData);
+      }
+    } catch (error) {
+      console.error('Erro ao carregar dados do afiliado:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Gerar iniciais do nome
+  const getInitials = (name: string): string => {
+    if (!name) return 'AF';
+    return name
+      .split(' ')
+      .map(n => n[0])
+      .join('')
+      .toUpperCase()
+      .slice(0, 2);
+  };
+
+  // Obter label do status
+  const getStatusLabel = (status: string): string => {
+    const statusMap: Record<string, string> = {
+      'active': 'Afiliado Ativo',
+      'pending': 'Aguardando Aprovação',
+      'inactive': 'Inativo',
+      'suspended': 'Suspenso',
+      'rejected': 'Rejeitado'
+    };
+    return statusMap[status] || 'Afiliado';
+  };
 
   const menuItems = [
     { icon: Home, label: "Início", path: "/afiliados/dashboard" },
@@ -56,16 +106,36 @@ export function AffiliateDashboardLayout() {
 
           {/* User Info (Top of Menu) */}
           <div className="p-4 border-b">
-            <div className="flex items-center gap-3">
-              <Avatar className="h-10 w-10">
-                <AvatarImage src="/placeholder.svg" />
-                <AvatarFallback>CM</AvatarFallback>
-              </Avatar>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium truncate">Carlos Mendes</p>
-                <p className="text-xs text-primary font-semibold">Afiliado Nível 3</p>
+            {loading ? (
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-full bg-muted animate-pulse" />
+                <div className="flex-1 space-y-2">
+                  <div className="h-4 w-24 bg-muted rounded animate-pulse" />
+                  <div className="h-3 w-20 bg-muted rounded animate-pulse" />
+                </div>
               </div>
-            </div>
+            ) : (
+              <div className="flex items-center gap-3">
+                <Avatar className="h-10 w-10">
+                  <AvatarFallback>
+                    {getInitials(affiliate?.name || 'Afiliado')}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium truncate">
+                    {affiliate?.name || 'Afiliado'}
+                  </p>
+                  <p className={cn(
+                    "text-xs font-semibold",
+                    affiliate?.status === 'active' ? 'text-success' :
+                    affiliate?.status === 'pending' ? 'text-orange-500' :
+                    'text-muted-foreground'
+                  )}>
+                    {getStatusLabel(affiliate?.status || 'pending')}
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Navigation */}
@@ -132,9 +202,14 @@ export function AffiliateDashboardLayout() {
             </Button>
 
             {/* User Avatar */}
-            <Avatar className="h-9 w-9 cursor-pointer">
-              <AvatarImage src="/placeholder.svg" />
-              <AvatarFallback>CM</AvatarFallback>
+            <Avatar className="h-9 w-9 cursor-pointer" onClick={() => navigate('/afiliados/dashboard/configuracoes')}>
+              <AvatarFallback>
+                {loading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  getInitials(affiliate?.name || 'Afiliado')
+                )}
+              </AvatarFallback>
             </Avatar>
           </div>
         </header>
