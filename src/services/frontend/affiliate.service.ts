@@ -10,8 +10,8 @@ export interface CreateAffiliateData {
   email: string;
   phone?: string;
   document?: string;
-  walletId: string;
-  referralCode?: string;
+  // walletId: removido - será configurado posteriormente
+  // referralCode: removido - tracking automático via link
 }
 
 export interface AffiliateData {
@@ -79,42 +79,24 @@ export class AffiliateFrontendService {
         throw new Error('Usuário já é afiliado');
       }
 
-      // 3. Validar Wallet ID
-      const walletValidation = await this.validateWallet(data.walletId);
-      if (!walletValidation.isValid) {
-        throw new Error(walletValidation.error || 'Wallet ID inválida');
-      }
-
-      // 4. Gerar código de referência único
+      // 3. Gerar código de referência único
       const referralCode = await this.generateUniqueReferralCode();
 
-      // 5. Buscar afiliado indicador (se houver)
-      let parentAffiliateId = null;
-      if (data.referralCode) {
-        const { data: parentAffiliate } = await supabase
-          .from('affiliates')
-          .select('id')
-          .eq('referral_code', data.referralCode)
-          .eq('status', 'active')
-          .single();
-        
-        parentAffiliateId = parentAffiliate?.id || null;
-      }
-
-      // 6. Criar afiliado
+      // 4. Criar afiliado (sem wallet_id inicialmente)
       const affiliateData = {
         user_id: user.id,
         name: data.name,
         email: data.email,
         phone: data.phone,
         document: data.document,
-        wallet_id: data.walletId,
+        wallet_id: null, // Será configurado posteriormente
         referral_code: referralCode,
-        parent_affiliate_id: parentAffiliateId,
-        status: 'pending', // Aguarda aprovação
+        parent_affiliate_id: null, // Tracking automático via link substituirá isso
+        status: 'pending', // Aguarda configuração de wallet
         total_clicks: 0,
         total_conversions: 0,
         total_commissions_cents: 0,
+        onboarding_completed: false, // Novo campo para controle
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       };
@@ -129,9 +111,13 @@ export class AffiliateFrontendService {
         throw new Error(`Erro ao criar afiliado: ${error.message}`);
       }
 
-      // 7. Criar entrada na rede genealógica
-      if (parentAffiliateId) {
-        await this.createNetworkEntry(newAffiliate.id, parentAffiliateId);
+      // 7. Criar entrada na rede genealógica (se houver código de referência)
+      const savedReferralCode = this.getSavedReferralCode();
+      if (savedReferralCode) {
+        const parentAffiliateId = await this.getAffiliateIdByCode(savedReferralCode);
+        if (parentAffiliateId) {
+          await this.createNetworkEntry(newAffiliate.id, parentAffiliateId);
+        }
       }
 
       return {
@@ -140,7 +126,7 @@ export class AffiliateFrontendService {
         email: newAffiliate.email,
         phone: newAffiliate.phone,
         referralCode: newAffiliate.referral_code,
-        walletId: newAffiliate.wallet_id,
+        walletId: newAffiliate.wallet_id, // null inicialmente
         status: newAffiliate.status,
         totalClicks: 0,
         totalConversions: 0,
@@ -403,13 +389,17 @@ export class AffiliateFrontendService {
   }
 
   /**
-   * Rastreia clique em link de afiliado
+   * Rastreia clique em link de afiliado (melhorado)
    */
-  async trackReferralClick(referralCode: string): Promise<void> {
+  async trackReferralClick(referralCode: string, utmParams?: any): Promise<void> {
     try {
-      // Salvar código no localStorage para rastreamento
+      // Salvar código e UTMs no localStorage para rastreamento
       localStorage.setItem('referralCode', referralCode);
       localStorage.setItem('referralClickedAt', new Date().toISOString());
+      
+      if (utmParams) {
+        localStorage.setItem('utmParams', JSON.stringify(utmParams));
+      }
 
       // Registrar clique no banco
       const { error } = await supabase
@@ -420,6 +410,11 @@ export class AffiliateFrontendService {
           ip_address: await this.getClientIP(),
           user_agent: navigator.userAgent,
           referer: document.referrer,
+          utm_source: utmParams?.utm_source || null,
+          utm_medium: utmParams?.utm_medium || null,
+          utm_campaign: utmParams?.utm_campaign || null,
+          utm_content: utmParams?.utm_content || null,
+          utm_term: utmParams?.utm_term || null,
           clicked_at: new Date().toISOString()
         });
 
@@ -428,6 +423,100 @@ export class AffiliateFrontendService {
       }
     } catch (error) {
       console.warn('Erro ao rastrear clique:', error);
+    }
+  }
+
+  /**
+   * Captura parâmetros de tracking da URL atual
+   */
+  captureTrackingParams(): { referralCode?: string; utmParams?: any } {
+    try {
+      const urlParams = new URLSearchParams(window.location.search);
+      
+      const referralCode = urlParams.get('ref');
+      const utmParams = {
+        utm_source: urlParams.get('utm_source'),
+        utm_medium: urlParams.get('utm_medium'),
+        utm_campaign: urlParams.get('utm_campaign'),
+        utm_content: urlParams.get('utm_content'),
+        utm_term: urlParams.get('utm_term')
+      };
+
+      // Filtrar UTMs vazios
+      const filteredUtmParams = Object.fromEntries(
+        Object.entries(utmParams).filter(([_, value]) => value !== null)
+      );
+
+      return {
+        referralCode: referralCode || undefined,
+        utmParams: Object.keys(filteredUtmParams).length > 0 ? filteredUtmParams : undefined
+      };
+    } catch (error) {
+      console.warn('Erro ao capturar parâmetros de tracking:', error);
+      return {};
+    }
+  }
+
+  /**
+   * Inicializa tracking automático (chamar no carregamento da página)
+   */
+  async initializeTracking(): Promise<void> {
+    try {
+      const { referralCode, utmParams } = this.captureTrackingParams();
+      
+      if (referralCode) {
+        await this.trackReferralClick(referralCode, utmParams);
+        
+        // Limpar parâmetros da URL sem recarregar a página
+        const url = new URL(window.location.href);
+        url.searchParams.delete('ref');
+        url.searchParams.delete('utm_source');
+        url.searchParams.delete('utm_medium');
+        url.searchParams.delete('utm_campaign');
+        url.searchParams.delete('utm_content');
+        url.searchParams.delete('utm_term');
+        
+        window.history.replaceState({}, document.title, url.toString());
+      }
+    } catch (error) {
+      console.warn('Erro ao inicializar tracking:', error);
+    }
+  }
+
+  /**
+   * Registra conversão (venda) automaticamente
+   */
+  async trackConversion(orderId: string, orderValue: number): Promise<void> {
+    try {
+      const referralCode = this.getSavedReferralCode();
+      if (!referralCode) return;
+
+      const clickedAt = localStorage.getItem('referralClickedAt');
+      const utmParams = localStorage.getItem('utmParams');
+
+      // Registrar conversão
+      const { error } = await supabase
+        .from('referral_conversions')
+        .insert({
+          referral_code: referralCode,
+          affiliate_id: await this.getAffiliateIdByCode(referralCode),
+          order_id: orderId,
+          order_value_cents: Math.round(orderValue * 100),
+          utm_source: utmParams ? JSON.parse(utmParams).utm_source : null,
+          utm_medium: utmParams ? JSON.parse(utmParams).utm_medium : null,
+          utm_campaign: utmParams ? JSON.parse(utmParams).utm_campaign : null,
+          clicked_at: clickedAt,
+          converted_at: new Date().toISOString()
+        });
+
+      if (error) {
+        console.warn('Erro ao registrar conversão:', error);
+      } else {
+        // Limpar dados de tracking após conversão
+        this.clearReferralCode();
+      }
+    } catch (error) {
+      console.warn('Erro ao rastrear conversão:', error);
     }
   }
 
@@ -684,8 +773,80 @@ export class AffiliateFrontendService {
   }
 
   /**
-   * Constrói árvore hierárquica da rede de afiliados
+   * Busca histórico de recebimentos/withdrawals do afiliado
    */
+  async getWithdrawals(page = 1, limit = 20) {
+    try {
+      // Buscar afiliado atual
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Usuário não autenticado');
+
+      const { data: affiliate } = await supabase
+        .from('affiliates')
+        .select('id')
+        .eq('user_id', user.id)
+        .single();
+
+      if (!affiliate) throw new Error('Afiliado não encontrado');
+
+      // Buscar withdrawals/recebimentos
+      const offset = (page - 1) * limit;
+      const { data, error, count } = await supabase
+        .from('withdrawals')
+        .select(`
+          *,
+          commission:commissions(
+            id,
+            level,
+            amount_cents,
+            order:orders(
+              id,
+              customer_name,
+              total_cents
+            )
+          )
+        `, { count: 'exact' })
+        .eq('affiliate_id', affiliate.id)
+        .order('created_at', { ascending: false })
+        .range(offset, offset + limit - 1);
+
+      if (error) {
+        console.warn('Erro ao buscar withdrawals:', error);
+        // Retornar dados vazios se tabela não existir
+        return {
+          withdrawals: [],
+          pagination: {
+            page,
+            limit,
+            total: 0,
+            totalPages: 0
+          }
+        };
+      }
+
+      return {
+        withdrawals: data || [],
+        pagination: {
+          page,
+          limit,
+          total: count || 0,
+          totalPages: Math.ceil((count || 0) / limit)
+        }
+      };
+    } catch (error) {
+      console.error('Erro ao buscar withdrawals:', error);
+      // Retornar dados vazios em caso de erro
+      return {
+        withdrawals: [],
+        pagination: {
+          page,
+          limit,
+          total: 0,
+          totalPages: 0
+        }
+      };
+    }
+  }
   private async buildNetworkTree(affiliateId: string): Promise<any[]> {
     try {
       // Buscar todos os afiliados da rede (3 níveis)

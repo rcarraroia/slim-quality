@@ -13,21 +13,22 @@ import {
   QrCode,
   Share2,
   ChevronRight,
-  Loader2
+  Loader2,
+  AlertCircle
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
-import { AffiliateFrontendService } from "@/services/frontend/affiliate.service";
+import { affiliateFrontendService } from "@/services/frontend/affiliate.service";
 
 export default function AffiliateDashboardInicio() {
   const { toast } = useToast();
   const navigate = useNavigate();
   const [showQRCode, setShowQRCode] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [dashboardData, setDashboardData] = useState<any>(null);
+  const [referralLink, setReferralLink] = useState<string>("");
   
-  const linkAfiliado = dashboardData?.referral_link || "https://slimquality.com.br/?ref=loading";
-
   useEffect(() => {
     loadDashboardData();
   }, []);
@@ -35,30 +36,50 @@ export default function AffiliateDashboardInicio() {
   const loadDashboardData = async () => {
     try {
       setLoading(true);
-      const data = await AffiliateFrontendService.getDashboard();
-      if (data.success) {
-        setDashboardData(data.data);
-      } else {
-        toast({
-          title: "Erro ao carregar dados",
-          description: "Não foi possível carregar os dados do dashboard",
-          variant: "destructive"
-        });
-      }
+      setError(null);
+      
+      // Carregar dados do dashboard
+      const dashboardResponse = await affiliateFrontendService.getDashboard();
+      setDashboardData(dashboardResponse);
+      
+      // Carregar link de indicação
+      const linkResponse = await affiliateFrontendService.getReferralLink();
+      setReferralLink(linkResponse.link);
+      
     } catch (error) {
       console.error('Erro ao carregar dashboard:', error);
+      setError(error instanceof Error ? error.message : 'Erro desconhecido');
+      
       toast({
         title: "Erro ao carregar dados",
-        description: "Ocorreu um erro inesperado",
+        description: "Não foi possível carregar os dados do dashboard. Usando dados de exemplo.",
         variant: "destructive"
       });
+      
+      // Fallback para dados mock em caso de erro
+      setDashboardData({
+        affiliate: {
+          name: "Usuário",
+          status: "active"
+        },
+        stats: {
+          totalCommissions: 0,
+          totalClicks: 0,
+          totalConversions: 0,
+          conversionRate: 0
+        },
+        commissions: [],
+        network: []
+      });
+      setReferralLink("https://slimquality.com.br/?ref=DEMO");
+      
     } finally {
       setLoading(false);
     }
   };
 
   const handleCopyLink = () => {
-    navigator.clipboard.writeText(linkAfiliado);
+    navigator.clipboard.writeText(referralLink);
     toast({
       title: "Link copiado!",
       description: "Seu link de afiliado foi copiado para a área de transferência.",
@@ -70,13 +91,14 @@ export default function AffiliateDashboardInicio() {
       navigator.share({
         title: "Slim Quality - Colchões Terapêuticos",
         text: "Conheça os colchões magnéticos que transformam o sono!",
-        url: linkAfiliado
+        url: referralLink
       });
     } else {
       handleCopyLink();
     }
   };
 
+  // Estados de loading e erro
   if (loading) {
     return (
       <div className="space-y-6">
@@ -101,35 +123,70 @@ export default function AffiliateDashboardInicio() {
     );
   }
 
+  if (error && !dashboardData) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 space-y-4">
+        <AlertCircle className="h-12 w-12 text-destructive" />
+        <div className="text-center">
+          <h3 className="text-lg font-semibold">Erro ao carregar dashboard</h3>
+          <p className="text-muted-foreground">{error}</p>
+        </div>
+        <Button onClick={loadDashboardData}>
+          Tentar novamente
+        </Button>
+      </div>
+    );
+  }
+
+  // Extrair dados com fallbacks seguros
+  const stats = dashboardData?.stats || {};
+  const commissions = dashboardData?.commissions || [];
+  const network = dashboardData?.network || [];
+  const affiliate = dashboardData?.affiliate || {};
+
   return (
     <div className="space-y-6">
+      {/* Aviso se usando dados de fallback */}
+      {error && (
+        <Card className="border-orange-200 bg-orange-50 dark:bg-orange-950 dark:border-orange-800">
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-2 text-orange-800 dark:text-orange-200">
+              <AlertCircle className="h-4 w-4" />
+              <span className="text-sm">
+                Exibindo dados de exemplo. Verifique sua conexão com o backend.
+              </span>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Métricas Principais */}
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
         <StatCard
           icon={DollarSign}
           label="Total em Comissões"
-          value={`R$ ${(dashboardData?.stats?.total_commissions || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
+          value={`R$ ${(stats.totalCommissions || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
           trend={{ value: "+15% este mês", positive: true }}
           iconColor="text-primary"
         />
         <StatCard
           icon={Users}
           label="Indicados Ativos"
-          value={dashboardData?.stats?.active_referrals?.toString() || "0"}
+          value={(network.length || 0).toString()}
           trend={{ value: "+3 esta semana", positive: true }}
           iconColor="text-secondary"
         />
         <StatCard
           icon={TrendingUp}
           label="Vendas Geradas"
-          value={dashboardData?.stats?.total_sales?.toString() || "0"}
+          value={(stats.totalConversions || 0).toString()}
           trend={{ value: "+8 este mês", positive: true }}
           iconColor="text-success"
         />
         <StatCard
           icon={LinkIcon}
           label="Taxa de Conversão"
-          value={`${(dashboardData?.stats?.conversion_rate || 0).toFixed(1)}%`}
+          value={`${(stats.conversionRate || 0).toFixed(1)}%`}
           iconColor="text-muted-foreground"
         />
       </div>
@@ -145,33 +202,45 @@ export default function AffiliateDashboardInicio() {
         <CardContent className="space-y-4">
           <div className="flex gap-2">
             <Input 
-              value={linkAfiliado} 
+              value={referralLink || "Carregando..."} 
               readOnly 
               className="font-mono text-sm"
             />
-            <Button onClick={handleCopyLink} variant="outline" size="icon">
+            <Button onClick={handleCopyLink} variant="outline" size="icon" disabled={!referralLink}>
               <Copy className="h-4 w-4" />
             </Button>
-            <Button onClick={handleShare} variant="outline" size="icon">
+            <Button onClick={handleShare} variant="outline" size="icon" disabled={!referralLink}>
               <Share2 className="h-4 w-4" />
             </Button>
             <Button 
               onClick={() => setShowQRCode(!showQRCode)} 
               variant="outline"
               size="icon"
+              disabled={!referralLink}
             >
               <QrCode className="h-4 w-4" />
             </Button>
           </div>
 
-          {showQRCode && (
+          {showQRCode && referralLink && (
             <div className="flex flex-col items-center gap-3 p-6 bg-muted rounded-lg">
-              <div className="w-48 h-48 bg-white p-4 rounded-lg border-2">
-                {/* QR Code placeholder */}
-                <div className="w-full h-full bg-foreground/10 flex items-center justify-center text-xs text-center">
+              <div className="w-48 h-48 bg-white p-4 rounded-lg border-2 flex items-center justify-center">
+                {/* QR Code usando API externa gratuita */}
+                <img 
+                  src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(referralLink)}`}
+                  alt="QR Code do link de indicação"
+                  className="w-full h-full object-contain"
+                  onError={(e) => {
+                    // Fallback se API externa falhar
+                    const target = e.target as HTMLImageElement;
+                    target.style.display = 'none';
+                    target.nextElementSibling!.classList.remove('hidden');
+                  }}
+                />
+                <div className="hidden w-full h-full bg-foreground/10 flex items-center justify-center text-xs text-center">
                   QR Code
                   <br />
-                  {linkAfiliado}
+                  {referralLink}
                 </div>
               </div>
               <p className="text-sm text-muted-foreground text-center">
@@ -207,31 +276,39 @@ export default function AffiliateDashboardInicio() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {(dashboardData?.recent_commissions || []).map((comissao: any, i: number) => (
-                <div key={i} className="flex items-center justify-between p-3 rounded-lg hover:bg-muted transition-colors">
-                  <div className="flex items-center gap-3">
-                    <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm ${
-                      comissao.level === 1 ? "bg-primary/10 text-primary" :
-                      comissao.level === 2 ? "bg-secondary/10 text-secondary" :
-                      "bg-muted text-muted-foreground"
-                    }`}>
-                      N{comissao.level}
+              {commissions.length > 0 ? (
+                commissions.slice(0, 5).map((comissao: any, i: number) => (
+                  <div key={comissao.id || i} className="flex items-center justify-between p-3 rounded-lg hover:bg-muted transition-colors">
+                    <div className="flex items-center gap-3">
+                      <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm ${
+                        comissao.level === 1 ? "bg-primary/10 text-primary" :
+                        comissao.level === 2 ? "bg-secondary/10 text-secondary" :
+                        "bg-muted text-muted-foreground"
+                      }`}>
+                        N{comissao.level || 1}
+                      </div>
+                      <div>
+                        <p className="font-medium text-sm">{comissao.order?.customer_name || 'Cliente'}</p>
+                        <p className="text-xs text-muted-foreground">
+                          Colchão • {new Date(comissao.created_at || Date.now()).toLocaleDateString('pt-BR')}
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="font-medium text-sm">{comissao.customer_name || 'Cliente'}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {comissao.product_name || 'Produto'} • {new Date(comissao.created_at).toLocaleDateString('pt-BR')}
+                    <div className="text-right">
+                      <p className="font-bold text-primary">
+                        R$ {((comissao.amount_cents || 0) / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                       </p>
+                      <StatusBadge status={comissao.status || 'pending'} />
                     </div>
                   </div>
-                  <div className="text-right">
-                    <p className="font-bold text-primary">
-                      R$ {(comissao.amount || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                    </p>
-                    <StatusBadge status={comissao.status as any} />
-                  </div>
+                ))
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  <DollarSign className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                  <p className="text-sm">Nenhuma comissão ainda</p>
+                  <p className="text-xs">Suas comissões aparecerão aqui quando houver vendas</p>
                 </div>
-              ))}
+              )}
             </div>
           </CardContent>
         </Card>
@@ -251,34 +328,47 @@ export default function AffiliateDashboardInicio() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {(dashboardData?.network_activity || []).map((atividade: any, i: number) => (
-                <div key={i} className="flex items-start gap-3 p-3 rounded-lg hover:bg-muted transition-colors">
-                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm flex-shrink-0">
-                    {(atividade.affiliate_name || 'U').split(' ').map((n: string) => n[0]).join('')}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm">
-                      <span className="font-medium">{atividade.affiliate_name || 'Usuário'}</span>
-                      {' '}{atividade.action_type === 'sale' ? 'realizou uma venda' : 'entrou para sua rede'}
-                      {atividade.product_name && (
-                        <span className="font-medium"> {atividade.product_name}</span>
-                      )}
-                    </p>
-                    <div className="flex items-center gap-2 mt-1">
-                      <span className={`text-xs px-2 py-0.5 rounded-full ${
-                        atividade.level === 1 ? "bg-primary/10 text-primary" :
-                        atividade.level === 2 ? "bg-secondary/10 text-secondary" :
-                        "bg-muted text-muted-foreground"
-                      }`}>
-                        N{atividade.level}
-                      </span>
-                      <span className="text-xs text-muted-foreground">
-                        {new Date(atividade.created_at).toLocaleDateString('pt-BR')}
-                      </span>
+              {network.length > 0 ? (
+                network.slice(0, 5).map((afiliado: any, i: number) => (
+                  <div key={afiliado.id || i} className="flex items-start gap-3 p-3 rounded-lg hover:bg-muted transition-colors">
+                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm flex-shrink-0">
+                      {(afiliado.name || 'U').split(' ').map((n: string) => n[0]).join('').substring(0, 2)}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm">
+                        <span className="font-medium">{afiliado.name || 'Usuário'}</span>
+                        {' '}entrou para sua rede
+                        {afiliado.sales_count > 0 && (
+                          <span className="font-medium"> • {afiliado.sales_count} vendas</span>
+                        )}
+                      </p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className={`text-xs px-2 py-0.5 rounded-full ${
+                          afiliado.level === 1 ? "bg-primary/10 text-primary" :
+                          afiliado.level === 2 ? "bg-secondary/10 text-secondary" :
+                          "bg-muted text-muted-foreground"
+                        }`}>
+                          N{afiliado.level || 1}
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          {new Date(afiliado.created_at || Date.now()).toLocaleDateString('pt-BR')}
+                        </span>
+                        {afiliado.commission_generated > 0 && (
+                          <span className="text-xs text-success font-medium">
+                            +R$ {afiliado.commission_generated.toFixed(2)}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
+                ))
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Users className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                  <p className="text-sm">Sua rede está vazia</p>
+                  <p className="text-xs">Compartilhe seu link para começar a construir sua rede</p>
                 </div>
-              ))}
+              )}
             </div>
           </CardContent>
         </Card>
@@ -294,26 +384,42 @@ export default function AffiliateDashboardInicio() {
             <div>
               <div className="flex justify-between mb-2">
                 <span className="text-sm font-medium">Vendas Diretas (N1)</span>
-                <span className="text-sm text-muted-foreground">8 / 15</span>
+                <span className="text-sm text-muted-foreground">
+                  {stats.totalConversions || 0} / 15
+                </span>
               </div>
               <div className="h-2 bg-muted rounded-full overflow-hidden">
-                <div className="h-full bg-primary rounded-full" style={{ width: '53%' }} />
+                <div 
+                  className="h-full bg-primary rounded-full transition-all duration-500" 
+                  style={{ width: `${Math.min(((stats.totalConversions || 0) / 15) * 100, 100)}%` }} 
+                />
               </div>
               <p className="text-xs text-muted-foreground mt-1">
-                Faltam 7 vendas para bater a meta e ganhar bônus de R$ 500
+                {(stats.totalConversions || 0) >= 15 
+                  ? "🎉 Meta atingida! Parabéns!" 
+                  : `Faltam ${15 - (stats.totalConversions || 0)} vendas para bater a meta e ganhar bônus de R$ 500`
+                }
               </p>
             </div>
 
             <div>
               <div className="flex justify-between mb-2">
                 <span className="text-sm font-medium">Novos Indicados</span>
-                <span className="text-sm text-muted-foreground">3 / 5</span>
+                <span className="text-sm text-muted-foreground">
+                  {network.length || 0} / 5
+                </span>
               </div>
               <div className="h-2 bg-muted rounded-full overflow-hidden">
-                <div className="h-full bg-secondary rounded-full" style={{ width: '60%' }} />
+                <div 
+                  className="h-full bg-secondary rounded-full transition-all duration-500" 
+                  style={{ width: `${Math.min(((network.length || 0) / 5) * 100, 100)}%` }} 
+                />
               </div>
               <p className="text-xs text-muted-foreground mt-1">
-                Indique mais 2 pessoas e ganhe acesso ao curso de vendas
+                {(network.length || 0) >= 5 
+                  ? "🎉 Meta atingida! Acesso ao curso liberado!" 
+                  : `Indique mais ${5 - (network.length || 0)} pessoas e ganhe acesso ao curso de vendas`
+                }
               </p>
             </div>
           </div>

@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { HelmetProvider } from "react-helmet-async";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { useAffiliateTracking } from "@/hooks/useAffiliateTracking";
 import { PublicLayout } from "./layouts/PublicLayout";
 import { DashboardLayout } from "./layouts/DashboardLayout";
 import { AffiliateDashboardLayout } from "./layouts/AffiliateDashboardLayout";
@@ -45,6 +46,12 @@ import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
+// Componente interno para inicializar tracking
+function TrackingInitializer() {
+  useAffiliateTracking();
+  return null;
+}
+
 const App = () => (
   <HelmetProvider>
     <QueryClientProvider client={queryClient}>
@@ -53,7 +60,8 @@ const App = () => (
           <Toaster />
           <Sonner />
           <BrowserRouter>
-        <Routes>
+            <TrackingInitializer />
+            <Routes>
           {/* 1. CONTEXTO PÚBLICO (Site de Vendas) */}
           <Route element={<PublicLayout />}>
             <Route path="/" element={<Index />} />

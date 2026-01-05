@@ -5,9 +5,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { StatusBadge } from "@/components/dashboard/StatusBadge";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { RecebimentoChart } from "@/components/afiliados/RecebimentoChart";
-import { Wallet, Download, Info, CreditCard, Clock, DollarSign, CheckCircle2 } from "lucide-react";
-import { useState } from "react";
+import { Wallet, Download, Info, CreditCard, Clock, DollarSign, CheckCircle2, Loader2, AlertCircle } from "lucide-react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
+import { affiliateFrontendService } from "@/services/frontend/affiliate.service";
+import { useToast } from "@/hooks/use-toast";
 
 interface Recebimento {
   id: number;
@@ -19,67 +21,126 @@ interface Recebimento {
   status: "depositado" | "processando" | "aguardando";
 }
 
-const mockRecebimentos: Recebimento[] = [
-  { id: 1, data: "12/Out 14:23", descricao: "Comissão venda #1047", origem: "Maria Silva", nivel: "N1", valor: 523.50, status: "depositado" }, // Atualizado
-  { id: 2, data: "11/Out 10:15", descricao: "Comissão venda #1046", origem: "João Costa", nivel: "N2", valor: 98.70, status: "depositado" }, // Atualizado
-  { id: 3, data: "10/Out 16:40", descricao: "Comissão venda #1045", origem: "Fernanda Lima", nivel: "N1", valor: 733.50, status: "processando" }, // Atualizado
-  { id: 4, data: "09/Out 09:30", descricao: "Comissão venda #1044", origem: "Roberto Santos", nivel: "N3", valor: 63.80, status: "depositado" }, // Atualizado
-  { id: 5, data: "08/Out 15:55", descricao: "Comissão venda #1043", origem: "Ana Costa", nivel: "N1", valor: 493.50, status: "depositado" }, // Atualizado
-  { id: 6, data: "07/Out 18:12", descricao: "Comissão venda #1042", origem: "Paula Souza", nivel: "N2", valor: 98.70, status: "depositado" }, // Atualizado
-  { id: 7, data: "06/Out 11:45", descricao: "Comissão venda #1041", origem: "André Lima", nivel: "N1", valor: 523.50, status: "depositado" }, // Atualizado
-  { id: 8, data: "05/Out 14:20", descricao: "Comissão venda #1040", origem: "Carla Mendes", nivel: "N2", valor: 98.70, status: "depositado" }, // Atualizado
-  { id: 9, data: "04/Out 09:55", descricao: "Comissão venda #1039", origem: "Lucas Silva", nivel: "N1", valor: 523.50, status: "depositado" }, // Atualizado
-  { id: 10, data: "03/Out 16:00", descricao: "Comissão venda #1038", origem: "Pedro Rocha", nivel: "N1", valor: 493.50, status: "depositado" }, // Atualizado
-  { id: 11, data: "02/Out 12:30", descricao: "Comissão venda #1037", origem: "Mariana Alves", nivel: "N3", valor: 97.80, status: "depositado" }, // King 2%
-  { id: 12, data: "01/Out 08:00", descricao: "Comissão venda #1036", origem: "Gustavo Lima", nivel: "N1", valor: 733.50, status: "depositado" }, // King 15%
-  { id: 13, data: "28/Set 17:00", descricao: "Comissão venda #1035", origem: "Helena Costa", nivel: "N2", valor: 104.70, status: "depositado" }, // Queen 3%
-  { id: 14, data: "27/Set 10:00", descricao: "Comissão venda #1034", origem: "Felipe Santos", nivel: "N1", valor: 523.50, status: "depositado" }, // Queen 15%
-  { id: 15, data: "26/Set 14:00", descricao: "Comissão venda #1033", origem: "Leticia Souza", nivel: "N1", valor: 493.50, status: "depositado" }, // Padrão 15%
-  { id: 16, data: "25/Set 09:00", descricao: "Comissão venda #1032", origem: "Ricardo Alves", nivel: "N2", valor: 98.70, status: "depositado" }, // Padrão 3%
-  { id: 17, data: "24/Set 16:00", descricao: "Comissão venda #1031", origem: "Patrícia Mendes", nivel: "N1", valor: 733.50, status: "depositado" }, // King 15%
-  { id: 18, data: "23/Set 11:00", descricao: "Comissão venda #1030", origem: "Bruno Rocha", nivel: "N3", valor: 63.80, status: "depositado" }, // Solteiro 2%
-  { id: 19, data: "22/Set 15:00", descricao: "Comissão venda #1029", origem: "Camila Lima", nivel: "N1", valor: 523.50, status: "depositado" }, // Queen 15%
-  { id: 20, data: "21/Set 10:00", descricao: "Comissão venda #1028", origem: "Daniel Costa", nivel: "N2", valor: 98.70, status: "depositado" }, // Padrão 3%
-  { id: 21, data: "20/Set 14:00", descricao: "Comissão venda #1027", origem: "Elisa Santos", nivel: "N1", valor: 478.50, status: "depositado" }, // Solteiro 15%
-  { id: 22, data: "19/Set 09:00", descricao: "Comissão venda #1026", origem: "Gabriel Oliveira", nivel: "N1", valor: 733.50, status: "depositado" }, // King 15%
-  { id: 23, data: "18/Set 16:00", descricao: "Comissão venda #1025", origem: "Isabela Pereira", nivel: "N2", valor: 104.70, status: "depositado" }, // Queen 3%
-  { id: 24, data: "17/Set 11:00", descricao: "Comissão venda #1024", origem: "João Victor", nivel: "N1", valor: 523.50, status: "depositado" }, // Queen 15%
-  { id: 25, data: "16/Set 15:00", descricao: "Comissão venda #1023", origem: "Laura Mendes", nivel: "N3", valor: 97.80, status: "depositado" }, // King 2%
-  { id: 26, data: "15/Set 10:00", descricao: "Comissão venda #1022", origem: "Marcelo Silva", nivel: "N1", valor: 493.50, status: "depositado" }, // Padrão 15%
-  { id: 27, data: "14/Set 14:00", descricao: "Comissão venda #1021", origem: "Natália Rocha", nivel: "N2", valor: 98.70, status: "depositado" }, // Padrão 3%
-  { id: 28, data: "13/Set 09:00", descricao: "Comissão venda #1020", origem: "Otávio Lima", nivel: "N1", valor: 733.50, status: "depositado" }, // King 15%
-  { id: 29, data: "12/Set 16:00", descricao: "Comissão venda #1019", origem: "Priscila Costa", nivel: "N1", valor: 523.50, status: "aguardando" }, // Queen 15%
-  { id: 30, data: "11/Set 11:00", descricao: "Comissão venda #1018", origem: "Quiteria Santos", nivel: "N2", valor: 104.70, status: "depositado" }, // Queen 3%
-];
-
-const statusMap: Record<Recebimento['status'], { label: string; status: any }> = {
-  depositado: { label: 'Depositado', status: 'paga' },
-  processando: { label: 'Processando', status: 'processando' },
-  aguardando: { label: 'Aguardando', status: 'pendente' },
-};
-
 export default function AffiliateDashboardRecebimentos() {
   const [periodo, setPeriodo] = useState("mes-atual");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [withdrawals, setWithdrawals] = useState<any[]>([]);
+  const [affiliate, setAffiliate] = useState<any>(null);
+  const { toast } = useToast();
 
-  // Recalculando valores de Outubro (mock)
-  const totalRecebidoOutubro = mockRecebimentos.filter(r => r.data.includes('Out') && r.status === 'depositado').reduce((sum, r) => sum + r.valor, 0); // 523.50 + 98.70 + 63.80 + 493.50 + 98.70 + 523.50 + 493.50 + 97.80 = 2393.00
-  const ultimoRecebimento = 523.50; // Atualizado
-  const totalProcessando = mockRecebimentos.filter(r => r.status === 'processando').reduce((sum, r) => sum + r.valor, 0); // 733.50
-  const totalLifetime = 12450.00; // Mantido mockado
-  const mediaMensal = 1037.50; // Mantido mockado
-  const maiorRecebimento = 1340.00; // Mantido mockado
-  const menorRecebimento = 420.00; // Mantido mockado
+  useEffect(() => {
+    loadData();
+  }, []);
 
-  const filteredRecebimentos = mockRecebimentos.filter(r => {
-    // Lógica de filtro simplificada para o mock
-    if (periodo === 'mes-atual') {
-      return r.data.includes('Out');
+  const loadData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      // Carregar dados do afiliado
+      const { isAffiliate, affiliate: affiliateData } = await affiliateFrontendService.checkAffiliateStatus();
+      if (isAffiliate && affiliateData) {
+        setAffiliate(affiliateData);
+      }
+
+      // Carregar withdrawals
+      const withdrawalsResult = await affiliateFrontendService.getWithdrawals();
+      setWithdrawals(withdrawalsResult.withdrawals);
+
+    } catch (error) {
+      console.error('Erro ao carregar recebimentos:', error);
+      setError(error instanceof Error ? error.message : 'Erro desconhecido');
+      
+      toast({
+        title: "Erro ao carregar dados",
+        description: "Não foi possível carregar os recebimentos. Usando dados de exemplo.",
+        variant: "destructive"
+      });
+
+      // Fallback para dados vazios
+      setWithdrawals([]);
+      
+    } finally {
+      setLoading(false);
     }
-    return true;
-  });
+  };
+
+  // Calcular estatísticas dos dados reais
+  const totalRecebido = withdrawals
+    .filter(w => w.status === 'completed')
+    .reduce((sum, w) => sum + ((w.amount_cents || 0) / 100), 0);
+
+  const ultimoRecebimento = withdrawals.length > 0 
+    ? (withdrawals[0].amount_cents || 0) / 100 
+    : 0;
+
+  const totalProcessando = withdrawals
+    .filter(w => w.status === 'processing')
+    .reduce((sum, w) => sum + ((w.amount_cents || 0) / 100), 0);
+
+  // Gerar dados do gráfico a partir dos withdrawals reais
+  const generateChartData = (withdrawals: any[]) => {
+    const monthlyData: { [key: string]: number } = {};
+    
+    withdrawals.forEach(withdrawal => {
+      if (withdrawal.status === 'completed') {
+        const date = new Date(withdrawal.created_at);
+        const monthKey = date.toLocaleDateString('pt-BR', { month: 'short' });
+        const amount = (withdrawal.amount_cents || 0) / 100;
+        
+        monthlyData[monthKey] = (monthlyData[monthKey] || 0) + amount;
+      }
+    });
+
+    // Converter para formato do gráfico
+    return Object.entries(monthlyData).map(([mes, valor]) => ({
+      mes: mes.charAt(0).toUpperCase() + mes.slice(1),
+      valor
+    }));
+  };
+
+  // Estados de loading e erro
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="grid gap-4 md:grid-cols-3">
+          {[1, 2, 3].map((i) => (
+            <Card key={i} className="p-6">
+              <div className="flex items-center justify-between">
+                <div className="space-y-2">
+                  <div className="h-4 bg-muted animate-pulse rounded" />
+                  <div className="h-8 bg-muted animate-pulse rounded" />
+                </div>
+                <div className="h-8 w-8 bg-muted animate-pulse rounded" />
+              </div>
+            </Card>
+          ))}
+        </div>
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          <span className="ml-2 text-muted-foreground">Carregando recebimentos...</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
+      {/* Aviso se usando dados de fallback */}
+      {error && (
+        <Card className="border-orange-200 bg-orange-50 dark:bg-orange-950 dark:border-orange-800">
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-2 text-orange-800 dark:text-orange-200">
+              <AlertCircle className="h-4 w-4" />
+              <span className="text-sm">
+                Exibindo dados de exemplo. Verifique sua conexão com o backend.
+              </span>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Box Informativo */}
       <Card className="border-primary/20 bg-primary/5">
         <CardContent className="pt-6">
@@ -91,12 +152,18 @@ export default function AffiliateDashboardRecebimentos() {
                 Suas comissões são depositadas automaticamente na sua conta Asaas através do sistema de split de pagamento. 
                 Não é necessário solicitar saques.
               </p>
-              <p className="text-sm font-medium">
-                Wallet ID configurada: <span className="font-mono text-primary">wal_000005162549</span>
-              </p>
+              {affiliate?.walletId ? (
+                <p className="text-sm font-medium">
+                  Wallet ID configurada: <span className="font-mono text-primary">{affiliate.walletId}</span>
+                </p>
+              ) : (
+                <p className="text-sm font-medium text-orange-600">
+                  ⚠️ Wallet ID não configurada - Configure para receber comissões
+                </p>
+              )}
               <Link to="/afiliados/dashboard/configuracoes">
                 <Button variant="link" className="h-auto p-0 text-primary">
-                  Alterar Wallet ID
+                  {affiliate?.walletId ? 'Alterar Wallet ID' : 'Configurar Wallet ID'}
                 </Button>
               </Link>
             </div>
@@ -108,24 +175,29 @@ export default function AffiliateDashboardRecebimentos() {
       <div className="grid gap-4 md:grid-cols-3">
         <StatCard
           icon={DollarSign}
-          label="Recebido em Outubro"
-          value={`R$ ${totalRecebidoOutubro.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
+          label="Total Recebido"
+          value={`R$ ${totalRecebido.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
           iconColor="text-success"
-          trend={{ value: "Última atualização: hoje", positive: true }}
+          trend={{ value: "Últimos 12 meses", positive: true }}
         />
         <StatCard
           icon={CreditCard}
           label="Último Recebimento"
           value={`R$ ${ultimoRecebimento.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
           iconColor="text-blue-500"
-          trend={{ value: "12/Out/25 - Venda de Maria Silva", positive: true }}
+          trend={{ 
+            value: withdrawals.length > 0 
+              ? new Date(withdrawals[0].created_at).toLocaleDateString('pt-BR')
+              : "Nenhum recebimento", 
+            positive: ultimoRecebimento > 0 
+          }}
         />
         <StatCard
           icon={Clock}
           label="Processando"
           value={`R$ ${totalProcessando.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
           iconColor="text-warning"
-          trend={{ value: "Previsão: 13/Out/25", positive: false }}
+          trend={{ value: "Aguardando processamento", positive: false }}
         />
       </div>
 
@@ -145,7 +217,7 @@ export default function AffiliateDashboardRecebimentos() {
                 <SelectItem value="personalizado" disabled>Personalizado</SelectItem>
               </SelectContent>
             </Select>
-            <Button variant="outline" size="sm">
+            <Button variant="outline" size="sm" disabled={withdrawals.length === 0}>
               <Download className="h-4 w-4 mr-2" />
               Exportar Extrato
             </Button>
@@ -153,79 +225,108 @@ export default function AffiliateDashboardRecebimentos() {
         </CardHeader>
         <CardContent className="p-0">
           <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Data</TableHead>
-                  <TableHead>Descrição</TableHead>
-                  <TableHead>Origem</TableHead>
-                  <TableHead>Nível</TableHead>
-                  <TableHead className="text-right">Valor</TableHead>
-                  <TableHead>Status</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredRecebimentos.map((item, index) => (
-                  <TableRow key={item.id} className={index % 2 === 0 ? 'bg-background' : 'bg-muted/20'}>
-                    <TableCell className="font-mono text-sm">{item.data}</TableCell>
-                    <TableCell className="font-medium">{item.descricao}</TableCell>
-                    <TableCell>{item.origem}</TableCell>
-                    <TableCell>
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                        item.nivel === "N1" ? "bg-primary/10 text-primary" :
-                        item.nivel === "N2" ? "bg-secondary/10 text-secondary" :
-                        "bg-blue-500/10 text-blue-500"
-                      }`}>
-                        {item.nivel}
-                      </span>
-                    </TableCell>
-                    <TableCell className="text-right font-bold text-success">
-                      R$ {item.valor.toFixed(2)}
-                    </TableCell>
-                    <TableCell>
-                      <StatusBadge status={statusMap[item.status].status} />
-                    </TableCell>
+            {withdrawals.length > 0 ? (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Data</TableHead>
+                    <TableHead>Descrição</TableHead>
+                    <TableHead>Origem</TableHead>
+                    <TableHead>Nível</TableHead>
+                    <TableHead className="text-right">Valor</TableHead>
+                    <TableHead>Status</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {withdrawals.map((item, index) => (
+                    <TableRow key={item.id} className={index % 2 === 0 ? 'bg-background' : 'bg-muted/20'}>
+                      <TableCell className="font-mono text-sm">
+                        {new Date(item.created_at).toLocaleDateString('pt-BR')}
+                      </TableCell>
+                      <TableCell className="font-medium">
+                        Comissão venda #{item.commission?.order?.id?.slice(0, 8) || 'N/A'}
+                      </TableCell>
+                      <TableCell>
+                        {item.commission?.order?.customer_name || 'Cliente não informado'}
+                      </TableCell>
+                      <TableCell>
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                          item.commission?.level === 1 ? "bg-primary/10 text-primary" :
+                          item.commission?.level === 2 ? "bg-secondary/10 text-secondary" :
+                          "bg-blue-500/10 text-blue-500"
+                        }`}>
+                          N{item.commission?.level || 1}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-right font-bold text-success">
+                        R$ {((item.amount_cents || 0) / 100).toFixed(2)}
+                      </TableCell>
+                      <TableCell>
+                        <StatusBadge status={
+                          item.status === 'completed' ? 'paga' :
+                          item.status === 'processing' ? 'processando' :
+                          'pendente'
+                        } />
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            ) : (
+              <div className="text-center py-12">
+                <Wallet className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+                <h3 className="text-lg font-semibold mb-2">Nenhum recebimento ainda</h3>
+                <p className="text-muted-foreground">
+                  Seus recebimentos aparecerão aqui quando suas comissões forem processadas
+                </p>
+                {!affiliate?.walletId && (
+                  <Link to="/afiliados/dashboard/configuracoes">
+                    <Button className="mt-4">
+                      Configurar Wallet ID
+                    </Button>
+                  </Link>
+                )}
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
 
       {/* Gráfico de Evolução */}
-      <RecebimentoChart />
+      <RecebimentoChart 
+        data={withdrawals.length > 0 ? generateChartData(withdrawals) : undefined}
+      />
 
       {/* Informações Adicionais (rodapé) */}
       <Card className="bg-muted/50">
         <CardContent className="p-6 space-y-4">
           <h3 className="font-semibold text-lg flex items-center gap-2">
             <CheckCircle2 className="h-5 w-5 text-primary" />
-            Estatísticas do Período (últimos 12 meses)
+            Estatísticas do Período
           </h3>
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
             <div>
               <p className="text-muted-foreground">Total recebido:</p>
-              <p className="font-bold text-lg">R$ {totalLifetime.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+              <p className="font-bold text-lg">R$ {totalRecebido.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
             </div>
             <div>
-              <p className="text-muted-foreground">Média mensal:</p>
-              <p className="font-bold text-lg">R$ {mediaMensal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+              <p className="text-muted-foreground">Recebimentos:</p>
+              <p className="font-bold text-lg">{withdrawals.filter(w => w.status === 'completed').length}</p>
             </div>
             <div>
-              <p className="text-muted-foreground">Maior recebimento:</p>
-              <p className="font-bold text-lg">R$ {maiorRecebimento.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
-              <p className="text-xs text-muted-foreground">(Julho)</p>
+              <p className="text-muted-foreground">Média por recebimento:</p>
+              <p className="font-bold text-lg">
+                R$ {withdrawals.length > 0 
+                  ? (totalRecebido / withdrawals.filter(w => w.status === 'completed').length || 1).toLocaleString('pt-BR', { minimumFractionDigits: 2 })
+                  : '0,00'
+                }
+              </p>
             </div>
             <div>
-              <p className="text-muted-foreground">Menor recebimento:</p>
-              <p className="font-bold text-lg">R$ {menorRecebimento.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
-              <p className="text-xs text-muted-foreground">(Janeiro)</p>
-            </div>
-            <div>
-              <p className="text-muted-foreground">Taxa de crescimento:</p>
-              <p className="font-bold text-lg text-success">+112%</p>
-              <p className="text-xs text-muted-foreground">(no período)</p>
+              <p className="text-muted-foreground">Status da conta:</p>
+              <p className={`font-bold text-lg ${affiliate?.walletId ? 'text-success' : 'text-warning'}`}>
+                {affiliate?.walletId ? 'Configurada' : 'Pendente'}
+              </p>
             </div>
           </div>
         </CardContent>

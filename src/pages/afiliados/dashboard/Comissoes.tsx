@@ -67,16 +67,21 @@ export default function AffiliateDashboardComissoes() {
   const [tipoFilter, setTipoFilter] = useState("todos");
   const [comissoes, setComissoes] = useState<Comissao[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
   const { toast } = useToast();
 
   useEffect(() => {
     loadComissoes();
-  }, []);
+  }, [currentPage]);
 
   const loadComissoes = async () => {
     try {
       setLoading(true);
-      const result = await affiliateFrontendService.getMyCommissions();
+      setError(null);
+      
+      const result = await affiliateFrontendService.getCommissions(currentPage, 20);
       
       // Converter dados da API para o formato esperado pelo componente
       const comissoesData = result.commissions.map((item: any) => ({
@@ -91,13 +96,21 @@ export default function AffiliateDashboardComissoes() {
       }));
       
       setComissoes(comissoesData);
+      setTotalPages(result.pagination?.totalPages || 1);
+      
     } catch (error) {
       console.error('Erro ao carregar comissões:', error);
+      setError(error instanceof Error ? error.message : 'Erro desconhecido');
+      
       toast({
         title: "Erro ao carregar comissões",
-        description: "Ocorreu um erro inesperado",
+        description: "Não foi possível carregar as comissões. Usando dados de exemplo.",
         variant: "destructive"
       });
+      
+      // Fallback para dados vazios em caso de erro
+      setComissoes([]);
+      
     } finally {
       setLoading(false);
     }
@@ -266,6 +279,33 @@ export default function AffiliateDashboardComissoes() {
                   ? 'Tente ajustar os filtros de busca'
                   : 'Suas comissões aparecerão aqui quando você gerar vendas'}
               </p>
+            </div>
+          )}
+
+          {/* Paginação */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between pt-4">
+              <p className="text-sm text-muted-foreground">
+                Página {currentPage} de {totalPages}
+              </p>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                  disabled={currentPage === 1 || loading}
+                >
+                  Anterior
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                  disabled={currentPage === totalPages || loading}
+                >
+                  Próxima
+                </Button>
+              </div>
             </div>
           )}
             </>

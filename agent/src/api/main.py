@@ -35,12 +35,14 @@ try:
         from .agent import router as agent_router
         from .mcp import router as mcp_router
         from .sicc import router as sicc_router
+        from .affiliates import router as affiliates_router
         
         app.include_router(agent_router)
         app.include_router(mcp_router)
         app.include_router(sicc_router)
+        app.include_router(affiliates_router)
         
-        print("✅ Routers do dashboard registrados", flush=True)
+        print("✅ Routers do dashboard registrados (incluindo affiliates)", flush=True)
     except Exception as router_error:
         print(f"⚠️ Erro ao registrar routers do dashboard: {router_error}", flush=True)
         # Continuar execução mesmo se routers falharem

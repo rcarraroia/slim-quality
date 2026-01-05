@@ -1,6 +1,16 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
+interface ChartData {
+  mes: string;
+  valor: number;
+}
+
+interface RecebimentoChartProps {
+  data?: ChartData[];
+  title?: string;
+}
+
 const mockChartData = [
   { mes: "Jan", valor: 420 },
   { mes: "Fev", valor: 680 },
@@ -28,15 +38,23 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   return null;
 };
 
-export function RecebimentoChart() {
+export function RecebimentoChart({ data, title = "Evolução Mensal de Recebimentos" }: RecebimentoChartProps) {
+  // Usar dados reais se fornecidos, senão usar mock como fallback
+  const chartData = data && data.length > 0 ? data : mockChartData;
+  
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Evolução Mensal de Recebimentos</CardTitle>
+        <CardTitle>{title}</CardTitle>
+        {(!data || data.length === 0) && (
+          <p className="text-sm text-muted-foreground">
+            Dados de exemplo - conecte com o backend para ver dados reais
+          </p>
+        )}
       </CardHeader>
       <CardContent className="h-80">
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={mockChartData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+          <BarChart data={chartData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--muted))" />
             <XAxis dataKey="mes" stroke="hsl(var(--muted-foreground))" />
             <YAxis 
