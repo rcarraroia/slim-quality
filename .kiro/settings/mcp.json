@@ -1,0 +1,47 @@
+{
+  "mcpServers": {
+    "asaas-api": {
+      "command": "uvx",
+      "args": ["mcp-server-fetch@latest"],
+      "env": {
+        "ASAAS_API_KEY": "$aact_prod_000MzkwODA2MWY2OGM3MWRlMDU2NWM3MzJlNzZmNGZhZGY6OjI3MTA3OTE1LTE3ZjEtNDBhYi1hNjQ5LWQwZjAwYjc0Zjc1Zjo6JGFhY2hfZDZiYTVjMjAtNjY1Yy00MDgxLWEyNjEtMDMwZDA5MTczMjNj",
+        "ASAAS_ENVIRONMENT": "production",
+        "ASAAS_API_URL": "https://api.asaas.com/v3",
+        "FASTMCP_LOG_LEVEL": "INFO"
+      },
+      "disabled": false,
+      "autoApprove": [
+        "fetch",
+        "post_request",
+        "get_request",
+        "put_request",
+        "delete_request"
+      ]
+    },
+    "asaas-docs": {
+      "command": "uvx",
+      "args": ["mcp-server-web@latest"],
+      "env": {
+        "FASTMCP_LOG_LEVEL": "INFO"
+      },
+      "disabled": false,
+      "autoApprove": [
+        "fetch_url",
+        "search_web"
+      ]
+    },
+    "brasil-api": {
+      "command": "uvx",
+      "args": ["guilhermelirio/brasil-api-mcp@latest"],
+      "env": {
+        "FASTMCP_LOG_LEVEL": "INFO"
+      },
+      "disabled": false,
+      "autoApprove": [
+        "get_cep",
+        "get_cnpj",
+        "get_bank_info"
+      ]
+    }
+  }
+}

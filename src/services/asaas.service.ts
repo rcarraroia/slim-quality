@@ -130,10 +130,17 @@ export class AsaasService {
   async createPayment(paymentData: AsaasPayment): Promise<any> {
     if (!this.apiKey) {
       console.log('🔄 Modo simulação - cobrança criada:', paymentData);
+      
+      // Gerar URL de checkout válida para simulação
+      const baseUrl = window.location.origin;
+      const simulatedId = `pay_simulated_${Date.now()}`;
+      
       return {
-        id: `pay_simulated_${Date.now()}`,
-        invoiceUrl: `https://checkout.asaas.com/pay/simulated_${Date.now()}`,
-        bankSlipUrl: `https://checkout.asaas.com/boleto/simulated_${Date.now()}`,
+        id: simulatedId,
+        invoiceUrl: `${baseUrl}/checkout-simulado?payment=${simulatedId}&amount=${paymentData.value}&type=${paymentData.billingType}`,
+        bankSlipUrl: `${baseUrl}/boleto-simulado?payment=${simulatedId}`,
+        pixQrCode: `00020126580014br.gov.bcb.pix0136${simulatedId}520400005303986540${paymentData.value.toFixed(2)}5802BR5925SLIM QUALITY SIMULACAO6009SAO PAULO62070503***6304`,
+        pixCopyPaste: `00020126580014br.gov.bcb.pix0136${simulatedId}520400005303986540${paymentData.value.toFixed(2)}5802BR5925SLIM QUALITY SIMULACAO6009SAO PAULO62070503***6304`,
         status: 'PENDING',
         value: paymentData.value,
         netValue: paymentData.value,

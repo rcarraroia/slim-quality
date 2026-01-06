@@ -263,12 +263,12 @@ export class CheckoutService {
       });
       
       // Se houver afiliado, calcular comissões
-      if (order.affiliate_id) {
+      if (order.affiliate_n1_id) {
         // 15% para afiliado N1
         const { data: affiliate } = await supabase
           .from('affiliates')
           .select('wallet_id')
-          .eq('id', order.affiliate_id)
+          .eq('user_id', order.affiliate_n1_id)
           .single();
         
         if (affiliate?.wallet_id) {
@@ -312,7 +312,7 @@ export class CheckoutService {
       const checkoutResult = await asaasService.processCheckout({
         customer: asaasCustomer,
         amount: order.total_cents / 100, // Converter centavos para reais
-        description: `Pedido ${order.id} - ${firstItem.product_name}`,
+        description: `Pedido ${order.order_number} - ${firstItem.product_name}`,
         externalReference: order.id,
         billingType: payment.method.toUpperCase() as 'PIX' | 'CREDIT_CARD' | 'BOLETO',
         installments: payment.installments,
@@ -320,11 +320,32 @@ export class CheckoutService {
       });
       
       if (checkoutResult.success) {
-        // Asaas funcionou - salvar ID do pagamento
+        // Criar registro de pagamento na tabela payments
+        const { data: paymentRecord, error: paymentError } = await supabase
+          .from('payments')
+          .insert({
+            order_id: order.id,
+            payment_method: payment.method as 'pix' | 'credit_card',
+            amount_cents: order.total_cents,
+            status: 'pending',
+            asaas_payment_id: checkoutResult.paymentId,
+            pix_qr_code: checkoutResult.pixQrCode,
+            pix_copy_paste: checkoutResult.pixCopyPaste,
+            installments: payment.installments || 1
+          })
+          .select()
+          .single();
+        
+        if (paymentError) {
+          console.warn('⚠️ Erro ao criar registro de pagamento:', paymentError.message);
+        } else {
+          console.log('💾 Registro de pagamento criado:', paymentRecord.id);
+        }
+        
+        // Atualizar pedido com ID do pagamento Asaas
         await supabase
           .from('orders')
           .update({ 
-            asaas_payment_id: checkoutResult.paymentId,
             updated_at: new Date().toISOString()
           })
           .eq('id', order.id);
@@ -345,7 +366,7 @@ export class CheckoutService {
     } catch (error) {
       console.error('❌ Erro ao gerar pagamento Asaas:', error);
       
-      // Fallback: retornar URL simulada
+      // Fallback: retornar URL simulada válida
       const baseUrl = window.location.origin;
       const paymentParams = new URLSearchParams({
         order_id: order.id,
@@ -354,7 +375,7 @@ export class CheckoutService {
         ...(payment.installments && { installments: payment.installments.toString() })
       });
       
-      return `${baseUrl}/pagamento?${paymentParams.toString()}`;
+      return `${baseUrl}/pagamento-simulado?${paymentParams.toString()}`;
     }
   }
   
