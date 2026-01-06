@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Wallet, Shield, Bell, User, CheckCircle2, AlertCircle, Info, ExternalLink, Loader2 } from "lucide-react";
+import { Wallet, Shield, Bell, User, CheckCircle2, AlertCircle, Info, ExternalLink, Loader2, Link as LinkIcon } from "lucide-react";
 import { affiliateFrontendService } from "@/services/frontend/affiliate.service";
 import { supabase } from "@/config/supabase";
 
@@ -37,6 +37,11 @@ export default function AffiliateDashboardConfiguracoes() {
     error?: string;
   }>({ configured: false });
 
+  // Estados para Slug
+  const [slug, setSlug] = useState("");
+  const [checkingSlug, setCheckingSlug] = useState(false);
+  const [slugStatus, setSlugStatus] = useState<{ available: boolean; message: string } | null>(null);
+
   // Carregar dados do afiliado ao montar componente
   useEffect(() => {
     loadAffiliateData();
@@ -49,6 +54,11 @@ export default function AffiliateDashboardConfiguracoes() {
       
       if (isAffiliate && affiliateData) {
         setAffiliate(affiliateData);
+        
+        // Configurar slug
+        if (affiliateData.slug) {
+          setSlug(affiliateData.slug);
+        }
         
         // Configurar status da Wallet ID
         if (affiliateData.walletId) {
@@ -303,6 +313,81 @@ export default function AffiliateDashboardConfiguracoes() {
 
   const handleSaveNotifications = () => {
     toast({ title: "Preferências de notificações salvas!" });
+  };
+
+  // Funções para Slug
+  const handleCheckSlug = async () => {
+    if (!slug.trim()) {
+      setSlugStatus({
+        available: false,
+        message: 'Digite um slug para verificar'
+      });
+      return;
+    }
+
+    setCheckingSlug(true);
+    setSlugStatus(null);
+
+    try {
+      const result = await affiliateFrontendService.checkSlugAvailability(slug.trim().toLowerCase());
+      setSlugStatus(result);
+    } catch (error) {
+      setSlugStatus({
+        available: false,
+        message: 'Erro ao verificar slug'
+      });
+    } finally {
+      setCheckingSlug(false);
+    }
+  };
+
+  const handleSaveSlug = async () => {
+    try {
+      // Se slug vazio, vai usar referral_code
+      const slugToSave = slug.trim() || null;
+
+      // Se tem slug, validar antes de salvar
+      if (slugToSave) {
+        const validation = await affiliateFrontendService.checkSlugAvailability(slugToSave);
+        if (!validation.available) {
+          toast({
+            title: "Slug indisponível",
+            description: validation.message,
+            variant: "destructive"
+          });
+          return;
+        }
+      }
+
+      // Salvar slug
+      await affiliateFrontendService.updateSlug(slugToSave);
+
+      // Atualizar dados locais
+      if (affiliate) {
+        setAffiliate({
+          ...affiliate,
+          slug: slugToSave
+        });
+      }
+
+      toast({
+        title: "Slug atualizado!",
+        description: slugToSave 
+          ? `Seu link agora é: slimquality.com.br/${slugToSave}`
+          : `Seu link agora usa seu código: slimquality.com.br/${affiliate?.referralCode}`
+      });
+
+      // Recarregar dados
+      loadAffiliateData();
+
+    } catch (error) {
+      console.error('Erro ao salvar slug:', error);
+      toast({
+        title: "Erro ao salvar",
+        description: error instanceof Error ? error.message : "Não foi possível salvar o slug",
+        variant: "destructive"
+      });
+    }
   };
 
   // Loading state
@@ -591,7 +676,81 @@ export default function AffiliateDashboardConfiguracoes() {
         </CardContent>
       </Card>
 
-      {/* Seção 4: Segurança */}
+      {/* Seção 4: Link de Indicação */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <LinkIcon className="h-5 w-5 text-primary" />
+            <CardTitle>Link de Indicação</CardTitle>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="slug">
+              Slug Personalizado (opcional)
+            </Label>
+            <div className="flex gap-2">
+              <div className="flex-1 flex items-center gap-2 border rounded-md px-3">
+                <span className="text-sm text-muted-foreground whitespace-nowrap">
+                  slimquality.com.br/
+                </span>
+                <Input 
+                  id="slug" 
+                  placeholder="seu-nome"
+                  value={slug}
+                  onChange={(e) => {
+                    const value = e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '');
+                    setSlug(value);
+                    setSlugStatus(null);
+                  }}
+                  className="border-0 shadow-none focus-visible:ring-0 px-0"
+                />
+              </div>
+              <Button 
+                onClick={handleCheckSlug} 
+                variant="outline"
+                disabled={checkingSlug || !slug.trim()}
+              >
+                {checkingSlug ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    Verificando...
+                  </>
+                ) : (
+                  'Verificar'
+                )}
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Personalize seu link de indicação. Use apenas letras minúsculas, números e hífen.
+              {!slug && (
+                <span className="block mt-1 text-orange-600 dark:text-orange-400">
+                  💡 Se deixar em branco, será usado seu código: <strong>{affiliate?.referralCode}</strong>
+                </span>
+              )}
+            </p>
+            {slugStatus && (
+              <p className={`text-xs font-medium ${slugStatus.available ? 'text-success' : 'text-destructive'}`}>
+                {slugStatus.available ? '✅' : '❌'} {slugStatus.message}
+              </p>
+            )}
+          </div>
+
+          {/* Preview do Link */}
+          <div className="bg-muted p-4 rounded-lg space-y-2">
+            <p className="text-xs text-muted-foreground">Seu link ficará assim:</p>
+            <p className="font-mono text-sm font-medium break-all">
+              https://slimquality.com.br/{slug || affiliate?.referralCode || 'seu-codigo'}
+            </p>
+          </div>
+
+          <Button onClick={handleSaveSlug} disabled={slugStatus !== null && !slugStatus.available}>
+            Salvar Slug
+          </Button>
+        </CardContent>
+      </Card>
+
+      {/* Seção 5: Segurança */}
       <Card>
         <CardHeader>
           <div className="flex items-center gap-2">
