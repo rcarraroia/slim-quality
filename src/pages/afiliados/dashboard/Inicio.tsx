@@ -33,6 +33,16 @@ export default function AffiliateDashboardInicio() {
     loadDashboardData();
   }, []);
 
+  // Recarregar quando voltar para a página (detectar mudanças no slug)
+  useEffect(() => {
+    const handleFocus = () => {
+      loadDashboardData();
+    };
+    
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, []);
+
   const loadDashboardData = async () => {
     try {
       setLoading(true);

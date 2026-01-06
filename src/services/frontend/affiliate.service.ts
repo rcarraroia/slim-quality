@@ -222,23 +222,26 @@ export class AffiliateFrontendService {
    */
   async generateReferralLinkLocal(): Promise<{ link: string; qrCode: string; referralCode: string; slug?: string }> {
     try {
-      // 1. Buscar dados do afiliado
-      const { isAffiliate, affiliate } = await this.checkAffiliateStatus();
-      
-      if (!isAffiliate || !affiliate) {
-        throw new Error('Afiliado não encontrado');
+      // 1. Buscar dados do afiliado autenticado
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        throw new Error('Usuário não autenticado');
       }
 
-      // 2. Buscar slug do banco
-      const { data } = await supabase
+      // 2. Buscar slug e referral_code DIRETAMENTE do banco (sempre atualizado)
+      const { data, error } = await supabase
         .from('affiliates')
         .select('slug, referral_code')
-        .eq('id', affiliate.id)
+        .eq('user_id', user.id)
         .is('deleted_at', null)
         .single();
 
+      if (error || !data) {
+        throw new Error('Afiliado não encontrado');
+      }
+
       // 3. Usar slug se existir, senão usa referral_code
-      const identifier = data?.slug || affiliate.referralCode;
+      const identifier = data.slug || data.referral_code;
 
       // 4. Montar link SIMPLIFICADO
       const baseUrl = window.location.origin;
@@ -250,8 +253,8 @@ export class AffiliateFrontendService {
       return {
         link,
         qrCode,
-        referralCode: affiliate.referralCode,
-        slug: data?.slug || undefined
+        referralCode: data.referral_code,
+        slug: data.slug || undefined
       };
 
     } catch (error) {
