@@ -49,8 +49,8 @@ PostgreSQL Database
 ```
 Frontend (React)
     ↓ HTTP REST
-Backend API (FastAPI)
-    ↓ Validação + Logs
+Backend API (Express/TypeScript)
+    ↓ JWT Middleware + Validação + Logs
 Supabase Client
     ↓ RLS Policies
 PostgreSQL Database
@@ -60,7 +60,7 @@ PostgreSQL Database
 - Validação centralizada no backend
 - Logs de auditoria automáticos
 - Regras de negócio no backend
-- Segurança com RLS
+- Segurança com RLS + JWT
 - Fácil manutenção
 
 
@@ -68,157 +68,162 @@ PostgreSQL Database
 
 ### Backend Components
 
-#### 1. Admin Affiliates Router (`agent/src/api/admin_affiliates.py`)
+#### 1. Admin Affiliates Router (`src/api/routes/admin/affiliates.ts`)
 
 **Responsabilidade:** Gerenciar todas as operações administrativas de afiliados
 
 **Endpoints:**
-```python
-# Métricas do Dashboard
+```typescript
+// Métricas do Dashboard
 GET /api/admin/affiliates/metrics
 Response: {
-  total_affiliates: int,
-  active_affiliates: int,
-  total_commissions_paid: float,
-  total_sales: int,
-  conversion_rate: float
+  total_affiliates: number,
+  active_affiliates: number,
+  total_commissions_paid: number,
+  total_sales: number,
+  conversion_rate: number
 }
 
-# Listar Afiliados
+// Listar Afiliados
 GET /api/admin/affiliates
 Query Params: status?, search?, page?, limit?
 Response: {
   data: Affiliate[],
-  total: int,
-  page: int,
-  limit: int
+  total: number,
+  page: number,
+  limit: number
 }
 
-# Detalhes de Afiliado
+// Detalhes de Afiliado
 GET /api/admin/affiliates/:id
 Response: Affiliate
 
-# Editar Afiliado
+// Editar Afiliado
 PUT /api/admin/affiliates/:id
 Body: { name?, email?, phone?, wallet_id?, status? }
 Response: Affiliate
 
-# Ativar/Desativar Afiliado
+// Ativar/Desativar Afiliado
 POST /api/admin/affiliates/:id/activate
 POST /api/admin/affiliates/:id/deactivate
 Body: { reason: string }
 Response: { success: boolean, message: string }
 ```
 
-#### 2. Admin Commissions Router (`agent/src/api/admin_commissions.py`)
+#### 2. Admin Commissions Router (`src/api/routes/admin/commissions.ts`)
 
 **Responsabilidade:** Gerenciar comissões de afiliados
 
 **Endpoints:**
-```python
-# Listar Comissões
+```typescript
+// Listar Comissões
 GET /api/admin/commissions
 Query Params: status?, level?, affiliate_id?, page?, limit?
 Response: {
   data: Commission[],
-  total: int,
+  total: number,
   metrics: {
-    total_pending: float,
-    total_paid: float,
-    count_pending: int
+    total_pending: number,
+    total_paid: number,
+    count_pending: number
   }
 }
 
-# Detalhes de Comissão
+// Detalhes de Comissão
 GET /api/admin/commissions/:id
 Response: Commission
 
-# Aprovar Comissão
+// Aprovar Comissão
 POST /api/admin/commissions/:id/approve
 Response: { success: boolean, message: string }
 
-# Rejeitar Comissão
+// Rejeitar Comissão
 POST /api/admin/commissions/:id/reject
 Body: { reason: string }
 Response: { success: boolean, message: string }
 
-# Exportar Relatório
+// Exportar Relatório
 POST /api/admin/commissions/export
 Body: { format: 'csv' | 'pdf', filters: {...} }
 Response: { download_url: string }
 ```
 
 
-#### 3. Admin Withdrawals Router (`agent/src/api/admin_withdrawals.py`)
+#### 3. Admin Withdrawals Router (`src/api/routes/admin/withdrawals.ts`)
 
 **Responsabilidade:** Gerenciar solicitações de saque
 
 **Endpoints:**
-```python
-# Listar Solicitações
+```typescript
+// Listar Solicitações
 GET /api/admin/withdrawals
 Query Params: status?, affiliate_id?, page?, limit?
 Response: {
   data: Withdrawal[],
-  total: int,
+  total: number,
   metrics: {
-    total_pending: float,
-    total_processed: float,
-    count_pending: int
+    total_pending: number,
+    total_processed: number,
+    count_pending: number
   }
 }
 
-# Detalhes de Solicitação
+// Detalhes de Solicitação
 GET /api/admin/withdrawals/:id
 Response: Withdrawal
 
-# Aprovar Saque
+// Aprovar Saque
 POST /api/admin/withdrawals/:id/approve
 Response: { success: boolean, message: string }
 
-# Rejeitar Saque
+// Rejeitar Saque
 POST /api/admin/withdrawals/:id/reject
 Body: { reason: string }
 Response: { success: boolean, message: string }
 ```
 
-#### 4. Asaas Validation Service (`agent/src/services/asaas_validator.py`)
+#### 4. Asaas Validation Service (`src/services/asaas-validator.service.ts`)
 
 **Responsabilidade:** Validar Wallet IDs do Asaas
 
 **Métodos:**
-```python
-class AsaasValidator:
-    async def validate_wallet(wallet_id: str) -> ValidationResult:
-        """
-        Valida Wallet ID via API Asaas
-        Cacheia resultado por 24h
-        """
-        
-    async def get_wallet_info(wallet_id: str) -> WalletInfo:
-        """
-        Busca informações da carteira
-        """
+```typescript
+class AsaasValidator {
+  async validateWallet(walletId: string): Promise<ValidationResult> {
+    /**
+     * Valida Wallet ID via API Asaas
+     * Cacheia resultado por 24h
+     */
+  }
+  
+  async getWalletInfo(walletId: string): Promise<WalletInfo> {
+    /**
+     * Busca informações da carteira
+     */
+  }
+}
 ```
 
-#### 5. Audit Logger Service (`agent/src/services/audit_logger.py`)
+#### 5. Audit Logger Service (`src/services/audit-logger.service.ts`)
 
 **Responsabilidade:** Registrar logs de auditoria
 
 **Métodos:**
-```python
-class AuditLogger:
-    async def log_action(
-        user_id: str,
-        action: str,
-        resource_type: str,
-        resource_id: str,
-        details: dict
-    ):
-        """
-        Registra ação administrativa
-        Salva em audit_logs table
-        """
+```typescript
+class AuditLogger {
+  async logAction(
+    adminId: string,
+    action: string,
+    resourceType: string,
+    resourceId: string,
+    details: Record<string, any>
+  ): Promise<void> {
+    /**
+     * Registra ação administrativa
+     * Salva em audit_logs table
+     */
+  }
+}
 ```
 
 ### Frontend Components
@@ -710,44 +715,59 @@ Ambos são complementares e necessários para cobertura abrangente.
 
 ### Property-Based Testing
 
-**Framework:** Hypothesis (Python) para backend
+**Framework:** fast-check (TypeScript) para backend
 
 **Configuração:**
 - Mínimo 100 iterações por teste de propriedade
 - Cada teste deve referenciar sua propriedade do documento de design
-- Tag format: `# Feature: correcao-painel-admin-afiliados, Property {number}: {property_text}`
+- Tag format: `// Feature: correcao-painel-admin-afiliados, Property {number}: {property_text}`
 
 **Exemplo de Property Test:**
-```python
-from hypothesis import given, strategies as st
-import pytest
+```typescript
+import fc from 'fast-check';
+import { describe, it, expect } from 'vitest';
 
-# Feature: correcao-painel-admin-afiliados, Property 1: Métricas do Dashboard Refletem Dados Reais
-@given(
-    affiliates=st.lists(st.builds(Affiliate), min_size=0, max_size=100),
-    commissions=st.lists(st.builds(Commission), min_size=0, max_size=500)
-)
-@pytest.mark.property_test
-async def test_dashboard_metrics_reflect_real_data(affiliates, commissions):
-    # Inserir dados no banco
-    for affiliate in affiliates:
-        await db.insert('affiliates', affiliate)
-    for commission in commissions:
-        await db.insert('commissions', commission)
-    
-    # Buscar métricas
-    metrics = await admin_service.get_metrics()
-    
-    # Verificar que métricas correspondem aos dados
-    assert metrics.total_affiliates == len(affiliates)
-    assert metrics.total_commissions_paid == sum(
-        c.amount_cents for c in commissions if c.status == 'paid'
-    )
+// Feature: correcao-painel-admin-afiliados, Property 1: Métricas do Dashboard Refletem Dados Reais
+describe('Dashboard Metrics Properties', () => {
+  it('should reflect real data', async () => {
+    await fc.assert(
+      fc.asyncProperty(
+        fc.array(affiliateArbitrary(), { maxLength: 100 }),
+        fc.array(commissionArbitrary(), { maxLength: 500 }),
+        async (affiliates, commissions) => {
+          // Inserir dados no banco
+          for (const affiliate of affiliates) {
+            await supabase.from('affiliates').insert(affiliate);
+          }
+          for (const commission of commissions) {
+            await supabase.from('commissions').insert(commission);
+          }
+          
+          // Buscar métricas
+          const response = await request(app)
+            .get('/api/admin/affiliates/metrics')
+            .set('Authorization', `Bearer ${token}`);
+          
+          const metrics = response.body;
+          
+          // Verificar que métricas correspondem aos dados
+          expect(metrics.total_affiliates).toBe(affiliates.length);
+          expect(metrics.total_commissions_paid).toBe(
+            commissions
+              .filter(c => c.status === 'paid')
+              .reduce((sum, c) => sum + c.commission_value_cents, 0) / 100
+          );
+        }
+      ),
+      { numRuns: 100 }
+    );
+  });
+});
 ```
 
 ### Unit Testing
 
-**Framework:** Pytest (Python) para backend, Vitest (TypeScript) para frontend
+**Framework:** Vitest (TypeScript) para backend e frontend
 
 **Foco dos Unit Tests:**
 - Exemplos específicos de uso
@@ -756,17 +776,26 @@ async def test_dashboard_metrics_reflect_real_data(affiliates, commissions):
 - Integração entre componentes
 
 **Exemplo de Unit Test:**
-```python
-@pytest.mark.asyncio
-async def test_approve_affiliate_with_invalid_wallet_id():
-    # Arrange
-    affiliate = create_test_affiliate(wallet_id="invalid_wallet")
+```typescript
+import { describe, it, expect } from 'vitest';
+import request from 'supertest';
+import app from '../src/server';
+
+describe('Approve Affiliate', () => {
+  it('should reject affiliate with invalid wallet ID', async () => {
+    // Arrange
+    const affiliate = await createTestAffiliate({ wallet_id: 'invalid_wallet' });
     
-    # Act & Assert
-    with pytest.raises(ValidationError) as exc:
-        await admin_service.approve_affiliate(affiliate.id)
+    // Act
+    const response = await request(app)
+      .post(`/api/admin/affiliates/${affiliate.id}/approve`)
+      .set('Authorization', `Bearer ${token}`);
     
-    assert "Wallet ID inválido" in str(exc.value)
+    // Assert
+    expect(response.status).toBe(400);
+    expect(response.body.error).toContain('Invalid or inactive wallet ID');
+  });
+});
 ```
 
 ### Integration Testing
@@ -774,27 +803,42 @@ async def test_approve_affiliate_with_invalid_wallet_id():
 **Foco:** Testar fluxos completos end-to-end
 
 **Exemplo:**
-```python
-@pytest.mark.integration
-async def test_complete_affiliate_approval_flow():
-    # 1. Criar solicitação
-    affiliate = await create_affiliate_request()
+```typescript
+import { describe, it, expect } from 'vitest';
+import request from 'supertest';
+import app from '../src/server';
+
+describe('Complete Affiliate Approval Flow', () => {
+  it('should complete full approval flow', async () => {
+    // 1. Criar solicitação
+    const affiliate = await createAffiliateRequest();
     
-    # 2. Aprovar
-    result = await admin_service.approve_affiliate(affiliate.id)
+    // 2. Aprovar
+    const approveResponse = await request(app)
+      .post(`/api/admin/affiliates/${affiliate.id}/approve`)
+      .set('Authorization', `Bearer ${token}`);
     
-    # 3. Verificar status atualizado
-    updated = await db.get_affiliate(affiliate.id)
-    assert updated.status == 'active'
+    expect(approveResponse.status).toBe(200);
     
-    # 4. Verificar log de auditoria
-    logs = await db.get_audit_logs(resource_id=affiliate.id)
-    assert len(logs) == 1
-    assert logs[0].action == 'approve_affiliate'
+    // 3. Verificar status atualizado
+    const { data: updated } = await supabase
+      .from('affiliates')
+      .select('*')
+      .eq('id', affiliate.id)
+      .single();
     
-    # 5. Verificar notificação enviada
-    notifications = await db.get_notifications(affiliate_id=affiliate.id)
-    assert len(notifications) == 1
+    expect(updated.status).toBe('active');
+    
+    // 4. Verificar log de auditoria
+    const { data: logs } = await supabase
+      .from('audit_logs')
+      .select('*')
+      .eq('resource_id', affiliate.id);
+    
+    expect(logs).toHaveLength(1);
+    expect(logs[0].action).toBe('approve_affiliate');
+  });
+});
 ```
 
 ### Test Coverage Goals
@@ -824,39 +868,39 @@ async def test_complete_affiliate_approval_flow():
 tests/
 ├── unit/
 │   ├── services/
-│   │   ├── test_admin_affiliates_service.py
-│   │   ├── test_admin_commissions_service.py
-│   │   └── test_asaas_validator.py
+│   │   ├── admin-affiliates.service.test.ts
+│   │   ├── admin-commissions.service.test.ts
+│   │   └── asaas-validator.service.test.ts
 │   └── api/
-│       ├── test_admin_affiliates_routes.py
-│       └── test_admin_commissions_routes.py
+│       ├── admin-affiliates.routes.test.ts
+│       └── admin-commissions.routes.test.ts
 ├── integration/
-│   ├── test_affiliate_approval_flow.py
-│   ├── test_commission_management_flow.py
-│   └── test_withdrawal_processing_flow.py
+│   ├── affiliate-approval-flow.test.ts
+│   ├── commission-management-flow.test.ts
+│   └── withdrawal-processing-flow.test.ts
 └── property/
-    ├── test_dashboard_metrics_properties.py
-    ├── test_filtering_properties.py
-    └── test_status_change_properties.py
+    ├── dashboard-metrics.properties.test.ts
+    ├── filtering.properties.test.ts
+    └── status-change.properties.test.ts
 ```
 
 ### Running Tests
 
 ```bash
 # Todos os testes
-pytest
+npm test
 
 # Apenas unit tests
-pytest tests/unit/
+npm test tests/unit/
 
 # Apenas property tests
-pytest -m property_test
+npm test -- --grep "Property"
 
 # Apenas integration tests
-pytest -m integration
+npm test -- --grep "Integration"
 
 # Com cobertura
-pytest --cov=src --cov-report=html
+npm test -- --coverage
 ```
 
 
@@ -865,34 +909,63 @@ pytest --cov=src --cov-report=html
 ### Authentication & Authorization
 
 #### 1. JWT Token Validation
-```python
-from fastapi import Depends, HTTPException
-from fastapi.security import HTTPBearer
+```typescript
+import { Request, Response, NextFunction } from 'express';
+import jwt from 'jsonwebtoken';
 
-security = HTTPBearer()
+export interface AdminRequest extends Request {
+  admin?: {
+    adminId: string;
+    email: string;
+    role: string;
+  };
+}
 
-async def get_current_user(token: str = Depends(security)):
-    try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
-        user_id = payload.get("sub")
-        if not user_id:
-            raise HTTPException(status_code=401, detail="Token inválido")
-        return await get_user(user_id)
-    except jwt.ExpiredSignatureError:
-        raise HTTPException(status_code=401, detail="Token expirado")
-    except jwt.JWTError:
-        raise HTTPException(status_code=401, detail="Token inválido")
+export const verifyAdmin = (
+  req: AdminRequest,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const authHeader = req.headers.authorization;
+    
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ error: 'Missing or invalid authorization header' });
+    }
+    
+    const token = authHeader.split(' ')[1];
+    
+    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as {
+      adminId: string;
+      email: string;
+      role: string;
+    };
+    
+    req.admin = decoded;
+    next();
+  } catch (error) {
+    if (error instanceof jwt.TokenExpiredError) {
+      return res.status(401).json({ error: 'Token expired' });
+    }
+    return res.status(401).json({ error: 'Invalid token' });
+  }
+};
 ```
 
 #### 2. Role-Based Access Control
-```python
-def require_admin(user: User = Depends(get_current_user)):
-    if user.role not in ['admin', 'super_admin']:
-        raise HTTPException(
-            status_code=403,
-            detail="Apenas administradores podem acessar este recurso"
-        )
-    return user
+```typescript
+export const requireSuperAdmin = (
+  req: AdminRequest,
+  res: Response,
+  next: NextFunction
+) => {
+  if (req.admin?.role !== 'super_admin') {
+    return res.status(403).json({
+      error: 'Super admin access required'
+    });
+  }
+  next();
+};
 ```
 
 ### Row Level Security (RLS)
@@ -942,65 +1015,68 @@ CREATE POLICY "Affiliates view own commissions"
 ### Data Validation
 
 #### Input Sanitization
-```python
-from pydantic import BaseModel, EmailStr, validator
+```typescript
+import { z } from 'zod';
 
-class AffiliateUpdate(BaseModel):
-    name: Optional[str]
-    email: Optional[EmailStr]
-    phone: Optional[str]
-    wallet_id: Optional[str]
-    
-    @validator('name')
-    def validate_name(cls, v):
-        if v and len(v) < 3:
-            raise ValueError('Nome deve ter pelo menos 3 caracteres')
-        return v
-    
-    @validator('wallet_id')
-    def validate_wallet_id(cls, v):
-        if v and not v.startswith('wal_'):
-            raise ValueError('Wallet ID inválido')
-        return v
+const AffiliateUpdateSchema = z.object({
+  name: z.string().min(3).optional(),
+  email: z.string().email().optional(),
+  phone: z.string().optional(),
+  wallet_id: z.string().startsWith('wal_').optional()
+});
+
+// Uso
+router.put('/:id', verifyAdmin, async (req: AdminRequest, res) => {
+  try {
+    const validated = AffiliateUpdateSchema.parse(req.body);
+    // ... continuar com dados validados
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ errors: error.errors });
+    }
+    throw error;
+  }
+});
 ```
 
 ### Rate Limiting
 
-```python
-from slowapi import Limiter
-from slowapi.util import get_remote_address
+```typescript
+import rateLimit from 'express-rate-limit';
 
-limiter = Limiter(key_func=get_remote_address)
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutos
+  max: 100, // 100 requests por IP
+  message: 'Too many requests from this IP'
+});
 
-@app.get("/api/admin/affiliates")
-@limiter.limit("100/minute")
-async def get_affiliates():
-    pass
+app.use('/api/admin/', limiter);
 ```
 
 ### Audit Logging
 
 Todas as ações administrativas devem ser registradas:
 
-```python
-async def log_admin_action(
-    user_id: str,
-    action: str,
-    resource_type: str,
-    resource_id: str,
-    details: dict,
-    request: Request
-):
-    await db.insert('audit_logs', {
-        'user_id': user_id,
-        'action': action,
-        'resource_type': resource_type,
-        'resource_id': resource_id,
-        'details': details,
-        'ip_address': request.client.host,
-        'user_agent': request.headers.get('user-agent'),
-        'created_at': datetime.now()
-    })
+```typescript
+async function logAdminAction(
+  adminId: string,
+  action: string,
+  resourceType: string,
+  resourceId: string,
+  details: Record<string, any>,
+  request: Request
+): Promise<void> {
+  await supabase.from('audit_logs').insert({
+    admin_id: adminId,
+    action,
+    resource_type: resourceType,
+    resource_id: resourceId,
+    details,
+    ip_address: request.ip,
+    user_agent: request.get('user-agent'),
+    created_at: new Date().toISOString()
+  });
+}
 ```
 
 ## Performance Considerations
@@ -1039,86 +1115,100 @@ query = supabase.table('commissions').select(
 
 ### Caching Strategy
 
-#### 1. Cache de Validação de Wallet
-```python
-from redis import Redis
-import json
+#### 1. Cache de Validação de Wallet (em memória)
+```typescript
+// Cache simples em memória (24 horas)
+const walletCache = new Map<string, { result: ValidationResult; timestamp: number }>();
+const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 horas
 
-redis_client = Redis(host='localhost', port=6379, db=0)
-
-async def validate_wallet_cached(wallet_id: str) -> bool:
-    # Verificar cache
-    cached = redis_client.get(f"wallet_validation:{wallet_id}")
-    if cached:
-        return json.loads(cached)
-    
-    # Validar via API
-    result = await asaas_client.validate_wallet(wallet_id)
-    
-    # Cachear por 24 horas
-    redis_client.setex(
-        f"wallet_validation:{wallet_id}",
-        86400,  # 24 horas
-        json.dumps(result)
-    )
-    
-    return result
+async function validateWalletCached(walletId: string): Promise<ValidationResult> {
+  // Verificar cache
+  const cached = walletCache.get(walletId);
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+    return cached.result;
+  }
+  
+  // Validar via API
+  const result = await asaasClient.validateWallet(walletId);
+  
+  // Cachear
+  walletCache.set(walletId, { result, timestamp: Date.now() });
+  
+  return result;
+}
 ```
 
-#### 2. Cache de Métricas
-```python
-# Cachear métricas por 5 minutos
-@cache(ttl=300)
+#### 2. Cache de Métricas (em memória)
+```typescript
+// Cachear métricas por 5 minutos
+let metricsCache: { data: any; timestamp: number } | null = null;
+const METRICS_CACHE_TTL = 5 * 60 * 1000; // 5 minutos
+
+router.get('/metrics', verifyAdmin, async (req, res) => {
+  if (metricsCache && Date.now() - metricsCache.timestamp < METRICS_CACHE_TTL) {
+    return res.json(metricsCache.data);
+  }
+  
+  const metrics = await calculateMetrics();
+  metricsCache = { data: metrics, timestamp: Date.now() };
+  
+  res.json(metrics);
+});
+```ache(ttl=300)
 async def get_dashboard_metrics():
     return await calculate_metrics()
 ```
 
 ### Pagination
 
-```python
-@router.get("/api/admin/affiliates")
-async def get_affiliates(
-    page: int = 1,
-    limit: int = 50,
-    status: Optional[str] = None
-):
-    offset = (page - 1) * limit
-    
-    query = supabase.table('affiliates').select('*', count='exact')
-    
-    if status:
-        query = query.eq('status', status)
-    
-    result = query.range(offset, offset + limit - 1).execute()
-    
-    return {
-        'data': result.data,
-        'total': result.count,
-        'page': page,
-        'limit': limit,
-        'pages': math.ceil(result.count / limit)
-    }
+```typescript
+router.get('/affiliates', verifyAdmin, async (req: AdminRequest, res) => {
+  const page = Number(req.query.page) || 1;
+  const limit = Number(req.query.limit) || 50;
+  const status = req.query.status as string | undefined;
+  
+  const offset = (page - 1) * limit;
+  
+  let query = supabase
+    .from('affiliates')
+    .select('*', { count: 'exact' });
+  
+  if (status) {
+    query = query.eq('status', status);
+  }
+  
+  const { data, error, count } = await query
+    .range(offset, offset + limit - 1);
+  
+  if (error) throw error;
+  
+  res.json({
+    data,
+    total: count || 0,
+    page,
+    limit,
+    pages: Math.ceil((count || 0) / limit)
+  });
+});
 ```
 
 ## Deployment Strategy
 
 ### Backend Deployment
 
-1. **Build Docker Image:**
+**Backend Express roda no Vercel junto com o frontend**
+
+1. **Commit & Push:**
 ```bash
-cd agent
-docker build -t renumvscode/slim-agent:latest .
+git add .
+git commit -m "feat: backend admin afiliados"
+git push origin main
 ```
 
-2. **Push to Docker Hub:**
-```bash
-docker push renumvscode/slim-agent:latest
-```
-
-3. **Rebuild on EasyPanel:**
-- Acessar EasyPanel Dashboard
-- Selecionar service `slim-agent`
-- Clicar em "Rebuild"
+2. **Deploy Automático:**
+- Vercel detecta push automaticamente
+- Build e deploy do backend Express em ~2 minutos
+- API disponível em https://slimquality.com.br/api
 
 ### Frontend Deployment
 
@@ -1144,20 +1234,22 @@ git push origin main
 
 ### Environment Variables
 
-**Backend (.env):**
+**Projeto (.env):**
 ```bash
-SUPABASE_URL=https://xxx.supabase.co
-SUPABASE_SERVICE_KEY=xxx
-ASAAS_API_KEY=xxx
-REDIS_URL=redis://localhost:6379
-JWT_SECRET=xxx
-```
-
-**Frontend (.env):**
-```bash
+# Supabase
 VITE_SUPABASE_URL=https://xxx.supabase.co
 VITE_SUPABASE_ANON_KEY=xxx
-VITE_API_URL=https://api.slimquality.com.br
+SUPABASE_SERVICE_KEY=xxx
+
+# Asaas
+ASAAS_API_KEY=xxx
+ASAAS_BASE_URL=https://api.asaas.com/v3
+ASAAS_WALLET_RENUM=wal_xxxxx
+ASAAS_WALLET_JB=wal_xxxxx
+
+# JWT
+JWT_SECRET=xxx
+JWT_REFRESH_SECRET=xxx
 ```
 
 ---

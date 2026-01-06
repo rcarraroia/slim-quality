@@ -7,18 +7,18 @@ Este plano detalha a implementação completa da correção do Painel de Adminis
 **Backend:** Express (TypeScript) - `src/api/routes/admin/`  
 **Frontend:** React (TypeScript) - `src/pages/admin/`  
 **Banco:** Supabase PostgreSQL  
+**Autenticação:** JWT Básico (definitivo)  
 **Abordagem:** Implementação incremental por funcionalidade, com testes após cada etapa.
 
 ## Tasks
 
 - [ ] 0. Implementar Autenticação JWT (CRÍTICO - BLOQUEANTE)
   - [ ] 0.1 Criar Migration: Tabelas de Autenticação no Supabase
-  - [ ] 0.2 Criar Router de Autenticação (`agent/src/api/auth.py`)
-  - [ ] 0.3 Criar Dependencies de Autenticação (`agent/src/utils/auth_dependencies.py`)
-  - [ ] 0.4 Criar Schemas de Autenticação (`agent/src/schemas/auth_schemas.py`)
-  - [ ] 0.5 Adicionar Variáveis de Ambiente JWT
-  - [ ] 0.6 Registrar Router no Main
-  - [ ] 0.7 Testar Autenticação
+  - [ ] 0.2 Criar Router de Autenticação (`src/api/routes/auth.ts`)
+  - [ ] 0.3 Criar Middleware de Autenticação (`src/api/middleware/auth.ts`)
+  - [ ] 0.4 Adicionar Variáveis de Ambiente JWT
+  - [ ] 0.5 Registrar Rotas no Server (`src/server.ts`)
+  - [ ] 0.6 Testar Autenticação
   - _Requirements: 10.2, 10.4_
   - _Tempo estimado: 2-3 horas_
   - _⚠️ DEVE SER IMPLEMENTADA ANTES DE TODAS AS OUTRAS TASKS_
@@ -389,7 +389,7 @@ describe('Auth API', () => {
 
 - [ ] 1. Setup e Preparação do Ambiente
   - Verificar estrutura de pastas backend Express (`src/api/routes/admin/`)
-  - Configurar dependências necessárias (jsonwebtoken, bcrypt, axios para Asaas)
+  - Instalar dependências necessárias (jsonwebtoken, bcrypt, axios para Asaas)
   - Ajustar tabela `audit_logs` para referenciar `admins`
   - Configurar variáveis de ambiente necessárias (Asaas, JWT)
   - Habilitar RLS em tabela `affiliates`

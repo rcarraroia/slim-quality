@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -7,15 +7,21 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { CheckCircle2, Loader2 } from "lucide-react";
+import { CheckCircle2, Loader2, UserCheck } from "lucide-react";
 import { affiliateFrontendService } from "@/services/frontend/affiliate.service";
+import { supabase } from "@/config/supabase";
 
 export default function AfiliadosCadastro() {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const [searchParams] = useSearchParams();
   const [showSuccess, setShowSuccess] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [loading, setLoading] = useState(false);
+  
+  // Estado para indicação
+  const [referrerName, setReferrerName] = useState<string | null>(null);
+  const [referralCode, setReferralCode] = useState<string | null>(null);
   
   // Form data - Apenas campos essenciais
   const [formData, setFormData] = useState({
@@ -24,6 +30,44 @@ export default function AfiliadosCadastro() {
     email: "",
     phone: ""
   });
+
+  // Buscar nome do afiliado indicador ao carregar
+  useEffect(() => {
+    const loadReferrer = async () => {
+      // 1. Verificar parâmetro ref na URL
+      const refParam = searchParams.get('ref');
+      
+      // 2. Se não tem na URL, verificar localStorage
+      const savedRef = refParam || localStorage.getItem('referralCode');
+      
+      if (!savedRef) return;
+
+      try {
+        // 3. Buscar afiliado pelo código ou slug
+        const { data } = await supabase
+          .from('affiliates')
+          .select('name, referral_code')
+          .or(`referral_code.eq.${savedRef},slug.eq.${savedRef}`)
+          .eq('status', 'active')
+          .is('deleted_at', null)
+          .single();
+
+        if (data) {
+          setReferrerName(data.name);
+          setReferralCode(data.referral_code);
+          
+          // Salvar no localStorage se veio da URL
+          if (refParam) {
+            localStorage.setItem('referralCode', data.referral_code);
+          }
+        }
+      } catch (error) {
+        console.warn('Erro ao buscar afiliado indicador:', error);
+      }
+    };
+
+    loadReferrer();
+  }, [searchParams]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -90,6 +134,21 @@ export default function AfiliadosCadastro() {
 
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-6">
+              {/* Card de Indicação (se houver) */}
+              {referrerName && (
+                <div className="bg-gradient-to-r from-primary/10 to-secondary/10 border-2 border-primary/30 rounded-lg p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 rounded-full bg-primary/20 flex items-center justify-center">
+                      <UserCheck className="h-5 w-5 text-primary" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Você foi indicado por</p>
+                      <p className="font-semibold text-lg">{referrerName}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Seção Única: Dados Essenciais */}
               <div className="space-y-4">
                 <h3 className="font-semibold text-lg border-b pb-2">Dados para Cadastro</h3>
