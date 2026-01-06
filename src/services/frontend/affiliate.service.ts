@@ -381,7 +381,12 @@ export class AffiliateFrontendService {
           totalClicks: affiliate.total_clicks,
           totalConversions: affiliate.total_conversions,
           totalCommissions: (affiliate.total_commissions_cents || 0) / 100,
-          createdAt: affiliate.created_at
+          createdAt: affiliate.created_at,
+          // Novos campos opcionais
+          city: affiliate.city,
+          state: affiliate.state,
+          cep: affiliate.cep,
+          birthDate: affiliate.birth_date
         }
       };
     } catch (error) {

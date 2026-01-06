@@ -74,8 +74,70 @@ export default function AffiliateDashboardConfiguracoes() {
     }
   };
 
-  const handleSavePersonal = () => {
-    toast({ title: "Dados salvos com sucesso!" });
+  const handleSavePersonal = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Usuário não autenticado');
+
+      // Coletar dados do formulário
+      const nameInput = document.getElementById('nome') as HTMLInputElement;
+      const emailInput = document.getElementById('email') as HTMLInputElement;
+      const phoneInput = document.getElementById('telefone') as HTMLInputElement;
+      const cityInput = document.getElementById('cidade') as HTMLInputElement;
+      const stateSelect = document.getElementById('estado') as HTMLSelectElement;
+      const cepInput = document.getElementById('cep') as HTMLInputElement;
+      const birthDateInput = document.getElementById('birthDate') as HTMLInputElement;
+
+      const formData = {
+        name: nameInput?.value || '',
+        email: emailInput?.value || '',
+        phone: phoneInput?.value || '',
+        city: cityInput?.value || null,
+        state: stateSelect?.value || null,
+        cep: cepInput?.value || null,
+        birth_date: birthDateInput?.value || null,
+      };
+
+      // Validar campos obrigatórios
+      if (!formData.name || !formData.email) {
+        toast({
+          title: "Campos obrigatórios",
+          description: "Nome e email são obrigatórios",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      // Atualizar no banco
+      const { error } = await supabase
+        .from('affiliates')
+        .update({
+          name: formData.name,
+          email: formData.email,
+          phone: formData.phone,
+          city: formData.city,
+          state: formData.state,
+          cep: formData.cep,
+          birth_date: formData.birth_date,
+          updated_at: new Date().toISOString()
+        })
+        .eq('user_id', user.id)
+        .is('deleted_at', null);
+
+      if (error) throw error;
+
+      toast({ title: "✅ Dados salvos com sucesso!" });
+      
+      // Recarregar dados
+      await loadAffiliateData();
+    } catch (error) {
+      console.error('Erro ao salvar dados:', error);
+      toast({
+        title: "Erro ao salvar",
+        description: error instanceof Error ? error.message : "Erro desconhecido",
+        variant: "destructive"
+      });
+    }
   };
 
   const handleTestWallet = async () => {
@@ -295,11 +357,15 @@ export default function AffiliateDashboardConfiguracoes() {
           <div className="grid gap-4 md:grid-cols-3">
             <div className="space-y-2">
               <Label htmlFor="cidade">Cidade</Label>
-              <Input id="cidade" placeholder="Sua cidade" />
+              <Input 
+                id="cidade" 
+                placeholder="Sua cidade" 
+                defaultValue={affiliate?.city || ""}
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="estado">Estado</Label>
-              <Select>
+              <Select defaultValue={affiliate?.state || ""}>
                 <SelectTrigger id="estado">
                   <SelectValue placeholder="Selecione" />
                 </SelectTrigger>
@@ -312,8 +378,24 @@ export default function AffiliateDashboardConfiguracoes() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="cep">CEP</Label>
-              <Input id="cep" placeholder="00000-000" />
+              <Input 
+                id="cep" 
+                placeholder="00000-000" 
+                defaultValue={affiliate?.cep || ""}
+              />
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="birthDate">Data de Nascimento</Label>
+            <Input 
+              id="birthDate" 
+              type="date" 
+              defaultValue={affiliate?.birthDate || ""}
+            />
+            <p className="text-xs text-muted-foreground">
+              Opcional - Pode ser útil para validações futuras
+            </p>
           </div>
 
           <Button onClick={handleSavePersonal}>Salvar Alterações</Button>

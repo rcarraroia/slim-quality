@@ -5,16 +5,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { CheckCircle2, Loader2 } from "lucide-react";
 import { affiliateFrontendService } from "@/services/frontend/affiliate.service";
-
-const estados = [
-  "AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS", "MG",
-  "PA", "PB", "PR", "PE", "PI", "RJ", "RN", "RS", "RO", "RR", "SC", "SP", "SE", "TO"
-];
 
 export default function AfiliadosCadastro() {
   const navigate = useNavigate();
@@ -23,15 +17,12 @@ export default function AfiliadosCadastro() {
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [loading, setLoading] = useState(false);
   
-  // Form data - REMOVIDOS: walletId, referralCode
+  // Form data - Apenas campos essenciais
   const [formData, setFormData] = useState({
     name: "",
     cpf: "",
-    birthDate: "",
     email: "",
-    phone: "",
-    city: "",
-    state: ""
+    phone: ""
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -98,11 +89,12 @@ export default function AfiliadosCadastro() {
           </CardHeader>
 
           <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-8">
-              {/* Seção 1: Dados Pessoais */}
+            <form onSubmit={handleSubmit} className="space-y-6">
+              {/* Seção Única: Dados Essenciais */}
               <div className="space-y-4">
-                <h3 className="font-semibold text-lg border-b pb-2">Informações Pessoais</h3>
+                <h3 className="font-semibold text-lg border-b pb-2">Dados para Cadastro</h3>
                 
+                {/* Nome Completo - Largura Total */}
                 <div className="space-y-2">
                   <Label htmlFor="nome">
                     Nome Completo <span className="text-destructive">*</span>
@@ -116,39 +108,21 @@ export default function AfiliadosCadastro() {
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="cpf">
-                      CPF <span className="text-destructive">*</span>
-                    </Label>
-                    <Input 
-                      id="cpf" 
-                      placeholder="000.000.000-00" 
-                      value={formData.cpf}
-                      onChange={(e) => setFormData(prev => ({ ...prev, cpf: e.target.value }))}
-                      required 
-                    />
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="nascimento">
-                      Data de Nascimento <span className="text-destructive">*</span>
-                    </Label>
-                    <Input 
-                      id="nascimento" 
-                      type="date" 
-                      value={formData.birthDate}
-                      onChange={(e) => setFormData(prev => ({ ...prev, birthDate: e.target.value }))}
-                      required 
-                    />
-                  </div>
+                {/* CPF - Largura Total */}
+                <div className="space-y-2">
+                  <Label htmlFor="cpf">
+                    CPF <span className="text-destructive">*</span>
+                  </Label>
+                  <Input 
+                    id="cpf" 
+                    placeholder="000.000.000-00" 
+                    value={formData.cpf}
+                    onChange={(e) => setFormData(prev => ({ ...prev, cpf: e.target.value }))}
+                    required 
+                  />
                 </div>
-              </div>
 
-              {/* Seção 2: Contato */}
-              <div className="space-y-4">
-                <h3 className="font-semibold text-lg border-b pb-2">Informações de Contato</h3>
-                
+                {/* Email - Largura Total */}
                 <div className="space-y-2">
                   <Label htmlFor="email">
                     Email <span className="text-destructive">*</span>
@@ -163,6 +137,7 @@ export default function AfiliadosCadastro() {
                   />
                 </div>
 
+                {/* Telefone - Largura Total */}
                 <div className="space-y-2">
                   <Label htmlFor="telefone">
                     Telefone/WhatsApp <span className="text-destructive">*</span>
@@ -175,32 +150,13 @@ export default function AfiliadosCadastro() {
                     required 
                   />
                 </div>
+              </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="cidade">Cidade</Label>
-                    <Input 
-                      id="cidade" 
-                      placeholder="Belo Horizonte" 
-                      value={formData.city}
-                      onChange={(e) => setFormData(prev => ({ ...prev, city: e.target.value }))}
-                    />
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="estado">Estado</Label>
-                    <Select value={formData.state} onValueChange={(value) => setFormData(prev => ({ ...prev, state: value }))}>
-                      <SelectTrigger id="estado">
-                        <SelectValue placeholder="Selecione" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {estados.map(estado => (
-                          <SelectItem key={estado} value={estado}>{estado}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
+              {/* Informação sobre dados adicionais */}
+              <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+                <p className="text-sm text-blue-800 dark:text-blue-200">
+                  💡 Você poderá completar seu perfil (endereço, data de nascimento) após o cadastro, no painel de configurações.
+                </p>
               </div>
 
               {/* Seção 3: Termos */}
