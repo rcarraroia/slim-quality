@@ -20,6 +20,7 @@ export interface AffiliateData {
   email: string;
   phone?: string;
   referralCode: string;
+  slug?: string;  // ✅ NOVO - Slug personalizado
   walletId: string;
   status: 'pending' | 'active' | 'inactive' | 'suspended' | 'rejected';
   totalClicks: number;
@@ -216,11 +217,56 @@ export class AffiliateFrontendService {
   }
 
   /**
-   * Busca link de indicação do afiliado
-   * API: GET /api/affiliates/referral-link
+   * Gera link de indicação localmente (sem API)
+   * Usa slug personalizado ou referral_code
    */
-  async getReferralLink(): Promise<{ link: string; qrCode: string; referralCode: string }> {
+  async generateReferralLinkLocal(): Promise<{ link: string; qrCode: string; referralCode: string; slug?: string }> {
     try {
+      // 1. Buscar dados do afiliado
+      const { isAffiliate, affiliate } = await this.checkAffiliateStatus();
+      
+      if (!isAffiliate || !affiliate) {
+        throw new Error('Afiliado não encontrado');
+      }
+
+      // 2. Buscar slug do banco
+      const { data } = await supabase
+        .from('affiliates')
+        .select('slug, referral_code')
+        .eq('id', affiliate.id)
+        .is('deleted_at', null)
+        .single();
+
+      // 3. Usar slug se existir, senão usa referral_code
+      const identifier = data?.slug || affiliate.referralCode;
+
+      // 4. Montar link SIMPLIFICADO
+      const baseUrl = window.location.origin;
+      const link = `${baseUrl}/${identifier}`;
+
+      // 5. Gerar QR Code
+      const qrCode = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(link)}`;
+
+      return {
+        link,
+        qrCode,
+        referralCode: affiliate.referralCode,
+        slug: data?.slug || undefined
+      };
+
+    } catch (error) {
+      console.error('Erro ao gerar link local:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Busca link de indicação do afiliado
+   * Tenta API primeiro, fallback para geração local
+   */
+  async getReferralLink(): Promise<{ link: string; qrCode: string; referralCode: string; slug?: string }> {
+    try {
+      // Tentar API primeiro
       const response = await fetch(`${this.baseUrl}/referral-link`, {
         method: 'GET',
         headers: {
@@ -228,15 +274,91 @@ export class AffiliateFrontendService {
         },
       });
 
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.error || 'Erro ao buscar link');
+      if (response.ok) {
+        const result = await response.json();
+        return result.data;
       }
 
-      return result.data;
+      // Se API falhar, gerar localmente
+      console.warn('API não disponível, gerando link localmente');
+      return await this.generateReferralLinkLocal();
+
     } catch (error) {
-      console.error('Erro ao buscar link de indicação:', error);
+      console.error('Erro ao buscar link, gerando localmente:', error);
+      // Fallback: gerar localmente
+      return await this.generateReferralLinkLocal();
+    }
+  }
+
+  /**
+   * Valida disponibilidade de slug
+   */
+  async checkSlugAvailability(slug: string): Promise<{ available: boolean; message: string }> {
+    try {
+      // Validar formato
+      const slugRegex = /^[a-z0-9-]+$/;
+      if (!slugRegex.test(slug)) {
+        return {
+          available: false,
+          message: 'Use apenas letras minúsculas, números e hífen'
+        };
+      }
+
+      // Verificar se já existe
+      const { data } = await supabase
+        .from('affiliates')
+        .select('id')
+        .eq('slug', slug)
+        .is('deleted_at', null)
+        .single();
+
+      if (data) {
+        return {
+          available: false,
+          message: 'Este slug já está em uso'
+        };
+      }
+
+      return {
+        available: true,
+        message: 'Slug disponível!'
+      };
+
+    } catch (error) {
+      // Se não encontrou, está disponível
+      return {
+        available: true,
+        message: 'Slug disponível!'
+      };
+    }
+  }
+
+  /**
+   * Atualiza slug do afiliado
+   */
+  async updateSlug(slug: string | null): Promise<void> {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Usuário não autenticado');
+
+      // Se slug vazio, setar como null
+      const cleanSlug = slug?.trim() || null;
+
+      const { error } = await supabase
+        .from('affiliates')
+        .update({
+          slug: cleanSlug,
+          updated_at: new Date().toISOString()
+        })
+        .eq('user_id', user.id)
+        .is('deleted_at', null);
+
+      if (error) {
+        throw new Error(`Erro ao atualizar slug: ${error.message}`);
+      }
+
+    } catch (error) {
+      console.error('Erro ao atualizar slug:', error);
       throw error;
     }
   }
@@ -376,6 +498,7 @@ export class AffiliateFrontendService {
           email: affiliate.email,
           phone: affiliate.phone,
           referralCode: affiliate.referral_code,
+          slug: affiliate.slug,  // ✅ NOVO
           walletId: affiliate.wallet_id,
           status: affiliate.status,
           totalClicks: affiliate.total_clicks,
