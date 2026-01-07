@@ -2,143 +2,169 @@
 
 ## Introduction
 
-Este documento especifica os requisitos para correção crítica do sistema de pagamentos e afiliados da Slim Quality. O sistema atual está implementado mas não funcional devido a problemas na integração com Asaas, webhooks incompletos e rastreamento de afiliados inexistente.
+Sistema de correção crítica para o módulo de pagamentos e afiliados da Slim Quality. O sistema atual está completamente implementado mas nunca foi ativado devido a integrações incorretas com a API do Asaas, webhooks incompletos e rastreamento de afiliados inexistente. Esta correção é crítica pois cada venda sem afiliado resulta em perda de R$ 150 para a fábrica, e afiliados não estão recebendo suas comissões devidas.
 
 ## Glossary
 
-- **Asaas**: Gateway de pagamento utilizado para processar transações e splits
-- **Split**: Divisão automática do valor do pagamento entre múltiplas carteiras
+- **Sistema_Pagamentos**: Módulo responsável por processar pagamentos via Asaas
+- **Sistema_Afiliados**: Módulo responsável por gerenciar rede de afiliados e comissões
+- **Asaas_API**: Gateway de pagamento e split automático
+- **Split_Automático**: Divisão automática do valor da venda entre participantes
+- **Webhook_Handler**: Serviço que processa notificações do Asaas
+- **ReferralTracker**: Sistema de rastreamento de códigos de indicação
+- **OrderProcessor**: Processador de pedidos com cálculo de comissões
+- **CommissionCalculator**: Calculadora de comissões multinível
 - **Wallet_ID**: Identificador único da carteira no Asaas (formato: wal_xxxxx)
-- **Afiliado_N1**: Afiliado direto que fez a venda
-- **Afiliado_N2**: Afiliado que indicou o N1
-- **Afiliado_N3**: Afiliado que indicou o N2
-- **Referral_Code**: Código único de indicação do afiliado
-- **Webhook**: Notificação automática enviada pelo Asaas sobre eventos de pagamento
-- **Commission_Calculator**: Serviço responsável por calcular comissões multinível
-- **Order_Affiliate_Processor**: Serviço que processa pedidos com afiliados
-- **Referral_Tracker**: Utilitário para rastrear códigos de indicação
+- **Rede_Genealógica**: Estrutura hierárquica de afiliados (N1, N2, N3)
 
 ## Requirements
 
 ### Requirement 1: Correção da Integração Asaas Split
 
-**User Story:** Como desenvolvedor, eu quero corrigir a integração com Asaas para que o split seja enviado junto com a criação do pagamento, para que as comissões sejam processadas automaticamente.
+**User Story:** Como sistema de pagamentos, eu quero integrar corretamente com a API do Asaas para split automático, para que as comissões sejam distribuídas automaticamente no momento do pagamento.
 
 #### Acceptance Criteria
 
-1. WHEN um pagamento é criado, THE System SHALL incluir o split na mesma requisição de criação
-2. WHEN calculando split, THE System SHALL remover o percentual de 70% da fábrica (automático via API Key)
-3. WHEN enviando split, THE System SHALL garantir que a soma dos percentuais seja exatamente 30%
-4. WHEN validando Wallet IDs, THE System SHALL verificar o formato wal_xxxxx antes de enviar
-5. IF uma Wallet ID for inválida, THEN THE System SHALL rejeitar a transação e registrar erro
+1. WHEN um pagamento é criado no Asaas, THE Sistema_Pagamentos SHALL incluir o split na mesma requisição de criação
+2. WHEN o split é calculado, THE Sistema_Pagamentos SHALL usar apenas 30% do valor total para distribuição
+3. WHEN não há afiliados, THE Sistema_Pagamentos SHALL distribuir 15% para cada gestor (Renum e JB)
+4. WHEN há afiliado N1, THE Sistema_Pagamentos SHALL distribuir 15% para N1 e 7.5% para cada gestor
+5. WHEN há rede N1+N2, THE Sistema_Pagamentos SHALL distribuir 15% para N1, 3% para N2 e 6% para cada gestor
+6. WHEN há rede completa N1+N2+N3, THE Sistema_Pagamentos SHALL distribuir 15% para N1, 3% para N2, 2% para N3 e 5% para cada gestor
+7. THE Sistema_Pagamentos SHALL validar todas as Wallet IDs antes de enviar o split
+8. THE Sistema_Pagamentos SHALL usar formato correto de Wallet ID (wal_xxxxx) ao invés de UUIDs
 
 ### Requirement 2: Implementação do Webhook Handler
 
-**User Story:** Como sistema, eu quero processar webhooks do Asaas automaticamente, para que as comissões sejam calculadas quando os pagamentos forem confirmados.
+**User Story:** Como sistema de pagamentos, eu quero processar webhooks do Asaas automaticamente, para que as comissões sejam calculadas e registradas quando o pagamento for confirmado.
 
 #### Acceptance Criteria
 
-1. WHEN um webhook é recebido, THE System SHALL validar o token de autenticação
-2. WHEN o evento for PAYMENT_RECEIVED, THE System SHALL identificar o pedido associado
-3. WHEN o evento for PAYMENT_CONFIRMED, THE System SHALL disparar o cálculo de comissões
-4. WHEN o evento for PAYMENT_SPLIT_CANCELLED, THE System SHALL registrar erro e notificar administradores
-5. WHEN o evento for PAYMENT_SPLIT_DIVERGENCE_BLOCK, THE System SHALL investigar e corrigir divergências
-6. IF o webhook falhar no processamento, THEN THE System SHALL implementar retry automático
+1. WHEN um webhook do Asaas é recebido, THE Webhook_Handler SHALL validar o token de autenticação
+2. WHEN o evento é PAYMENT_RECEIVED, THE Webhook_Handler SHALL iniciar o cálculo de comissões
+3. WHEN o evento é PAYMENT_CONFIRMED, THE Webhook_Handler SHALL confirmar as comissões no banco
+4. WHEN o evento é PAYMENT_SPLIT_CANCELLED, THE Webhook_Handler SHALL registrar erro e notificar administradores
+5. WHEN o evento é PAYMENT_SPLIT_DIVERGENCE_BLOCK, THE Webhook_Handler SHALL investigar e corrigir divergências
+6. THE Webhook_Handler SHALL registrar logs detalhados de todos os eventos processados
+7. THE Webhook_Handler SHALL implementar retry automático para falhas temporárias
+8. THE Webhook_Handler SHALL notificar afiliados sobre comissões recebidas
 
-### Requirement 3: Rastreamento de Afiliados
+### Requirement 3: Sistema de Rastreamento de Afiliados
 
-**User Story:** Como afiliado, eu quero que meus links de indicação sejam rastreados corretamente, para que eu receba comissões pelas vendas geradas.
-
-#### Acceptance Criteria
-
-1. WHEN um visitante acessa um link com ?ref=CODIGO, THE System SHALL capturar o código de referência
-2. WHEN capturando código, THE System SHALL salvar em localStorage com TTL de 30 dias
-3. WHEN o visitante fizer uma compra, THE System SHALL recuperar o código salvo
-4. WHEN associando pedido, THE System SHALL vincular o referral_code ao pedido
-5. WHEN a conversão for confirmada, THE System SHALL limpar o código do localStorage
-
-### Requirement 4: Lógica de Redistribuição de Comissões
-
-**User Story:** Como gestor, eu quero que as comissões sejam redistribuídas corretamente quando não há rede completa de afiliados, para que os percentuais não utilizados sejam direcionados aos gestores.
+**User Story:** Como visitante do site, eu quero que meu código de indicação seja rastreado automaticamente, para que o afiliado que me indicou receba a comissão devida.
 
 #### Acceptance Criteria
 
-1. WHEN não há afiliado N1, THE System SHALL distribuir 15% para cada gestor (Renum e JB)
-2. WHEN há apenas N1, THE System SHALL distribuir 15% para N1 e 7.5% para cada gestor
-3. WHEN há N1 e N2, THE System SHALL distribuir 15% para N1, 3% para N2 e 6% para cada gestor
-4. WHEN há rede completa (N1+N2+N3), THE System SHALL distribuir 15%, 3%, 2% e 5% para cada gestor
-5. THE System SHALL sempre garantir que o total de split seja exatamente 30%
+1. WHEN um visitante acessa uma URL com parâmetro ?ref=CODIGO, THE ReferralTracker SHALL capturar e armazenar o código
+2. WHEN o código é capturado, THE ReferralTracker SHALL armazenar no localStorage com TTL de 30 dias
+3. WHEN o visitante finaliza uma compra, THE ReferralTracker SHALL recuperar o código armazenado
+4. WHEN o código é recuperado no checkout, THE Sistema_Pagamentos SHALL associar o pedido ao afiliado correspondente
+5. WHEN a compra é confirmada, THE ReferralTracker SHALL limpar o código do localStorage
+6. THE ReferralTracker SHALL registrar todos os cliques em referral_clicks
+7. THE ReferralTracker SHALL registrar todas as conversões em referral_conversions
+8. THE ReferralTracker SHALL funcionar mesmo com cookies desabilitados
 
-### Requirement 5: Ativação de Afiliados Existentes
+### Requirement 4: Ativação do Sistema de Comissões
 
-**User Story:** Como administrador, eu quero ativar os afiliados que estão com status "pending", para que eles possam começar a receber comissões.
-
-#### Acceptance Criteria
-
-1. WHEN ativando afiliado, THE System SHALL alterar status de "pending" para "active"
-2. WHEN corrigindo Wallet ID, THE System SHALL converter formato UUID para wal_xxxxx
-3. WHEN validando Wallet, THE System SHALL verificar via API Asaas se a carteira existe
-4. IF a Wallet ID for inválida, THEN THE System SHALL manter status "pending" e notificar erro
-5. WHEN afiliado for ativado, THE System SHALL enviar notificação de boas-vindas
-
-### Requirement 6: Processamento Automático de Pedidos
-
-**User Story:** Como sistema, eu quero que o OrderAffiliateProcessor seja executado automaticamente, para que as comissões sejam calculadas sem intervenção manual.
+**User Story:** Como OrderProcessor, eu quero processar automaticamente as comissões quando um pagamento for confirmado, para que os afiliados recebam suas comissões sem intervenção manual.
 
 #### Acceptance Criteria
 
-1. WHEN um webhook de pagamento confirmado for recebido, THE System SHALL chamar OrderAffiliateProcessor
-2. WHEN processando pedido, THE System SHALL executar CommissionCalculatorService
-3. WHEN calculando comissões, THE System SHALL registrar logs detalhados para auditoria
-4. WHEN ocorrer erro no processamento, THE System SHALL implementar tratamento adequado
-5. WHEN processamento for concluído, THE System SHALL atualizar status das comissões
+1. WHEN um webhook de pagamento confirmado é recebido, THE OrderProcessor SHALL identificar se há afiliado associado
+2. WHEN há afiliado associado, THE OrderProcessor SHALL buscar a rede genealógica completa
+3. WHEN a rede é identificada, THE CommissionCalculator SHALL calcular os valores corretos para cada nível
+4. WHEN as comissões são calculadas, THE Sistema_Afiliados SHALL criar registros na tabela commissions
+5. WHEN as comissões são registradas, THE Sistema_Afiliados SHALL atualizar métricas dos afiliados
+6. THE OrderProcessor SHALL processar apenas uma vez cada pagamento (evitar duplicação)
+7. THE OrderProcessor SHALL registrar logs detalhados para auditoria
+8. THE OrderProcessor SHALL notificar afiliados sobre comissões recebidas
 
-### Requirement 7: Configuração Completa de Webhooks
+### Requirement 5: Validação e Correção de Wallet IDs
 
-**User Story:** Como desenvolvedor, eu quero configurar todos os eventos necessários no Asaas, para que o sistema receba notificações completas sobre pagamentos e splits.
-
-#### Acceptance Criteria
-
-1. THE System SHALL configurar webhook para evento PAYMENT_RECEIVED
-2. THE System SHALL configurar webhook para evento PAYMENT_CONFIRMED  
-3. THE System SHALL configurar webhook para evento PAYMENT_SPLIT_CANCELLED
-4. THE System SHALL configurar webhook para evento PAYMENT_SPLIT_DIVERGENCE_BLOCK
-5. THE System SHALL configurar webhook para evento PAYMENT_OVERDUE
-6. THE System SHALL configurar webhook para evento PAYMENT_REFUNDED
-7. WHEN configurando webhook, THE System SHALL usar token de autenticação seguro
-
-### Requirement 8: Validações de Segurança
-
-**User Story:** Como sistema, eu quero implementar validações rigorosas, para que apenas transações válidas sejam processadas.
+**User Story:** Como sistema de afiliados, eu quero validar todas as Wallet IDs antes de processar splits, para que não haja falhas de pagamento por IDs inválidas.
 
 #### Acceptance Criteria
 
-1. WHEN validando Wallet ID, THE System SHALL verificar formato wal_[a-zA-Z0-9]{20}
-2. WHEN calculando split, THE System SHALL garantir que soma seja exatamente 30%
-3. WHEN verificando afiliado, THE System SHALL confirmar status "active"
-4. WHEN construindo rede genealógica, THE System SHALL verificar ausência de loops
-5. IF qualquer validação falhar, THEN THE System SHALL rejeitar transação e registrar erro
+1. WHEN um afiliado é cadastrado, THE Sistema_Afiliados SHALL validar a Wallet ID via API do Asaas
+2. WHEN uma Wallet ID é inválida, THE Sistema_Afiliados SHALL rejeitar o cadastro com mensagem específica
+3. WHEN um split é processado, THE Sistema_Pagamentos SHALL revalidar todas as Wallet IDs envolvidas
+4. WHEN uma Wallet ID se torna inválida, THE Sistema_Afiliados SHALL notificar o afiliado para atualização
+5. THE Sistema_Afiliados SHALL manter histórico de validações de Wallet IDs
+6. THE Sistema_Afiliados SHALL corrigir Wallet IDs existentes no formato UUID para formato Asaas
+7. THE Sistema_Afiliados SHALL ativar afiliados com Wallet IDs válidas
+8. THE Sistema_Afiliados SHALL implementar processo de revalidação periódica
 
-### Requirement 9: Dashboard de Afiliados Real
+### Requirement 6: Configuração Completa de Webhooks
 
-**User Story:** Como administrador, eu quero visualizar dados reais dos afiliados no dashboard, para que possa acompanhar o desempenho do programa.
-
-#### Acceptance Criteria
-
-1. WHEN exibindo dashboard, THE System SHALL remover todos os dados mock
-2. WHEN conectando APIs, THE System SHALL usar endpoints reais do backend
-3. WHEN mostrando comissões, THE System SHALL exibir valores calculados reais
-4. WHEN exibindo rede genealógica, THE System SHALL mostrar estrutura real dos afiliados
-5. WHEN carregando dados, THE System SHALL implementar estados de loading e erro
-
-### Requirement 10: Logs e Auditoria
-
-**User Story:** Como administrador, eu quero logs detalhados de todas as operações, para que possa auditar e resolver problemas no sistema.
+**User Story:** Como sistema de integração, eu quero configurar todos os webhooks necessários no Asaas, para que todos os eventos relevantes sejam processados automaticamente.
 
 #### Acceptance Criteria
 
-1. WHEN processando split, THE System SHALL registrar logs detalhados da operação
-2. WHEN calculando comissões, THE System SHALL manter auditoria completa dos cálculos
-3. WHEN ocorrer erro, THE System SHALL registrar contexto completo do problema
-4. WHEN split for executado, THE System SHALL registrar confirmação de depósitos
-5. THE System SHALL implementar métricas de performance para monitoramento
+1. THE Sistema_Pagamentos SHALL configurar webhook para evento PAYMENT_RECEIVED
+2. THE Sistema_Pagamentos SHALL configurar webhook para evento PAYMENT_CONFIRMED  
+3. THE Sistema_Pagamentos SHALL configurar webhook para evento PAYMENT_SPLIT_CANCELLED
+4. THE Sistema_Pagamentos SHALL configurar webhook para evento PAYMENT_SPLIT_DIVERGENCE_BLOCK
+5. THE Sistema_Pagamentos SHALL configurar webhook para evento PAYMENT_OVERDUE
+6. THE Sistema_Pagamentos SHALL configurar webhook para evento PAYMENT_REFUNDED
+7. WHEN webhooks são configurados, THE Sistema_Pagamentos SHALL usar token de autenticação seguro
+8. THE Sistema_Pagamentos SHALL validar que todos os webhooks estão ativos e funcionais
+
+### Requirement 7: Logs e Auditoria Completa
+
+**User Story:** Como administrador do sistema, eu quero logs detalhados de todos os processos de pagamento e comissões, para que possa auditar e resolver problemas rapidamente.
+
+#### Acceptance Criteria
+
+1. WHEN um split é processado, THE Sistema_Pagamentos SHALL registrar log detalhado com todos os valores
+2. WHEN uma comissão é calculada, THE CommissionCalculator SHALL registrar log com a lógica aplicada
+3. WHEN um webhook é processado, THE Webhook_Handler SHALL registrar log com payload completo
+4. WHEN um erro ocorre, THE Sistema_Pagamentos SHALL registrar log com stack trace e contexto
+5. THE Sistema_Pagamentos SHALL manter logs por no mínimo 12 meses
+6. THE Sistema_Pagamentos SHALL permitir busca de logs por pedido, afiliado ou período
+7. THE Sistema_Pagamentos SHALL gerar relatórios de auditoria automáticos
+8. THE Sistema_Pagamentos SHALL alertar administradores sobre erros críticos
+
+### Requirement 8: Dashboard de Afiliados Real
+
+**User Story:** Como afiliado, eu quero visualizar minhas comissões reais e rede genealógica, para que possa acompanhar meu desempenho e ganhos.
+
+#### Acceptance Criteria
+
+1. WHEN um afiliado acessa o dashboard, THE Sistema_Afiliados SHALL exibir comissões reais do banco de dados
+2. WHEN comissões são exibidas, THE Sistema_Afiliados SHALL mostrar valores, datas e status de cada comissão
+3. WHEN a rede é visualizada, THE Sistema_Afiliados SHALL exibir árvore genealógica real com N1, N2, N3
+4. WHEN métricas são mostradas, THE Sistema_Afiliados SHALL calcular valores reais de vendas e comissões
+5. THE Sistema_Afiliados SHALL permitir filtros por período e status
+6. THE Sistema_Afiliados SHALL exibir histórico de pagamentos recebidos
+7. THE Sistema_Afiliados SHALL mostrar links de indicação ativos
+8. THE Sistema_Afiliados SHALL exibir métricas de conversão (cliques → vendas)
+
+### Requirement 9: Processamento Automático Completo
+
+**User Story:** Como sistema automatizado, eu quero processar todo o fluxo de venda → comissão → split sem intervenção manual, para que o sistema funcione de forma autônoma e confiável.
+
+#### Acceptance Criteria
+
+1. WHEN um visitante clica em link de afiliado, THE Sistema_Pagamentos SHALL rastrear automaticamente
+2. WHEN uma compra é finalizada, THE Sistema_Pagamentos SHALL associar automaticamente ao afiliado
+3. WHEN um pagamento é criado, THE Sistema_Pagamentos SHALL incluir split automaticamente
+4. WHEN um pagamento é confirmado, THE Sistema_Pagamentos SHALL calcular comissões automaticamente
+5. WHEN comissões são calculadas, THE Sistema_Pagamentos SHALL registrar no banco automaticamente
+6. WHEN split é processado, THE Sistema_Pagamentos SHALL notificar afiliados automaticamente
+7. THE Sistema_Pagamentos SHALL funcionar 24/7 sem intervenção manual
+8. THE Sistema_Pagamentos SHALL ter taxa de sucesso > 99% no processamento automático
+
+### Requirement 10: Validações de Segurança e Integridade
+
+**User Story:** Como sistema financeiro, eu quero validações rigorosas em todos os processos de pagamento, para que não haja perdas financeiras ou fraudes.
+
+#### Acceptance Criteria
+
+1. WHEN um split é calculado, THE Sistema_Pagamentos SHALL validar que a soma total = 30%
+2. WHEN Wallet IDs são usadas, THE Sistema_Pagamentos SHALL validar formato e existência
+3. WHEN comissões são processadas, THE Sistema_Pagamentos SHALL evitar processamento duplicado
+4. WHEN webhooks são recebidos, THE Webhook_Handler SHALL validar origem e autenticidade
+5. THE Sistema_Pagamentos SHALL implementar rate limiting para webhooks
+6. THE Sistema_Pagamentos SHALL criptografar dados sensíveis em logs
+7. THE Sistema_Pagamentos SHALL implementar rollback automático para falhas críticas
+8. THE Sistema_Pagamentos SHALL alertar sobre tentativas de fraude ou manipulação
