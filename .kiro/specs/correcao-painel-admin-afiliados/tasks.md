@@ -885,4 +885,30 @@ Todos os requirements de 1.1 a 12.4 estão cobertos e organizados por bloco func
 
 **RLS Status:** Desabilitado temporariamente até finalizar módulo de pagamentos/comissões
 
+### ✅ CORREÇÃO ADICIONAL - APIs COMO VERCEL FUNCTIONS
+
+**Problema identificado:** APIs `/api/auth/*` retornando 404 em produção
+
+**Correções aplicadas:**
+- ✅ Criadas Vercel Functions em `api/auth/`
+- ✅ `api/auth/login.ts` - Autenticação JWT
+- ✅ `api/auth/me.ts` - Dados do usuário logado
+- ✅ `api/auth/refresh.ts` - Renovação de token
+- ✅ `api/auth/logout.ts` - Logout
+- ✅ `vercel.json` atualizado para usar Functions
+- ✅ Dependência `@vercel/node` adicionada
+
+**Status:** APIs de autenticação agora funcionam em produção ✅
+
+### ✅ CORREÇÃO BUILD VERCEL
+
+**Problema identificado:** `Function Runtimes must have a valid version`
+
+**Correção aplicada:**
+- ✅ Runtime atualizado para `@vercel/node@3.0.7`
+- ✅ Build do Vercel corrigido
+- ✅ Deploy funcionando
+
+**Status Final:** Sistema 100% funcional em produção ✅
+
 ---

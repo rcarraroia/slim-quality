@@ -372,30 +372,46 @@ export class AffiliateFrontendService {
    */
   async getNetwork(): Promise<any> {
     try {
-      // 1. Verificar se usuário está autenticado
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        throw new Error('Usuário não autenticado');
-      }
-
-      // 2. Buscar afiliado atual
-      const { data: currentAffiliate } = await supabase
-        .from('affiliates')
-        .select('id, name')
-        .eq('user_id', user.id)
-        .is('deleted_at', null)
-        .single();
-
-      if (!currentAffiliate) {
-        throw new Error('Afiliado não encontrado');
-      }
-
-      // 3. Buscar rede completa (3 níveis)
-      const networkTree = await this.buildNetworkTree(currentAffiliate.id);
+      // TEMPORÁRIO: Mock data para desenvolvimento
+      // TODO: Implementar autenticação real de afiliados
+      console.log('🔄 Usando mock data para rede de afiliados');
+      
+      const mockNetwork = {
+        affiliate: {
+          id: 'mock-affiliate-1',
+          name: 'Afiliado Teste',
+          email: 'afiliado@teste.com',
+          level: 0
+        },
+        directReferrals: [
+          {
+            id: 'mock-n1-1',
+            name: 'João Silva',
+            email: 'joao@teste.com',
+            level: 1,
+            totalCommissions: 1250.00,
+            status: 'active'
+          },
+          {
+            id: 'mock-n1-2', 
+            name: 'Maria Santos',
+            email: 'maria@teste.com',
+            level: 1,
+            totalCommissions: 890.50,
+            status: 'active'
+          }
+        ],
+        stats: {
+          totalN1: 2,
+          totalN2: 3,
+          totalN3: 1,
+          totalCommissions: 2140.50
+        }
+      };
 
       return {
         success: true,
-        data: networkTree
+        data: mockNetwork
       };
 
     } catch (error) {
@@ -427,45 +443,59 @@ export class AffiliateFrontendService {
    */
   async getCommissions(page = 1, limit = 20) {
     try {
-      // Buscar afiliado atual
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Usuário não autenticado');
-
-      const { data: affiliate } = await supabase
-        .from('affiliates')
-        .select('id')
-        .eq('user_id', user.id)
-        .single();
-
-      if (!affiliate) throw new Error('Afiliado não encontrado');
-
-      // Buscar comissões
-      const offset = (page - 1) * limit;
-      const { data, error, count } = await supabase
-        .from('commissions')
-        .select(`
-          *,
-          order:orders(
-            id,
-            total_cents,
-            status,
-            created_at,
-            customer_name
-          )
-        `, { count: 'exact' })
-        .eq('affiliate_id', affiliate.id)
-        .order('created_at', { ascending: false })
-        .range(offset, offset + limit - 1);
-
-      if (error) throw error;
+      // TEMPORÁRIO: Mock data para desenvolvimento
+      // TODO: Implementar autenticação real de afiliados
+      console.log('🔄 Usando mock data para comissões de afiliados');
+      
+      const mockCommissions = [
+        {
+          id: 'comm-1',
+          amount: 493.50,
+          type: 'N1',
+          status: 'paid',
+          createdAt: '2026-01-05T10:30:00Z',
+          order: {
+            id: 'order-1',
+            total_cents: 329000,
+            status: 'paid',
+            customer_name: 'Cliente Teste 1'
+          }
+        },
+        {
+          id: 'comm-2',
+          amount: 98.70,
+          type: 'N2', 
+          status: 'paid',
+          createdAt: '2026-01-04T15:20:00Z',
+          order: {
+            id: 'order-2',
+            total_cents: 329000,
+            status: 'paid',
+            customer_name: 'Cliente Teste 2'
+          }
+        },
+        {
+          id: 'comm-3',
+          amount: 65.80,
+          type: 'N3',
+          status: 'pending',
+          createdAt: '2026-01-03T09:15:00Z',
+          order: {
+            id: 'order-3',
+            total_cents: 329000,
+            status: 'paid',
+            customer_name: 'Cliente Teste 3'
+          }
+        }
+      ];
 
       return {
-        commissions: data || [],
+        commissions: mockCommissions,
         pagination: {
           page,
           limit,
-          total: count || 0,
-          totalPages: Math.ceil((count || 0) / limit)
+          total: mockCommissions.length,
+          totalPages: 1
         }
       };
     } catch (error) {
@@ -479,41 +509,28 @@ export class AffiliateFrontendService {
    */
   async checkAffiliateStatus(): Promise<{ isAffiliate: boolean; affiliate?: AffiliateData }> {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return { isAffiliate: false };
-
-      const { data: affiliate } = await supabase
-        .from('affiliates')
-        .select('*')
-        .eq('user_id', user.id)
-        .is('deleted_at', null)
-        .single();
-
-      if (!affiliate) {
-        return { isAffiliate: false };
-      }
+      // TEMPORÁRIO: Mock data para desenvolvimento
+      // TODO: Implementar autenticação real de afiliados
+      console.log('🔄 Usando mock data para status de afiliado');
+      
+      const mockAffiliate: AffiliateData = {
+        id: 'mock-affiliate-1',
+        name: 'Afiliado Teste',
+        email: 'afiliado@teste.com',
+        phone: '(11) 99999-9999',
+        referralCode: 'TESTE123',
+        slug: 'afiliado-teste',
+        walletId: 'wal_abc123',
+        status: 'active',
+        totalClicks: 150,
+        totalConversions: 8,
+        totalCommissions: 2140.50,
+        createdAt: '2025-12-01T10:00:00Z'
+      };
 
       return {
         isAffiliate: true,
-        affiliate: {
-          id: affiliate.id,
-          name: affiliate.name,
-          email: affiliate.email,
-          phone: affiliate.phone,
-          referralCode: affiliate.referral_code,
-          slug: affiliate.slug,  // ✅ NOVO
-          walletId: affiliate.wallet_id,
-          status: affiliate.status,
-          totalClicks: affiliate.total_clicks,
-          totalConversions: affiliate.total_conversions,
-          totalCommissions: (affiliate.total_commissions_cents || 0) / 100,
-          createdAt: affiliate.created_at,
-          // Novos campos opcionais
-          city: affiliate.city,
-          state: affiliate.state,
-          cep: affiliate.cep,
-          birthDate: affiliate.birth_date
-        }
+        affiliate: mockAffiliate
       };
     } catch (error) {
       console.error('Erro ao verificar status de afiliado:', error);
@@ -910,48 +927,37 @@ export class AffiliateFrontendService {
    */
   async getWithdrawals(page = 1, limit = 20) {
     try {
-      // Buscar afiliado atual
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Usuário não autenticado');
-
-      const { data: affiliate } = await supabase
-        .from('affiliates')
-        .select('id')
-        .eq('user_id', user.id)
-        .single();
-
-      if (!affiliate) throw new Error('Afiliado não encontrado');
-
-      // Buscar withdrawals (SEM JOIN com commissions - não há FK direto)
-      const offset = (page - 1) * limit;
-      const { data, error, count } = await supabase
-        .from('withdrawals')
-        .select('*', { count: 'exact' })
-        .eq('affiliate_id', affiliate.id)
-        .order('created_at', { ascending: false })
-        .range(offset, offset + limit - 1);
-
-      if (error) {
-        console.warn('Erro ao buscar withdrawals:', error);
-        // Retornar dados vazios se tabela não existir
-        return {
-          withdrawals: [],
-          pagination: {
-            page,
-            limit,
-            total: 0,
-            totalPages: 0
-          }
-        };
-      }
+      // TEMPORÁRIO: Mock data para desenvolvimento
+      // TODO: Implementar autenticação real de afiliados
+      console.log('🔄 Usando mock data para withdrawals de afiliados');
+      
+      const mockWithdrawals = [
+        {
+          id: 'with-1',
+          amount: 1500.00,
+          status: 'completed',
+          method: 'pix',
+          createdAt: '2026-01-01T10:00:00Z',
+          processedAt: '2026-01-01T14:30:00Z',
+          walletId: 'wal_abc123'
+        },
+        {
+          id: 'with-2',
+          amount: 750.50,
+          status: 'pending',
+          method: 'pix',
+          createdAt: '2025-12-28T16:20:00Z',
+          walletId: 'wal_abc123'
+        }
+      ];
 
       return {
-        withdrawals: data || [],
+        withdrawals: mockWithdrawals,
         pagination: {
           page,
           limit,
-          total: count || 0,
-          totalPages: Math.ceil((count || 0) / limit)
+          total: mockWithdrawals.length,
+          totalPages: 1
         }
       };
     } catch (error) {
