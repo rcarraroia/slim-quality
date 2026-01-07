@@ -368,20 +368,23 @@ export class AffiliateFrontendService {
 
   /**
    * Busca rede do afiliado
-   * Integração direta com Supabase
+   * TEMPORÁRIO: Mock data até implementar autenticação de afiliados
    */
   async getNetwork(): Promise<any> {
     try {
-      // TEMPORÁRIO: Mock data para desenvolvimento
-      // TODO: Implementar autenticação real de afiliados
       console.log('🔄 Usando mock data para rede de afiliados');
+      
+      // Simular delay de API
+      await new Promise(resolve => setTimeout(resolve, 500));
       
       const mockNetwork = {
         affiliate: {
           id: 'mock-affiliate-1',
           name: 'Afiliado Teste',
           email: 'afiliado@teste.com',
-          level: 0
+          level: 0,
+          referralCode: 'TESTE123',
+          totalCommissions: 2140.50
         },
         directReferrals: [
           {
@@ -390,7 +393,8 @@ export class AffiliateFrontendService {
             email: 'joao@teste.com',
             level: 1,
             totalCommissions: 1250.00,
-            status: 'active'
+            status: 'active',
+            joinedAt: '2025-12-15'
           },
           {
             id: 'mock-n1-2', 
@@ -398,28 +402,25 @@ export class AffiliateFrontendService {
             email: 'maria@teste.com',
             level: 1,
             totalCommissions: 890.50,
-            status: 'active'
+            status: 'active',
+            joinedAt: '2025-12-20'
           }
         ],
         stats: {
           totalN1: 2,
           totalN2: 3,
           totalN3: 1,
-          totalCommissions: 2140.50
+          totalCommissions: 2140.50,
+          totalReferrals: 6,
+          conversionRate: 12.5
         }
       };
 
-      return {
-        success: true,
-        data: mockNetwork
-      };
+      return mockNetwork;
 
     } catch (error) {
       console.error('Erro ao buscar rede:', error);
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Erro interno'
-      };
+      throw new Error('Erro ao carregar rede de afiliados');
     }
   }
 
@@ -439,13 +440,14 @@ export class AffiliateFrontendService {
 
   /**
    * Busca comissões do afiliado
-   * Usando Supabase diretamente para queries mais complexas
+   * TEMPORÁRIO: Mock data até implementar autenticação de afiliados
    */
   async getCommissions(page = 1, limit = 20) {
     try {
-      // TEMPORÁRIO: Mock data para desenvolvimento
-      // TODO: Implementar autenticação real de afiliados
       console.log('🔄 Usando mock data para comissões de afiliados');
+      
+      // Simular delay de API
+      await new Promise(resolve => setTimeout(resolve, 300));
       
       const mockCommissions = [
         {
@@ -454,6 +456,7 @@ export class AffiliateFrontendService {
           type: 'N1',
           status: 'paid',
           createdAt: '2026-01-05T10:30:00Z',
+          paidAt: '2026-01-05T14:30:00Z',
           order: {
             id: 'order-1',
             total_cents: 329000,
@@ -467,6 +470,7 @@ export class AffiliateFrontendService {
           type: 'N2', 
           status: 'paid',
           createdAt: '2026-01-04T15:20:00Z',
+          paidAt: '2026-01-04T18:20:00Z',
           order: {
             id: 'order-2',
             total_cents: 329000,
@@ -486,6 +490,20 @@ export class AffiliateFrontendService {
             status: 'paid',
             customer_name: 'Cliente Teste 3'
           }
+        },
+        {
+          id: 'comm-4',
+          amount: 246.75,
+          type: 'N1',
+          status: 'paid',
+          createdAt: '2026-01-02T11:45:00Z',
+          paidAt: '2026-01-02T16:45:00Z',
+          order: {
+            id: 'order-4',
+            total_cents: 164500,
+            status: 'paid',
+            customer_name: 'Cliente Teste 4'
+          }
         }
       ];
 
@@ -495,23 +513,30 @@ export class AffiliateFrontendService {
           page,
           limit,
           total: mockCommissions.length,
-          totalPages: 1
+          totalPages: Math.ceil(mockCommissions.length / limit)
+        },
+        summary: {
+          totalPaid: mockCommissions.filter(c => c.status === 'paid').reduce((sum, c) => sum + c.amount, 0),
+          totalPending: mockCommissions.filter(c => c.status === 'pending').reduce((sum, c) => sum + c.amount, 0),
+          totalCommissions: mockCommissions.reduce((sum, c) => sum + c.amount, 0)
         }
       };
     } catch (error) {
       console.error('Erro ao buscar comissões:', error);
-      throw error;
+      throw new Error('Erro ao carregar comissões');
     }
   }
 
   /**
    * Verifica se usuário atual é afiliado
+   * TEMPORÁRIO: Mock data até implementar autenticação de afiliados
    */
   async checkAffiliateStatus(): Promise<{ isAffiliate: boolean; affiliate?: AffiliateData }> {
     try {
-      // TEMPORÁRIO: Mock data para desenvolvimento
-      // TODO: Implementar autenticação real de afiliados
       console.log('🔄 Usando mock data para status de afiliado');
+      
+      // Simular delay de API
+      await new Promise(resolve => setTimeout(resolve, 200));
       
       const mockAffiliate: AffiliateData = {
         id: 'mock-affiliate-1',
@@ -534,7 +559,10 @@ export class AffiliateFrontendService {
       };
     } catch (error) {
       console.error('Erro ao verificar status de afiliado:', error);
-      return { isAffiliate: false };
+      return { 
+        isAffiliate: false,
+        affiliate: undefined
+      };
     }
   }
 
@@ -924,12 +952,14 @@ export class AffiliateFrontendService {
 
   /**
    * Busca histórico de recebimentos/withdrawals do afiliado
+   * TEMPORÁRIO: Mock data até implementar autenticação de afiliados
    */
   async getWithdrawals(page = 1, limit = 20) {
     try {
-      // TEMPORÁRIO: Mock data para desenvolvimento
-      // TODO: Implementar autenticação real de afiliados
       console.log('🔄 Usando mock data para withdrawals de afiliados');
+      
+      // Simular delay de API
+      await new Promise(resolve => setTimeout(resolve, 400));
       
       const mockWithdrawals = [
         {
@@ -939,7 +969,8 @@ export class AffiliateFrontendService {
           method: 'pix',
           createdAt: '2026-01-01T10:00:00Z',
           processedAt: '2026-01-01T14:30:00Z',
-          walletId: 'wal_abc123'
+          walletId: 'wal_abc123',
+          description: 'Saque de comissões - Dezembro 2025'
         },
         {
           id: 'with-2',
@@ -947,7 +978,29 @@ export class AffiliateFrontendService {
           status: 'pending',
           method: 'pix',
           createdAt: '2025-12-28T16:20:00Z',
-          walletId: 'wal_abc123'
+          walletId: 'wal_abc123',
+          description: 'Saque de comissões - Semana 52'
+        },
+        {
+          id: 'with-3',
+          amount: 2250.75,
+          status: 'completed',
+          method: 'pix',
+          createdAt: '2025-12-15T09:15:00Z',
+          processedAt: '2025-12-15T11:45:00Z',
+          walletId: 'wal_abc123',
+          description: 'Saque de comissões - Novembro 2025'
+        },
+        {
+          id: 'with-4',
+          amount: 890.25,
+          status: 'rejected',
+          method: 'pix',
+          createdAt: '2025-12-10T14:30:00Z',
+          rejectedAt: '2025-12-10T16:00:00Z',
+          walletId: 'wal_abc123',
+          description: 'Saque de comissões - Semana 49',
+          rejectionReason: 'Dados bancários inválidos'
         }
       ];
 
@@ -957,21 +1010,17 @@ export class AffiliateFrontendService {
           page,
           limit,
           total: mockWithdrawals.length,
-          totalPages: 1
+          totalPages: Math.ceil(mockWithdrawals.length / limit)
+        },
+        summary: {
+          totalCompleted: mockWithdrawals.filter(w => w.status === 'completed').reduce((sum, w) => sum + w.amount, 0),
+          totalPending: mockWithdrawals.filter(w => w.status === 'pending').reduce((sum, w) => sum + w.amount, 0),
+          totalRejected: mockWithdrawals.filter(w => w.status === 'rejected').reduce((sum, w) => sum + w.amount, 0)
         }
       };
     } catch (error) {
       console.error('Erro ao buscar withdrawals:', error);
-      // Retornar dados vazios em caso de erro
-      return {
-        withdrawals: [],
-        pagination: {
-          page,
-          limit,
-          total: 0,
-          totalPages: 0
-        }
-      };
+      throw new Error('Erro ao carregar histórico de saques');
     }
   }
   private async buildNetworkTree(affiliateId: string): Promise<any[]> {
