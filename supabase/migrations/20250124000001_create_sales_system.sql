@@ -13,7 +13,6 @@
 -- ============================================
 
 BEGIN;
-
 -- ============================================
 -- ENUMS
 -- ============================================
@@ -27,13 +26,11 @@ CREATE TYPE order_status AS ENUM (
   'delivered',    -- Entregue
   'cancelled'     -- Cancelado
 );
-
 -- Métodos de pagamento
 CREATE TYPE payment_method AS ENUM (
   'pix',
   'credit_card'
 );
-
 -- Status de pagamento
 CREATE TYPE payment_status AS ENUM (
   'pending',      -- Aguardando
@@ -44,7 +41,6 @@ CREATE TYPE payment_status AS ENUM (
   'cancelled',    -- Cancelado
   'authorized'    -- Autorizado (cartão)
 );
-
 -- Status de split
 CREATE TYPE split_status AS ENUM (
   'pending',              -- Aguardando pagamento
@@ -54,7 +50,6 @@ CREATE TYPE split_status AS ENUM (
   'refused',              -- Recusado
   'refunded'              -- Estornado
 );
-
 -- ============================================
 -- TABELA: orders
 -- ============================================
@@ -99,7 +94,6 @@ CREATE TABLE IF NOT EXISTS orders (
   updated_at TIMESTAMPTZ DEFAULT NOW(),
   deleted_at TIMESTAMPTZ NULL
 );
-
 -- Índices
 CREATE INDEX idx_orders_customer_id ON orders(customer_id) WHERE deleted_at IS NULL;
 CREATE INDEX idx_orders_status ON orders(status) WHERE deleted_at IS NULL;
@@ -107,7 +101,6 @@ CREATE INDEX idx_orders_order_number ON orders(order_number) WHERE deleted_at IS
 CREATE INDEX idx_orders_created_at ON orders(created_at DESC) WHERE deleted_at IS NULL;
 CREATE INDEX idx_orders_referral_code ON orders(referral_code) WHERE deleted_at IS NULL AND referral_code IS NOT NULL;
 CREATE INDEX idx_orders_affiliate_n1 ON orders(affiliate_n1_id) WHERE deleted_at IS NULL AND affiliate_n1_id IS NOT NULL;
-
 -- ============================================
 -- TABELA: order_items
 -- ============================================
@@ -131,11 +124,9 @@ CREATE TABLE IF NOT EXISTS order_items (
   -- Timestamp
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
-
 -- Índices
 CREATE INDEX idx_order_items_order_id ON order_items(order_id);
 CREATE INDEX idx_order_items_product_id ON order_items(product_id);
-
 -- ============================================
 -- TABELA: order_status_history
 -- ============================================
@@ -159,11 +150,9 @@ CREATE TABLE IF NOT EXISTS order_status_history (
   -- Timestamp
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
-
 -- Índices
 CREATE INDEX idx_order_status_history_order_id ON order_status_history(order_id);
 CREATE INDEX idx_order_status_history_created_at ON order_status_history(created_at DESC);
-
 -- ============================================
 -- TABELA: payments
 -- ============================================
@@ -203,13 +192,11 @@ CREATE TABLE IF NOT EXISTS payments (
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
-
 -- Índices
 CREATE INDEX idx_payments_order_id ON payments(order_id);
 CREATE INDEX idx_payments_asaas_payment_id ON payments(asaas_payment_id) WHERE asaas_payment_id IS NOT NULL;
 CREATE INDEX idx_payments_status ON payments(status);
 CREATE INDEX idx_payments_created_at ON payments(created_at DESC);
-
 -- ============================================
 -- TABELA: shipping_addresses
 -- ============================================
@@ -238,11 +225,9 @@ CREATE TABLE IF NOT EXISTS shipping_addresses (
   -- Timestamp
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
-
 -- Índices
 CREATE INDEX idx_shipping_addresses_order_id ON shipping_addresses(order_id);
 CREATE INDEX idx_shipping_addresses_postal_code ON shipping_addresses(postal_code);
-
 -- ============================================
 -- TABELA: asaas_transactions
 -- ============================================
@@ -273,14 +258,12 @@ CREATE TABLE IF NOT EXISTS asaas_transactions (
   -- Timestamp
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
-
 -- Índices
 CREATE INDEX idx_asaas_transactions_order_id ON asaas_transactions(order_id) WHERE order_id IS NOT NULL;
 CREATE INDEX idx_asaas_transactions_payment_id ON asaas_transactions(payment_id) WHERE payment_id IS NOT NULL;
 CREATE INDEX idx_asaas_transactions_type ON asaas_transactions(transaction_type);
 CREATE INDEX idx_asaas_transactions_created_at ON asaas_transactions(created_at DESC);
 CREATE INDEX idx_asaas_transactions_asaas_payment_id ON asaas_transactions(asaas_payment_id) WHERE asaas_payment_id IS NOT NULL;
-
 -- ============================================
 -- TABELA: asaas_splits (Auditoria)
 -- ============================================
@@ -306,12 +289,10 @@ CREATE TABLE IF NOT EXISTS asaas_splits (
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
-
 -- Índices
 CREATE INDEX idx_asaas_splits_order_id ON asaas_splits(order_id);
 CREATE INDEX idx_asaas_splits_payment_id ON asaas_splits(payment_id) WHERE payment_id IS NOT NULL;
 CREATE INDEX idx_asaas_splits_status ON asaas_splits(status);
-
 -- ============================================
 -- TABELA: asaas_webhook_logs
 -- ============================================
@@ -342,14 +323,12 @@ CREATE TABLE IF NOT EXISTS asaas_webhook_logs (
   -- Timestamp
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
-
 -- Índices
 CREATE INDEX idx_asaas_webhook_logs_event_id ON asaas_webhook_logs(asaas_event_id);
 CREATE INDEX idx_asaas_webhook_logs_event_type ON asaas_webhook_logs(event_type);
 CREATE INDEX idx_asaas_webhook_logs_processed ON asaas_webhook_logs(processed);
 CREATE INDEX idx_asaas_webhook_logs_asaas_payment_id ON asaas_webhook_logs(asaas_payment_id) WHERE asaas_payment_id IS NOT NULL;
 CREATE INDEX idx_asaas_webhook_logs_created_at ON asaas_webhook_logs(created_at DESC);
-
 -- ============================================
 -- FUNÇÃO: generate_order_number()
 -- ============================================
@@ -374,7 +353,6 @@ BEGIN
   RETURN new_number;
 END;
 $$ LANGUAGE plpgsql;
-
 -- ============================================
 -- TRIGGER: auto_generate_order_number
 -- ============================================
@@ -388,12 +366,10 @@ BEGIN
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
-
 CREATE TRIGGER auto_generate_order_number
   BEFORE INSERT ON orders
   FOR EACH ROW
   EXECUTE FUNCTION trigger_generate_order_number();
-
 -- ============================================
 -- TRIGGER: update_updated_at
 -- ============================================
@@ -405,22 +381,18 @@ BEGIN
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
-
 CREATE TRIGGER update_orders_updated_at
   BEFORE UPDATE ON orders
   FOR EACH ROW
   EXECUTE FUNCTION update_updated_at_column();
-
 CREATE TRIGGER update_payments_updated_at
   BEFORE UPDATE ON payments
   FOR EACH ROW
   EXECUTE FUNCTION update_updated_at_column();
-
 CREATE TRIGGER update_asaas_splits_updated_at
   BEFORE UPDATE ON asaas_splits
   FOR EACH ROW
   EXECUTE FUNCTION update_updated_at_column();
-
 -- ============================================
 -- ROW LEVEL SECURITY (RLS)
 -- ============================================
@@ -434,16 +406,13 @@ ALTER TABLE shipping_addresses ENABLE ROW LEVEL SECURITY;
 ALTER TABLE asaas_transactions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE asaas_splits ENABLE ROW LEVEL SECURITY;
 ALTER TABLE asaas_webhook_logs ENABLE ROW LEVEL SECURITY;
-
 -- Políticas para orders
 CREATE POLICY "Users can view own orders"
   ON orders FOR SELECT
   USING (auth.uid() = customer_id AND deleted_at IS NULL);
-
 CREATE POLICY "Users can create own orders"
   ON orders FOR INSERT
   WITH CHECK (auth.uid() = customer_id);
-
 CREATE POLICY "Admins can view all orders"
   ON orders FOR SELECT
   USING (
@@ -454,7 +423,6 @@ CREATE POLICY "Admins can view all orders"
       AND user_roles.deleted_at IS NULL
     )
   );
-
 CREATE POLICY "Admins can update orders"
   ON orders FOR UPDATE
   USING (
@@ -465,7 +433,6 @@ CREATE POLICY "Admins can update orders"
       AND user_roles.deleted_at IS NULL
     )
   );
-
 -- Políticas para order_items
 CREATE POLICY "Users can view own order items"
   ON order_items FOR SELECT
@@ -477,7 +444,6 @@ CREATE POLICY "Users can view own order items"
       AND orders.deleted_at IS NULL
     )
   );
-
 CREATE POLICY "Admins can view all order items"
   ON order_items FOR SELECT
   USING (
@@ -488,7 +454,6 @@ CREATE POLICY "Admins can view all order items"
       AND user_roles.deleted_at IS NULL
     )
   );
-
 -- Políticas para payments
 CREATE POLICY "Users can view own payments"
   ON payments FOR SELECT
@@ -500,7 +465,6 @@ CREATE POLICY "Users can view own payments"
       AND orders.deleted_at IS NULL
     )
   );
-
 CREATE POLICY "Admins can view all payments"
   ON payments FOR SELECT
   USING (
@@ -511,7 +475,6 @@ CREATE POLICY "Admins can view all payments"
       AND user_roles.deleted_at IS NULL
     )
   );
-
 -- Políticas para shipping_addresses
 CREATE POLICY "Users can view own shipping addresses"
   ON shipping_addresses FOR SELECT
@@ -523,7 +486,6 @@ CREATE POLICY "Users can view own shipping addresses"
       AND orders.deleted_at IS NULL
     )
   );
-
 CREATE POLICY "Admins can view all shipping addresses"
   ON shipping_addresses FOR SELECT
   USING (
@@ -534,7 +496,6 @@ CREATE POLICY "Admins can view all shipping addresses"
       AND user_roles.deleted_at IS NULL
     )
   );
-
 -- Políticas para order_status_history
 CREATE POLICY "Users can view own order history"
   ON order_status_history FOR SELECT
@@ -546,7 +507,6 @@ CREATE POLICY "Users can view own order history"
       AND orders.deleted_at IS NULL
     )
   );
-
 CREATE POLICY "Admins can view all order history"
   ON order_status_history FOR SELECT
   USING (
@@ -557,7 +517,6 @@ CREATE POLICY "Admins can view all order history"
       AND user_roles.deleted_at IS NULL
     )
   );
-
 -- Políticas para asaas_transactions (apenas admin)
 CREATE POLICY "Admins can view asaas transactions"
   ON asaas_transactions FOR SELECT
@@ -569,7 +528,6 @@ CREATE POLICY "Admins can view asaas transactions"
       AND user_roles.deleted_at IS NULL
     )
   );
-
 -- Políticas para asaas_splits (apenas admin)
 CREATE POLICY "Admins can view asaas splits"
   ON asaas_splits FOR SELECT
@@ -581,7 +539,6 @@ CREATE POLICY "Admins can view asaas splits"
       AND user_roles.deleted_at IS NULL
     )
   );
-
 -- Políticas para asaas_webhook_logs (apenas admin)
 CREATE POLICY "Admins can view webhook logs"
   ON asaas_webhook_logs FOR SELECT
@@ -593,9 +550,7 @@ CREATE POLICY "Admins can view webhook logs"
       AND user_roles.deleted_at IS NULL
     )
   );
-
 COMMIT;
-
 -- ============================================
 -- ROLLBACK (para referência)
 -- ============================================
@@ -616,4 +571,4 @@ COMMIT;
 -- DROP TYPE IF EXISTS payment_method CASCADE;
 -- DROP TYPE IF EXISTS payment_status CASCADE;
 -- DROP TYPE IF EXISTS split_status CASCADE;
--- COMMIT;
+-- COMMIT;;

@@ -13,16 +13,13 @@
 
 -- UP Migration
 BEGIN;
-
 -- 1. Tornar product_sku opcional em order_items (pode ser gerado automaticamente)
 ALTER TABLE order_items 
 ALTER COLUMN product_sku DROP NOT NULL;
-
 -- 2. Expandir constraint de source para incluir valores necessários
 -- Primeiro, remover constraint existente
 ALTER TABLE customers 
 DROP CONSTRAINT IF EXISTS customers_source_valid;
-
 -- Criar nova constraint com mais valores
 ALTER TABLE customers 
 ADD CONSTRAINT customers_source_valid 
@@ -39,9 +36,7 @@ CHECK (source IN (
     'instagram',    -- Instagram
     'referral'      -- Indicação
 ));
-
 COMMIT;
-
 -- DOWN Migration (para rollback)
 -- BEGIN;
 -- ALTER TABLE order_items ALTER COLUMN product_sku SET NOT NULL;

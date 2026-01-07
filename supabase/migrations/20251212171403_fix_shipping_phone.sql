@@ -12,13 +12,10 @@
 
 -- UP Migration
 BEGIN;
-
 -- Tornar campo phone opcional em shipping_addresses
 ALTER TABLE shipping_addresses 
 ALTER COLUMN phone DROP NOT NULL;
-
 COMMIT;
-
 -- DOWN Migration (para rollback)
 -- BEGIN;
 -- ALTER TABLE shipping_addresses ALTER COLUMN phone SET NOT NULL;

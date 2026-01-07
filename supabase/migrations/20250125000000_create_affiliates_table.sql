@@ -15,7 +15,6 @@
 -- ============================================
 
 BEGIN;
-
 -- ============================================
 -- ENUMS PARA SISTEMA DE AFILIADOS
 -- ============================================
@@ -28,7 +27,6 @@ CREATE TYPE affiliate_status AS ENUM (
   'suspended',  -- Suspenso por violação
   'rejected'    -- Cadastro rejeitado
 );
-
 -- Status de conversão
 CREATE TYPE conversion_status AS ENUM (
   'pending',     -- Aguardando processamento
@@ -36,7 +34,6 @@ CREATE TYPE conversion_status AS ENUM (
   'paid',        -- Comissão paga
   'cancelled'    -- Pedido cancelado
 );
-
 -- Status de comissão
 CREATE TYPE commission_status AS ENUM (
   'calculated',  -- Calculada mas não paga
@@ -45,7 +42,6 @@ CREATE TYPE commission_status AS ENUM (
   'failed',      -- Falha no pagamento
   'cancelled'    -- Cancelada
 );
-
 -- Status de split de comissão
 CREATE TYPE commission_split_status AS ENUM (
   'calculated',  -- Calculado mas não enviado
@@ -54,7 +50,6 @@ CREATE TYPE commission_split_status AS ENUM (
   'failed',      -- Falha no Asaas
   'cancelled'    -- Cancelado
 );
-
 -- Tipo de operação de log
 CREATE TYPE log_operation_type AS ENUM (
   'commission_calculated',
@@ -65,7 +60,6 @@ CREATE TYPE log_operation_type AS ENUM (
   'commission_failed',
   'manual_adjustment'
 );
-
 -- ============================================
 -- TABELA: affiliates
 -- ============================================
@@ -105,7 +99,6 @@ CREATE TABLE IF NOT EXISTS affiliates (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   deleted_at TIMESTAMPTZ NULL
 );
-
 -- ============================================
 -- ÍNDICES CRÍTICOS PARA PERFORMANCE
 -- ============================================
@@ -114,37 +107,30 @@ CREATE TABLE IF NOT EXISTS affiliates (
 CREATE UNIQUE INDEX idx_affiliates_referral_code 
   ON affiliates(referral_code) 
   WHERE deleted_at IS NULL;
-
 -- Índice único para wallet_id (validação Asaas)
 CREATE UNIQUE INDEX idx_affiliates_wallet_id 
   ON affiliates(wallet_id) 
   WHERE deleted_at IS NULL;
-
 -- Índice para email (único e consultas)
 CREATE UNIQUE INDEX idx_affiliates_email 
   ON affiliates(email) 
   WHERE deleted_at IS NULL;
-
 -- Índice para user_id (relacionamento)
 CREATE INDEX idx_affiliates_user_id 
   ON affiliates(user_id) 
   WHERE deleted_at IS NULL;
-
 -- Índice para status (consultas administrativas)
 CREATE INDEX idx_affiliates_status 
   ON affiliates(status) 
   WHERE deleted_at IS NULL;
-
 -- Índice para aprovação (relatórios)
 CREATE INDEX idx_affiliates_approved_at 
   ON affiliates(approved_at) 
   WHERE approved_at IS NOT NULL AND deleted_at IS NULL;
-
 -- Índice para criação (ordenação)
 CREATE INDEX idx_affiliates_created_at 
   ON affiliates(created_at DESC) 
   WHERE deleted_at IS NULL;
-
 -- ============================================
 -- FUNÇÃO: generate_referral_code()
 -- ============================================
@@ -182,7 +168,6 @@ BEGIN
   END LOOP;
 END;
 $$ LANGUAGE plpgsql;
-
 -- ============================================
 -- TRIGGER: auto_generate_referral_code
 -- ============================================
@@ -203,12 +188,10 @@ BEGIN
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
-
 CREATE TRIGGER auto_generate_referral_code
   BEFORE INSERT ON affiliates
   FOR EACH ROW
   EXECUTE FUNCTION trigger_generate_referral_code();
-
 -- ============================================
 -- TRIGGER: update_updated_at
 -- ============================================
@@ -217,7 +200,6 @@ CREATE TRIGGER update_affiliates_updated_at
   BEFORE UPDATE ON affiliates
   FOR EACH ROW
   EXECUTE FUNCTION update_updated_at_column();
-
 -- ============================================
 -- FUNÇÃO: validate_affiliate_status_change()
 -- ============================================
@@ -264,12 +246,10 @@ BEGIN
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
-
 CREATE TRIGGER validate_affiliate_status_change
   BEFORE UPDATE ON affiliates
   FOR EACH ROW
   EXECUTE FUNCTION validate_affiliate_status_change();
-
 -- ============================================
 -- FUNÇÃO: protect_critical_fields()
 -- ============================================
@@ -301,18 +281,15 @@ BEGIN
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
-
 CREATE TRIGGER protect_critical_fields_affiliates
   BEFORE UPDATE ON affiliates
   FOR EACH ROW
   EXECUTE FUNCTION protect_critical_fields_affiliates();
-
 -- ============================================
 -- ROW LEVEL SECURITY (RLS)
 -- ============================================
 
 ALTER TABLE affiliates ENABLE ROW LEVEL SECURITY;
-
 -- Afiliados podem ver apenas próprios dados
 CREATE POLICY "Affiliates can view own data"
   ON affiliates FOR SELECT
@@ -320,7 +297,6 @@ CREATE POLICY "Affiliates can view own data"
     auth.uid() = user_id 
     AND deleted_at IS NULL
   );
-
 -- Afiliados podem atualizar apenas próprios dados (limitado)
 -- NOTA: Campos críticos (status, referral_code, wallet_id) são protegidos por trigger
 CREATE POLICY "Affiliates can update own data"
@@ -330,7 +306,6 @@ CREATE POLICY "Affiliates can update own data"
     auth.uid() = user_id 
     AND deleted_at IS NULL
   );
-
 -- Admins podem ver todos os afiliados
 CREATE POLICY "Admins can view all affiliates"
   ON affiliates FOR SELECT
@@ -342,7 +317,6 @@ CREATE POLICY "Admins can view all affiliates"
       AND user_roles.deleted_at IS NULL
     )
   );
-
 -- Admins podem criar afiliados
 CREATE POLICY "Admins can create affiliates"
   ON affiliates FOR INSERT
@@ -354,7 +328,6 @@ CREATE POLICY "Admins can create affiliates"
       AND user_roles.deleted_at IS NULL
     )
   );
-
 -- Admins podem atualizar afiliados
 CREATE POLICY "Admins can update affiliates"
   ON affiliates FOR UPDATE
@@ -366,7 +339,6 @@ CREATE POLICY "Admins can update affiliates"
       AND user_roles.deleted_at IS NULL
     )
   );
-
 -- Usuários podem se cadastrar como afiliados
 CREATE POLICY "Users can register as affiliates"
   ON affiliates FOR INSERT
@@ -374,7 +346,6 @@ CREATE POLICY "Users can register as affiliates"
     auth.uid() = user_id
     AND status = 'pending'
   );
-
 -- ============================================
 -- FUNÇÃO: get_affiliate_stats()
 -- ============================================
@@ -416,7 +387,6 @@ BEGIN
   AND a.deleted_at IS NULL;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
-
 -- ============================================
 -- COMENTÁRIOS PARA DOCUMENTAÇÃO
 -- ============================================
@@ -427,9 +397,7 @@ COMMENT ON COLUMN affiliates.wallet_id IS 'ID da carteira Asaas para recebimento
 COMMENT ON COLUMN affiliates.total_clicks IS 'Cache do total de cliques nos links do afiliado';
 COMMENT ON COLUMN affiliates.total_conversions IS 'Cache do total de conversões (vendas)';
 COMMENT ON COLUMN affiliates.total_commissions_cents IS 'Cache do total de comissões em centavos';
-
 COMMIT;
-
 -- ============================================
 -- ROLLBACK (para referência)
 -- ============================================

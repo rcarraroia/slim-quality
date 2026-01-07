@@ -14,18 +14,14 @@
 
 -- UP Migration
 BEGIN;
-
 -- Adicionar campos para URLs de imagem
 ALTER TABLE products 
 ADD COLUMN IF NOT EXISTS image_url TEXT,
 ADD COLUMN IF NOT EXISTS product_page_url TEXT;
-
 -- Comentários para documentação
 COMMENT ON COLUMN products.image_url IS 'URL da imagem principal do produto (Supabase Storage)';
 COMMENT ON COLUMN products.product_page_url IS 'URL da página específica do produto no site';
-
 COMMIT;
-
 -- DOWN Migration (para rollback)
 -- BEGIN;
 -- ALTER TABLE products DROP COLUMN IF EXISTS image_url;

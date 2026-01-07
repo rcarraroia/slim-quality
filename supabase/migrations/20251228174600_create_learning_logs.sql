@@ -16,20 +16,17 @@ CREATE TABLE IF NOT EXISTS learning_logs (
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
-
 -- Índices para performance
 CREATE INDEX IF NOT EXISTS idx_learning_logs_status ON learning_logs(status, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_learning_logs_confidence ON learning_logs(confidence_score DESC) WHERE status = 'pending';
 CREATE INDEX IF NOT EXISTS idx_learning_logs_sub_agent ON learning_logs(sub_agent_id) WHERE status = 'pending';
 CREATE INDEX IF NOT EXISTS idx_learning_logs_approved_at ON learning_logs(approved_at DESC) WHERE approved_at IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_learning_logs_created_at ON learning_logs(created_at DESC);
-
 -- Trigger para updated_at
 CREATE TRIGGER update_learning_logs_updated_at
     BEFORE UPDATE ON learning_logs
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
-
 -- Trigger para definir approved_at quando status muda para approved/rejected
 CREATE OR REPLACE FUNCTION set_approved_at()
 RETURNS TRIGGER AS $$
@@ -40,20 +37,16 @@ BEGIN
     RETURN NEW;
 END;
 $$ language 'plpgsql';
-
 CREATE TRIGGER set_learning_logs_approved_at
     BEFORE UPDATE ON learning_logs
     FOR EACH ROW
     EXECUTE FUNCTION set_approved_at();
-
 -- RLS (Row Level Security)
 ALTER TABLE learning_logs ENABLE ROW LEVEL SECURITY;
-
 -- Política RLS: Usuários podem ver todos os logs (sistema interno)
 CREATE POLICY "Allow all access to learning_logs"
     ON learning_logs FOR ALL
     USING (true);
-
 -- Comentários
 COMMENT ON TABLE learning_logs IS 'Fila de aprendizados pendentes de aprovação - SICC';
 COMMENT ON COLUMN learning_logs.pattern_data IS 'Dados do padrão identificado em JSON';

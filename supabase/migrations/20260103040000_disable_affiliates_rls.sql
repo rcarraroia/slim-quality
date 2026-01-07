@@ -13,10 +13,8 @@
 
 -- UP Migration
 BEGIN;
-
 -- Desabilitar RLS na tabela affiliates
 ALTER TABLE affiliates DISABLE ROW LEVEL SECURITY;
-
 -- Verificar se foi desabilitado
 DO $$
 BEGIN
@@ -26,9 +24,7 @@ BEGIN
         RAISE EXCEPTION 'Falha ao desabilitar RLS na tabela affiliates';
     END IF;
 END $$;
-
 COMMIT;
-
 -- DOWN Migration (para rollback)
 -- BEGIN;
 -- ALTER TABLE affiliates ENABLE ROW LEVEL SECURITY;

@@ -3,7 +3,12 @@
     "asaas": {
       "url": "https://docs.asaas.com/mcp",
       "autoApprove": [
-        "list-specs"
+        "list-specs",
+        "list-endpoints",
+        "get-endpoint",
+        "search-specs",
+        "get-request-body",
+        "get-response-schema"
       ]
     }
   }

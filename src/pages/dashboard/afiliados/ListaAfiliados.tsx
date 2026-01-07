@@ -27,9 +27,9 @@ import {
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { StatusBadge } from "@/components/dashboard/StatusBadge";
 import { Search, Eye, UserCheck, UserX, Download, PackageOpen } from "lucide-react";
-import { supabase } from "@/config/supabase";
 import { useToast } from "@/hooks/use-toast";
-import { affiliateFrontendService } from "@/services/frontend/affiliate.service";
+import { adminAffiliatesService, Affiliate, AffiliateMetrics } from "@/services/admin-affiliates.service";
+import { useAuth } from "@/hooks/useAuth";
 
 interface Affiliate {
   id: string;
@@ -51,30 +51,30 @@ export default function ListaAfiliados() {
   const [selectedAfiliado, setSelectedAfiliado] = useState<Affiliate | null>(null);
   const [statusFilter, setStatusFilter] = useState("todos");
   const [searchTerm, setSearchTerm] = useState("");
-  const [stats, setStats] = useState({
-    totalIndicados: 0,
-    vendasGeradas: 0,
-    comissoesTotais: 0
-  });
+  const [metrics, setMetrics] = useState<AffiliateMetrics | null>(null);
   const { toast } = useToast();
+  const { hasPermission } = useAuth();
 
   useEffect(() => {
     loadAfiliados();
+    loadMetrics();
   }, []);
 
   const loadAfiliados = async () => {
     try {
       setLoading(true);
-      const result = await affiliateFrontendService.getAllAffiliates();
+      const response = await adminAffiliatesService.getAll({
+        search: searchTerm || undefined,
+        status: statusFilter !== "todos" ? statusFilter : undefined,
+        limit: 100 // Carregar mais registros por página
+      });
       
-      if (result.success) {
-        setAfiliados(result.data || []);
-        // Carregar estatísticas
-        await loadStats(result.data || []);
+      if (response.success && response.data) {
+        setAfiliados(response.data.affiliates);
       } else {
         toast({
           title: "Erro ao carregar afiliados",
-          description: result.error || "Não foi possível carregar a lista de afiliados.",
+          description: response.error || "Não foi possível carregar a lista de afiliados.",
           variant: "destructive"
         });
       }
@@ -90,34 +90,14 @@ export default function ListaAfiliados() {
     }
   };
 
-  const loadStats = async (affiliates: Affiliate[]) => {
+  const loadMetrics = async () => {
     try {
-      // Buscar comissões pagas
-      const { data: commissions } = await supabase
-        .from('commissions')
-        .select('amount')
-        .eq('status', 'paid');
-
-      const comissoesTotais = commissions?.reduce((acc, c) => acc + c.amount, 0) || 0;
-
-      // Buscar vendas geradas por afiliados
-      const { count: vendasCount } = await supabase
-        .from('orders')
-        .select('*', { count: 'exact', head: true })
-        .not('affiliate_id', 'is', null);
-
-      // Buscar total de indicados (referrals)
-      const { count: indicadosCount } = await supabase
-        .from('referrals')
-        .select('*', { count: 'exact', head: true });
-
-      setStats({
-        totalIndicados: indicadosCount || 0,
-        vendasGeradas: vendasCount || 0,
-        comissoesTotais
-      });
+      const response = await adminAffiliatesService.getMetrics();
+      if (response.success && response.data) {
+        setMetrics(response.data);
+      }
     } catch (error) {
-      console.error('Erro ao carregar estatísticas:', error);
+      console.error('Erro ao carregar métricas:', error);
     }
   };
 
@@ -131,25 +111,63 @@ export default function ListaAfiliados() {
 
   const handleStatusChange = async (afiliadoId: string, newStatus: "active" | "inactive") => {
     try {
-      const { error } = await supabase
-        .from('affiliates')
-        .update({ status: newStatus })
-        .eq('id', afiliadoId);
+      let response;
+      
+      if (newStatus === "active") {
+        response = await adminAffiliatesService.activate(afiliadoId);
+      } else {
+        response = await adminAffiliatesService.deactivate(afiliadoId);
+      }
 
-      if (error) throw error;
+      if (response.success) {
+        toast({
+          title: "Status atualizado",
+          description: `Afiliado ${newStatus === 'active' ? 'ativado' : 'desativado'} com sucesso.`,
+        });
 
-      toast({
-        title: "Status atualizado",
-        description: `Afiliado ${newStatus === 'active' ? 'ativado' : 'desativado'} com sucesso.`,
-      });
-
-      loadAfiliados();
-      setSelectedAfiliado(null);
+        loadAfiliados();
+        setSelectedAfiliado(null);
+      } else {
+        toast({
+          title: "Erro ao atualizar status",
+          description: response.error || "Não foi possível atualizar o status do afiliado.",
+          variant: "destructive"
+        });
+      }
     } catch (error) {
       console.error('Erro ao atualizar status:', error);
       toast({
         title: "Erro ao atualizar status",
         description: "Não foi possível atualizar o status do afiliado.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleExportCSV = async () => {
+    try {
+      const response = await adminAffiliatesService.exportCSV({
+        search: searchTerm || undefined,
+        status: statusFilter !== "todos" ? statusFilter : undefined
+      });
+
+      if (response.success) {
+        toast({
+          title: "Exportação concluída",
+          description: "O arquivo CSV foi baixado com sucesso.",
+        });
+      } else {
+        toast({
+          title: "Erro na exportação",
+          description: response.error || "Não foi possível exportar os dados.",
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      console.error('Erro ao exportar CSV:', error);
+      toast({
+        title: "Erro na exportação",
+        description: "Não foi possível exportar os dados.",
         variant: "destructive"
       });
     }
@@ -163,7 +181,7 @@ export default function ListaAfiliados() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-muted-foreground">Total de Afiliados</p>
-              <p className="text-2xl font-bold">{loading ? "..." : afiliados.length}</p>
+              <p className="text-2xl font-bold">{loading ? "..." : metrics?.totalAffiliates || afiliados.length}</p>
             </div>
             <UserCheck className="h-8 w-8 text-primary" />
           </div>
@@ -174,7 +192,7 @@ export default function ListaAfiliados() {
             <div>
               <p className="text-sm text-muted-foreground">Afiliados Ativos</p>
               <p className="text-2xl font-bold">
-                {loading ? "..." : afiliados.filter(a => a.status === "active").length}
+                {loading ? "..." : metrics?.activeAffiliates || afiliados.filter(a => a.status === "active").length}
               </p>
             </div>
             <UserCheck className="h-8 w-8 text-green-600" />
@@ -186,7 +204,7 @@ export default function ListaAfiliados() {
             <div>
               <p className="text-sm text-muted-foreground">Comissões Pagas</p>
               <p className="text-2xl font-bold">
-                {loading ? "..." : `R$ ${stats.comissoesTotais.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
+                {loading ? "..." : `R$ ${(metrics?.totalCommissionsPaid || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
               </p>
             </div>
             <Download className="h-8 w-8 text-blue-600" />
@@ -198,7 +216,7 @@ export default function ListaAfiliados() {
             <div>
               <p className="text-sm text-muted-foreground">Vendas Geradas</p>
               <p className="text-2xl font-bold">
-                {loading ? "..." : stats.vendasGeradas}
+                {loading ? "..." : metrics?.totalSalesGenerated || 0}
               </p>
             </div>
             <Download className="h-8 w-8 text-secondary" />
@@ -232,7 +250,7 @@ export default function ListaAfiliados() {
             </SelectContent>
           </Select>
 
-          <Button variant="outline" className="gap-2" disabled={loading}>
+          <Button variant="outline" className="gap-2" disabled={loading} onClick={handleExportCSV}>
             <Download className="h-4 w-4" />
             Exportar CSV
           </Button>

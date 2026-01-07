@@ -14,7 +14,6 @@
 -- ============================================
 
 BEGIN;
-
 -- Verificar se o valor 'site' já existe no enum
 DO $$ 
 BEGIN
@@ -29,7 +28,6 @@ BEGIN
         ALTER TYPE conversation_channel ADD VALUE 'site';
     END IF;
 END $$;
-
 -- Adicionar campo session_id se não existir
 DO $$
 BEGIN
@@ -43,7 +41,6 @@ BEGIN
         ADD COLUMN session_id UUID;
     END IF;
 END $$;
-
 -- Criar índice para session_id se não existir
 DO $$
 BEGIN
@@ -54,8 +51,6 @@ BEGIN
         CREATE INDEX idx_conversations_session_id ON conversations(session_id);
     END IF;
 END $$;
-
 -- Atualizar comentário da tabela
 COMMENT ON COLUMN conversations.session_id IS 'UUID da sessão para chat público (site) ou identificador externo';
-
 COMMIT;

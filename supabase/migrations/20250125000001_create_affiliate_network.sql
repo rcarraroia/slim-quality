@@ -15,7 +15,6 @@
 -- ============================================
 
 BEGIN;
-
 -- ============================================
 -- TABELA: affiliate_network (Árvore Genealógica)
 -- ============================================
@@ -38,7 +37,6 @@ CREATE TABLE IF NOT EXISTS affiliate_network (
   CONSTRAINT chk_valid_level CHECK (level BETWEEN 1 AND 3),
   CONSTRAINT uq_affiliate_network_unique UNIQUE (affiliate_id) -- Um afiliado só pode ter um pai
 );
-
 -- ============================================
 -- ÍNDICES PARA QUERIES DE ÁRVORE
 -- ============================================
@@ -46,25 +44,20 @@ CREATE TABLE IF NOT EXISTS affiliate_network (
 -- Índice principal para affiliate_id (mais usado)
 CREATE INDEX idx_network_affiliate 
   ON affiliate_network(affiliate_id);
-
 -- Índice para parent_id (buscar filhos)
 CREATE INDEX idx_network_parent 
   ON affiliate_network(parent_id) 
   WHERE parent_id IS NOT NULL;
-
 -- Índice para path (queries hierárquicas com LIKE)
 CREATE INDEX idx_network_path 
   ON affiliate_network(path);
-
 -- Índice para level (filtrar por nível)
 CREATE INDEX idx_network_level 
   ON affiliate_network(level);
-
 -- Índice composto para queries de rede completa
 CREATE INDEX idx_network_parent_level 
   ON affiliate_network(parent_id, level) 
   WHERE parent_id IS NOT NULL;
-
 -- ============================================
 -- FUNÇÃO: check_network_loop()
 -- ============================================
@@ -107,12 +100,10 @@ BEGIN
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
-
 CREATE TRIGGER prevent_network_loops
   BEFORE INSERT OR UPDATE ON affiliate_network
   FOR EACH ROW 
   EXECUTE FUNCTION check_network_loop();
-
 -- ============================================
 -- FUNÇÃO: calculate_network_level()
 -- ============================================
@@ -164,12 +155,10 @@ BEGIN
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
-
 CREATE TRIGGER calculate_network_level
   BEFORE INSERT OR UPDATE ON affiliate_network
   FOR EACH ROW 
   EXECUTE FUNCTION calculate_network_level();
-
 -- ============================================
 -- TRIGGER: update_updated_at
 -- ============================================
@@ -178,7 +167,6 @@ CREATE TRIGGER update_affiliate_network_updated_at
   BEFORE UPDATE ON affiliate_network
   FOR EACH ROW
   EXECUTE FUNCTION update_updated_at_column();
-
 -- ============================================
 -- FUNÇÃO: get_network_tree()
 -- ============================================
@@ -249,7 +237,6 @@ BEGIN
   ORDER BY nt.level, nt.created_at;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
-
 -- ============================================
 -- FUNÇÃO: get_network_ancestors()
 -- ============================================
@@ -304,7 +291,6 @@ BEGIN
   ORDER BY anc.level DESC; -- N3, N2, N1
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
-
 -- ============================================
 -- FUNÇÃO: get_direct_children()
 -- ============================================
@@ -334,7 +320,6 @@ BEGIN
   ORDER BY an.created_at DESC;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
-
 -- ============================================
 -- FUNÇÃO: validate_network_integrity()
 -- ============================================
@@ -400,13 +385,11 @@ BEGIN
   WHERE an.path NOT LIKE '%' || a.referral_code;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
-
 -- ============================================
 -- ROW LEVEL SECURITY (RLS)
 -- ============================================
 
 ALTER TABLE affiliate_network ENABLE ROW LEVEL SECURITY;
-
 -- Afiliados podem ver apenas própria rede (ascendentes e descendentes)
 CREATE POLICY "Affiliates can view own network"
   ON affiliate_network FOR SELECT
@@ -430,7 +413,6 @@ CREATE POLICY "Affiliates can view own network"
       )
     )
   );
-
 -- Admins podem ver toda a rede
 CREATE POLICY "Admins can view all network"
   ON affiliate_network FOR SELECT
@@ -442,7 +424,6 @@ CREATE POLICY "Admins can view all network"
       AND user_roles.deleted_at IS NULL
     )
   );
-
 -- Apenas admins podem modificar a rede diretamente
 CREATE POLICY "Admins can modify network"
   ON affiliate_network FOR ALL
@@ -454,7 +435,6 @@ CREATE POLICY "Admins can modify network"
       AND user_roles.deleted_at IS NULL
     )
   );
-
 -- ============================================
 -- COMENTÁRIOS PARA DOCUMENTAÇÃO
 -- ============================================
@@ -465,9 +445,7 @@ COMMENT ON COLUMN affiliate_network.path IS 'Caminho completo na árvore para qu
 COMMENT ON FUNCTION check_network_loop() IS 'Previne loops circulares na árvore genealógica';
 COMMENT ON FUNCTION get_network_tree(UUID, INTEGER) IS 'Retorna árvore completa de um afiliado';
 COMMENT ON FUNCTION get_network_ancestors(UUID) IS 'Retorna ascendentes (N1, N2, N3) de um afiliado';
-
 COMMIT;
-
 -- ============================================
 -- ROLLBACK (para referência)
 -- ============================================

@@ -14,7 +14,6 @@
 -- ============================================
 
 BEGIN;
-
 -- Criar ENUMs para conversas
 CREATE TYPE conversation_status AS ENUM (
   'new',        -- Nova conversa (não atribuída)
@@ -23,20 +22,17 @@ CREATE TYPE conversation_status AS ENUM (
   'resolved',   -- Conversa resolvida
   'closed'      -- Conversa fechada
 );
-
 CREATE TYPE conversation_channel AS ENUM (
   'whatsapp',   -- WhatsApp via N8N/BIA
   'email',      -- Email
   'chat',       -- Chat do site
   'phone'       -- Telefone (registro manual)
 );
-
 CREATE TYPE message_sender_type AS ENUM (
   'customer',   -- Mensagem do cliente
   'agent',      -- Mensagem do atendente
   'system'      -- Mensagem automática do sistema
 );
-
 -- Criar tabela de conversas
 CREATE TABLE conversations (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -68,7 +64,6 @@ CREATE TABLE conversations (
   -- Constraints
   CONSTRAINT conversations_priority_valid CHECK (priority BETWEEN 1 AND 3)
 );
-
 -- Criar tabela de mensagens
 CREATE TABLE messages (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -100,7 +95,6 @@ CREATE TABLE messages (
     (sender_type != 'system' AND sender_id IS NOT NULL)
   )
 );
-
 -- Criar índices otimizados
 -- Índices para conversations
 CREATE INDEX idx_conversations_customer_id ON conversations(customer_id);
@@ -111,12 +105,10 @@ CREATE INDEX idx_conversations_priority ON conversations(priority DESC);
 CREATE INDEX idx_conversations_created_at ON conversations(created_at DESC);
 CREATE INDEX idx_conversations_last_message ON conversations(last_message_at DESC);
 CREATE INDEX idx_conversations_external_id ON conversations(external_id) WHERE external_id IS NOT NULL;
-
 -- Índices compostos para consultas frequentes
 CREATE INDEX idx_conversations_status_assigned ON conversations(status, assigned_to);
 CREATE INDEX idx_conversations_channel_status ON conversations(channel, status);
 CREATE INDEX idx_conversations_customer_channel ON conversations(customer_id, channel);
-
 -- Índices para messages
 CREATE INDEX idx_messages_conversation_id ON messages(conversation_id);
 CREATE INDEX idx_messages_sender_type ON messages(sender_type);
@@ -124,11 +116,9 @@ CREATE INDEX idx_messages_sender_id ON messages(sender_id);
 CREATE INDEX idx_messages_created_at ON messages(created_at DESC);
 CREATE INDEX idx_messages_read_at ON messages(read_at);
 CREATE INDEX idx_messages_external_id ON messages(external_id) WHERE external_id IS NOT NULL;
-
 -- Índices compostos para messages
 CREATE INDEX idx_messages_conversation_created ON messages(conversation_id, created_at DESC);
 CREATE INDEX idx_messages_conversation_sender ON messages(conversation_id, sender_type, created_at DESC);
-
 -- Criar trigger para updated_at em conversations
 CREATE OR REPLACE FUNCTION update_conversations_updated_at()
 RETURNS TRIGGER AS $$
@@ -137,12 +127,10 @@ BEGIN
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
-
 CREATE TRIGGER trigger_conversations_updated_at
   BEFORE UPDATE ON conversations
   FOR EACH ROW
   EXECUTE FUNCTION update_conversations_updated_at();
-
 -- Função para atualizar timestamps da conversa quando mensagem é adicionada
 CREATE OR REPLACE FUNCTION update_conversation_timestamps()
 RETURNS TRIGGER AS $$
@@ -169,16 +157,13 @@ BEGIN
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
-
 CREATE TRIGGER trigger_messages_update_conversation
   AFTER INSERT ON messages
   FOR EACH ROW
   EXECUTE FUNCTION update_conversation_timestamps();
-
 -- Configurar Row Level Security (RLS)
 ALTER TABLE conversations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE messages ENABLE ROW LEVEL SECURITY;
-
 -- Políticas para conversations
 -- Usuários veem conversas de clientes que podem ver
 CREATE POLICY "Ver conversas de clientes visíveis"
@@ -205,7 +190,6 @@ CREATE POLICY "Ver conversas de clientes visíveis"
     -- Atendente vê conversas atribuídas a ele
     assigned_to = auth.uid()
   );
-
 -- Usuários podem criar conversas para clientes que gerenciam
 CREATE POLICY "Criar conversas para clientes gerenciados"
   ON conversations FOR INSERT
@@ -231,7 +215,6 @@ CREATE POLICY "Criar conversas para clientes gerenciados"
       )
     )
   );
-
 -- Usuários podem atualizar conversas que gerenciam
 CREATE POLICY "Atualizar conversas gerenciadas"
   ON conversations FOR UPDATE
@@ -253,7 +236,6 @@ CREATE POLICY "Atualizar conversas gerenciadas"
       AND assigned_to = auth.uid()
     )
   );
-
 -- Políticas para messages
 -- Usuários veem mensagens de conversas que podem ver
 CREATE POLICY "Ver mensagens de conversas visíveis"
@@ -282,7 +264,6 @@ CREATE POLICY "Ver mensagens de conversas visíveis"
       )
     )
   );
-
 -- Usuários podem enviar mensagens em conversas que gerenciam
 CREATE POLICY "Enviar mensagens em conversas gerenciadas"
   ON messages FOR INSERT
@@ -309,7 +290,6 @@ CREATE POLICY "Enviar mensagens em conversas gerenciadas"
       )
     )
   );
-
 -- Função para buscar conversas com filtros
 CREATE OR REPLACE FUNCTION get_conversations(
   p_status conversation_status[] DEFAULT NULL,
@@ -371,7 +351,6 @@ BEGIN
   OFFSET p_offset;
 END;
 $$ LANGUAGE plpgsql;
-
 -- Função para marcar mensagens como lidas
 CREATE OR REPLACE FUNCTION mark_messages_as_read(
   p_conversation_id UUID,
@@ -393,7 +372,6 @@ BEGIN
   RETURN updated_count;
 END;
 $$ LANGUAGE plpgsql;
-
 -- Função para criar conversa automaticamente
 CREATE OR REPLACE FUNCTION create_conversation_if_not_exists(
   p_customer_id UUID,
@@ -451,7 +429,6 @@ BEGIN
   RETURN conversation_id;
 END;
 $$ LANGUAGE plpgsql;
-
 -- Comentários para documentação
 COMMENT ON TABLE conversations IS 'Conversas multicanal com clientes';
 COMMENT ON TABLE messages IS 'Mensagens individuais das conversas';
@@ -461,5 +438,4 @@ COMMENT ON TYPE message_sender_type IS 'Tipos de remetente de mensagem';
 COMMENT ON FUNCTION get_conversations IS 'Busca conversas com filtros e contagem de não lidas';
 COMMENT ON FUNCTION mark_messages_as_read IS 'Marca mensagens como lidas';
 COMMENT ON FUNCTION create_conversation_if_not_exists IS 'Cria conversa se não existir uma ativa';
-
 COMMIT;

@@ -16,33 +16,27 @@ CREATE TABLE IF NOT EXISTS sub_agents (
     updated_at TIMESTAMPTZ DEFAULT NOW(),
     deleted_at TIMESTAMPTZ NULL
 );
-
 -- Índices para performance
 CREATE INDEX IF NOT EXISTS idx_sub_agents_domain ON sub_agents(domain) WHERE deleted_at IS NULL AND is_active = true;
 CREATE INDEX IF NOT EXISTS idx_sub_agents_active ON sub_agents(is_active) WHERE deleted_at IS NULL;
 CREATE INDEX IF NOT EXISTS idx_sub_agents_name ON sub_agents(agent_name) WHERE deleted_at IS NULL;
-
 -- Trigger para updated_at
 CREATE TRIGGER update_sub_agents_updated_at
     BEFORE UPDATE ON sub_agents
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
-
 -- RLS (Row Level Security)
 ALTER TABLE sub_agents ENABLE ROW LEVEL SECURITY;
-
 -- Política RLS: Usuários podem ver todos os sub-agentes (sistema interno)
 CREATE POLICY "Allow all access to sub_agents"
     ON sub_agents FOR ALL
     USING (deleted_at IS NULL);
-
 -- Inserir sub-agentes padrão
 INSERT INTO sub_agents (agent_name, domain, learning_threshold, max_patterns, configuration) VALUES
     ('Discovery Agent', 'discovery', 0.7, 100, '{"focus": "lead_qualification", "priority": "high"}'),
     ('Sales Agent', 'sales', 0.75, 150, '{"focus": "conversion", "priority": "critical"}'),
     ('Support Agent', 'support', 0.65, 80, '{"focus": "problem_resolution", "priority": "medium"}')
 ON CONFLICT (agent_name) DO NOTHING;
-
 -- Comentários
 COMMENT ON TABLE sub_agents IS 'Sub-agentes especializados para SICC';
 COMMENT ON COLUMN sub_agents.agent_name IS 'Nome único do sub-agente';

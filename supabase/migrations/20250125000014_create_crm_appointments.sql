@@ -4,7 +4,6 @@
 -- Author: Kiro AI
 
 BEGIN;
-
 -- Create ENUMs for appointments
 DO $$ BEGIN
   CREATE TYPE appointment_type AS ENUM (
@@ -17,7 +16,6 @@ DO $$ BEGIN
 EXCEPTION
   WHEN duplicate_object THEN null;
 END $$;
-
 DO $$ BEGIN
   CREATE TYPE appointment_status AS ENUM (
     'scheduled',
@@ -29,7 +27,6 @@ DO $$ BEGIN
 EXCEPTION
   WHEN duplicate_object THEN null;
 END $$;
-
 -- Create appointments table
 CREATE TABLE IF NOT EXISTS appointments (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -60,14 +57,12 @@ CREATE TABLE IF NOT EXISTS appointments (
   updated_at TIMESTAMPTZ DEFAULT NOW(),
   deleted_at TIMESTAMPTZ
 );
-
 -- Create indexes
 CREATE INDEX idx_appointments_customer_id ON appointments(customer_id);
 CREATE INDEX idx_appointments_assigned_to ON appointments(assigned_to);
 CREATE INDEX idx_appointments_scheduled_at ON appointments(scheduled_at);
 CREATE INDEX idx_appointments_status ON appointments(status);
 CREATE INDEX idx_appointments_type ON appointments(appointment_type);
-
 -- Create trigger for updated_at
 CREATE OR REPLACE FUNCTION update_appointments_updated_at()
 RETURNS TRIGGER AS $$
@@ -76,15 +71,12 @@ BEGIN
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
-
 CREATE TRIGGER trigger_update_appointments_updated_at
   BEFORE UPDATE ON appointments
   FOR EACH ROW
   EXECUTE FUNCTION update_appointments_updated_at();
-
 -- Enable RLS
 ALTER TABLE appointments ENABLE ROW LEVEL SECURITY;
-
 -- RLS Policies
 CREATE POLICY "Users can view appointments"
   ON appointments FOR SELECT
@@ -95,7 +87,6 @@ CREATE POLICY "Users can view appointments"
       AND user_roles.deleted_at IS NULL
     )
   );
-
 CREATE POLICY "Users can create appointments"
   ON appointments FOR INSERT
   WITH CHECK (
@@ -105,7 +96,6 @@ CREATE POLICY "Users can create appointments"
       AND user_roles.deleted_at IS NULL
     )
   );
-
 CREATE POLICY "Users can update appointments"
   ON appointments FOR UPDATE
   USING (
@@ -115,5 +105,4 @@ CREATE POLICY "Users can update appointments"
       AND user_roles.deleted_at IS NULL
     )
   );
-
 COMMIT;

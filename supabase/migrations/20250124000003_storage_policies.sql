@@ -8,7 +8,6 @@
 -- ============================================
 
 BEGIN;
-
 -- ============================================
 -- 1. POLÍTICAS PARA BUCKET: product-images
 -- ============================================
@@ -104,12 +103,10 @@ BEGIN
     RAISE NOTICE 'Policy "Admins can delete product images" already exists';
   END IF;
 END $$;
-
 COMMIT;
-
 -- ============================================
 -- VALIDAÇÕES PÓS-MIGRATION
 -- ============================================
 -- Verificar políticas criadas:
 -- SELECT policyname, cmd, qual FROM pg_policies 
--- WHERE schemaname = 'storage' AND tablename = 'objects';
+-- WHERE schemaname = 'storage' AND tablename = 'objects';;

@@ -14,7 +14,6 @@
 -- ============================================
 
 BEGIN;
-
 -- Criar ENUM para tipos de eventos
 CREATE TYPE timeline_event_type AS ENUM (
   'customer_created',      -- Cliente cadastrado
@@ -36,7 +35,6 @@ CREATE TYPE timeline_event_type AS ENUM (
   'referral_registered',  -- Cliente indicado registrado
   'system_event'          -- Evento do sistema
 );
-
 -- Criar tabela de timeline
 CREATE TABLE customer_timeline (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -64,7 +62,6 @@ CREATE TABLE customer_timeline (
   is_visible_to_customer BOOLEAN DEFAULT FALSE, -- se cliente pode ver (futuro)
   priority INTEGER DEFAULT 1 -- 1=baixa, 2=média, 3=alta
 );
-
 -- Criar índices otimizados para consultas frequentes
 CREATE INDEX idx_customer_timeline_customer_id ON customer_timeline(customer_id);
 CREATE INDEX idx_customer_timeline_event_type ON customer_timeline(event_type);
@@ -72,19 +69,14 @@ CREATE INDEX idx_customer_timeline_created_at ON customer_timeline(created_at DE
 CREATE INDEX idx_customer_timeline_created_by ON customer_timeline(created_by);
 CREATE INDEX idx_customer_timeline_system ON customer_timeline(is_system_event);
 CREATE INDEX idx_customer_timeline_priority ON customer_timeline(priority DESC);
-
 -- Índice composto para consultas por cliente e tipo
 CREATE INDEX idx_customer_timeline_customer_type ON customer_timeline(customer_id, event_type, created_at DESC);
-
 -- Índice composto para consultas por cliente e data
 CREATE INDEX idx_customer_timeline_customer_date ON customer_timeline(customer_id, created_at DESC);
-
 -- Índice para busca em metadata (GIN para JSONB)
 CREATE INDEX idx_customer_timeline_metadata ON customer_timeline USING gin(metadata);
-
 -- Configurar Row Level Security (RLS)
 ALTER TABLE customer_timeline ENABLE ROW LEVEL SECURITY;
-
 -- Política: Usuários veem timeline de clientes que podem ver
 CREATE POLICY "Ver timeline de clientes visíveis"
   ON customer_timeline FOR SELECT
@@ -107,7 +99,6 @@ CREATE POLICY "Ver timeline de clientes visíveis"
       )
     )
   );
-
 -- Política: Usuários podem adicionar eventos em clientes que gerenciam
 CREATE POLICY "Adicionar eventos em clientes gerenciados"
   ON customer_timeline FOR INSERT
@@ -130,7 +121,6 @@ CREATE POLICY "Adicionar eventos em clientes gerenciados"
       )
     )
   );
-
 -- Política: Usuários podem editar eventos que criaram (apenas notas manuais)
 CREATE POLICY "Editar eventos próprios"
   ON customer_timeline FOR UPDATE
@@ -139,7 +129,6 @@ CREATE POLICY "Editar eventos próprios"
     AND event_type = 'note_added'
     AND is_system_event = FALSE
   );
-
 -- Função para adicionar evento na timeline
 CREATE OR REPLACE FUNCTION add_timeline_event(
   p_customer_id UUID,
@@ -187,7 +176,6 @@ BEGIN
   RETURN event_id;
 END;
 $$ LANGUAGE plpgsql;
-
 -- Função para buscar timeline de um cliente com filtros
 CREATE OR REPLACE FUNCTION get_customer_timeline(
   p_customer_id UUID,
@@ -231,7 +219,6 @@ BEGIN
   OFFSET p_offset;
 END;
 $$ LANGUAGE plpgsql;
-
 -- Trigger para criar evento automático quando cliente é criado
 CREATE OR REPLACE FUNCTION trigger_customer_created_timeline()
 RETURNS TRIGGER AS $$
@@ -260,12 +247,10 @@ BEGIN
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
-
 CREATE TRIGGER trigger_customer_timeline_created
   AFTER INSERT ON customers
   FOR EACH ROW
   EXECUTE FUNCTION trigger_customer_created_timeline();
-
 -- Trigger para criar evento quando cliente é atualizado
 CREATE OR REPLACE FUNCTION trigger_customer_updated_timeline()
 RETURNS TRIGGER AS $$
@@ -329,12 +314,10 @@ BEGIN
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
-
 CREATE TRIGGER trigger_customer_timeline_updated
   AFTER UPDATE ON customers
   FOR EACH ROW
   EXECUTE FUNCTION trigger_customer_updated_timeline();
-
 -- Trigger para criar evento quando tag é adicionada
 CREATE OR REPLACE FUNCTION trigger_tag_added_timeline()
 RETURNS TRIGGER AS $$
@@ -362,12 +345,10 @@ BEGIN
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
-
 CREATE TRIGGER trigger_tag_timeline_added
   AFTER INSERT ON customer_tag_assignments
   FOR EACH ROW
   EXECUTE FUNCTION trigger_tag_added_timeline();
-
 -- Comentários para documentação
 COMMENT ON TABLE customer_timeline IS 'Timeline cronológica de eventos dos clientes';
 COMMENT ON TYPE timeline_event_type IS 'Tipos de eventos que podem ocorrer na timeline do cliente';
@@ -375,5 +356,4 @@ COMMENT ON COLUMN customer_timeline.metadata IS 'Dados específicos do evento em
 COMMENT ON COLUMN customer_timeline.is_system_event IS 'Diferencia eventos automáticos de eventos manuais';
 COMMENT ON FUNCTION add_timeline_event IS 'Função para adicionar eventos na timeline de forma padronizada';
 COMMENT ON FUNCTION get_customer_timeline IS 'Função para buscar timeline com filtros e paginação';
-
 COMMIT;

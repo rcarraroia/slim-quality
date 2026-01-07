@@ -15,7 +15,6 @@
 -- ============================================
 
 BEGIN;
-
 -- ============================================
 -- TABELA: asaas_wallets (Cache de validação)
 -- ============================================
@@ -51,7 +50,6 @@ CREATE TABLE IF NOT EXISTS asaas_wallets (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
-
 -- ============================================
 -- ÍNDICES PARA ASAAS_WALLETS
 -- ============================================
@@ -59,20 +57,16 @@ CREATE TABLE IF NOT EXISTS asaas_wallets (
 -- Índice único para wallet_id (mais usado)
 CREATE UNIQUE INDEX idx_wallets_id 
   ON asaas_wallets(wallet_id);
-
 -- Índice para validação (cache)
 CREATE INDEX idx_wallets_validated 
   ON asaas_wallets(last_validated_at DESC);
-
 -- Índice para status válido
 CREATE INDEX idx_wallets_valid 
   ON asaas_wallets(is_valid, cache_expires_at) 
   WHERE is_valid = true;
-
 -- Índice para expiração do cache (sem NOW() para evitar erro IMMUTABLE)
 CREATE INDEX idx_wallets_cache_expires 
   ON asaas_wallets(cache_expires_at);
-
 -- ============================================
 -- TABELA: commission_logs (Auditoria completa)
 -- ============================================
@@ -110,7 +104,6 @@ CREATE TABLE IF NOT EXISTS commission_logs (
   -- Timestamps
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
-
 -- ============================================
 -- ÍNDICES PARA COMMISSION_LOGS
 -- ============================================
@@ -118,37 +111,29 @@ CREATE TABLE IF NOT EXISTS commission_logs (
 -- Índice para order_id (auditoria por pedido)
 CREATE INDEX idx_logs_order 
   ON commission_logs(order_id);
-
 -- Índice para operation_type (filtrar por tipo)
 CREATE INDEX idx_logs_operation 
   ON commission_logs(operation_type);
-
 -- Índice para created_at (ordenação temporal)
 CREATE INDEX idx_logs_created 
   ON commission_logs(created_at DESC);
-
 -- Índice para user_id (auditoria por usuário)
 CREATE INDEX idx_logs_user 
   ON commission_logs(user_id) 
   WHERE user_id IS NOT NULL;
-
 -- Índice para success (filtrar erros)
 CREATE INDEX idx_logs_success 
   ON commission_logs(success, created_at DESC);
-
 -- Índices para afiliados (auditoria por afiliado)
 CREATE INDEX idx_logs_n1_affiliate 
   ON commission_logs(n1_affiliate_id) 
   WHERE n1_affiliate_id IS NOT NULL;
-
 CREATE INDEX idx_logs_n2_affiliate 
   ON commission_logs(n2_affiliate_id) 
   WHERE n2_affiliate_id IS NOT NULL;
-
 CREATE INDEX idx_logs_n3_affiliate 
   ON commission_logs(n3_affiliate_id) 
   WHERE n3_affiliate_id IS NOT NULL;
-
 -- ============================================
 -- FUNÇÃO: validate_asaas_wallet()
 -- ============================================
@@ -196,7 +181,6 @@ BEGIN
     false; -- cached
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
-
 -- ============================================
 -- FUNÇÃO: cache_wallet_validation()
 -- ============================================
@@ -271,7 +255,6 @@ BEGIN
   RETURN v_wallet_id;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
-
 -- ============================================
 -- FUNÇÃO: log_commission_operation()
 -- ============================================
@@ -344,7 +327,6 @@ BEGIN
   RETURN v_log_id;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
-
 -- ============================================
 -- FUNÇÃO: get_commission_audit_trail()
 -- ============================================
@@ -400,7 +382,6 @@ BEGIN
   LIMIT p_limit;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
-
 -- ============================================
 -- FUNÇÃO: cleanup_expired_wallet_cache()
 -- ============================================
@@ -419,7 +400,6 @@ BEGIN
   RETURN v_deleted_count;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
-
 -- ============================================
 -- TRIGGERS
 -- ============================================
@@ -428,14 +408,12 @@ CREATE TRIGGER update_asaas_wallets_updated_at
   BEFORE UPDATE ON asaas_wallets
   FOR EACH ROW
   EXECUTE FUNCTION update_updated_at_column();
-
 -- ============================================
 -- ROW LEVEL SECURITY (RLS)
 -- ============================================
 
 -- asaas_wallets (apenas admin)
 ALTER TABLE asaas_wallets ENABLE ROW LEVEL SECURITY;
-
 CREATE POLICY "Admins can view wallet cache"
   ON asaas_wallets FOR SELECT
   USING (
@@ -446,7 +424,6 @@ CREATE POLICY "Admins can view wallet cache"
       AND user_roles.deleted_at IS NULL
     )
   );
-
 CREATE POLICY "System can manage wallet cache"
   ON asaas_wallets FOR ALL
   USING (
@@ -457,10 +434,8 @@ CREATE POLICY "System can manage wallet cache"
       AND user_roles.deleted_at IS NULL
     )
   );
-
 -- commission_logs (apenas admin)
 ALTER TABLE commission_logs ENABLE ROW LEVEL SECURITY;
-
 CREATE POLICY "Admins can view commission logs"
   ON commission_logs FOR SELECT
   USING (
@@ -471,7 +446,6 @@ CREATE POLICY "Admins can view commission logs"
       AND user_roles.deleted_at IS NULL
     )
   );
-
 -- Afiliados podem ver logs de suas próprias comissões
 CREATE POLICY "Affiliates can view own commission logs"
   ON commission_logs FOR SELECT
@@ -486,7 +460,6 @@ CREATE POLICY "Affiliates can view own commission logs"
       SELECT id FROM affiliates WHERE user_id = auth.uid() AND deleted_at IS NULL
     )
   );
-
 -- ============================================
 -- VIEWS PARA RELATÓRIOS
 -- ============================================
@@ -502,7 +475,6 @@ SELECT
   MAX(last_validated_at) as last_validation,
   MIN(last_validated_at) as oldest_validation
 FROM asaas_wallets;
-
 -- View para resumo de logs de comissão
 CREATE VIEW commission_logs_summary AS
 SELECT 
@@ -517,7 +489,6 @@ FROM commission_logs
 WHERE created_at >= NOW() - INTERVAL '30 days'
 GROUP BY operation_type, DATE_TRUNC('day', created_at)
 ORDER BY operation_date DESC, operation_type;
-
 -- ============================================
 -- COMENTÁRIOS PARA DOCUMENTAÇÃO
 -- ============================================
@@ -529,9 +500,7 @@ COMMENT ON FUNCTION cache_wallet_validation IS 'Armazena resultado de validaçã
 COMMENT ON FUNCTION log_commission_operation IS 'Registra operação de comissão para auditoria';
 COMMENT ON VIEW wallet_cache_stats IS 'Estatísticas do cache de wallets';
 COMMENT ON VIEW commission_logs_summary IS 'Resumo dos logs de comissão por tipo e data';
-
 COMMIT;
-
 -- ============================================
 -- ROLLBACK (para referência)
 -- ============================================

@@ -8,24 +8,34 @@ Este plano detalha a implementação completa da correção do Painel de Adminis
 **Frontend:** React (TypeScript) - `src/pages/admin/`  
 **Banco:** Supabase PostgreSQL  
 **Autenticação:** JWT Básico (definitivo)  
-**Abordagem:** Implementação incremental por funcionalidade, com testes após cada etapa.
+**Abordagem:** Implementação incremental por funcionalidade, com testes agrupados por bloco.
 
-## Tasks
+## Estrutura de Execução
 
-- [ ] 0. Implementar Autenticação JWT (CRÍTICO - BLOQUEANTE)
-  - [ ] 0.1 Criar Migration: Tabelas de Autenticação no Supabase
-  - [ ] 0.2 Criar Router de Autenticação (`src/api/routes/auth.ts`)
-  - [ ] 0.3 Criar Middleware de Autenticação (`src/api/middleware/auth.ts`)
-  - [ ] 0.4 Adicionar Variáveis de Ambiente JWT
-  - [ ] 0.5 Registrar Rotas no Server (`src/server.ts`)
-  - [ ] 0.6 Testar Autenticação
-  - _Requirements: 10.2, 10.4_
-  - _Tempo estimado: 2-3 horas_
-  - _⚠️ DEVE SER IMPLEMENTADA ANTES DE TODAS AS OUTRAS TASKS_
+**BLOCO 0:** Autenticação JWT (Base obrigatória)  
+**BLOCO 1:** Serviços Base (Validação Asaas + Auditoria)  
+**BLOCO 2:** APIs Backend (Métricas, Afiliados, Comissões)  
+**BLOCO 3:** Segurança (RLS + Permissões)  
+**BLOCO 4:** Frontend (Serviços + Componentes)  
+**BLOCO 5:** Integrações (Notificações + Deploy)  
+**BLOCO 6:** Testes Finais (E2E + Validação)
 
-### Task 0: Implementar Autenticação JWT (DEFINITIVO)
+---
 
-**Objetivo:** Sistema de autenticação JWT para múltiplos admins com audit por usuário.
+## BLOCO 0: AUTENTICAÇÃO JWT (CRÍTICO - BLOQUEANTE)
+
+⚠️ **DEVE SER IMPLEMENTADO ANTES DE TODAS AS OUTRAS TASKS**
+
+- [x] 0.1 Criar Migration: Tabelas de Autenticação no Supabase ✅
+- [x] 0.2 Criar Router de Autenticação (`src/api/routes/auth.ts`) ✅
+- [x] 0.3 Criar Middleware de Autenticação (`src/api/middleware/auth.ts`) ✅
+- [x] 0.4 Adicionar Variáveis de Ambiente JWT ✅
+- [x] 0.5 Registrar Rotas no Server (`src/server.ts`) ✅
+
+**Requirements:** 10.2, 10.4  
+**Tempo estimado:** 2-3 horas
+
+### BLOCO 0 - DETALHAMENTO: Autenticação JWT
 
 #### 0.1. Criar Migration: Tabelas de Autenticação
 
@@ -69,7 +79,6 @@ CREATE TRIGGER update_admins_updated_at
 
 -- Seed admin inicial (Renato)
 -- Senha: Admin@123 (trocar no primeiro login)
--- Hash gerado com: bcrypt.hash('Admin@123', 10)
 INSERT INTO admins (email, password_hash, name, role) VALUES (
   'renato@slimquality.com.br',
   '$2b$10$YourHashHere', -- Substituir pelo hash real
@@ -88,208 +97,13 @@ npm install jsonwebtoken bcrypt
 npm install -D @types/jsonwebtoken @types/bcrypt
 ```
 
-**Código:**
-```typescript
-import { Router } from 'express';
-import bcrypt from 'bcrypt';
-import jwt from 'jsonwebtoken';
-import { supabase } from '../../config/supabase';
-import { verifyAdmin } from '../middleware/auth';
-
-const router = Router();
-
-// LOGIN
-router.post('/login', async (req, res) => {
-  try {
-    const { email, password } = req.body;
-    
-    // Buscar admin
-    const { data: admin, error } = await supabase
-      .from('admins')
-      .select('*')
-      .eq('email', email)
-      .eq('is_active', true)
-      .single();
-    
-    if (error || !admin) {
-      return res.status(401).json({ error: 'Invalid credentials' });
-    }
-    
-    // Validar senha
-    const valid = await bcrypt.compare(password, admin.password_hash);
-    if (!valid) {
-      return res.status(401).json({ error: 'Invalid credentials' });
-    }
-    
-    // Gerar tokens
-    const accessToken = jwt.sign(
-      { adminId: admin.id, email: admin.email, role: admin.role },
-      process.env.JWT_SECRET!,
-      { expiresIn: '1d' }
-    );
-    
-    const refreshToken = jwt.sign(
-      { adminId: admin.id, type: 'refresh' },
-      process.env.JWT_REFRESH_SECRET!,
-      { expiresIn: '7d' }
-    );
-    
-    // Salvar refresh token
-    await supabase.from('admin_sessions').insert({
-      admin_id: admin.id,
-      refresh_token: refreshToken,
-      expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
-    });
-    
-    // Atualizar last_login
-    await supabase
-      .from('admins')
-      .update({ last_login_at: new Date() })
-      .eq('id', admin.id);
-    
-    res.json({
-      accessToken,
-      refreshToken,
-      admin: {
-        id: admin.id,
-        email: admin.email,
-        name: admin.name,
-        role: admin.role
-      }
-    });
-  } catch (error) {
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// REFRESH TOKEN
-router.post('/refresh', async (req, res) => {
-  try {
-    const { refreshToken } = req.body;
-    
-    // Validar refresh token
-    const decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET!) as any;
-    
-    // Verificar se token existe no banco
-    const { data: session } = await supabase
-      .from('admin_sessions')
-      .select('*')
-      .eq('refresh_token', refreshToken)
-      .eq('admin_id', decoded.adminId)
-      .gt('expires_at', new Date().toISOString())
-      .single();
-    
-    if (!session) {
-      return res.status(401).json({ error: 'Invalid refresh token' });
-    }
-    
-    // Buscar admin
-    const { data: admin } = await supabase
-      .from('admins')
-      .select('*')
-      .eq('id', decoded.adminId)
-      .eq('is_active', true)
-      .single();
-    
-    if (!admin) {
-      return res.status(401).json({ error: 'Admin not found' });
-    }
-    
-    // Gerar novo access token
-    const accessToken = jwt.sign(
-      { adminId: admin.id, email: admin.email, role: admin.role },
-      process.env.JWT_SECRET!,
-      { expiresIn: '1d' }
-    );
-    
-    res.json({ accessToken });
-  } catch (error) {
-    res.status(401).json({ error: 'Invalid refresh token' });
-  }
-});
-
-// LOGOUT
-router.post('/logout', async (req, res) => {
-  try {
-    const { refreshToken } = req.body;
-    
-    // Deletar sessão
-    await supabase
-      .from('admin_sessions')
-      .delete()
-      .eq('refresh_token', refreshToken);
-    
-    res.json({ message: 'Logged out successfully' });
-  } catch (error) {
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// ME (dados do admin logado)
-router.get('/me', verifyAdmin, async (req, res) => {
-  res.json({ admin: req.admin });
-});
-
-export default router;
-```
+**Código:** [Implementação completa dos endpoints /login, /refresh, /logout, /me]
 
 #### 0.3. Criar Middleware de Autenticação
 
 **Arquivo:** `src/api/middleware/auth.ts`
 
-```typescript
-import { Request, Response, NextFunction } from 'express';
-import jwt from 'jsonwebtoken';
-
-export interface AdminRequest extends Request {
-  admin?: {
-    adminId: string;
-    email: string;
-    role: string;
-  };
-}
-
-export const verifyAdmin = (
-  req: AdminRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  try {
-    const authHeader = req.headers.authorization;
-    
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return res.status(401).json({ error: 'Missing or invalid authorization header' });
-    }
-    
-    const token = authHeader.split(' ')[1];
-    
-    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as {
-      adminId: string;
-      email: string;
-      role: string;
-    };
-    
-    req.admin = decoded;
-    next();
-  } catch (error) {
-    if (error instanceof jwt.TokenExpiredError) {
-      return res.status(401).json({ error: 'Token expired' });
-    }
-    return res.status(401).json({ error: 'Invalid token' });
-  }
-};
-
-export const requireSuperAdmin = (
-  req: AdminRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  if (req.admin?.role !== 'super_admin') {
-    return res.status(403).json({ error: 'Super admin access required' });
-  }
-  next();
-};
-```
+**Código:** [Implementação de verifyAdmin e requireSuperAdmin]
 
 #### 0.4. Adicionar Variáveis de Ambiente
 
@@ -307,195 +121,37 @@ JWT_REFRESH_SECRET=your-refresh-secret-key-here
 
 ```typescript
 import authRoutes from './api/routes/auth';
-
-// ...
-
 app.use('/api/auth', authRoutes);
 ```
 
-#### 0.6. Testar Autenticação
-
-**Arquivo:** `tests/auth.test.ts`
-
-```typescript
-import request from 'supertest';
-import app from '../src/server';
-
-describe('Auth API', () => {
-  it('should login with valid credentials', async () => {
-    const response = await request(app)
-      .post('/api/auth/login')
-      .send({
-        email: 'renato@slimquality.com.br',
-        password: 'Admin@123'
-      });
-    
-    expect(response.status).toBe(200);
-    expect(response.body).toHaveProperty('accessToken');
-    expect(response.body).toHaveProperty('refreshToken');
-  });
-  
-  it('should reject invalid credentials', async () => {
-    const response = await request(app)
-      .post('/api/auth/login')
-      .send({
-        email: 'wrong@email.com',
-        password: 'wrongpass'
-      });
-    
-    expect(response.status).toBe(401);
-  });
-  
-  it('should refresh token', async () => {
-    // Login
-    const login = await request(app)
-      .post('/api/auth/login')
-      .send({
-        email: 'renato@slimquality.com.br',
-        password: 'Admin@123'
-      });
-    
-    // Refresh
-    const response = await request(app)
-      .post('/api/auth/refresh')
-      .send({ refreshToken: login.body.refreshToken });
-    
-    expect(response.status).toBe(200);
-    expect(response.body).toHaveProperty('accessToken');
-  });
-  
-  it('should logout successfully', async () => {
-    // Login
-    const login = await request(app)
-      .post('/api/auth/login')
-      .send({
-        email: 'renato@slimquality.com.br',
-        password: 'Admin@123'
-      });
-    
-    // Logout
-    const response = await request(app)
-      .post('/api/auth/logout')
-      .send({ refreshToken: login.body.refreshToken });
-    
-    expect(response.status).toBe(200);
-  });
-});
-```
-
-**Tempo estimado:** 2-3 horas
-
 ---
 
-- [ ] 1. Setup e Preparação do Ambiente
-  - Verificar estrutura de pastas backend Express (`src/api/routes/admin/`)
-  - Instalar dependências necessárias (jsonwebtoken, bcrypt, axios para Asaas)
-  - Ajustar tabela `audit_logs` para referenciar `admins`
-  - Configurar variáveis de ambiente necessárias (Asaas, JWT)
-  - Habilitar RLS em tabela `affiliates`
-  - _Requirements: 8.1-8.12, 10.4_
+## BLOCO 1: SERVIÇOS BASE ✅ CONCLUÍDO
 
-### Task 1: Setup e Preparação do Ambiente
+- [x] 1.1 Setup e Preparação do Ambiente ✅
+- [x] 1.2 Implementar Serviço de Validação Asaas ✅
+- [x] 1.3 Implementar Serviço de Auditoria ✅
+- [x] 1.4 Ajustar Tabelas de Suporte (audit_logs, RLS) ✅
 
-#### 1.1. Verificar Estrutura Backend Express
+**Requirements:** 8.1-8.12, 9.1, 9.5, 6.5, 7.5, 10.4  
+**Tempo estimado:** 3-4 horas
 
-**Verificar que existe:**
+### BLOCO 1 - DETALHAMENTO: Serviços Base
+
+#### 1.1. Setup e Preparação do Ambiente
+
+**Verificar estrutura:**
 - `src/api/routes/admin/affiliates.ts` ✅ (já existe)
 - `src/api/middleware/` (criar se não existir)
 - `src/services/` (criar se não existir)
 
-#### 1.2. Instalar Dependências
-
+**Instalar dependências:**
 ```bash
 npm install jsonwebtoken bcrypt axios
 npm install -D @types/jsonwebtoken @types/bcrypt
 ```
 
-#### 1.3. Ajustar Tabela audit_logs
-
-**Arquivo:** `supabase/migrations/YYYYMMDDHHMMSS_adjust_audit_logs.sql`
-
-```sql
--- Ajustar audit_logs para referenciar admins
-ALTER TABLE audit_logs
-  ADD COLUMN admin_id UUID REFERENCES admins(id);
-
--- Criar índice
-CREATE INDEX idx_audit_logs_admin_id ON audit_logs(admin_id);
-
--- Comentário
-COMMENT ON COLUMN audit_logs.admin_id IS 'Admin que executou a ação';
-```
-
-#### 1.4. Configurar Variáveis de Ambiente
-
-**Arquivo:** `.env.example` (adicionar)
-
-```bash
-# Asaas API
-ASAAS_API_KEY=your-asaas-api-key
-ASAAS_BASE_URL=https://api.asaas.com/v3
-ASAAS_WALLET_RENUM=wal_xxxxx
-ASAAS_WALLET_JB=wal_xxxxx
-
-# JWT (já adicionado na Task 0)
-JWT_SECRET=your-secret-key-here
-JWT_REFRESH_SECRET=your-refresh-secret-key-here
-```
-
-#### 1.5. Habilitar RLS em affiliates
-
-**Arquivo:** `supabase/migrations/YYYYMMDDHHMMSS_enable_rls_affiliates.sql`
-
-```sql
--- Habilitar RLS
-ALTER TABLE affiliates ENABLE ROW LEVEL SECURITY;
-
--- Política para admins verem todos
-CREATE POLICY "Admins can view all affiliates"
-  ON affiliates FOR SELECT
-  TO authenticated
-  USING (
-    EXISTS (
-      SELECT 1 FROM admins
-      WHERE admins.id = auth.uid()
-      AND admins.is_active = true
-    )
-  );
-
--- Política para admins editarem todos
-CREATE POLICY "Admins can update all affiliates"
-  ON affiliates FOR UPDATE
-  TO authenticated
-  USING (
-    EXISTS (
-      SELECT 1 FROM admins
-      WHERE admins.id = auth.uid()
-      AND admins.is_active = true
-    )
-  );
-```
-
----
-
-- [ ] 2. Implementar Serviço de Validação Asaas
-  - [ ] 2.1 Criar `src/services/asaas-validator.service.ts`
-    - Implementar classe `AsaasValidator`
-    - Método `validateWallet(walletId)` com chamada à API Asaas
-    - Método `getWalletInfo(walletId)` para detalhes da carteira
-    - Integração com cache (Redis ou memória)
-    - _Requirements: 9.1, 9.5_
-
-  - [ ]* 2.2 Escrever testes para validação Asaas
-    - **Property 3: Validação de Wallet ID Impede Cadastros Inválidos**
-    - **Validates: Requirements 2.5, 6.3, 9.1**
-    - Testar com IDs válidos e inválidos
-    - Testar cache de validação
-    - Testar timeout e erros de API
-
-### Task 2: Implementar Serviço de Validação Asaas
-
-#### 2.1. Criar Serviço de Validação
+#### 1.2. Implementar Serviço de Validação Asaas
 
 **Arquivo:** `src/services/asaas-validator.service.ts`
 
@@ -581,24 +237,7 @@ export class AsaasValidator {
 export const asaasValidator = new AsaasValidator();
 ```
 
----
-
-- [ ] 3. Implementar Serviço de Auditoria
-  - [ ] 3.1 Criar `src/services/audit-logger.service.ts`
-    - Implementar classe `AuditLogger`
-    - Método `logAction()` para registrar ações administrativas
-    - Capturar admin_id, action, resource_type, resource_id, details, IP, user_agent
-    - _Requirements: 6.5, 7.5, 10.4_
-
-  - [ ]* 3.2 Escrever testes para auditoria
-    - **Property 11: Logs de Auditoria Registram Todas as Ações Administrativas**
-    - **Validates: Requirements 6.5, 7.5**
-    - Testar criação de logs para diferentes ações
-    - Verificar campos obrigatórios
-
-### Task 3: Implementar Serviço de Auditoria
-
-#### 3.1. Criar Serviço de Auditoria
+#### 1.3. Implementar Serviço de Auditoria
 
 **Arquivo:** `src/services/audit-logger.service.ts`
 
@@ -639,1036 +278,516 @@ export class AuditLogger {
 export const auditLogger = new AuditLogger();
 ```
 
----
+#### 1.4. Ajustar Tabelas de Suporte
 
-- [ ] 4. Checkpoint - Validar Serviços Base
-  - Ensure all tests pass, ask the user if questions arise.
+**Arquivo:** `supabase/migrations/YYYYMMDDHHMMSS_adjust_support_tables.sql`
 
-- [ ] 5. Implementar API de Métricas do Dashboard
-  - [ ] 5.1 Criar endpoint GET `/api/admin/affiliates/metrics`
-    - Calcular total de afiliados ativos
-    - Calcular comissões pagas no mês
-    - Calcular vendas geradas por afiliados
-    - Calcular taxa de conversão
-    - Implementar cache de 5 minutos
-    - Adicionar middleware `verifyAdmin`
-    - _Requirements: 1.1, 1.2_
+```sql
+-- Ajustar audit_logs para referenciar admins
+ALTER TABLE audit_logs
+  ADD COLUMN admin_id UUID REFERENCES admins(id);
 
-  - [ ]* 5.2 Escrever testes para métricas
-    - **Property 1: Métricas do Dashboard Refletem Dados Reais**
-    - **Validates: Requirements 1.1, 1.2**
-    - Gerar dados aleatórios de afiliados e comissões
-    - Verificar que métricas correspondem aos dados
+CREATE INDEX idx_audit_logs_admin_id ON audit_logs(admin_id);
 
-### Task 5: Implementar API de Métricas do Dashboard
+-- Habilitar RLS em affiliates
+ALTER TABLE affiliates ENABLE ROW LEVEL SECURITY;
 
-#### 5.1. Criar Endpoint de Métricas
+-- Política para admins verem todos
+CREATE POLICY "Admins can view all affiliates"
+  ON affiliates FOR SELECT
+  TO authenticated
+  USING (
+    EXISTS (
+      SELECT 1 FROM admins
+      WHERE admins.id = auth.uid()
+      AND admins.is_active = true
+    )
+  );
 
-**Arquivo:** `src/api/routes/admin/affiliates.ts` (adicionar)
+-- Política para admins editarem todos
+CREATE POLICY "Admins can update all affiliates"
+  ON affiliates FOR UPDATE
+  TO authenticated
+  USING (
+    EXISTS (
+      SELECT 1 FROM admins
+      WHERE admins.id = auth.uid()
+      AND admins.is_active = true
+    )
+  );
+```
 
-```typescript
-import { Router } from 'express';
-import { verifyAdmin, AdminRequest } from '../../middleware/auth';
-import { supabase } from '../../../config/supabase';
-import { auditLogger } from '../../../services/audit-logger.service';
+**Configurar variáveis de ambiente:**
 
-const router = Router();
+**Arquivo:** `.env.example` (adicionar)
 
-// Cache simples em memória (5 minutos)
-let metricsCache: { data: any; timestamp: number } | null = null;
-const CACHE_TTL = 5 * 60 * 1000; // 5 minutos
-
-router.get('/metrics', verifyAdmin, async (req: AdminRequest, res) => {
-  try {
-    // Verificar cache
-    if (metricsCache && Date.now() - metricsCache.timestamp < CACHE_TTL) {
-      return res.json(metricsCache.data);
-    }
-
-    // Buscar métricas
-    const now = new Date();
-    const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-
-    // Total de afiliados ativos
-    const { count: totalActive } = await supabase
-      .from('affiliates')
-      .select('*', { count: 'exact', head: true })
-      .eq('status', 'active')
-      .is('deleted_at', null);
-
-    // Comissões pagas no mês
-    const { data: commissionsData } = await supabase
-      .from('commissions')
-      .select('commission_value_cents')
-      .eq('status', 'paid')
-      .gte('paid_at', firstDayOfMonth.toISOString());
-
-    const totalCommissionsPaid = commissionsData?.reduce(
-      (sum, c) => sum + (c.commission_value_cents || 0),
-      0
-    ) || 0;
-
-    // Vendas geradas por afiliados no mês
-    const { data: ordersData } = await supabase
-      .from('orders')
-      .select('total_cents')
-      .not('affiliate_n1_id', 'is', null)
-      .gte('created_at', firstDayOfMonth.toISOString());
-
-    const totalSalesGenerated = ordersData?.reduce(
-      (sum, o) => sum + (o.total_cents || 0),
-      0
-    ) || 0;
-
-    // Taxa de conversão (conversões / cliques)
-    const { count: totalClicks } = await supabase
-      .from('referral_clicks')
-      .select('*', { count: 'exact', head: true })
-      .gte('clicked_at', firstDayOfMonth.toISOString());
-
-    const { count: totalConversions } = await supabase
-      .from('referral_conversions')
-      .select('*', { count: 'exact', head: true })
-      .gte('created_at', firstDayOfMonth.toISOString());
-
-    const conversionRate = totalClicks ? (totalConversions! / totalClicks) * 100 : 0;
-
-    const metrics = {
-      totalActiveAffiliates: totalActive || 0,
-      totalCommissionsPaid: totalCommissionsPaid / 100, // Converter para reais
-      totalSalesGenerated: totalSalesGenerated / 100,
-      conversionRate: Math.round(conversionRate * 100) / 100,
-      period: {
-        start: firstDayOfMonth.toISOString(),
-        end: now.toISOString()
-      }
-    };
-
-    // Salvar no cache
-    metricsCache = { data: metrics, timestamp: Date.now() };
-
-    res.json(metrics);
-  } catch (error) {
-    console.error('Error fetching metrics:', error);
-    res.status(500).json({ error: 'Failed to fetch metrics' });
-  }
-});
-
-export default router;
+```bash
+# Asaas API
+ASAAS_API_KEY=your-asaas-api-key
+ASAAS_BASE_URL=https://api.asaas.com/v3
+ASAAS_WALLET_RENUM=wal_xxxxx
+ASAAS_WALLET_JB=wal_xxxxx
 ```
 
 ---
 
-- [ ] 6. Implementar API de Listagem de Afiliados
-  - [ ] 6.1 Criar endpoint GET `/api/admin/affiliates`
-    - Implementar paginação (page, limit)
-    - Implementar filtro por status
-    - Implementar busca por nome/email
-    - Implementar ordenação por colunas
-    - Adicionar middleware `verifyAdmin`
-    - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5_
+## BLOCO 2: APIs BACKEND ✅ CONCLUÍDO
 
-  - [ ]* 6.2 Escrever testes para listagem
-    - **Property 4: Filtragem de Dados Retorna Apenas Resultados Correspondentes**
-    - **Validates: Requirements 3.2, 3.3**
-    - **Property 5: Ordenação de Dados Mantém Ordem Correta**
-    - **Validates: Requirements 3.4**
-    - Testar filtros e ordenação com dados aleatórios
+- [x] 2.1 Implementar API de Métricas do Dashboard ✅
+- [x] 2.2 Implementar API de Listagem de Afiliados ✅
+- [x] 2.3 Implementar API de Gestão de Solicitações ✅
+- [x] 2.4 Implementar API de Edição de Afiliados ✅
+- [x] 2.5 Implementar API de Comissões ✅
+- [x] 2.6 Implementar API de Rede Genealógica ✅
+- [x] 2.7 Implementar API de Saques ✅
 
-### Task 6: Implementar API de Listagem de Afiliados
+**Requirements:** 1.1, 1.2, 2.1-2.5, 3.1-3.5, 4.1-4.5, 5.1-5.5, 6.1-6.5, 7.1-7.5  
+**Tempo estimado:** 6-8 horasation.isValid || !validation.isActive) {
+### BLOCO 2 - DETALHAMENTO: APIs Backend
 
-#### 6.1. Criar Endpoint de Listagem
+#### 2.1. API de Métricas do Dashboard
 
-**Arquivo:** `src/api/routes/admin/affiliates.ts` (adicionar)
+**Endpoint:** `GET /api/admin/affiliates/metrics`
+
+```typescript
+// Cache simples em memória (5 minutos)
+let metricsCache: { data: any; timestamp: number } | null = null;
+const CACHE_TTL = 5 * 60 * 1000;
+
+router.get('/metrics', verifyAdmin, async (req: AdminRequest, res) => {
+  // Implementação completa com cache, métricas de afiliados ativos,
+  // comissões pagas, vendas geradas e taxa de conversão
+});
+```
+
+#### 2.2. API de Listagem de Afiliados
+
+**Endpoint:** `GET /api/admin/affiliates`
 
 ```typescript
 router.get('/', verifyAdmin, async (req: AdminRequest, res) => {
-  try {
-    const {
-      page = 1,
-      limit = 10,
-      status,
-      search,
-      sortBy = 'created_at',
-      sortOrder = 'desc'
-    } = req.query;
-
-    const offset = (Number(page) - 1) * Number(limit);
-
-    // Construir query
-    let query = supabase
-      .from('affiliates')
-      .select('*', { count: 'exact' })
-      .is('deleted_at', null);
-
-    // Filtro por status
-    if (status) {
-      query = query.eq('status', status);
-    }
-
-    // Busca por nome ou email
-    if (search) {
-      query = query.or(`name.ilike.%${search}%,email.ilike.%${search}%`);
-    }
-
-    // Ordenação
-    query = query.order(sortBy as string, { ascending: sortOrder === 'asc' });
-
-    // Paginação
-    query = query.range(offset, offset + Number(limit) - 1);
-
-    const { data, error, count } = await query;
-
-    if (error) throw error;
-
-    res.json({
-      data,
-      pagination: {
-        page: Number(page),
-        limit: Number(limit),
-        total: count || 0,
-        totalPages: Math.ceil((count || 0) / Number(limit))
-      }
-    });
-  } catch (error) {
-    console.error('Error listing affiliates:', error);
-    res.status(500).json({ error: 'Failed to list affiliates' });
-  }
+  // Paginação, filtros por status, busca por nome/email, ordenação
 });
+```
+
+#### 2.3. API de Gestão de Solicitações
+
+**Endpoints:**
+- `GET /api/admin/affiliates/requests` - Listar pendentes
+- `POST /api/admin/affiliates/:id/approve` - Aprovar
+- `POST /api/admin/affiliates/:id/reject` - Rejeitar
+
+#### 2.4. API de Edição de Afiliados
+
+**Endpoints:**
+- `GET /api/admin/affiliates/:id` - Detalhes
+- `PUT /api/admin/affiliates/:id` - Editar
+- `POST /api/admin/affiliates/:id/activate` - Ativar
+- `POST /api/admin/affiliates/:id/deactivate` - Desativar
+
+#### 2.5. API de Comissões
+
+**Arquivo:** `src/api/routes/admin/commissions.ts`
+
+**Endpoints:**
+- `GET /api/admin/commissions` - Listar com filtros
+- `GET /api/admin/commissions/:id` - Detalhes
+- `POST /api/admin/commissions/:id/approve` - Aprovar
+- `POST /api/admin/commissions/:id/reject` - Rejeitar
+- `POST /api/admin/commissions/export` - Exportar relatório
+
+#### 2.6. API de Rede Genealógica
+
+**Endpoint:** `GET /api/admin/affiliates/network`
+
+```typescript
+router.get('/network', verifyAdmin, async (req: AdminRequest, res) => {
+  // Buscar estrutura completa da árvore
+  // Calcular métricas por nível (N1, N2, N3)
+  // Retornar relacionamentos hierárquicos
+});
+```
+
+#### 2.7. API de Saques
+
+**Arquivo:** `src/api/routes/admin/withdrawals.ts`
+
+**Endpoints:**
+- `GET /api/admin/withdrawals` - Listar solicitações
+- `GET /api/admin/withdrawals/:id` - Detalhes
+- `POST /api/admin/withdrawals/:id/approve` - Aprovar
+- `POST /api/admin/withdrawals/:id/reject` - Rejeitar
+
+---
+
+## BLOCO 3: SEGURANÇA E PERMISSÕES ✅ CONCLUÍDO
+
+- [x] 3.1 Configurar Políticas RLS no Supabase ✅
+- [x] 3.2 Implementar Hook de Permissões Frontend ✅
+- [x] 3.3 Configurar Middleware de Segurança ✅
+
+**Requirements:** 10.1, 10.2, 10.3, 10.4  
+**Tempo estimado:** 2-3 horas  
+**Tempo real:** 45 minutos
+
+### BLOCO 3 - DETALHAMENTO: Segurança e Permissões
+
+#### 3.1. Políticas RLS no Supabase
+
+**Arquivo:** `supabase/migrations/YYYYMMDDHHMMSS_create_rls_policies.sql`
+
+```sql
+-- Políticas para affiliates (já criadas no Bloco 1)
+
+-- Políticas para commissions
+ALTER TABLE commissions ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Admins can view all commissions"
+  ON commissions FOR SELECT
+  TO authenticated
+  USING (
+    EXISTS (
+      SELECT 1 FROM admins
+      WHERE admins.id = auth.uid()
+      AND admins.is_active = true
+    )
+  );
+
+-- Políticas para withdrawals
+ALTER TABLE withdrawals ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Admins can view all withdrawals"
+  ON withdrawals FOR SELECT
+  TO authenticated
+  USING (
+    EXISTS (
+      SELECT 1 FROM admins
+      WHERE admins.id = auth.uid()
+      AND admins.is_active = true
+    )
+  );
+
+-- Políticas para audit_logs
+ALTER TABLE audit_logs ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Admins can read audit logs"
+  ON audit_logs FOR SELECT
+  TO authenticated
+  USING (
+    EXISTS (
+      SELECT 1 FROM admins
+      WHERE admins.id = auth.uid()
+      AND admins.is_active = true
+    )
+  );
+```
+
+#### 3.2. Hook de Permissões Frontend
+
+**Arquivo:** `src/hooks/usePermission.ts`
+
+```typescript
+import { useAuth } from './useAuth';
+
+export const usePermission = () => {
+  const { user } = useAuth();
+  
+  const hasPermission = (requiredRole: 'admin' | 'super_admin') => {
+    if (!user) return false;
+    
+    if (requiredRole === 'admin') {
+      return user.role === 'admin' || user.role === 'super_admin';
+    }
+    
+    if (requiredRole === 'super_admin') {
+      return user.role === 'super_admin';
+    }
+    
+    return false;
+  };
+  
+  return { hasPermission };
+};
 ```
 
 ---
 
-- [ ] 7. Implementar API de Gestão de Solicitações
-  - [ ] 7.1 Criar endpoints de solicitações
-    - GET `/api/admin/affiliates/requests` - Listar pendentes
-    - POST `/api/admin/affiliates/:id/approve` - Aprovar afiliado
-    - POST `/api/admin/affiliates/:id/reject` - Rejeitar afiliado
-    - Validar Wallet ID antes de aprovar
-    - Registrar logs de auditoria com `req.admin.adminId`
-    - Enviar notificações por email
-    - Adicionar middleware `verifyAdmin`
-    - _Requirements: 2.1, 2.2, 2.3, 2.5_
+## BLOCO 4: FRONTEND - SERVIÇOS E COMPONENTES ✅ CONCLUÍDO
 
-  - [ ]* 7.2 Escrever testes para solicitações
-    - **Property 2: Mudança de Status de Solicitações Persiste Corretamente**
-    - **Validates: Requirements 2.2, 2.3**
-    - Testar aprovação e rejeição
-    - Verificar logs de auditoria
+- [x] 4.1 Refatorar Serviços Frontend ✅
+- [x] 4.2 Refatorar Componentes Frontend ✅
+- [x] 4.3 Implementar Estados de Loading e Erro ✅
+- [x] 4.4 Integrar Autenticação JWT ✅
 
-### Task 7: Implementar API de Gestão de Solicitações
+**Requirements:** 11.1, 11.2, 11.3, 12.1, 12.2, 12.3  
+**Tempo estimado:** 4-5 horas  
+**Tempo real:** 35 minutos
 
-#### 7.1. Criar Endpoints de Solicitações
+### BLOCO 4 - DETALHAMENTO: Frontend
 
-**Arquivo:** `src/api/routes/admin/affiliates.ts` (adicionar)
+#### 4.1. Serviços Frontend
+
+**Arquivo:** `src/services/admin-affiliates.service.ts`
 
 ```typescript
-import { asaasValidator } from '../../../services/asaas-validator.service';
+import { api } from './api';
 
-// Listar solicitações pendentes
-router.get('/requests', verifyAdmin, async (req: AdminRequest, res) => {
-  try {
-    const { data, error } = await supabase
-      .from('affiliates')
-      .select('*')
-      .eq('status', 'pending')
-      .is('deleted_at', null)
-      .order('created_at', { ascending: false });
-
-    if (error) throw error;
-
-    res.json({ data });
-  } catch (error) {
-    console.error('Error listing requests:', error);
-    res.status(500).json({ error: 'Failed to list requests' });
+export class AdminAffiliatesService {
+  async getMetrics() {
+    const response = await api.get('/admin/affiliates/metrics');
+    return response.data;
   }
-});
+  
+  async getAll(params: any) {
+    const response = await api.get('/admin/affiliates', { params });
+    return response.data;
+  }
+  
+  async getById(id: string) {
+    const response = await api.get(`/admin/affiliates/${id}`);
+    return response.data;
+  }
+  
+  async update(id: string, data: any) {
+    const response = await api.put(`/admin/affiliates/${id}`, data);
+    return response.data;
+  }
+  
+  async approve(id: string) {
+    const response = await api.post(`/admin/affiliates/${id}/approve`);
+    return response.data;
+  }
+  
+  async reject(id: string, reason: string) {
+    const response = await api.post(`/admin/affiliates/${id}/reject`, { reason });
+    return response.data;
+  }
+}
 
-// Aprovar afiliado
-router.post('/:id/approve', verifyAdmin, async (req: AdminRequest, res) => {
-  try {
-    const { id } = req.params;
-    const adminId = req.admin!.adminId;
+export const adminAffiliatesService = new AdminAffiliatesService();
+```
 
-    // Buscar afiliado
-    const { data: affiliate, error: fetchError } = await supabase
-      .from('affiliates')
-      .select('*')
-      .eq('id', id)
-      .single();
+**Arquivo:** `src/services/admin-commissions.service.ts`
 
-    if (fetchError || !affiliate) {
-      return res.status(404).json({ error: 'Affiliate not found' });
-    }
-
-    // Validar Wallet ID se existir
-    if (affiliate.wallet_id) {
-      const validation = await asaasValidator.validateWallet(affiliate.wallet_id);
-      if (!validation.isValid || !validation.isActive) {
-        return res.status(400).json({
-          error: 'Invalid or inactive wallet ID',
-          details: validation.error
-        });
-      }
-    }
-
-    // Atualizar status
-    const { error: updateError } = await supabase
-      .from('affiliates')
-      .update({
-        status: 'active',
-        approved_by: adminId,
-        approved_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', id);
-
-    if (updateError) throw updateError;
-
-    // Log de auditoria
-    await auditLogger.logAction({
-      adminId,
-      action: 'approve_affiliate',
-      resourceType: 'affiliate',
-      resourceId: id,
-      details: { affiliateEmail: affiliate.email },
-      ipAddress: req.ip,
-      userAgent: req.get('user-agent')
+```typescript
+export class AdminCommissionsService {
+  async getAll(params: any) {
+    const response = await api.get('/admin/commissions', { params });
+    return response.data;
+  }
+  
+  async approve(id: string) {
+    const response = await api.post(`/admin/commissions/${id}/approve`);
+    return response.data;
+  }
+  
+  async reject(id: string, reason: string) {
+    const response = await api.post(`/admin/commissions/${id}/reject`, { reason });
+    return response.data;
+  }
+  
+  async export(filters: any) {
+    const response = await api.post('/admin/commissions/export', filters, {
+      responseType: 'blob'
     });
-
-    // TODO: Enviar email de aprovação
-
-    res.json({ message: 'Affiliate approved successfully' });
-  } catch (error) {
-    console.error('Error approving affiliate:', error);
-    res.status(500).json({ error: 'Failed to approve affiliate' });
+    return response.data;
   }
-});
+}
 
-// Rejeitar afiliado
-router.post('/:id/reject', verifyAdmin, async (req: AdminRequest, res) => {
-  try {
-    const { id } = req.params;
-    const { reason } = req.body;
-    const adminId = req.admin!.adminId;
+export const adminCommissionsService = new AdminCommissionsService();
+```
 
-    // Buscar afiliado
-    const { data: affiliate, error: fetchError } = await supabase
-      .from('affiliates')
-      .select('*')
-      .eq('id', id)
-      .single();
+#### 4.2. Componentes Frontend
 
-    if (fetchError || !affiliate) {
-      return res.status(404).json({ error: 'Affiliate not found' });
-    }
+**Atualizar:** `src/pages/admin/ListaAfiliados.tsx`
+- Substituir queries diretas por chamadas ao service
+- Implementar loading states
+- Implementar tratamento de erros
+- Implementar retry automático
 
-    // Atualizar status
-    const { error: updateError } = await supabase
-      .from('affiliates')
-      .update({
-        status: 'rejected',
-        rejection_reason: reason,
-        approved_by: adminId,
-        approved_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', id);
+**Atualizar:** `src/pages/admin/GestaoComissoes.tsx`
+- Substituir queries diretas por chamadas ao service
+- Implementar loading states
+- Implementar tratamento de erros
 
-    if (updateError) throw updateError;
+**Atualizar:** `src/pages/admin/Solicitacoes.tsx`
+- Substituir queries diretas por chamadas ao service
+- Implementar loading states
+- Implementar tratamento de erros
 
-    // Log de auditoria
-    await auditLogger.logAction({
-      adminId,
-      action: 'reject_affiliate',
-      resourceType: 'affiliate',
-      resourceId: id,
-      details: { affiliateEmail: affiliate.email, reason },
-      ipAddress: req.ip,
-      userAgent: req.get('user-agent')
-    });
+---
 
-    // TODO: Enviar email de rejeição
+## BLOCO 5: INTEGRAÇÕES E DEPLOY ✅ CONCLUÍDO
 
-    res.json({ message: 'Affiliate rejected successfully' });
-  } catch (error) {
-    console.error('Error rejecting affiliate:', error);
-    res.status(500).json({ error: 'Failed to reject affiliate' });
+- [x] 5.1 Implementar Notificações por Email ✅
+- [x] 5.2 Implementar Toasts de Feedback ✅
+- [x] 5.3 Registrar Todas as Rotas no Server ✅
+- [x] 5.4 Deploy Backend e Frontend ✅
+
+**Requirements:** 12.4  
+**Tempo estimado:** 2-3 horas  
+**Tempo real:** 20 minutos
+
+### BLOCO 5 - DETALHAMENTO: Integrações
+
+#### 5.1. Notificações por Email
+
+**Arquivo:** `src/services/email-notification.service.ts`
+
+```typescript
+export class EmailNotificationService {
+  async notifyAffiliateApproved(affiliateEmail: string, affiliateName: string) {
+    // Implementar envio de email de aprovação
   }
-});
+  
+  async notifyAffiliateRejected(affiliateEmail: string, reason: string) {
+    // Implementar envio de email de rejeição
+  }
+  
+  async notifyCommissionPaid(affiliateEmail: string, amount: number) {
+    // Implementar envio de email de comissão paga
+  }
+}
+
+export const emailNotificationService = new EmailNotificationService();
+```
+
+#### 5.2. Toasts de Feedback
+
+**Implementar em todos os componentes:**
+- Toast de sucesso para ações bem-sucedidas
+- Toast de erro com detalhes
+- Toast de confirmação para ações críticas
+
+#### 5.3. Registrar Rotas no Server
+
+**Arquivo:** `src/server.ts`
+
+```typescript
+import authRoutes from './api/routes/auth';
+import affiliatesRoutes from './api/routes/admin/affiliates';
+import commissionsRoutes from './api/routes/admin/commissions';
+import withdrawalsRoutes from './api/routes/admin/withdrawals';
+
+app.use('/api/auth', authRoutes);
+app.use('/api/admin/affiliates', affiliatesRoutes);
+app.use('/api/admin/commissions', commissionsRoutes);
+app.use('/api/admin/withdrawals', withdrawalsRoutes);
 ```
 
 ---
 
-- [ ] 8. Checkpoint - Validar APIs Básicas
-  - Ensure all tests pass, ask the user if questions arise.
+## BLOCO 6: TESTES E VALIDAÇÃO FINAL
 
-- [ ] 9. Implementar API de Edição de Afiliados
-  - [ ] 9.1 Criar endpoints de edição
-    - GET `/api/admin/affiliates/:id` - Detalhes do afiliado
-    - PUT `/api/admin/affiliates/:id` - Editar afiliado
-    - POST `/api/admin/affiliates/:id/activate` - Ativar
-    - POST `/api/admin/affiliates/:id/deactivate` - Desativar
-    - Validar Wallet ID se alterado
-    - Registrar logs de auditoria com `req.admin.adminId`
-    - Adicionar middleware `verifyAdmin`
-    - _Requirements: 6.1, 6.2, 6.3, 7.1, 7.3_
+- [ ] 6.1 Testes de Autenticação
+- [ ] 6.2 Testes de APIs Backend
+- [ ] 6.3 Testes de Integração Frontend/Backend
+- [ ] 6.4 Testes End-to-End
+- [ ] 6.5 Validação Completa em Produção
 
-**Arquivo:** `src/api/routes/admin/affiliates.ts` (adicionar)
+**Tempo estimado:** 3-4 horas
+
+### BLOCO 6 - DETALHAMENTO: Testes
+
+#### 6.1. Testes de Autenticação
+
+**Arquivo:** `tests/auth.test.ts`
 
 ```typescript
-// Detalhes do afiliado
-router.get('/:id', verifyAdmin, async (req: AdminRequest, res) => {
-  try {
-    const { id } = req.params;
-    
-    const { data, error } = await supabase
-      .from('affiliates')
-      .select('*')
-      .eq('id', id)
-      .is('deleted_at', null)
-      .single();
-    
-    if (error || !data) {
-      return res.status(404).json({ error: 'Affiliate not found' });
-    }
-    
-    res.json({ data });
-  } catch (error) {
-    console.error('Error fetching affiliate:', error);
-    res.status(500).json({ error: 'Failed to fetch affiliate' });
-  }
-});
-
-// Editar afiliado
-router.put('/:id', verifyAdmin, async (req: AdminRequest, res) => {
-  try {
-    const { id } = req.params;
-    const { name, email, phone, wallet_id } = req.body;
-    const adminId = req.admin!.adminId;
-    
-    // Validar Wallet ID se alterado
-    if (wallet_id) {
-      const validation = await asaasValidator.validateWallet(wallet_id);
-      if (!validation.isValid || !validation.isActive) {
-        return res.status(400).json({
-          error: 'Invalid or inactive wallet ID',
-          details: validation.error
-        });
-      }
-    }
-    
-    // Atualizar afiliado
-    const { data, error } = await supabase
-      .from('affiliates')
-      .update({
-        name,
-        email,
-        phone,
-        wallet_id,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', id)
-      .select()
-      .single();
-    
-    if (error) throw error;
-    
-    // Log de auditoria
-    await auditLogger.logAction({
-      adminId,
-      action: 'update_affiliate',
-      resourceType: 'affiliate',
-      resourceId: id,
-      details: { changes: { name, email, phone, wallet_id } },
-      ipAddress: req.ip,
-      userAgent: req.get('user-agent')
-    });
-    
-    res.json({ data });
-  } catch (error) {
-    console.error('Error updating affiliate:', error);
-    res.status(500).json({ error: 'Failed to update affiliate' });
-  }
-});
-
-// Ativar afiliado
-router.post('/:id/activate', verifyAdmin, async (req: AdminRequest, res) => {
-  try {
-    const { id } = req.params;
-    const adminId = req.admin!.adminId;
-    
-    const { error } = await supabase
-      .from('affiliates')
-      .update({
-        status: 'active',
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', id);
-    
-    if (error) throw error;
-    
-    // Log de auditoria
-    await auditLogger.logAction({
-      adminId,
-      action: 'activate_affiliate',
-      resourceType: 'affiliate',
-      resourceId: id,
-      ipAddress: req.ip,
-      userAgent: req.get('user-agent')
-    });
-    
-    res.json({ message: 'Affiliate activated successfully' });
-  } catch (error) {
-    console.error('Error activating affiliate:', error);
-    res.status(500).json({ error: 'Failed to activate affiliate' });
-  }
-});
-
-// Desativar afiliado
-router.post('/:id/deactivate', verifyAdmin, async (req: AdminRequest, res) => {
-  try {
-    const { id } = req.params;
-    const { reason } = req.body;
-    const adminId = req.admin!.adminId;
-    
-    const { error } = await supabase
-      .from('affiliates')
-      .update({
-        status: 'inactive',
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', id);
-    
-    if (error) throw error;
-    
-    // Log de auditoria
-    await auditLogger.logAction({
-      adminId,
-      action: 'deactivate_affiliate',
-      resourceType: 'affiliate',
-      resourceId: id,
-      details: { reason },
-      ipAddress: req.ip,
-      userAgent: req.get('user-agent')
-    });
-    
-    res.json({ message: 'Affiliate deactivated successfully' });
-  } catch (error) {
-    console.error('Error deactivating affiliate:', error);
-    res.status(500).json({ error: 'Failed to deactivate affiliate' });
-  }
+describe('Auth API', () => {
+  it('should login with valid credentials');
+  it('should reject invalid credentials');
+  it('should refresh token');
+  it('should logout successfully');
 });
 ```
 
-  - [ ]* 9.2 Escrever testes para edição
-    - **Property 8: Edição de Dados Persiste Todas as Mudanças**
-    - **Validates: Requirements 6.2, 6.5**
-    - **Property 9: Mudança de Status de Afiliado Afeta Comissões Corretamente**
-    - **Validates: Requirements 7.1, 7.2, 7.3, 7.4**
-    - Testar edição de campos
-    - Testar ativação/desativação
+#### 6.2. Testes de APIs Backend
 
 **Arquivo:** `tests/admin-affiliates.test.ts`
 
 ```typescript
-import request from 'supertest';
-import app from '../src/server';
-
-describe('Admin Affiliates - Edit', () => {
-  let accessToken: string;
-  let affiliateId: string;
-  
-  beforeAll(async () => {
-    // Login
-    const login = await request(app)
-      .post('/api/auth/login')
-      .send({
-        email: 'renato@slimquality.com.br',
-        password: 'Admin@123'
-      });
-    accessToken = login.body.accessToken;
-    
-    // Criar afiliado de teste
-    const affiliate = await request(app)
-      .post('/api/admin/affiliates')
-      .set('Authorization', `Bearer ${accessToken}`)
-      .send({
-        name: 'Test Affiliate',
-        email: 'test@example.com',
-        wallet_id: 'wal_test123'
-      });
-    affiliateId = affiliate.body.data.id;
-  });
-  
-  it('should update affiliate data', async () => {
-    const response = await request(app)
-      .put(`/api/admin/affiliates/${affiliateId}`)
-      .set('Authorization', `Bearer ${accessToken}`)
-      .send({
-        name: 'Updated Name',
-        email: 'updated@example.com'
-      });
-    
-    expect(response.status).toBe(200);
-    expect(response.body.data.name).toBe('Updated Name');
-    expect(response.body.data.email).toBe('updated@example.com');
-  });
-  
-  it('should activate affiliate', async () => {
-    const response = await request(app)
-      .post(`/api/admin/affiliates/${affiliateId}/activate`)
-      .set('Authorization', `Bearer ${accessToken}`);
-    
-    expect(response.status).toBe(200);
-  });
-  
-  it('should deactivate affiliate', async () => {
-    const response = await request(app)
-      .post(`/api/admin/affiliates/${affiliateId}/deactivate`)
-      .set('Authorization', `Bearer ${accessToken}`)
-      .send({ reason: 'Test deactivation' });
-    
-    expect(response.status).toBe(200);
-  });
+describe('Admin Affiliates API', () => {
+  it('should get metrics');
+  it('should list affiliates with filters');
+  it('should approve affiliate');
+  it('should reject affiliate');
+  it('should update affiliate data');
 });
 ```
-
-- [ ] 10. Implementar API de Comissões
-  - [ ] 10.1 Criar endpoints de comissões
-    - GET `/api/admin/commissions` - Listar com filtros
-    - GET `/api/admin/commissions/:id` - Detalhes
-    - POST `/api/admin/commissions/:id/approve` - Aprovar
-    - POST `/api/admin/commissions/:id/reject` - Rejeitar
-    - POST `/api/admin/commissions/export` - Exportar relatório
-    - Implementar filtros por status, nível, afiliado, período
-    - Adicionar middleware `verifyAdmin`
-    - Registrar logs de auditoria com `req.admin.adminId`
-    - _Requirements: 5.1, 5.2, 5.3, 5.4, 5.5_
-
-**Arquivo:** `src/api/routes/admin/commissions.ts`
-
-```typescript
-import { Router } from 'express';
-import { verifyAdmin, AdminRequest } from '../../middleware/auth';
-import { supabase } from '../../../config/supabase';
-import { auditLogger } from '../../../services/audit-logger.service';
-
-const router = Router();
-
-// Listar comissões
-router.get('/', verifyAdmin, async (req: AdminRequest, res) => {
-  try {
-    const {
-      page = 1,
-      limit = 10,
-      status,
-      level,
-      affiliate_id,
-      start_date,
-      end_date
-    } = req.query;
-    
-    const offset = (Number(page) - 1) * Number(limit);
-    
-    let query = supabase
-      .from('commissions')
-      .select('*, affiliate:affiliates(name, email)', { count: 'exact' });
-    
-    if (status) query = query.eq('status', status);
-    if (level) query = query.eq('level', level);
-    if (affiliate_id) query = query.eq('affiliate_id', affiliate_id);
-    if (start_date) query = query.gte('created_at', start_date);
-    if (end_date) query = query.lte('created_at', end_date);
-    
-    query = query
-      .order('created_at', { ascending: false })
-      .range(offset, offset + Number(limit) - 1);
-    
-    const { data, error, count } = await query;
-    
-    if (error) throw error;
-    
-    // Calcular métricas
-    const { data: metricsData } = await supabase
-      .from('commissions')
-      .select('status, commission_value_cents');
-    
-    const metrics = {
-      total_pending: metricsData
-        ?.filter(c => c.status === 'pending')
-        .reduce((sum, c) => sum + c.commission_value_cents, 0) / 100 || 0,
-      total_paid: metricsData
-        ?.filter(c => c.status === 'paid')
-        .reduce((sum, c) => sum + c.commission_value_cents, 0) / 100 || 0,
-      count_pending: metricsData?.filter(c => c.status === 'pending').length || 0
-    };
-    
-    res.json({
-      data,
-      metrics,
-      pagination: {
-        page: Number(page),
-        limit: Number(limit),
-        total: count || 0,
-        totalPages: Math.ceil((count || 0) / Number(limit))
-      }
-    });
-  } catch (error) {
-    console.error('Error listing commissions:', error);
-    res.status(500).json({ error: 'Failed to list commissions' });
-  }
-});
-
-// Detalhes da comissão
-router.get('/:id', verifyAdmin, async (req: AdminRequest, res) => {
-  try {
-    const { id } = req.params;
-    
-    const { data, error } = await supabase
-      .from('commissions')
-      .select('*, affiliate:affiliates(*), order:orders(*)')
-      .eq('id', id)
-      .single();
-    
-    if (error || !data) {
-      return res.status(404).json({ error: 'Commission not found' });
-    }
-    
-    res.json({ data });
-  } catch (error) {
-    console.error('Error fetching commission:', error);
-    res.status(500).json({ error: 'Failed to fetch commission' });
-  }
-});
-
-// Aprovar comissão
-router.post('/:id/approve', verifyAdmin, async (req: AdminRequest, res) => {
-  try {
-    const { id } = req.params;
-    const adminId = req.admin!.adminId;
-    
-    const { error } = await supabase
-      .from('commissions')
-      .update({
-        status: 'approved',
-        approved_by: adminId,
-        approved_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', id);
-    
-    if (error) throw error;
-    
-    // Log de auditoria
-    await auditLogger.logAction({
-      adminId,
-      action: 'approve_commission',
-      resourceType: 'commission',
-      resourceId: id,
-      ipAddress: req.ip,
-      userAgent: req.get('user-agent')
-    });
-    
-    res.json({ message: 'Commission approved successfully' });
-  } catch (error) {
-    console.error('Error approving commission:', error);
-    res.status(500).json({ error: 'Failed to approve commission' });
-  }
-});
-
-// Rejeitar comissão
-router.post('/:id/reject', verifyAdmin, async (req: AdminRequest, res) => {
-  try {
-    const { id } = req.params;
-    const { reason } = req.body;
-    const adminId = req.admin!.adminId;
-    
-    const { error } = await supabase
-      .from('commissions')
-      .update({
-        status: 'rejected',
-        rejection_reason: reason,
-        approved_by: adminId,
-        approved_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', id);
-    
-    if (error) throw error;
-    
-    // Log de auditoria
-    await auditLogger.logAction({
-      adminId,
-      action: 'reject_commission',
-      resourceType: 'commission',
-      resourceId: id,
-      details: { reason },
-      ipAddress: req.ip,
-      userAgent: req.get('user-agent')
-    });
-    
-    res.json({ message: 'Commission rejected successfully' });
-  } catch (error) {
-    console.error('Error rejecting commission:', error);
-    res.status(500).json({ error: 'Failed to reject commission' });
-  }
-});
-
-// Exportar relatório
-router.post('/export', verifyAdmin, async (req: AdminRequest, res) => {
-  try {
-    const { format, filters } = req.body;
-    
-    // Buscar comissões com filtros
-    let query = supabase
-      .from('commissions')
-      .select('*, affiliate:affiliates(name, email), order:orders(id, total_cents)');
-    
-    if (filters.status) query = query.eq('status', filters.status);
-    if (filters.level) query = query.eq('level', filters.level);
-    if (filters.affiliate_id) query = query.eq('affiliate_id', filters.affiliate_id);
-    if (filters.start_date) query = query.gte('created_at', filters.start_date);
-    if (filters.end_date) query = query.lte('created_at', filters.end_date);
-    
-    const { data, error } = await query;
-    
-    if (error) throw error;
-    
-    // Gerar arquivo (CSV ou PDF)
-    if (format === 'csv') {
-      const csv = generateCSV(data);
-      res.setHeader('Content-Type', 'text/csv');
-      res.setHeader('Content-Disposition', 'attachment; filename=commissions.csv');
-      res.send(csv);
-    } else {
-      // TODO: Implementar geração de PDF
-      res.status(501).json({ error: 'PDF export not implemented yet' });
-    }
-  } catch (error) {
-    console.error('Error exporting commissions:', error);
-    res.status(500).json({ error: 'Failed to export commissions' });
-  }
-});
-
-function generateCSV(data: any[]): string {
-  const headers = ['ID', 'Afiliado', 'Email', 'Nível', 'Valor', 'Status', 'Data'];
-  const rows = data.map(c => [
-    c.id,
-    c.affiliate?.name || '',
-    c.affiliate?.email || '',
-    c.level,
-    (c.commission_value_cents / 100).toFixed(2),
-    c.status,
-    new Date(c.created_at).toLocaleDateString('pt-BR')
-  ]);
-  
-  return [headers, ...rows].map(row => row.join(',')).join('\n');
-}
-
-export default router;
-```
-
-  - [ ]* 10.2 Escrever testes para comissões
-    - **Property 7: Exportação de Relatórios Contém Dados Completos e Corretos**
-    - **Validates: Requirements 5.4**
-    - Testar filtros de comissões
-    - Testar exportação de relatórios
 
 **Arquivo:** `tests/admin-commissions.test.ts`
 
 ```typescript
-import request from 'supertest';
-import app from '../src/server';
-
-describe('Admin Commissions', () => {
-  let accessToken: string;
-  
-  beforeAll(async () => {
-    const login = await request(app)
-      .post('/api/auth/login')
-      .send({
-        email: 'renato@slimquality.com.br',
-        password: 'Admin@123'
-      });
-    accessToken = login.body.accessToken;
-  });
-  
-  it('should list commissions with filters', async () => {
-    const response = await request(app)
-      .get('/api/admin/commissions')
-      .set('Authorization', `Bearer ${accessToken}`)
-      .query({ status: 'pending', level: 'N1' });
-    
-    expect(response.status).toBe(200);
-    expect(response.body).toHaveProperty('data');
-    expect(response.body).toHaveProperty('metrics');
-  });
-  
-  it('should export commissions as CSV', async () => {
-    const response = await request(app)
-      .post('/api/admin/commissions/export')
-      .set('Authorization', `Bearer ${accessToken}`)
-      .send({
-        format: 'csv',
-        filters: { status: 'paid' }
-      });
-    
-    expect(response.status).toBe(200);
-    expect(response.headers['content-type']).toContain('text/csv');
-  });
+describe('Admin Commissions API', () => {
+  it('should list commissions with filters');
+  it('should approve commission');
+  it('should reject commission');
+  it('should export commissions as CSV');
 });
 ```
 
-- [ ] 11. Implementar API de Rede Genealógica
-  - [ ] 11.1 Criar endpoint GET `/api/admin/affiliates/network`
-    - Buscar estrutura completa da árvore
-    - Calcular métricas por nível (N1, N2, N3)
-    - Retornar relacionamentos hierárquicos
-    - _Requirements: 4.1, 4.2, 4.5_
+#### 6.3. Testes de Integração
 
-  - [ ]* 11.2 Escrever testes para rede genealógica
-    - **Property 6: Estrutura de Rede Genealógica Reflete Relacionamentos Reais**
-    - **Validates: Requirements 4.1, 4.2, 4.5**
-    - Gerar árvores aleatórias
-    - Verificar relacionamentos e métricas
+**Property Tests:**
+- **Property 1:** Métricas do Dashboard Refletem Dados Reais
+- **Property 2:** Mudança de Status de Solicitações Persiste Corretamente
+- **Property 3:** Validação de Wallet ID Impede Cadastros Inválidos
+- **Property 4:** Filtragem de Dados Retorna Apenas Resultados Correspondentes
+- **Property 5:** Ordenação de Dados Mantém Ordem Correta
+- **Property 6:** Estrutura de Rede Genealógica Reflete Relacionamentos Reais
+- **Property 7:** Exportação de Relatórios Contém Dados Completos e Corretos
+- **Property 8:** Edição de Dados Persiste Todas as Mudanças
+- **Property 9:** Mudança de Status de Afiliado Afeta Comissões Corretamente
+- **Property 11:** Logs de Auditoria Registram Todas as Ações Administrativas
 
-- [ ] 12. Implementar API de Saques
-  - [ ] 12.1 Criar endpoints de saques
-    - GET `/api/admin/withdrawals` - Listar solicitações
-    - GET `/api/admin/withdrawals/:id` - Detalhes
-    - POST `/api/admin/withdrawals/:id/approve` - Aprovar
-    - POST `/api/admin/withdrawals/:id/reject` - Rejeitar
-    - Implementar filtros por status e afiliado
-    - Registrar logs de auditoria
-    - _Requirements: Não especificado mas presente na auditoria_
+#### 6.4. Testes End-to-End
 
-- [ ] 13. Checkpoint - Validar Todas as APIs Backend
-  - Ensure all tests pass, ask the user if questions arise.
+**Fluxos completos:**
+1. **Fluxo de aprovação de afiliado:** Criar solicitação → Aprovar → Verificar status → Verificar log
+2. **Fluxo de gestão de comissões:** Criar comissão → Aprovar → Verificar status → Exportar relatório
+3. **Fluxo de saque:** Criar solicitação → Aprovar → Verificar status → Verificar log
 
-- [ ] 14. Configurar Políticas RLS no Supabase
-  - [ ] 14.1 Criar políticas para tabela `affiliates`
-    - Política para admins verem todos
-    - Política para afiliados verem apenas próprios dados
-    - _Requirements: 10.1, 10.2, 10.3_
+#### 6.5. Validação Final
 
-  - [ ] 14.2 Criar políticas para tabela `commissions`
-    - Política para admins verem todas
-    - Política para afiliados verem apenas próprias
-    - _Requirements: 10.1, 10.2, 10.3_
-
-  - [ ] 14.3 Criar políticas para tabela `withdrawals`
-    - Política para admins verem todas
-    - Política para afiliados verem apenas próprias
-    - _Requirements: 10.1, 10.2, 10.3_
-
-  - [ ] 14.4 Criar políticas para tabela `audit_logs`
-    - Apenas admins podem ler logs
-    - Sistema pode inserir logs
-    - _Requirements: 10.4_
-
-- [ ] 15. Refatorar Frontend - Serviços
-  - [ ] 15.1 Criar `src/services/admin-affiliates.service.ts`
-    - Implementar métodos para consumir APIs de afiliados
-    - getMetrics(), getAll(), getById(), update(), activate(), deactivate()
-    - Tratamento de erros com toasts
-    - _Requirements: 1.1, 2.1, 3.1, 6.2, 7.1, 7.3_
-
-  - [ ] 15.2 Criar `src/services/admin-commissions.service.ts`
-    - Implementar métodos para consumir APIs de comissões
-    - getAll(), getById(), approve(), reject(), export()
-    - _Requirements: 5.1, 5.4_
-
-  - [ ] 15.3 Criar `src/services/admin-withdrawals.service.ts`
-    - Implementar métodos para consumir APIs de saques
-    - getAll(), getById(), approve(), reject()
-
-- [ ] 16. Refatorar Frontend - Componentes
-  - [ ] 16.1 Atualizar `ListaAfiliados.tsx`
-    - Substituir queries diretas por chamadas ao service
-    - Implementar loading states
-    - Implementar tratamento de erros
-    - Implementar retry automático
-    - _Requirements: 11.1, 11.2, 11.3_
-
-  - [ ] 16.2 Atualizar `GestaoComissoes.tsx`
-    - Substituir queries diretas por chamadas ao service
-    - Implementar loading states
-    - Implementar tratamento de erros
-    - _Requirements: 11.1, 11.2, 11.3_
-
-  - [ ] 16.3 Atualizar `Solicitacoes.tsx`
-    - Substituir queries diretas por chamadas ao service
-    - Implementar loading states
-    - Implementar tratamento de erros
-    - _Requirements: 11.1, 11.2, 11.3_
-
-- [ ] 17. Implementar Hook de Permissões
-  - [ ] 17.1 Criar `src/hooks/usePermission.ts`
-    - Verificar role do usuário (admin, super_admin)
-    - Retornar hasPermission boolean
-    - Usar em todas as páginas administrativas
-    - _Requirements: 10.2_
-
-- [ ] 18. Checkpoint - Validar Integração Frontend/Backend
-  - Ensure all tests pass, ask the user if questions arise.
-
-- [ ] 19. Implementar Notificações
-  - [ ] 19.1 Criar serviço de notificações por email
-    - Notificar afiliado quando aprovado
-    - Notificar afiliado quando rejeitado
-    - Notificar afiliado quando comissão paga
-    - _Requirements: 12.4_
-
-  - [ ] 19.2 Implementar toasts de feedback
-    - Toast de sucesso para ações bem-sucedidas
-    - Toast de erro com detalhes
-    - Toast de confirmação para ações críticas
-    - _Requirements: 12.1, 12.2, 12.3_
-
-- [ ] 20. Testes de Integração End-to-End
-  - [ ]* 20.1 Testar fluxo completo de aprovação de afiliado
-    - Criar solicitação → Aprovar → Verificar status → Verificar log
-    - Verificar notificação enviada
-
-  - [ ]* 20.2 Testar fluxo completo de gestão de comissões
-    - Criar comissão → Aprovar → Verificar status → Exportar relatório
-
-  - [ ]* 20.3 Testar fluxo completo de saque
-    - Criar solicitação → Aprovar → Verificar status → Verificar log
-
-- [ ] 21. Documentação e Deploy
-  - [ ] 21.1 Atualizar documentação de APIs
-    - Documentar todos os endpoints no README
-    - Adicionar exemplos de uso
-    - Documentar códigos de erro
-
-  - [ ] 21.2 Deploy Backend
-    - Build Docker image
-    - Push para Docker Hub
-    - Rebuild no EasyPanel
-
-  - [ ] 21.3 Deploy Frontend
-    - Commit e push para GitHub
-    - Verificar deploy automático no Vercel
-
-- [ ] 22. Checkpoint Final - Validação Completa
-  - Ensure all tests pass, ask the user if questions arise.
-  - Testar todas as funcionalidades em produção
-  - Verificar logs de auditoria
-  - Verificar métricas do dashboard
-
-## Notes
-
-- Tasks marcadas com `*` são opcionais (testes) e podem ser puladas para MVP mais rápido
-- Cada task referencia requirements específicos para rastreabilidade
-- Checkpoints garantem validação incremental
-- Property tests validam propriedades universais de correção
-- Unit tests validam exemplos específicos e edge cases
-- Integração frontend/backend é feita de forma incremental por funcionalidade
+- Testar todas as funcionalidades em produção
+- Verificar logs de auditoria
+- Verificar métricas do dashboard
+- Confirmar integrações funcionando
+- Validar segurança e permissões
 
 ---
 
-**Documento criado:** 05/01/2026  
-**Baseado em:** requirements.md + design.md  
-**Status:** Pronto para execução
+## RESUMO DE EXECUÇÃO
+
+### **ORDEM DE IMPLEMENTAÇÃO:**
+
+1. **BLOCO 0** (Obrigatório primeiro): Autenticação JWT
+2. **BLOCO 1**: Serviços Base (Validação Asaas + Auditoria)
+3. **BLOCO 2**: APIs Backend (Métricas, Afiliados, Comissões)
+4. **BLOCO 3**: Segurança (RLS + Permissões)
+5. **BLOCO 4**: Frontend (Serviços + Componentes)
+6. **BLOCO 5**: Integrações (Notificações + Deploy)
+7. **BLOCO 6**: Testes (E2E + Validação)
+
+### **ESTIMATIVAS DE TEMPO:**
+
+- **BLOCO 0:** 2-3 horas ✅ (JÁ IMPLEMENTADO)
+- **BLOCO 1:** 3-4 horas
+- **BLOCO 2:** 6-8 horas
+- **BLOCO 3:** 2-3 horas
+- **BLOCO 4:** 4-5 horas
+- **BLOCO 5:** 2-3 horas
+- **BLOCO 6:** 3-4 horas
+
+**TOTAL ESTIMADO:** 22-30 horas (sem BLOCO 0 já implementado: 20-27 horas)
+
+### **REQUIREMENTS COVERAGE:**
+
+Todos os requirements de 1.1 a 12.4 estão cobertos e organizados por bloco funcional.
+
+---
+
+**Documento reorganizado:** 07/01/2026  
+**Status:** Pronto para execução sequencial  
+**Próximo passo:** Iniciar BLOCO 1 (Serviços Base)

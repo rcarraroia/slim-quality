@@ -15,7 +15,6 @@
 -- ============================================
 
 BEGIN;
-
 -- ============================================
 -- TABELA: referral_codes
 -- ============================================
@@ -38,19 +37,15 @@ CREATE TABLE IF NOT EXISTS referral_codes (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
-
 -- Índices para referral_codes
 CREATE INDEX idx_referral_codes_code 
   ON referral_codes(code) 
   WHERE is_active = true;
-
 CREATE INDEX idx_referral_codes_affiliate 
   ON referral_codes(affiliate_id);
-
 CREATE INDEX idx_referral_codes_active 
   ON referral_codes(is_active, expires_at) 
   WHERE is_active = true;
-
 -- ============================================
 -- TABELA: referral_clicks
 -- ============================================
@@ -83,28 +78,21 @@ CREATE TABLE IF NOT EXISTS referral_clicks (
   -- Timestamps
   clicked_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
-
 -- Índices para analytics de cliques
 CREATE INDEX idx_clicks_affiliate 
   ON referral_clicks(affiliate_id);
-
 CREATE INDEX idx_clicks_code 
   ON referral_clicks(referral_code);
-
 CREATE INDEX idx_clicks_date 
   ON referral_clicks(clicked_at DESC);
-
 CREATE INDEX idx_clicks_ip_date 
   ON referral_clicks(ip_address, clicked_at);
-
 CREATE INDEX idx_clicks_session 
   ON referral_clicks(session_id) 
   WHERE session_id IS NOT NULL;
-
 -- Índice composto para deduplicação (sem date_trunc para evitar erro IMMUTABLE)
 CREATE INDEX idx_clicks_dedup 
   ON referral_clicks(referral_code, ip_address, clicked_at);
-
 -- ============================================
 -- TABELA: referral_conversions
 -- ============================================
@@ -137,31 +125,23 @@ CREATE TABLE IF NOT EXISTS referral_conversions (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
-
 -- Índices para conversões
 CREATE INDEX idx_conversions_order 
   ON referral_conversions(order_id);
-
 CREATE INDEX idx_conversions_affiliate 
   ON referral_conversions(affiliate_id);
-
 CREATE INDEX idx_conversions_status 
   ON referral_conversions(status);
-
 CREATE INDEX idx_conversions_code 
   ON referral_conversions(referral_code);
-
 CREATE INDEX idx_conversions_date 
   ON referral_conversions(created_at DESC);
-
 CREATE INDEX idx_conversions_processed 
   ON referral_conversions(processed_at) 
   WHERE processed_at IS NOT NULL;
-
 -- Índice para analytics de performance
 CREATE INDEX idx_conversions_analytics 
   ON referral_conversions(affiliate_id, status, created_at);
-
 -- ============================================
 -- FUNÇÃO: track_referral_click()
 -- ============================================
@@ -246,7 +226,6 @@ BEGIN
   RETURN v_click_id;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
-
 -- ============================================
 -- FUNÇÃO: track_referral_conversion()
 -- ============================================
@@ -345,7 +324,6 @@ BEGIN
   RETURN v_conversion_id;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
-
 -- ============================================
 -- FUNÇÃO: get_referral_analytics()
 -- ============================================
@@ -410,7 +388,6 @@ BEGIN
   FULL OUTER JOIN conversion_stats convs ON true;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
-
 -- ============================================
 -- TRIGGERS
 -- ============================================
@@ -419,19 +396,16 @@ CREATE TRIGGER update_referral_codes_updated_at
   BEFORE UPDATE ON referral_codes
   FOR EACH ROW
   EXECUTE FUNCTION update_updated_at_column();
-
 CREATE TRIGGER update_referral_conversions_updated_at
   BEFORE UPDATE ON referral_conversions
   FOR EACH ROW
   EXECUTE FUNCTION update_updated_at_column();
-
 -- ============================================
 -- ROW LEVEL SECURITY (RLS)
 -- ============================================
 
 -- referral_codes
 ALTER TABLE referral_codes ENABLE ROW LEVEL SECURITY;
-
 CREATE POLICY "Affiliates can view own referral codes"
   ON referral_codes FOR SELECT
   USING (
@@ -439,7 +413,6 @@ CREATE POLICY "Affiliates can view own referral codes"
       SELECT id FROM affiliates WHERE user_id = auth.uid() AND deleted_at IS NULL
     )
   );
-
 CREATE POLICY "Admins can view all referral codes"
   ON referral_codes FOR SELECT
   USING (
@@ -450,10 +423,8 @@ CREATE POLICY "Admins can view all referral codes"
       AND user_roles.deleted_at IS NULL
     )
   );
-
 -- referral_clicks
 ALTER TABLE referral_clicks ENABLE ROW LEVEL SECURITY;
-
 CREATE POLICY "Affiliates can view own clicks"
   ON referral_clicks FOR SELECT
   USING (
@@ -461,7 +432,6 @@ CREATE POLICY "Affiliates can view own clicks"
       SELECT id FROM affiliates WHERE user_id = auth.uid() AND deleted_at IS NULL
     )
   );
-
 CREATE POLICY "Admins can view all clicks"
   ON referral_clicks FOR SELECT
   USING (
@@ -472,10 +442,8 @@ CREATE POLICY "Admins can view all clicks"
       AND user_roles.deleted_at IS NULL
     )
   );
-
 -- referral_conversions
 ALTER TABLE referral_conversions ENABLE ROW LEVEL SECURITY;
-
 CREATE POLICY "Affiliates can view own conversions"
   ON referral_conversions FOR SELECT
   USING (
@@ -483,7 +451,6 @@ CREATE POLICY "Affiliates can view own conversions"
       SELECT id FROM affiliates WHERE user_id = auth.uid() AND deleted_at IS NULL
     )
   );
-
 CREATE POLICY "Admins can view all conversions"
   ON referral_conversions FOR SELECT
   USING (
@@ -494,7 +461,6 @@ CREATE POLICY "Admins can view all conversions"
       AND user_roles.deleted_at IS NULL
     )
   );
-
 -- ============================================
 -- COMENTÁRIOS PARA DOCUMENTAÇÃO
 -- ============================================
@@ -504,9 +470,7 @@ COMMENT ON TABLE referral_conversions IS 'Rastreamento de conversões (vendas) d
 COMMENT ON FUNCTION track_referral_click IS 'Registra clique em link de afiliado com deduplicação';
 COMMENT ON FUNCTION track_referral_conversion IS 'Registra conversão de afiliado e atualiza contadores';
 COMMENT ON FUNCTION get_referral_analytics IS 'Retorna analytics completas de um afiliado';
-
 COMMIT;
-
 -- ============================================
 -- ROLLBACK (para referência)
 -- ============================================

@@ -26,35 +26,9 @@ import {
 } from "@/components/ui/dialog";
 import { StatusBadge } from "@/components/dashboard/StatusBadge";
 import { Search, Eye, Check, X, TrendingUp, DollarSign, PackageOpen } from "lucide-react";
-import { supabase } from "@/config/supabase";
 import { useToast } from "@/hooks/use-toast";
-
-interface Commission {
-  id: string;
-  affiliate_id: string;
-  order_id: string;
-  amount: number;
-  level: number;
-  percentage: number;
-  status: string;
-  created_at: string;
-  paid_at: string | null;
-  affiliate: {
-    name: string;
-  };
-  order: {
-    id: string;
-    total_amount: number;
-    customer: {
-      name: string;
-    };
-    order_items: {
-      product: {
-        name: string;
-      };
-    }[];
-  };
-}
+import { adminCommissionsService, Commission } from "@/services/admin-commissions.service";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function GestaoComissoes() {
   const [comissoes, setComissoes] = useState<Commission[]>([]);
@@ -63,31 +37,45 @@ export default function GestaoComissoes() {
   const [statusFilter, setStatusFilter] = useState("todos");
   const [nivelFilter, setNivelFilter] = useState("todos");
   const [searchTerm, setSearchTerm] = useState("");
+  const [summary, setSummary] = useState({
+    totalAmount: 0,
+    pendingAmount: 0,
+    paidAmount: 0,
+    rejectedAmount: 0
+  });
   const { toast } = useToast();
+  const { hasPermission } = useAuth();
 
+  // Atualizar tasks.md marcando BLOCOS 4 e 5 como concluídos
   useEffect(() => {
-    loadComissoes();
-  }, []);
+    // Recarregar dados quando filtros mudam
+    const timeoutId = setTimeout(() => {
+      loadComissoes();
+    }, 300); // Debounce de 300ms
+
+    return () => clearTimeout(timeoutId);
+  }, [statusFilter, nivelFilter, searchTerm]);
 
   const loadComissoes = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
-        .from('commissions')
-        .select(`
-          *,
-          affiliate:affiliates(name),
-          order:orders(
-            id,
-            total_amount,
-            customer:customers(name),
-            order_items(product:products(name))
-          )
-        `)
-        .order('created_at', { ascending: false });
+      const response = await adminCommissionsService.getAll({
+        search: searchTerm || undefined,
+        status: statusFilter !== "todos" ? statusFilter : undefined,
+        level: nivelFilter !== "todos" ? parseInt(nivelFilter) : undefined,
+        limit: 100
+      });
 
-      if (error) throw error;
-      setComissoes(data || []);
+      if (response.success && response.data) {
+        setComissoes(response.data.commissions);
+        setSummary(response.data.summary);
+      } else {
+        toast({
+          title: "Erro ao carregar comissões",
+          description: response.error || "Não foi possível carregar a lista de comissões.",
+          variant: "destructive"
+        });
+      }
     } catch (error) {
       console.error('Erro ao carregar comissões:', error);
       toast({
@@ -100,38 +88,23 @@ export default function GestaoComissoes() {
     }
   };
 
-  const filteredComissoes = comissoes.filter(comissao => {
-    const matchesStatus = statusFilter === "todos" || comissao.status === statusFilter;
-    const matchesNivel = nivelFilter === "todos" || comissao.level.toString() === nivelFilter;
-    const matchesSearch = 
-      comissao.affiliate?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      comissao.order?.id?.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesStatus && matchesNivel && matchesSearch;
-  });
-
-  const totalComissoesPendentes = filteredComissoes
-    .filter(c => c.status === "pending")
-    .reduce((acc, c) => acc + c.amount, 0);
-
-  const totalComissoesPagas = filteredComissoes
-    .filter(c => c.status === "paid")
-    .reduce((acc, c) => acc + c.amount, 0);
-
   const handleAprovar = async (comissaoId: string) => {
     try {
-      const { error } = await supabase
-        .from('commissions')
-        .update({ status: 'approved' })
-        .eq('id', comissaoId);
+      const response = await adminCommissionsService.approve(comissaoId);
 
-      if (error) throw error;
-
-      toast({
-        title: "Comissão aprovada",
-        description: "A comissão foi aprovada com sucesso.",
-      });
-
-      loadComissoes();
+      if (response.success) {
+        toast({
+          title: "Comissão aprovada",
+          description: "A comissão foi aprovada com sucesso.",
+        });
+        loadComissoes();
+      } else {
+        toast({
+          title: "Erro ao aprovar comissão",
+          description: response.error || "Não foi possível aprovar a comissão.",
+          variant: "destructive"
+        });
+      }
     } catch (error) {
       console.error('Erro ao aprovar comissão:', error);
       toast({
@@ -144,19 +117,21 @@ export default function GestaoComissoes() {
 
   const handleRejeitar = async (comissaoId: string) => {
     try {
-      const { error } = await supabase
-        .from('commissions')
-        .update({ status: 'rejected' })
-        .eq('id', comissaoId);
+      const response = await adminCommissionsService.reject(comissaoId, "Rejeitada pelo administrador");
 
-      if (error) throw error;
-
-      toast({
-        title: "Comissão rejeitada",
-        description: "A comissão foi rejeitada.",
-      });
-
-      loadComissoes();
+      if (response.success) {
+        toast({
+          title: "Comissão rejeitada",
+          description: "A comissão foi rejeitada.",
+        });
+        loadComissoes();
+      } else {
+        toast({
+          title: "Erro ao rejeitar comissão",
+          description: response.error || "Não foi possível rejeitar a comissão.",
+          variant: "destructive"
+        });
+      }
     } catch (error) {
       console.error('Erro ao rejeitar comissão:', error);
       toast({
@@ -198,7 +173,7 @@ export default function GestaoComissoes() {
             <div>
               <p className="text-sm text-muted-foreground">Valor Pendente</p>
               <p className="text-2xl font-bold text-yellow-600">
-                {loading ? "..." : `R$ ${totalComissoesPendentes.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
+                {loading ? "..." : `R$ ${summary.pendingAmount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
               </p>
             </div>
             <DollarSign className="h-8 w-8 text-yellow-600" />
@@ -210,7 +185,7 @@ export default function GestaoComissoes() {
             <div>
               <p className="text-sm text-muted-foreground">Total Pago</p>
               <p className="text-2xl font-bold text-green-600">
-                {loading ? "..." : `R$ ${totalComissoesPagas.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
+                {loading ? "..." : `R$ ${summary.paidAmount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
               </p>
             </div>
             <DollarSign className="h-8 w-8 text-green-600" />
@@ -306,10 +281,10 @@ export default function GestaoComissoes() {
                       <p className="text-xs text-muted-foreground">#{comissao.affiliate_id.slice(0, 8)}</p>
                     </div>
                   </TableCell>
-                  <TableCell>#{comissao.order?.id?.slice(0, 8) || 'N/A'}</TableCell>
-                  <TableCell>{comissao.order?.customer?.name || 'N/A'}</TableCell>
+                  <TableCell>{comissao.order?.id?.slice(0, 8) || 'N/A'}</TableCell>
+                  <TableCell>{comissao.order?.customer_name || 'N/A'}</TableCell>
                   <TableCell>
-                    <p className="text-sm">{comissao.order?.order_items?.[0]?.product?.name || 'N/A'}</p>
+                    <p className="text-sm">{comissao.order?.product_name || 'N/A'}</p>
                   </TableCell>
                   <TableCell>
                     <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-primary/10 text-primary text-xs font-medium">

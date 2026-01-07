@@ -28,23 +28,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { StatusBadge } from "@/components/dashboard/StatusBadge";
 import { Search, Eye, Check, X, Wallet, Clock, TrendingDown, PackageOpen } from "lucide-react";
-import { supabase } from "@/config/supabase";
 import { useToast } from "@/hooks/use-toast";
-
-interface Withdrawal {
-  id: string;
-  affiliate_id: string;
-  amount: number;
-  pix_key: string;
-  payment_method: string;
-  status: string;
-  created_at: string;
-  processed_at: string | null;
-  rejection_reason: string | null;
-  affiliate: {
-    name: string;
-  };
-}
+import { adminWithdrawalsService, Withdrawal } from "@/services/admin-withdrawals.service";
 
 export default function Solicitacoes() {
   const [saques, setSaques] = useState<Withdrawal[]>([]);
@@ -63,21 +48,21 @@ export default function Solicitacoes() {
   const loadSaques = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
-        .from('withdrawals')
-        .select(`
-          *,
-          affiliate:affiliates(name)
-        `)
-        .order('created_at', { ascending: false });
+      const response = await adminWithdrawalsService.getAll({
+        orderBy: 'created_at',
+        orderDirection: 'desc'
+      });
 
-      if (error) throw error;
-      setSaques(data || []);
-    } catch (error) {
+      if (response.success && response.data) {
+        setSaques(response.data.withdrawals || []);
+      } else {
+        throw new Error(response.error || 'Erro ao carregar saques');
+      }
+    } catch (error: any) {
       console.error('Erro ao carregar saques:', error);
       toast({
         title: "Erro ao carregar solicitações",
-        description: "Não foi possível carregar as solicitações de saque.",
+        description: error.message || "Não foi possível carregar as solicitações de saque.",
         variant: "destructive"
       });
     } finally {
@@ -103,27 +88,22 @@ export default function Solicitacoes() {
 
   const handleAprovar = async (saqueId: string) => {
     try {
-      const { error } = await supabase
-        .from('withdrawals')
-        .update({ 
-          status: 'approved',
-          processed_at: new Date().toISOString()
-        })
-        .eq('id', saqueId);
+      const response = await adminWithdrawalsService.approve(saqueId);
 
-      if (error) throw error;
-
-      toast({
-        title: "Saque aprovado",
-        description: "A solicitação de saque foi aprovada com sucesso.",
-      });
-
-      loadSaques();
-    } catch (error) {
+      if (response.success) {
+        toast({
+          title: "Saque aprovado",
+          description: "A solicitação de saque foi aprovada com sucesso.",
+        });
+        loadSaques();
+      } else {
+        throw new Error(response.error || 'Erro ao aprovar saque');
+      }
+    } catch (error: any) {
       console.error('Erro ao aprovar saque:', error);
       toast({
         title: "Erro ao aprovar saque",
-        description: "Não foi possível aprovar a solicitação.",
+        description: error.message || "Não foi possível aprovar a solicitação.",
         variant: "destructive"
       });
     }
@@ -131,31 +111,26 @@ export default function Solicitacoes() {
 
   const handleRejeitar = async (saqueId: string, motivo: string) => {
     try {
-      const { error } = await supabase
-        .from('withdrawals')
-        .update({ 
-          status: 'rejected',
-          processed_at: new Date().toISOString(),
-          rejection_reason: motivo
-        })
-        .eq('id', saqueId);
+      const response = await adminWithdrawalsService.reject(saqueId, motivo);
 
-      if (error) throw error;
+      if (response.success) {
+        toast({
+          title: "Saque rejeitado",
+          description: "A solicitação de saque foi rejeitada.",
+        });
 
-      toast({
-        title: "Saque rejeitado",
-        description: "A solicitação de saque foi rejeitada.",
-      });
-
-      setShowRejectDialog(false);
-      setRejectReason("");
-      setSelectedSaque(null);
-      loadSaques();
-    } catch (error) {
+        setShowRejectDialog(false);
+        setRejectReason("");
+        setSelectedSaque(null);
+        loadSaques();
+      } else {
+        throw new Error(response.error || 'Erro ao rejeitar saque');
+      }
+    } catch (error: any) {
       console.error('Erro ao rejeitar saque:', error);
       toast({
         title: "Erro ao rejeitar saque",
-        description: "Não foi possível rejeitar a solicitação.",
+        description: error.message || "Não foi possível rejeitar a solicitação.",
         variant: "destructive"
       });
     }

@@ -14,7 +14,6 @@
 -- ============================================
 
 BEGIN;
-
 -- ============================================
 -- 1. TABELA: products
 -- ============================================
@@ -49,26 +48,22 @@ CREATE TABLE IF NOT EXISTS products (
   updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
   deleted_at TIMESTAMPTZ
 );
-
 -- Comentários
 COMMENT ON TABLE products IS 'Catálogo de produtos (colchões magnéticos)';
 COMMENT ON COLUMN products.price_cents IS 'Preço em centavos para precisão (ex: 329000 = R$ 3.290,00)';
 COMMENT ON COLUMN products.is_featured IS 'Produto em destaque (ex: "Mais vendido")';
 COMMENT ON COLUMN products.display_order IS 'Ordem de exibição no catálogo';
-
 -- Índices para performance
 CREATE INDEX idx_products_slug ON products(slug) WHERE deleted_at IS NULL;
 CREATE INDEX idx_products_sku ON products(sku) WHERE deleted_at IS NULL;
 CREATE INDEX idx_products_is_active ON products(is_active) WHERE deleted_at IS NULL;
 CREATE INDEX idx_products_display_order ON products(display_order) WHERE deleted_at IS NULL;
 CREATE INDEX idx_products_is_featured ON products(is_featured) WHERE deleted_at IS NULL AND is_featured = TRUE;
-
 -- Trigger para updated_at
 CREATE TRIGGER update_products_updated_at
   BEFORE UPDATE ON products
   FOR EACH ROW
   EXECUTE FUNCTION update_updated_at_column();
-
 -- ============================================
 -- 2. FUNÇÃO: Gerar slug automaticamente
 -- ============================================
@@ -85,15 +80,12 @@ BEGIN
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
-
 COMMENT ON FUNCTION generate_product_slug() IS 'Gera slug automaticamente a partir do nome do produto';
-
 -- Trigger para gerar slug
 CREATE TRIGGER generate_product_slug_trigger
   BEFORE INSERT OR UPDATE ON products
   FOR EACH ROW
   EXECUTE FUNCTION generate_product_slug();
-
 -- ============================================
 -- 3. FUNÇÃO: Gerar SKU automaticamente
 -- ============================================
@@ -118,15 +110,12 @@ BEGIN
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
-
 COMMENT ON FUNCTION generate_product_sku() IS 'Gera SKU único automaticamente (formato: COL-XXXXXX)';
-
 -- Trigger para gerar SKU
 CREATE TRIGGER generate_product_sku_trigger
   BEFORE INSERT ON products
   FOR EACH ROW
   EXECUTE FUNCTION generate_product_sku();
-
 -- ============================================
 -- 4. TABELA: technologies
 -- ============================================
@@ -150,22 +139,18 @@ CREATE TABLE IF NOT EXISTS technologies (
   created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
   updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
 );
-
 -- Comentários
 COMMENT ON TABLE technologies IS 'Tecnologias terapêuticas dos colchões magnéticos';
 COMMENT ON COLUMN technologies.icon_url IS 'URL do ícone no Supabase Storage';
-
 -- Índices
 CREATE INDEX idx_technologies_slug ON technologies(slug);
 CREATE INDEX idx_technologies_is_active ON technologies(is_active);
 CREATE INDEX idx_technologies_display_order ON technologies(display_order);
-
 -- Trigger para updated_at
 CREATE TRIGGER update_technologies_updated_at
   BEFORE UPDATE ON technologies
   FOR EACH ROW
   EXECUTE FUNCTION update_updated_at_column();
-
 -- ============================================
 -- 5. TABELA: product_technologies (N:N)
 -- ============================================
@@ -180,14 +165,11 @@ CREATE TABLE IF NOT EXISTS product_technologies (
   
   UNIQUE(product_id, technology_id)
 );
-
 -- Comentários
 COMMENT ON TABLE product_technologies IS 'Relacionamento N:N entre produtos e tecnologias';
-
 -- Índices
 CREATE INDEX idx_product_technologies_product ON product_technologies(product_id);
 CREATE INDEX idx_product_technologies_technology ON product_technologies(technology_id);
-
 -- ============================================
 -- 6. TABELA: product_images
 -- ============================================
@@ -208,16 +190,13 @@ CREATE TABLE IF NOT EXISTS product_images (
   
   created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
 );
-
 -- Comentários
 COMMENT ON TABLE product_images IS 'Imagens dos produtos armazenadas no Supabase Storage';
 COMMENT ON COLUMN product_images.is_primary IS 'Imagem principal do produto';
-
 -- Índices
 CREATE INDEX idx_product_images_product ON product_images(product_id);
 CREATE INDEX idx_product_images_display_order ON product_images(product_id, display_order);
 CREATE INDEX idx_product_images_is_primary ON product_images(product_id, is_primary) WHERE is_primary = TRUE;
-
 -- ============================================
 -- 7. TABELA: inventory_logs
 -- ============================================
@@ -244,18 +223,15 @@ CREATE TABLE IF NOT EXISTS inventory_logs (
   created_by UUID REFERENCES profiles(id),
   created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
 );
-
 -- Comentários
 COMMENT ON TABLE inventory_logs IS 'Histórico de movimentações de estoque';
 COMMENT ON COLUMN inventory_logs.type IS 'Tipo: entrada, saida, ajuste, venda, devolucao';
 COMMENT ON COLUMN inventory_logs.quantity IS 'Quantidade movimentada (positivo para entrada, negativo para saída)';
-
 -- Índices
 CREATE INDEX idx_inventory_logs_product ON inventory_logs(product_id);
 CREATE INDEX idx_inventory_logs_type ON inventory_logs(type);
 CREATE INDEX idx_inventory_logs_created_at ON inventory_logs(created_at DESC);
 CREATE INDEX idx_inventory_logs_product_created ON inventory_logs(product_id, created_at DESC);
-
 -- ============================================
 -- 8. VIEW: product_inventory
 -- ============================================
@@ -276,22 +252,18 @@ FROM products p
 LEFT JOIN inventory_logs il ON il.product_id = p.id
 WHERE p.deleted_at IS NULL
 GROUP BY p.id, p.name, p.sku;
-
 -- Comentários
 COMMENT ON VIEW product_inventory IS 'View para consultar estoque atual de cada produto';
-
 -- ============================================
 -- 9. ROW LEVEL SECURITY (RLS)
 -- ============================================
 
 -- 9.1 RLS para products
 ALTER TABLE products ENABLE ROW LEVEL SECURITY;
-
 -- Política: Todos podem visualizar produtos ativos (API pública)
 CREATE POLICY "Anyone can view active products"
   ON products FOR SELECT
   USING (is_active = TRUE AND deleted_at IS NULL);
-
 -- Política: Admins podem visualizar todos os produtos
 CREATE POLICY "Admins can view all products"
   ON products FOR SELECT
@@ -303,7 +275,6 @@ CREATE POLICY "Admins can view all products"
       AND deleted_at IS NULL
     )
   );
-
 -- Política: Admins podem inserir produtos
 CREATE POLICY "Admins can insert products"
   ON products FOR INSERT
@@ -315,7 +286,6 @@ CREATE POLICY "Admins can insert products"
       AND deleted_at IS NULL
     )
   );
-
 -- Política: Admins podem atualizar produtos
 CREATE POLICY "Admins can update products"
   ON products FOR UPDATE
@@ -327,15 +297,12 @@ CREATE POLICY "Admins can update products"
       AND deleted_at IS NULL
     )
   );
-
 -- 9.2 RLS para technologies
 ALTER TABLE technologies ENABLE ROW LEVEL SECURITY;
-
 -- Política: Todos podem visualizar tecnologias ativas
 CREATE POLICY "Anyone can view active technologies"
   ON technologies FOR SELECT
   USING (is_active = TRUE);
-
 -- Política: Admins podem gerenciar tecnologias
 CREATE POLICY "Admins can manage technologies"
   ON technologies FOR ALL
@@ -347,15 +314,12 @@ CREATE POLICY "Admins can manage technologies"
       AND deleted_at IS NULL
     )
   );
-
 -- 9.3 RLS para product_technologies
 ALTER TABLE product_technologies ENABLE ROW LEVEL SECURITY;
-
 -- Política: Todos podem visualizar relacionamentos
 CREATE POLICY "Anyone can view product technologies"
   ON product_technologies FOR SELECT
   USING (true);
-
 -- Política: Admins podem gerenciar relacionamentos
 CREATE POLICY "Admins can manage product technologies"
   ON product_technologies FOR ALL
@@ -367,15 +331,12 @@ CREATE POLICY "Admins can manage product technologies"
       AND deleted_at IS NULL
     )
   );
-
 -- 9.4 RLS para product_images
 ALTER TABLE product_images ENABLE ROW LEVEL SECURITY;
-
 -- Política: Todos podem visualizar imagens
 CREATE POLICY "Anyone can view product images"
   ON product_images FOR SELECT
   USING (true);
-
 -- Política: Admins podem gerenciar imagens
 CREATE POLICY "Admins can manage product images"
   ON product_images FOR ALL
@@ -387,10 +348,8 @@ CREATE POLICY "Admins can manage product images"
       AND deleted_at IS NULL
     )
   );
-
 -- 9.5 RLS para inventory_logs
 ALTER TABLE inventory_logs ENABLE ROW LEVEL SECURITY;
-
 -- Política: Admins podem visualizar logs
 CREATE POLICY "Admins can view inventory logs"
   ON inventory_logs FOR SELECT
@@ -402,7 +361,6 @@ CREATE POLICY "Admins can view inventory logs"
       AND deleted_at IS NULL
     )
   );
-
 -- Política: Admins podem inserir logs
 CREATE POLICY "Admins can insert inventory logs"
   ON inventory_logs FOR INSERT
@@ -414,9 +372,7 @@ CREATE POLICY "Admins can insert inventory logs"
       AND deleted_at IS NULL
     )
   );
-
 COMMIT;
-
 -- ============================================
 -- VALIDAÇÕES PÓS-MIGRATION
 -- ============================================
@@ -434,4 +390,4 @@ COMMIT;
 
 -- Verificar políticas RLS:
 -- SELECT tablename, policyname FROM pg_policies 
--- WHERE tablename IN ('products', 'technologies', 'product_technologies', 'product_images', 'inventory_logs');
+-- WHERE tablename IN ('products', 'technologies', 'product_technologies', 'product_images', 'inventory_logs');;

@@ -8,18 +8,54 @@ import express from 'express';
 import cors from 'cors';
 import { createClient } from '@supabase/supabase-js';
 
+// Importar middlewares de segurança
+import {
+  helmetConfig,
+  generalRateLimit,
+  authRateLimit,
+  adminRateLimit,
+  securityLogger,
+  validateContentType,
+  sanitizeInput,
+  corsConfig
+} from './api/middleware/security';
+
 // Importar rotas existentes
 import affiliatesRoutes from './api/routes/affiliates';
 import referralTrackingRoutes from './api/routes/referral-tracking';
 import asaasWebhookRoutes from './api/routes/webhooks/asaas-webhook';
 import adminAffiliatesRoutes from './api/routes/admin/affiliates';
+import adminCommissionsRoutes from './api/routes/admin/commissions';
+import adminWithdrawalsRoutes from './api/routes/admin/withdrawals';
 import mcpRoutes from './api/routes/mcp';
+import authRoutes from './api/routes/auth';
 
 const app = express();
 
-// Middlewares
-app.use(cors());
-app.use(express.json());
+// ============================================
+// MIDDLEWARES DE SEGURANÇA (BLOCO 3)
+// ============================================
+
+// 1. Helmet para headers de segurança
+app.use(helmetConfig);
+
+// 2. CORS configurado com origens específicas
+app.use(cors(corsConfig));
+
+// 3. Rate limiting geral
+app.use(generalRateLimit);
+
+// 4. Logging de segurança
+app.use(securityLogger);
+
+// 5. Parsing JSON com limite de tamanho
+app.use(express.json({ limit: '10mb' }));
+
+// 6. Validação de Content-Type
+app.use(validateContentType);
+
+// 7. Sanitização de input
+app.use(sanitizeInput);
 
 // Configurar Supabase
 const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -31,11 +67,22 @@ if (!supabaseUrl || !supabaseKey) {
 
 const supabase = createClient(supabaseUrl!, supabaseKey!);
 
-// Rotas existentes
+// ============================================
+// ROTAS COM RATE LIMITING ESPECÍFICO
+// ============================================
+
+// Rotas de autenticação com rate limiting restritivo
+app.use('/api/auth', authRateLimit, authRoutes);
+
+// Rotas administrativas com rate limiting moderado
+app.use('/api/admin/affiliates', adminRateLimit, adminAffiliatesRoutes);
+app.use('/api/admin/commissions', adminRateLimit, adminCommissionsRoutes);
+app.use('/api/admin/withdrawals', adminRateLimit, adminWithdrawalsRoutes);
+
+// Rotas gerais (já protegidas pelo rate limiting geral)
 app.use('/api/affiliates', affiliatesRoutes);
 app.use('/api/referral', referralTrackingRoutes);
 app.use('/api/webhooks', asaasWebhookRoutes);
-app.use('/api/admin/affiliates', adminAffiliatesRoutes);
 app.use('/api/mcp', mcpRoutes);
 
 // Nova rota para chat do site

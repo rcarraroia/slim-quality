@@ -43,7 +43,6 @@ BEGIN
     LIMIT max_results;
 END;
 $$;
-
 -- Função para busca híbrida (vetorial + texto)
 CREATE OR REPLACE FUNCTION search_memories_hybrid(
     query_text text,
@@ -95,7 +94,6 @@ BEGIN
     LIMIT max_results;
 END;
 $$;
-
 -- Função para obter estatísticas de memórias
 CREATE OR REPLACE FUNCTION get_memory_stats(
     conversation_filter uuid DEFAULT NULL
@@ -123,7 +121,6 @@ BEGIN
         AND (conversation_filter IS NULL OR mc.conversation_id = conversation_filter);
 END;
 $$;
-
 -- Função para limpeza inteligente de memórias
 CREATE OR REPLACE FUNCTION cleanup_memories_intelligent(
     retention_days int DEFAULT 90,
@@ -189,7 +186,6 @@ BEGIN
         (excess_memories_count, 'excess_per_conversation', jsonb_build_object('max_per_conversation', max_memories_per_conversation));
 END;
 $$;
-
 -- Função para atualizar relevance_score baseado em uso
 CREATE OR REPLACE FUNCTION update_memory_relevance(
     memory_id uuid,
@@ -223,14 +219,12 @@ BEGIN
     RETURN true;
 END;
 $$;
-
 -- Comentários das funções
 COMMENT ON FUNCTION search_similar_memories IS 'Busca memórias similares usando pgvector com filtros opcionais';
 COMMENT ON FUNCTION search_memories_hybrid IS 'Busca híbrida combinando similaridade vetorial e busca textual';
 COMMENT ON FUNCTION get_memory_stats IS 'Retorna estatísticas das memórias armazenadas';
 COMMENT ON FUNCTION cleanup_memories_intelligent IS 'Limpeza inteligente de memórias baseada em relevância e idade';
 COMMENT ON FUNCTION update_memory_relevance IS 'Atualiza relevance_score de uma memória baseado no uso';
-
 -- Permissões para as funções
 GRANT EXECUTE ON FUNCTION search_similar_memories TO authenticated, service_role;
 GRANT EXECUTE ON FUNCTION search_memories_hybrid TO authenticated, service_role;

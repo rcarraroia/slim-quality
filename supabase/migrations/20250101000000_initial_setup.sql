@@ -13,17 +13,14 @@
 -- ============================================
 
 BEGIN;
-
 -- ============================================
 -- EXTENSÕES
 -- ============================================
 
 -- UUID generation
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-
 -- Cryptographic functions
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
-
 -- ============================================
 -- FUNÇÕES AUXILIARES
 -- ============================================
@@ -36,10 +33,8 @@ BEGIN
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
-
 COMMENT ON FUNCTION update_updated_at_column() IS 
 'Função trigger para atualizar automaticamente o campo updated_at em qualquer tabela';
-
 -- ============================================
 -- VALIDAÇÃO
 -- ============================================
@@ -57,9 +52,7 @@ BEGIN
   
   RAISE NOTICE 'Setup inicial concluído com sucesso!';
 END $$;
-
 COMMIT;
-
 -- ============================================
 -- ROLLBACK (para referência)
 -- ============================================
@@ -67,4 +60,4 @@ COMMIT;
 -- DROP FUNCTION IF EXISTS update_updated_at_column() CASCADE;
 -- DROP EXTENSION IF EXISTS "pgcrypto";
 -- DROP EXTENSION IF EXISTS "uuid-ossp";
--- COMMIT;
+-- COMMIT;;

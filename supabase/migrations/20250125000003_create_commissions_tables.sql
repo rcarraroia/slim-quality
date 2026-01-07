@@ -15,7 +15,6 @@
 -- ============================================
 
 BEGIN;
-
 -- ============================================
 -- TABELA: commissions
 -- ============================================
@@ -48,7 +47,6 @@ CREATE TABLE IF NOT EXISTS commissions (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
-
 -- ============================================
 -- ÍNDICES CRÍTICOS PARA PERFORMANCE
 -- ============================================
@@ -56,37 +54,29 @@ CREATE TABLE IF NOT EXISTS commissions (
 -- Índice para order_id (consultas por pedido)
 CREATE INDEX idx_commissions_order 
   ON commissions(order_id);
-
 -- Índice para affiliate_id (dashboard do afiliado)
 CREATE INDEX idx_commissions_affiliate 
   ON commissions(affiliate_id);
-
 -- Índice para status (consultas administrativas)
 CREATE INDEX idx_commissions_status 
   ON commissions(status);
-
 -- Índice para level (consultas por nível)
 CREATE INDEX idx_commissions_level 
   ON commissions(level);
-
 -- Índice para paid_at (relatórios de pagamentos)
 CREATE INDEX idx_commissions_paid_at 
   ON commissions(paid_at) 
   WHERE paid_at IS NOT NULL;
-
 -- Índice para created_at (ordenação temporal)
 CREATE INDEX idx_commissions_created_at 
   ON commissions(created_at DESC);
-
 -- Constraint único para evitar duplicatas (crítico!)
 CREATE UNIQUE INDEX idx_commissions_unique 
   ON commissions(order_id, affiliate_id, level) 
   WHERE status != 'cancelled';
-
 -- Índice composto para analytics
 CREATE INDEX idx_commissions_analytics 
   ON commissions(affiliate_id, status, created_at);
-
 -- ============================================
 -- TABELA: commission_splits
 -- ============================================
@@ -134,7 +124,6 @@ CREATE TABLE IF NOT EXISTS commission_splits (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
-
 -- ============================================
 -- ÍNDICES PARA COMMISSION_SPLITS
 -- ============================================
@@ -142,33 +131,26 @@ CREATE TABLE IF NOT EXISTS commission_splits (
 -- Índice único para order_id (um split por pedido)
 CREATE UNIQUE INDEX idx_splits_order 
   ON commission_splits(order_id);
-
 -- Índice para status (monitoramento)
 CREATE INDEX idx_splits_status 
   ON commission_splits(status);
-
 -- Índice para asaas_split_id (integração)
 CREATE INDEX idx_splits_asaas_id 
   ON commission_splits(asaas_split_id) 
   WHERE asaas_split_id IS NOT NULL;
-
 -- Índice para created_at (relatórios)
 CREATE INDEX idx_splits_created_at 
   ON commission_splits(created_at DESC);
-
 -- Índices para afiliados (relatórios por afiliado)
 CREATE INDEX idx_splits_n1_affiliate 
   ON commission_splits(n1_affiliate_id) 
   WHERE n1_affiliate_id IS NOT NULL;
-
 CREATE INDEX idx_splits_n2_affiliate 
   ON commission_splits(n2_affiliate_id) 
   WHERE n2_affiliate_id IS NOT NULL;
-
 CREATE INDEX idx_splits_n3_affiliate 
   ON commission_splits(n3_affiliate_id) 
   WHERE n3_affiliate_id IS NOT NULL;
-
 -- ============================================
 -- FUNÇÃO: validate_split_integrity()
 -- ============================================
@@ -212,12 +194,10 @@ BEGIN
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
-
 CREATE TRIGGER validate_split_integrity
   BEFORE INSERT OR UPDATE ON commission_splits
   FOR EACH ROW 
   EXECUTE FUNCTION validate_split_integrity();
-
 -- ============================================
 -- FUNÇÃO: calculate_commission_split()
 -- ============================================
@@ -381,7 +361,6 @@ BEGIN
   RETURN v_split_id;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
-
 -- ============================================
 -- FUNÇÃO: get_affiliate_commissions()
 -- ============================================
@@ -425,7 +404,6 @@ BEGIN
   OFFSET p_offset;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
-
 -- ============================================
 -- TRIGGERS
 -- ============================================
@@ -434,19 +412,16 @@ CREATE TRIGGER update_commissions_updated_at
   BEFORE UPDATE ON commissions
   FOR EACH ROW
   EXECUTE FUNCTION update_updated_at_column();
-
 CREATE TRIGGER update_commission_splits_updated_at
   BEFORE UPDATE ON commission_splits
   FOR EACH ROW
   EXECUTE FUNCTION update_updated_at_column();
-
 -- ============================================
 -- ROW LEVEL SECURITY (RLS)
 -- ============================================
 
 -- commissions
 ALTER TABLE commissions ENABLE ROW LEVEL SECURITY;
-
 CREATE POLICY "Affiliates can view own commissions"
   ON commissions FOR SELECT
   USING (
@@ -454,7 +429,6 @@ CREATE POLICY "Affiliates can view own commissions"
       SELECT id FROM affiliates WHERE user_id = auth.uid() AND deleted_at IS NULL
     )
   );
-
 CREATE POLICY "Admins can view all commissions"
   ON commissions FOR SELECT
   USING (
@@ -465,10 +439,8 @@ CREATE POLICY "Admins can view all commissions"
       AND user_roles.deleted_at IS NULL
     )
   );
-
 -- commission_splits
 ALTER TABLE commission_splits ENABLE ROW LEVEL SECURITY;
-
 CREATE POLICY "Affiliates can view splits with their commissions"
   ON commission_splits FOR SELECT
   USING (
@@ -482,7 +454,6 @@ CREATE POLICY "Affiliates can view splits with their commissions"
       SELECT id FROM affiliates WHERE user_id = auth.uid() AND deleted_at IS NULL
     )
   );
-
 CREATE POLICY "Admins can view all splits"
   ON commission_splits FOR SELECT
   USING (
@@ -493,7 +464,6 @@ CREATE POLICY "Admins can view all splits"
       AND user_roles.deleted_at IS NULL
     )
   );
-
 -- ============================================
 -- COMENTÁRIOS PARA DOCUMENTAÇÃO
 -- ============================================
@@ -502,9 +472,7 @@ COMMENT ON TABLE commissions IS 'Comissões individuais por afiliado e nível';
 COMMENT ON TABLE commission_splits IS 'Distribuição completa de comissões por pedido';
 COMMENT ON FUNCTION calculate_commission_split IS 'Calcula distribuição de comissões com redistribuição';
 COMMENT ON FUNCTION validate_split_integrity IS 'Valida integridade financeira dos splits (soma = 100%)';
-
 COMMIT;
-
 -- ============================================
 -- ROLLBACK (para referência)
 -- ============================================

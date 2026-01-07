@@ -18,7 +18,6 @@
 -- ============================================
 
 BEGIN;
-
 -- ============================================
 -- TABELA: automation_rules
 -- ============================================
@@ -58,7 +57,6 @@ CREATE TABLE IF NOT EXISTS automation_rules (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     deleted_at TIMESTAMPTZ NULL
 );
-
 -- ============================================
 -- TABELA: rule_execution_logs
 -- ============================================
@@ -97,7 +95,6 @@ CREATE TABLE IF NOT EXISTS rule_execution_logs (
     -- Timestamp
     executed_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
-
 -- ============================================
 -- ÍNDICES PARA PERFORMANCE
 -- ============================================
@@ -106,49 +103,37 @@ CREATE TABLE IF NOT EXISTS rule_execution_logs (
 CREATE INDEX IF NOT EXISTS idx_automation_rules_status 
     ON automation_rules(status) 
     WHERE deleted_at IS NULL;
-
 CREATE INDEX IF NOT EXISTS idx_automation_rules_gatilho 
     ON automation_rules(gatilho) 
     WHERE status = 'ativa' AND deleted_at IS NULL;
-
 CREATE INDEX IF NOT EXISTS idx_automation_rules_user 
     ON automation_rules(created_by) 
     WHERE deleted_at IS NULL;
-
 CREATE INDEX IF NOT EXISTS idx_automation_rules_updated 
     ON automation_rules(updated_at DESC) 
     WHERE deleted_at IS NULL;
-
 -- Índice composto para consultas de regras ativas por gatilho
 CREATE INDEX IF NOT EXISTS idx_automation_rules_active_trigger 
     ON automation_rules(gatilho, status, updated_at DESC) 
     WHERE deleted_at IS NULL;
-
 -- rule_execution_logs
 CREATE INDEX IF NOT EXISTS idx_rule_execution_logs_rule 
     ON rule_execution_logs(rule_id, executed_at DESC);
-
 CREATE INDEX IF NOT EXISTS idx_rule_execution_logs_status 
     ON rule_execution_logs(execution_status, executed_at DESC);
-
 CREATE INDEX IF NOT EXISTS idx_rule_execution_logs_trigger 
     ON rule_execution_logs(trigger_type, executed_at DESC);
-
 CREATE INDEX IF NOT EXISTS idx_rule_execution_logs_date 
     ON rule_execution_logs(executed_at DESC);
-
 CREATE INDEX IF NOT EXISTS idx_rule_execution_logs_conversation 
     ON rule_execution_logs(conversation_id) 
     WHERE conversation_id IS NOT NULL;
-
 CREATE INDEX IF NOT EXISTS idx_rule_execution_logs_customer 
     ON rule_execution_logs(customer_id) 
     WHERE customer_id IS NOT NULL;
-
 -- Índice para estatísticas (performance crítica)
 CREATE INDEX IF NOT EXISTS idx_rule_execution_logs_stats 
     ON rule_execution_logs(rule_id, execution_status, executed_at DESC);
-
 -- ============================================
 -- FUNÇÃO: update_updated_at_column()
 -- ============================================
@@ -166,7 +151,6 @@ BEGIN
         $func$ LANGUAGE plpgsql;
     END IF;
 END $$;
-
 -- ============================================
 -- TRIGGERS
 -- ============================================
@@ -176,7 +160,6 @@ CREATE TRIGGER update_automation_rules_updated_at
     BEFORE UPDATE ON automation_rules
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
-
 -- ============================================
 -- ROW LEVEL SECURITY (RLS)
 -- ============================================
@@ -184,26 +167,21 @@ CREATE TRIGGER update_automation_rules_updated_at
 -- Habilitar RLS nas tabelas
 ALTER TABLE automation_rules ENABLE ROW LEVEL SECURITY;
 ALTER TABLE rule_execution_logs ENABLE ROW LEVEL SECURITY;
-
 -- Políticas para automation_rules
 CREATE POLICY "Users can view own automation rules"
     ON automation_rules FOR SELECT
     USING (auth.uid() = created_by AND deleted_at IS NULL);
-
 CREATE POLICY "Users can insert own automation rules"
     ON automation_rules FOR INSERT
     WITH CHECK (auth.uid() = created_by);
-
 CREATE POLICY "Users can update own automation rules"
     ON automation_rules FOR UPDATE
     USING (auth.uid() = created_by AND deleted_at IS NULL)
     WITH CHECK (auth.uid() = created_by);
-
 -- Política para soft delete (UPDATE com deleted_at)
 CREATE POLICY "Users can delete own automation rules"
     ON automation_rules FOR UPDATE
     USING (auth.uid() = created_by AND deleted_at IS NULL);
-
 -- Políticas para rule_execution_logs
 CREATE POLICY "Users can view logs of own rules"
     ON rule_execution_logs FOR SELECT
@@ -213,12 +191,10 @@ CREATE POLICY "Users can view logs of own rules"
             WHERE created_by = auth.uid() AND deleted_at IS NULL
         )
     );
-
 -- Sistema pode inserir logs (service role)
 CREATE POLICY "System can insert execution logs"
     ON rule_execution_logs FOR INSERT
     WITH CHECK (true);
-
 -- Admins podem ver tudo
 CREATE POLICY "Admins can view all automation rules"
     ON automation_rules FOR ALL
@@ -230,7 +206,6 @@ CREATE POLICY "Admins can view all automation rules"
             AND user_roles.deleted_at IS NULL
         )
     );
-
 CREATE POLICY "Admins can view all execution logs"
     ON rule_execution_logs FOR ALL
     USING (
@@ -241,7 +216,6 @@ CREATE POLICY "Admins can view all execution logs"
             AND user_roles.deleted_at IS NULL
         )
     );
-
 -- ============================================
 -- FUNÇÕES AUXILIARES
 -- ============================================
@@ -288,7 +262,6 @@ BEGIN
         v_taxa_media::TEXT || '%';
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
-
 -- Função para atualizar métricas de regra
 CREATE OR REPLACE FUNCTION update_rule_metrics(p_rule_id UUID)
 RETURNS VOID AS $$
@@ -329,7 +302,6 @@ BEGIN
     WHERE id = p_rule_id;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
-
 -- ============================================
 -- VIEWS PARA RELATÓRIOS
 -- ============================================
@@ -352,7 +324,6 @@ FROM automation_rules ar
 LEFT JOIN rule_execution_logs rel ON rel.rule_id = ar.id
 WHERE ar.deleted_at IS NULL
 GROUP BY ar.id, ar.nome, ar.gatilho, ar.status, ar.created_by;
-
 -- ============================================
 -- COMENTÁRIOS PARA DOCUMENTAÇÃO
 -- ============================================
@@ -365,19 +336,15 @@ COMMENT ON COLUMN automation_rules.condicoes IS 'Array de condições para execu
 COMMENT ON COLUMN automation_rules.acoes IS 'Array de ações a serem executadas';
 COMMENT ON COLUMN automation_rules.disparos_mes IS 'Número de disparos no último mês';
 COMMENT ON COLUMN automation_rules.taxa_abertura_percent IS 'Taxa de sucesso/abertura em percentual';
-
 COMMENT ON TABLE rule_execution_logs IS 'Logs de execução de regras de automação';
 COMMENT ON COLUMN rule_execution_logs.trigger_data IS 'Dados do evento que disparou a regra';
 COMMENT ON COLUMN rule_execution_logs.conditions_met IS 'Se as condições da regra foram atendidas';
 COMMENT ON COLUMN rule_execution_logs.actions_executed IS 'Array de ações executadas com resultados';
 COMMENT ON COLUMN rule_execution_logs.duration_ms IS 'Duração da execução em milissegundos';
-
 COMMENT ON FUNCTION get_automation_stats IS 'Retorna estatísticas de automação para o frontend';
 COMMENT ON FUNCTION update_rule_metrics IS 'Atualiza métricas de disparos e taxa de abertura de uma regra';
 COMMENT ON VIEW automation_execution_stats IS 'Estatísticas de execução por regra de automação';
-
 COMMIT;
-
 -- ============================================
 -- ROLLBACK (para referência)
 -- ============================================

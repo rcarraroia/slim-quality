@@ -14,7 +14,6 @@
 -- ============================================
 
 BEGIN;
-
 -- ============================================
 -- TABELA: notification_logs
 -- ============================================
@@ -56,7 +55,6 @@ CREATE TABLE IF NOT EXISTS notification_logs (
   provider TEXT, -- sendgrid, ses, twilio, etc.
   provider_message_id TEXT
 );
-
 -- ============================================
 -- ÍNDICES PARA PERFORMANCE
 -- ============================================
@@ -64,28 +62,22 @@ CREATE TABLE IF NOT EXISTS notification_logs (
 -- Índice principal por afiliado
 CREATE INDEX idx_notification_logs_affiliate 
   ON notification_logs(affiliate_id);
-
 -- Índice por tipo de notificação
 CREATE INDEX idx_notification_logs_type 
   ON notification_logs(type);
-
 -- Índice por status
 CREATE INDEX idx_notification_logs_status 
   ON notification_logs(status);
-
 -- Índice por data de envio (para relatórios)
 CREATE INDEX idx_notification_logs_sent_at 
   ON notification_logs(sent_at DESC);
-
 -- Índice composto para consultas de afiliado
 CREATE INDEX idx_notification_logs_affiliate_type_date 
   ON notification_logs(affiliate_id, type, sent_at DESC);
-
 -- Índice para provider_message_id (rastreamento)
 CREATE INDEX idx_notification_logs_provider_id 
   ON notification_logs(provider_message_id) 
   WHERE provider_message_id IS NOT NULL;
-
 -- ============================================
 -- FUNÇÃO: get_notification_stats()
 -- ============================================
@@ -145,7 +137,6 @@ BEGIN
   FROM stats s;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
-
 -- ============================================
 -- FUNÇÃO: cleanup_old_notification_logs()
 -- ============================================
@@ -170,7 +161,6 @@ BEGIN
   RETURN v_deleted_count;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
-
 -- ============================================
 -- TRIGGER: update_delivery_status
 -- ============================================
@@ -186,18 +176,15 @@ BEGIN
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
-
 CREATE TRIGGER update_notification_delivery_status
   BEFORE UPDATE ON notification_logs
   FOR EACH ROW
   EXECUTE FUNCTION update_delivery_status();
-
 -- ============================================
 -- ROW LEVEL SECURITY (RLS)
 -- ============================================
 
 ALTER TABLE notification_logs ENABLE ROW LEVEL SECURITY;
-
 -- Afiliados podem ver apenas próprios logs
 CREATE POLICY "Affiliates can view own notification logs"
   ON notification_logs FOR SELECT
@@ -206,7 +193,6 @@ CREATE POLICY "Affiliates can view own notification logs"
       SELECT id FROM affiliates WHERE user_id = auth.uid() AND deleted_at IS NULL
     )
   );
-
 -- Admins podem ver todos os logs
 CREATE POLICY "Admins can view all notification logs"
   ON notification_logs FOR SELECT
@@ -218,16 +204,17 @@ CREATE POLICY "Admins can view all notification logs"
       AND user_roles.deleted_at IS NULL
     )
   );
-
 -- Sistema pode inserir logs
 CREATE POLICY "System can insert notification logs"
   ON notification_logs FOR INSERT
-  WITH CHECK (true); -- Permitir inserção do sistema
+  WITH CHECK (true);
+-- Permitir inserção do sistema
 
 -- Sistema pode atualizar logs (para status de entrega)
 CREATE POLICY "System can update notification logs"
   ON notification_logs FOR UPDATE
-  USING (true); -- Permitir atualização do sistema
+  USING (true);
+-- Permitir atualização do sistema
 
 -- ============================================
 -- VIEW: notification_summary
@@ -259,7 +246,6 @@ FROM notification_logs nl
 JOIN affiliates a ON a.id = nl.affiliate_id
 WHERE a.deleted_at IS NULL
 GROUP BY nl.affiliate_id, a.name, a.email;
-
 -- ============================================
 -- COMENTÁRIOS PARA DOCUMENTAÇÃO
 -- ============================================
@@ -272,9 +258,7 @@ COMMENT ON COLUMN notification_logs.status IS 'Status do envio: sent, failed, pe
 COMMENT ON FUNCTION get_notification_stats IS 'Retorna estatísticas de notificações por afiliado e período';
 COMMENT ON FUNCTION cleanup_old_notification_logs IS 'Remove logs antigos mantendo apenas logs de erro';
 COMMENT ON VIEW notification_summary IS 'Resumo de notificações por afiliado com taxa de entrega';
-
 COMMIT;
-
 -- ============================================
 -- ROLLBACK (para referência)
 -- ============================================

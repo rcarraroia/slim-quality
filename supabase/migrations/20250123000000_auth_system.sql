@@ -14,7 +14,6 @@
 -- ============================================
 
 BEGIN;
-
 -- ============================================
 -- 1. TABELA: profiles
 -- ============================================
@@ -49,29 +48,24 @@ CREATE TABLE IF NOT EXISTS profiles (
   CONSTRAINT valid_email CHECK (email ~* '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$'),
   CONSTRAINT valid_phone CHECK (phone IS NULL OR phone ~* '^\+?[1-9]\d{1,14}$')
 );
-
 -- Comentários
 COMMENT ON TABLE profiles IS 'Perfis de usuários com informações estendidas';
 COMMENT ON COLUMN profiles.wallet_id IS '⭐ Sprint 4: Wallet ID do Asaas para afiliados';
 COMMENT ON COLUMN profiles.is_affiliate IS '⭐ Sprint 4: Flag indicando se usuário é afiliado';
 COMMENT ON COLUMN profiles.affiliate_status IS '⭐ Sprint 4: Status do afiliado (pending, active, inactive, suspended)';
-
 -- Índices para performance
 CREATE INDEX idx_profiles_email ON profiles(email) WHERE deleted_at IS NULL;
 CREATE INDEX idx_profiles_phone ON profiles(phone) WHERE deleted_at IS NULL AND phone IS NOT NULL;
 CREATE INDEX idx_profiles_last_login ON profiles(last_login_at DESC) WHERE deleted_at IS NULL;
-
 -- ⭐ Índices preparatórios para Sprint 4 (Afiliados)
 CREATE INDEX idx_profiles_is_affiliate ON profiles(is_affiliate) WHERE deleted_at IS NULL;
 CREATE INDEX idx_profiles_affiliate_status ON profiles(affiliate_status) WHERE deleted_at IS NULL AND affiliate_status IS NOT NULL;
 CREATE INDEX idx_profiles_wallet_id ON profiles(wallet_id) WHERE wallet_id IS NOT NULL;
-
 -- Trigger para updated_at
 CREATE TRIGGER update_profiles_updated_at
   BEFORE UPDATE ON profiles
   FOR EACH ROW
   EXECUTE FUNCTION update_updated_at_column();
-
 -- ============================================
 -- 2. TABELA: user_roles
 -- ============================================
@@ -90,16 +84,13 @@ CREATE TABLE IF NOT EXISTS user_roles (
   -- Constraints
   UNIQUE(user_id, role, deleted_at)
 );
-
 -- Comentários
 COMMENT ON TABLE user_roles IS 'Roles/permissões dos usuários (RBAC)';
 COMMENT ON COLUMN user_roles.role IS 'Roles disponíveis: admin, vendedor, afiliado, cliente';
-
 -- Índices
 CREATE INDEX idx_user_roles_user_id ON user_roles(user_id) WHERE deleted_at IS NULL;
 CREATE INDEX idx_user_roles_role ON user_roles(role) WHERE deleted_at IS NULL;
 CREATE INDEX idx_user_roles_user_role ON user_roles(user_id, role) WHERE deleted_at IS NULL;
-
 -- ============================================
 -- 3. TABELA: auth_logs
 -- ============================================
@@ -125,34 +116,28 @@ CREATE TABLE IF NOT EXISTS auth_logs (
   
   created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
 );
-
 -- Comentários
 COMMENT ON TABLE auth_logs IS 'Logs de auditoria de eventos de autenticação';
 COMMENT ON COLUMN auth_logs.event_type IS 'Tipo de evento: register, login_success, login_failed, logout, etc';
-
 -- Índices
 CREATE INDEX idx_auth_logs_user_id ON auth_logs(user_id);
 CREATE INDEX idx_auth_logs_event_type ON auth_logs(event_type);
 CREATE INDEX idx_auth_logs_created_at ON auth_logs(created_at DESC);
 CREATE INDEX idx_auth_logs_user_event ON auth_logs(user_id, event_type, created_at DESC);
-
 -- ============================================
 -- 4. ROW LEVEL SECURITY (RLS)
 -- ============================================
 
 -- 4.1 RLS para profiles
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
-
 -- Política: Usuários podem visualizar próprio perfil
 CREATE POLICY "Users can view own profile"
   ON profiles FOR SELECT
   USING (auth.uid() = id AND deleted_at IS NULL);
-
 -- Política: Usuários podem atualizar próprio perfil
 CREATE POLICY "Users can update own profile"
   ON profiles FOR UPDATE
   USING (auth.uid() = id AND deleted_at IS NULL);
-
 -- Política: Admins podem visualizar todos os perfis
 CREATE POLICY "Admins can view all profiles"
   ON profiles FOR SELECT
@@ -164,7 +149,6 @@ CREATE POLICY "Admins can view all profiles"
       AND deleted_at IS NULL
     )
   );
-
 -- Política: Admins podem atualizar todos os perfis
 CREATE POLICY "Admins can update all profiles"
   ON profiles FOR UPDATE
@@ -176,20 +160,16 @@ CREATE POLICY "Admins can update all profiles"
       AND deleted_at IS NULL
     )
   );
-
 -- Política: Sistema pode inserir perfis (para trigger)
 CREATE POLICY "System can insert profiles"
   ON profiles FOR INSERT
   WITH CHECK (auth.uid() = id);
-
 -- 4.2 RLS para user_roles
 ALTER TABLE user_roles ENABLE ROW LEVEL SECURITY;
-
 -- Política: Usuários podem visualizar próprias roles
 CREATE POLICY "Users can view own roles"
   ON user_roles FOR SELECT
   USING (auth.uid() = user_id AND deleted_at IS NULL);
-
 -- Política: Admins podem visualizar todas as roles
 CREATE POLICY "Admins can view all roles"
   ON user_roles FOR SELECT
@@ -201,7 +181,6 @@ CREATE POLICY "Admins can view all roles"
       AND ur.deleted_at IS NULL
     )
   );
-
 -- Política: Admins podem inserir roles
 CREATE POLICY "Admins can insert roles"
   ON user_roles FOR INSERT
@@ -213,7 +192,6 @@ CREATE POLICY "Admins can insert roles"
       AND ur.deleted_at IS NULL
     )
   );
-
 -- Política: Admins podem atualizar roles (soft delete)
 CREATE POLICY "Admins can update roles"
   ON user_roles FOR UPDATE
@@ -225,15 +203,12 @@ CREATE POLICY "Admins can update roles"
       AND ur.deleted_at IS NULL
     )
   );
-
 -- Política: Sistema pode inserir role padrão (para trigger)
 CREATE POLICY "System can insert default role"
   ON user_roles FOR INSERT
   WITH CHECK (role = 'cliente');
-
 -- 4.3 RLS para auth_logs
 ALTER TABLE auth_logs ENABLE ROW LEVEL SECURITY;
-
 -- Política: Admins podem visualizar todos os logs
 CREATE POLICY "Admins can view all logs"
   ON auth_logs FOR SELECT
@@ -245,12 +220,10 @@ CREATE POLICY "Admins can view all logs"
       AND deleted_at IS NULL
     )
   );
-
 -- Política: Sistema pode inserir logs
 CREATE POLICY "System can insert logs"
   ON auth_logs FOR INSERT
   WITH CHECK (true);
-
 -- ============================================
 -- 5. TRIGGERS E FUNÇÕES
 -- ============================================
@@ -287,17 +260,14 @@ EXCEPTION
     RETURN NEW;
 END;
 $$;
-
 -- Comentário
 COMMENT ON FUNCTION handle_new_user() IS 'Cria profile e atribui role padrão quando usuário é criado no auth.users';
-
 -- Trigger em auth.users
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW
   EXECUTE FUNCTION handle_new_user();
-
 -- 5.2 Função para sincronizar email
 CREATE OR REPLACE FUNCTION sync_user_email()
 RETURNS TRIGGER
@@ -317,10 +287,8 @@ BEGIN
   RETURN NEW;
 END;
 $$;
-
 -- Comentário
 COMMENT ON FUNCTION sync_user_email() IS 'Sincroniza email entre auth.users e profiles';
-
 -- Trigger em auth.users
 DROP TRIGGER IF EXISTS on_auth_user_email_changed ON auth.users;
 CREATE TRIGGER on_auth_user_email_changed
@@ -328,7 +296,6 @@ CREATE TRIGGER on_auth_user_email_changed
   FOR EACH ROW
   WHEN (NEW.email IS DISTINCT FROM OLD.email)
   EXECUTE FUNCTION sync_user_email();
-
 -- 5.3 Função para soft delete de profile
 CREATE OR REPLACE FUNCTION handle_user_delete()
 RETURNS TRIGGER
@@ -350,19 +317,15 @@ BEGIN
   RETURN OLD;
 END;
 $$;
-
 -- Comentário
 COMMENT ON FUNCTION handle_user_delete() IS 'Soft delete de profile e roles quando usuário é removido do auth.users';
-
 -- Trigger em auth.users
 DROP TRIGGER IF EXISTS on_auth_user_deleted ON auth.users;
 CREATE TRIGGER on_auth_user_deleted
   BEFORE DELETE ON auth.users
   FOR EACH ROW
   EXECUTE FUNCTION handle_user_delete();
-
 COMMIT;
-
 -- ============================================
 -- VALIDAÇÕES PÓS-MIGRATION
 -- ============================================
@@ -376,4 +339,4 @@ COMMIT;
 -- SELECT tablename, policyname FROM pg_policies WHERE tablename IN ('profiles', 'user_roles', 'auth_logs');
 
 -- Verificar triggers:
--- SELECT trigger_name, event_object_table FROM information_schema.triggers WHERE event_object_table = 'users' AND trigger_schema = 'auth';
+-- SELECT trigger_name, event_object_table FROM information_schema.triggers WHERE event_object_table = 'users' AND trigger_schema = 'auth';;
