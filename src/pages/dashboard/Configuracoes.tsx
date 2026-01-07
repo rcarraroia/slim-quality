@@ -12,10 +12,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { StatusBadge } from "@/components/dashboard/StatusBadge";
 import { UserManagementModal } from "@/components/admin/UserManagementModal";
+import { FaqManagement } from "@/components/admin/FaqManagement";
 import { supabase } from "@/config/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { 
-  Settings, User, Building2, Users, CreditCard, Bell, Shield, Link, Palette, Edit, Trash2, CheckCircle, Clock, Plus, Loader2
+  Settings, User, Building2, Users, CreditCard, Bell, Shield, Link, Palette, Edit, Trash2, CheckCircle, Clock, Plus, Loader2, HelpCircle
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
@@ -29,6 +30,7 @@ const settingsTabs = [
   { id: 'seguranca', label: 'Segurança', icon: Shield },
   { id: 'integracoes', label: 'Integrações', icon: Link },
   { id: 'aparencia', label: 'Aparência', icon: Palette },
+  { id: 'faq', label: 'FAQ', icon: HelpCircle },
 ];
 
 const cargoColors: Record<string, string> = {
@@ -478,6 +480,8 @@ export default function Configuracoes() {
             </Card>
           </div>
         );
+      case 'faq':
+        return <FaqManagement />;
       default:
         return null;
     }
