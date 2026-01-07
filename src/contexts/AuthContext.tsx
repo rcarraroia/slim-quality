@@ -1,59 +1,73 @@
 /**
- * AuthContext - Sistema de Autenticação Slim Quality
- * Versão: MOCK - Autenticação simplificada para desenvolvimento
- * TODO: Reimplementar autenticação real após finalizar sistema
+ * AuthContext - Sistema de Autenticação JWT Real
+ * Integração com APIs de autenticação admin
  */
 
 import React, { createContext, useContext } from 'react';
+import { useAuth as useAuthHook } from '@/hooks/useAuth';
 
 interface User {
   id: string;
   email: string;
   name: string;
   role: 'admin' | 'super_admin';
+  is_active: boolean;
+  last_login_at?: string;
+  created_at: string;
 }
 
 interface AuthContextType {
-  user: User;
+  user: User | null;
   isAuthenticated: boolean;
+  isLoading: boolean;
   isAdmin: () => boolean;
   isSuperAdmin: () => boolean;
   signIn: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
-  signOut: () => void;
+  signOut: () => Promise<void>;
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  // Mock user - sempre logado como admin
-  const user: User = {
-    id: 'mock-admin-id',
-    email: 'admin@slimquality.com',
-    name: 'Admin Slim Quality',
-    role: 'admin'
-  };
+  const {
+    user,
+    isAuthenticated,
+    isLoading,
+    login,
+    logout,
+    refreshUser,
+    hasPermission
+  } = useAuthHook();
 
-  const isAdmin = () => true;
-  const isSuperAdmin = () => user.role === 'super_admin';
+  const isAdmin = () => hasPermission('admin');
+  const isSuperAdmin = () => hasPermission('super_admin');
   
   const signIn = async (email: string, password: string) => {
-    // Mock login - sempre sucesso
-    console.log('🔐 Mock login para:', email);
-    return { success: true };
+    try {
+      const success = await login({ email, password });
+      return { success };
+    } catch (error) {
+      return { 
+        success: false, 
+        error: error instanceof Error ? error.message : 'Erro desconhecido' 
+      };
+    }
   };
   
-  const signOut = () => {
-    // Mock logout - apenas recarrega a página
-    window.location.href = '/login';
+  const signOut = async () => {
+    await logout();
   };
 
   const value = {
     user,
-    isAuthenticated: true,
+    isAuthenticated,
+    isLoading,
     isAdmin,
     isSuperAdmin,
     signIn,
     signOut,
+    refreshUser,
   };
 
   return (

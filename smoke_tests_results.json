@@ -1,86 +1,84 @@
 {
   "smoke_tests_summary": {
     "total_tests": 7,
-    "successful_tests": 0,
-    "failed_tests": 7,
-    "success_rate": 0.0,
-    "total_duration_seconds": 13.29,
-    "timestamp": "2026-01-07T19:58:26.480361+00:00"
+    "successful_tests": 2,
+    "failed_tests": 5,
+    "success_rate": 28.6,
+    "total_duration_seconds": 0.24,
+    "timestamp": "2026-01-07T20:20:26.886564+00:00"
   },
   "test_results": [
     {
-      "test": "Schema OpenAPI",
-      "url": "http://localhost:3333/openapi.json",
-      "method": "GET",
-      "expected_status": 200,
-      "actual_status": 0,
-      "duration_ms": 2788.28,
-      "success": false,
-      "error": "All connection attempts failed",
-      "timestamp": "2026-01-07T19:58:15.994198+00:00"
-    },
-    {
       "test": "Certificado SSL",
-      "url": "http://localhost:3333",
+      "url": "http://localhost:3000",
       "success": false,
-      "duration_ms": 2790.28,
-      "ssl_valid": false,
-      "error": "All connection attempts failed",
-      "timestamp": "2026-01-07T19:58:15.995201+00:00"
-    },
-    {
-      "test": "M\u00e9tricas de Webhook",
-      "url": "http://localhost:3333/webhooks/metrics",
-      "method": "GET",
-      "expected_status": 200,
-      "actual_status": 0,
-      "duration_ms": 2809.57,
-      "success": false,
-      "error": "All connection attempts failed",
-      "timestamp": "2026-01-07T19:58:16.015493+00:00"
-    },
-    {
-      "test": "Documenta\u00e7\u00e3o API (Swagger)",
-      "url": "http://localhost:3333/docs",
-      "method": "GET",
-      "expected_status": 200,
-      "actual_status": 0,
-      "duration_ms": 2810.57,
-      "success": false,
-      "error": "All connection attempts failed",
-      "timestamp": "2026-01-07T19:58:16.015493+00:00"
-    },
-    {
-      "test": "Webhook Endpoint (valida\u00e7\u00e3o)",
-      "url": "http://localhost:3333/webhooks/evolution",
-      "method": "POST",
-      "expected_status": 400,
-      "actual_status": 0,
-      "duration_ms": 2808.57,
-      "success": false,
-      "error": "All connection attempts failed",
-      "timestamp": "2026-01-07T19:58:16.015493+00:00"
+      "duration_ms": 172.29,
+      "ssl_valid": true,
+      "timestamp": "2026-01-07T20:20:26.826705+00:00"
     },
     {
       "test": "Health Check B\u00e1sico",
-      "url": "http://localhost:3333/health",
+      "url": "http://localhost:3000/health",
       "method": "GET",
       "expected_status": 200,
-      "actual_status": 0,
-      "duration_ms": 2824.71,
+      "actual_status": 500,
+      "duration_ms": 184.29,
       "success": false,
-      "error": "All connection attempts failed",
-      "timestamp": "2026-01-07T19:58:16.015493+00:00"
+      "timestamp": "2026-01-07T20:20:26.832705+00:00"
+    },
+    {
+      "test": "Documenta\u00e7\u00e3o API (Swagger)",
+      "url": "http://localhost:3000/docs",
+      "method": "GET",
+      "expected_status": 200,
+      "actual_status": 500,
+      "duration_ms": 181.29,
+      "success": false,
+      "timestamp": "2026-01-07T20:20:26.835705+00:00"
+    },
+    {
+      "test": "M\u00e9tricas de Webhook",
+      "url": "http://localhost:3000/webhooks/metrics",
+      "method": "GET",
+      "expected_status": 200,
+      "actual_status": 500,
+      "duration_ms": 185.29,
+      "success": false,
+      "timestamp": "2026-01-07T20:20:26.839705+00:00"
+    },
+    {
+      "test": "Schema OpenAPI",
+      "url": "http://localhost:3000/openapi.json",
+      "method": "GET",
+      "expected_status": 200,
+      "actual_status": 500,
+      "duration_ms": 186.29,
+      "success": false,
+      "timestamp": "2026-01-07T20:20:26.840711+00:00"
+    },
+    {
+      "test": "Webhook Endpoint (valida\u00e7\u00e3o)",
+      "url": "http://localhost:3000/webhooks/evolution",
+      "method": "POST",
+      "expected_status": 400,
+      "actual_status": 400,
+      "duration_ms": 194.29,
+      "success": true,
+      "timestamp": "2026-01-07T20:20:26.849705+00:00",
+      "response_data": {
+        "error": "Content-Type deve ser application/json",
+        "code": "INVALID_CONTENT_TYPE"
+      }
     },
     {
       "test": "Tempos de Resposta",
-      "success": false,
-      "duration_ms": 13273.44,
-      "avg_response_ms": 9999.0,
-      "min_response_ms": 9999,
-      "max_response_ms": 9999,
+      "success": true,
+      "duration_ms": 230.63,
+      "avg_response_ms": 46.13,
+      "min_response_ms": 7.21,
+      "max_response_ms": 195.29,
       "samples": 5,
-      "timestamp": "2026-01-07T19:58:26.480361+00:00"
+      "timestamp": "2026-01-07T20:20:26.886043+00:00"
     }
   ]
 }

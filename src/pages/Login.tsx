@@ -1,40 +1,85 @@
 /**
- * Login Page - Versão MOCK Simplificada
- * Redireciona automaticamente para o dashboard
- * TODO: Reimplementar autenticação real após finalizar sistema
+ * Login Page - Autenticação JWT Real
+ * Sistema de login para administradores
  */
 
-import { useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
+import { Loader2 } from "lucide-react";
 
 export default function Login() {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { login, isAuthenticated, isLoading } = useAuth();
+  
+  const [formData, setFormData] = useState({
+    email: '',
+    password: ''
+  });
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Mock login - redireciona automaticamente após 1 segundo
+  // Redirecionar se já autenticado
   useEffect(() => {
-    const timer = setTimeout(() => {
-      console.log('🔐 Mock login - redirecionando para dashboard...');
-      toast({
-        title: "Login automático realizado!",
-        description: "Entrando no sistema...",
-      });
+    if (isAuthenticated && !isLoading) {
       navigate("/dashboard");
-    }, 1000);
+    }
+  }, [isAuthenticated, isLoading, navigate]);
 
-    return () => clearTimeout(timer);
-  }, [navigate, toast]);
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!formData.email || !formData.password) {
+      toast({
+        title: "Erro de validação",
+        description: "Email e senha são obrigatórios",
+        variant: "destructive"
+      });
+      return;
+    }
 
-  const handleManualLogin = () => {
-    console.log('🔐 Login manual - redirecionando imediatamente...');
-    navigate("/dashboard");
+    setIsSubmitting(true);
+    
+    try {
+      const success = await login(formData);
+      
+      if (success) {
+        navigate("/dashboard");
+      }
+    } catch (error) {
+      console.error('Erro no login:', error);
+      toast({
+        title: "Erro no login",
+        description: "Erro interno do servidor",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
+
+  const handleQuickLogin = (email: string, password: string) => {
+    setFormData({ email, password });
+    // Submeter automaticamente
+    setTimeout(() => {
+      const form = document.getElementById('login-form') as HTMLFormElement;
+      form?.requestSubmit();
+    }, 100);
+  };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden">
@@ -46,57 +91,93 @@ export default function Login() {
           <div className="flex justify-center mb-4">
             <div className="h-12 w-12 rounded-full bg-primary" />
           </div>
-          <CardTitle className="text-2xl">Entrar na Plataforma</CardTitle>
+          <CardTitle className="text-2xl">Painel Administrativo</CardTitle>
           <CardDescription>
-            Acesso automático ativo (modo desenvolvimento)
+            Faça login para acessar o sistema
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
+          <form id="login-form" onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email">Email (mock)</Label>
+              <Label htmlFor="email">Email</Label>
               <Input
                 id="email"
                 type="email"
-                placeholder="admin@slimquality.com"
-                value="admin@slimquality.com"
-                disabled
+                placeholder="admin@slimquality.com.br"
+                value={formData.email}
+                onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
+                disabled={isSubmitting}
+                required
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">Senha (mock)</Label>
+              <Label htmlFor="password">Senha</Label>
               <Input
                 id="password"
                 type="password"
                 placeholder="••••••••"
-                value="123456"
-                disabled
+                value={formData.password}
+                onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
+                disabled={isSubmitting}
+                required
               />
             </div>
             
             <Button 
-              type="button" 
+              type="submit" 
               className="w-full" 
-              onClick={handleManualLogin}
+              disabled={isSubmitting}
             >
-              Entrar Agora
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Entrando...
+                </>
+              ) : (
+                'Entrar'
+              )}
             </Button>
-            
-            <div className="text-center text-sm text-muted-foreground">
-              Redirecionamento automático em 1 segundo...
-            </div>
-            
-            <Separator />
+          </form>
+          
+          <Separator className="my-4" />
+          
+          <div className="space-y-2">
+            <p className="text-sm text-muted-foreground text-center mb-2">
+              Logins de teste:
+            </p>
             
             <Button 
               type="button" 
               variant="outline" 
-              className="w-full"
-              onClick={() => navigate("/afiliados")}
+              className="w-full text-xs"
+              onClick={() => handleQuickLogin('jbmkt01@gmail.com', 'jb250470')}
+              disabled={isSubmitting}
             >
-              Quero Ser Afiliado
+              João Bosco (Super Admin)
+            </Button>
+            
+            <Button 
+              type="button" 
+              variant="outline" 
+              className="w-full text-xs"
+              onClick={() => handleQuickLogin('rcarrarocoach@gmail.com', 'M&151173c@')}
+              disabled={isSubmitting}
+            >
+              Renato Carraro (Super Admin)
             </Button>
           </div>
+          
+          <Separator className="my-4" />
+          
+          <Button 
+            type="button" 
+            variant="outline" 
+            className="w-full"
+            onClick={() => navigate("/afiliados")}
+            disabled={isSubmitting}
+          >
+            Quero Ser Afiliado
+          </Button>
         </CardContent>
       </Card>
     </div>
