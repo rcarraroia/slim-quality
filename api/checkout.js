@@ -62,7 +62,7 @@ export default async function handler(req, res) {
 
     // Parse body
     const body = req.body || {};
-    const { customer, orderId, amount, billingType, description } = body;
+    const { customer, orderId, amount, billingType, description, installments, creditCard, creditCardHolderInfo } = body;
 
     if (!customer || !orderId || !amount || !billingType) {
       return res.status(400).json({ 
@@ -75,6 +75,24 @@ export default async function handler(req, res) {
           amount: amount || null, 
           billingType: billingType || null 
         }
+      });
+    }
+
+    // Validar CPF/CNPJ obrigatório para Asaas
+    if (!customer.cpfCnpj) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'CPF/CNPJ é obrigatório para processamento do pagamento',
+        hint: 'O campo cpfCnpj deve ser enviado no objeto customer'
+      });
+    }
+
+    // Validar dados do cartão se for pagamento com cartão
+    if (billingType === 'CREDIT_CARD' && !creditCard) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Dados do cartão são obrigatórios para pagamento com cartão de crédito',
+        required: ['creditCard.holderName', 'creditCard.number', 'creditCard.expiryMonth', 'creditCard.expiryYear', 'creditCard.ccv']
       });
     }
 
@@ -135,21 +153,30 @@ export default async function handler(req, res) {
     // Criar pagamento
     const dueDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
     
+    // Payload base do pagamento
+    const paymentPayload = {
+      customer: asaasCustomerId,
+      billingType: billingType,
+      value: amount,
+      dueDate: dueDate,
+      description: description || `Pedido ${orderId}`,
+      externalReference: orderId,
+      split: [
+        { walletId: ASAAS_WALLET_RENUM, percentualValue: 15 },
+        { walletId: ASAAS_WALLET_JB, percentualValue: 15 }
+      ]
+    };
+
+    // Adicionar parcelas se for cartão de crédito
+    if (billingType === 'CREDIT_CARD' && installments && installments > 1) {
+      paymentPayload.installmentCount = installments;
+      paymentPayload.installmentValue = amount / installments;
+    }
+
     const paymentRes = await fetch(`${asaasBaseUrl}/payments`, {
       method: 'POST',
       headers,
-      body: JSON.stringify({
-        customer: asaasCustomerId,
-        billingType: billingType,
-        value: amount,
-        dueDate: dueDate,
-        description: description || `Pedido ${orderId}`,
-        externalReference: orderId,
-        split: [
-          { walletId: ASAAS_WALLET_RENUM, percentualValue: 15 },
-          { walletId: ASAAS_WALLET_JB, percentualValue: 15 }
-        ]
-      })
+      body: JSON.stringify(paymentPayload)
     });
 
     const paymentData = await paymentRes.json();
@@ -170,7 +197,54 @@ export default async function handler(req, res) {
       });
     }
 
-    // Sucesso
+    // Se for cartão de crédito com dados do cartão, processar pagamento imediatamente
+    if (billingType === 'CREDIT_CARD' && creditCard) {
+      console.log('Processing credit card payment for payment:', paymentData.id);
+      
+      const payWithCardRes = await fetch(`${asaasBaseUrl}/payments/${paymentData.id}/payWithCreditCard`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          creditCard: {
+            holderName: creditCard.holderName,
+            number: creditCard.number,
+            expiryMonth: creditCard.expiryMonth,
+            expiryYear: creditCard.expiryYear,
+            ccv: creditCard.ccv
+          },
+          creditCardHolderInfo: creditCardHolderInfo || {
+            name: customer.name,
+            email: customer.email,
+            cpfCnpj: customer.cpfCnpj,
+            postalCode: customer.postalCode || '00000000',
+            addressNumber: customer.addressNumber || 'S/N',
+            phone: customer.phone || customer.mobilePhone
+          }
+        })
+      });
+
+      const cardPaymentData = await payWithCardRes.json();
+
+      if (!payWithCardRes.ok) {
+        console.error('Asaas card payment error:', JSON.stringify(cardPaymentData, null, 2));
+        return res.status(500).json({ 
+          success: false, 
+          error: 'Erro ao processar pagamento com cartão',
+          details: cardPaymentData
+        });
+      }
+
+      // Sucesso no pagamento com cartão
+      return res.status(200).json({
+        success: true,
+        paymentId: paymentData.id,
+        status: cardPaymentData.status,
+        confirmedDate: cardPaymentData.confirmedDate,
+        message: 'Pagamento com cartão processado com sucesso'
+      });
+    }
+
+    // Sucesso (PIX ou aguardando dados do cartão)
     return res.status(200).json({
       success: true,
       paymentId: paymentData.id,

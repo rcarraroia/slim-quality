@@ -390,6 +390,13 @@ export class CheckoutService {
         throw new Error('Itens do pedido não encontrados');
       }
       
+      // Buscar endereço de entrega
+      const { data: shippingAddress } = await supabase
+        .from('shipping_addresses')
+        .select('*')
+        .eq('order_id', order.id)
+        .single();
+      
       const firstItem = orderItems[0];
       
       // Preparar dados do customer para Asaas
@@ -398,33 +405,57 @@ export class CheckoutService {
         email: customer.email,
         phone: customer.phone,
         mobilePhone: customer.phone,
-        cpfCnpj: customer.cpf_cnpj || undefined
+        cpfCnpj: customer.cpf_cnpj || undefined,
+        postalCode: shippingAddress?.postal_code?.replace(/\D/g, '') || undefined,
+        addressNumber: shippingAddress?.number || undefined
       };
+
+      // Validar CPF antes de enviar
+      if (!asaasCustomer.cpfCnpj) {
+        throw new Error('CPF é obrigatório para processamento do pagamento');
+      }
 
       console.log('💰 Processando pagamento via backend seguro:', {
         orderId: order.id,
         orderNumber: order.order_number,
         totalCents: order.total_cents,
-        referralCode: order.referral_code
+        referralCode: order.referral_code,
+        hasCreditCard: !!payment.creditCard
       });
       
       // Chamar backend seguro (API key protegida no servidor)
       const backendUrl = import.meta.env.VITE_API_URL || 'https://slimquality.com.br';
       
+      // Preparar payload
+      const checkoutPayload: Record<string, unknown> = {
+        customer: asaasCustomer,
+        orderId: order.id,
+        amount: order.total_cents / 100,
+        description: `Pedido ${order.order_number} - ${firstItem.product_name}`,
+        billingType: payment.method.toUpperCase(),
+        installments: payment.installments,
+        referralCode: order.referral_code
+      };
+
+      // Adicionar dados do cartão se for pagamento com cartão
+      if (payment.method === 'credit_card' && payment.creditCard) {
+        checkoutPayload.creditCard = payment.creditCard;
+        checkoutPayload.creditCardHolderInfo = {
+          name: customer.name,
+          email: customer.email,
+          cpfCnpj: asaasCustomer.cpfCnpj,
+          postalCode: asaasCustomer.postalCode || '00000000',
+          addressNumber: asaasCustomer.addressNumber || 'S/N',
+          phone: customer.phone
+        };
+      }
+
       const response = await fetch(`${backendUrl}/api/checkout`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({
-          customer: asaasCustomer,
-          orderId: order.id,
-          amount: order.total_cents / 100,
-          description: `Pedido ${order.order_number} - ${firstItem.product_name}`,
-          billingType: payment.method.toUpperCase(),
-          installments: payment.installments,
-          referralCode: order.referral_code
-        })
+        body: JSON.stringify(checkoutPayload)
       });
 
       const result = await response.json();

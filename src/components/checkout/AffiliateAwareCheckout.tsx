@@ -45,6 +45,7 @@ export default function AffiliateAwareCheckout({
     name: '',
     email: '',
     phone: '',
+    cpf: '', // CPF obrigatório para Asaas
     street: '',
     number: '',
     complement: '',
@@ -62,19 +63,47 @@ export default function AffiliateAwareCheckout({
       setIsProcessing(true);
 
       // Validar dados do cliente
-      if (!customerData.name || !customerData.email || !customerData.phone) {
+      if (!customerData.name || !customerData.email || !customerData.phone || !customerData.cpf) {
         toast({
           title: "Dados incompletos",
-          description: "Preencha todos os campos obrigatórios.",
+          description: "Preencha todos os campos obrigatórios (nome, email, telefone e CPF).",
           variant: "destructive"
         });
         return;
+      }
+
+      // Validar CPF (formato básico)
+      const cpfLimpo = customerData.cpf.replace(/\D/g, '');
+      if (cpfLimpo.length !== 11) {
+        toast({
+          title: "CPF inválido",
+          description: "Digite um CPF válido com 11 dígitos.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      // Validar dados do cartão se for pagamento com cartão
+      if (selectedPaymentMethod.type === 'credit_card') {
+        if (!selectedPaymentMethod.creditCard?.number || 
+            !selectedPaymentMethod.creditCard?.holderName ||
+            !selectedPaymentMethod.creditCard?.expiryMonth ||
+            !selectedPaymentMethod.creditCard?.expiryYear ||
+            !selectedPaymentMethod.creditCard?.ccv) {
+          toast({
+            title: "Dados do cartão incompletos",
+            description: "Preencha todos os dados do cartão de crédito.",
+            variant: "destructive"
+          });
+          return;
+        }
       }
 
       // Montar dados do checkout
       const checkoutData: CheckoutData = {
         customer: {
           ...customerData,
+          cpf_cnpj: customerData.cpf.replace(/\D/g, ''), // CPF limpo para Asaas
           source: referralInfo ? 'affiliate' : 'website',
           referral_code: getCurrentReferralCode(),
           status: 'active'
@@ -99,7 +128,8 @@ export default function AffiliateAwareCheckout({
         },
         payment: {
           method: selectedPaymentMethod.type,
-          installments: selectedPaymentMethod.installments
+          installments: selectedPaymentMethod.installments,
+          creditCard: selectedPaymentMethod.creditCard
         },
         affiliate: referralInfo ? {
           referral_code: referralInfo.code
@@ -276,6 +306,23 @@ export default function AffiliateAwareCheckout({
                     required
                   />
                 </div>
+                
+                <input
+                  type="text"
+                  placeholder="CPF * (apenas números)"
+                  value={customerData.cpf}
+                  onChange={(e) => {
+                    // Formatar CPF: 000.000.000-00
+                    const value = e.target.value.replace(/\D/g, '').slice(0, 11);
+                    const formatted = value
+                      .replace(/(\d{3})(\d)/, '$1.$2')
+                      .replace(/(\d{3})(\d)/, '$1.$2')
+                      .replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+                    updateCustomerData('cpf', formatted);
+                  }}
+                  className="w-full px-3 py-2 border rounded-md text-sm"
+                  required
+                />
                 
                 <div className="grid grid-cols-3 gap-2">
                   <input

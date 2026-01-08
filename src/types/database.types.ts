@@ -197,6 +197,17 @@ export interface CreateShippingAddressData {
 }
 
 // ============================================
+// CREDIT CARD DATA (para checkout transparente)
+// ============================================
+export interface CreditCardData {
+  holderName: string;
+  number: string;
+  expiryMonth: string;
+  expiryYear: string;
+  ccv: string;
+}
+
+// ============================================
 // CHECKOUT DATA
 // ============================================
 export interface CheckoutData {
@@ -219,6 +230,7 @@ export interface CheckoutData {
   payment: {
     method: 'pix' | 'credit_card';
     installments?: number;
+    creditCard?: CreditCardData; // Dados do cartão para checkout transparente
   };
   
   // Dados de afiliado (se houver)
