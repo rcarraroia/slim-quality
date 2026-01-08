@@ -52,7 +52,7 @@ export function DashboardLayout() {
 
   const menuItems = [
     { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard', disabled: false },
-    { icon: MessageSquare, label: 'Conversas', path: '/dashboard/conversas', badge: 8, disabled: false },
+    { icon: MessageSquare, label: 'Conversas', path: '/dashboard/conversas', disabled: false },
     { icon: Package, label: 'Produtos', path: '/dashboard/produtos', disabled: false },
     { icon: DollarSign, label: 'Vendas', path: '/dashboard/vendas', disabled: false },
     { icon: ShoppingCart, label: 'Pedidos', path: '/dashboard/pedidos', disabled: false },
@@ -248,10 +248,10 @@ export function DashboardLayout() {
                   >
                     <Icon className="h-4 w-4" />
                     <span>{item.label}</span>
-                    {/* Badge para Aprendizados - TODO: integrar com hook real */}
-                    {item.path === '/dashboard/agente/aprendizados' && (
+                    {/* Badge para Aprendizados - usando dados reais */}
+                    {item.path === '/dashboard/agente/aprendizados' && pendingLearningCount > 0 && (
                       <span className="ml-auto bg-destructive text-destructive-foreground text-xs rounded-full px-2 py-0.5">
-                        3
+                        {pendingLearningCount}
                       </span>
                     )}
                   </Link>
