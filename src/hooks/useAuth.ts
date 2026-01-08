@@ -133,8 +133,8 @@ export const useAuth = (): UseAuthReturn => {
         description: "Você foi desconectado com sucesso",
       });
       
-      // Redirecionar para login
-      window.location.href = '/admin/login';
+      // Redirecionar para home
+      window.location.href = '/';
     } catch (error) {
       console.error('Erro no logout:', error);
       
@@ -142,7 +142,7 @@ export const useAuth = (): UseAuthReturn => {
       adminAuthService.clearAuthData();
       setUser(null);
       
-      window.location.href = '/admin/login';
+      window.location.href = '/';
     } finally {
       setIsLoading(false);
     }
