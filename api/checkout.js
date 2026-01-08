@@ -126,6 +126,17 @@ export default async function handler(req, res) {
     }
 
     if (!asaasCustomerId) {
+      // Limpar CPF/CNPJ - remover pontos, traços e espaços
+      const cleanCpfCnpj = customer.cpfCnpj.replace(/\D/g, '');
+      
+      console.log('Creating Asaas customer:', {
+        name: customer.name,
+        email: customer.email,
+        phone: customer.phone || customer.mobilePhone,
+        cpfCnpj: cleanCpfCnpj,
+        cpfCnpjLength: cleanCpfCnpj.length
+      });
+
       const createRes = await fetch(`${asaasBaseUrl}/customers`, {
         method: 'POST',
         headers,
@@ -133,21 +144,28 @@ export default async function handler(req, res) {
           name: customer.name,
           email: customer.email,
           phone: customer.phone || customer.mobilePhone,
-          cpfCnpj: customer.cpfCnpj
+          cpfCnpj: cleanCpfCnpj
         })
       });
 
+      const responseData = await createRes.json();
+      
       if (!createRes.ok) {
-        const errData = await createRes.json();
+        console.error('Asaas customer creation error:', JSON.stringify(responseData, null, 2));
         return res.status(500).json({ 
           success: false, 
           error: 'Erro ao criar customer no Asaas',
-          details: errData
+          details: responseData,
+          debug: {
+            statusCode: createRes.status,
+            cpfCnpjSent: cleanCpfCnpj,
+            cpfCnpjLength: cleanCpfCnpj.length
+          }
         });
       }
 
-      const newCustomer = await createRes.json();
-      asaasCustomerId = newCustomer.id;
+      asaasCustomerId = responseData.id;
+      console.log('Asaas customer created:', asaasCustomerId);
     }
 
     // Criar pagamento

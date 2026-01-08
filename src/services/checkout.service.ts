@@ -513,8 +513,16 @@ export class CheckoutService {
         
         return result.checkoutUrl || result.boletoUrl || '';
       } else {
-        console.warn('⚠️ Backend retornou erro:', result.error);
-        throw new Error(result.error || 'Erro ao processar pagamento');
+        console.warn('⚠️ Backend retornou erro:', result.error, 'Detalhes:', result.details, 'Debug:', result.debug);
+        
+        // Construir mensagem de erro mais detalhada
+        let errorMessage = result.error || 'Erro ao processar pagamento';
+        if (result.details?.errors) {
+          const asaasErrors = result.details.errors.map((e: { description?: string }) => e.description).join(', ');
+          errorMessage = `${errorMessage}: ${asaasErrors}`;
+        }
+        
+        throw new Error(errorMessage);
       }
       
     } catch (error) {
