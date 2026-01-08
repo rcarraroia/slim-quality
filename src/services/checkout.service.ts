@@ -365,13 +365,10 @@ export class CheckoutService {
   }
 
   /**
-   * Gera URL de pagamento via Asaas com split integrado na criação
+   * Gera URL de pagamento via backend seguro (API key protegida)
    */
   private async generatePaymentUrl(order: Order, payment: CheckoutData['payment']): Promise<string> {
     try {
-      // Importar serviço Asaas
-      const { asaasService } = await import('@/services/asaas.service');
-      
       // Buscar dados do cliente
       const { data: customer } = await supabase
         .from('customers')
@@ -403,113 +400,78 @@ export class CheckoutService {
         mobilePhone: customer.phone,
         cpfCnpj: customer.cpf_cnpj || undefined
       };
-      
-      // Construir rede de afiliados se houver referral_code
-      let affiliateNetwork: {
-        n1?: { id: string; walletId: string };
-        n2?: { id: string; walletId: string };
-        n3?: { id: string; walletId: string };
-      } = {};
 
-      if (order.referral_code) {
-        console.log('🔍 Buscando rede de afiliados para:', order.referral_code);
-        affiliateNetwork = await this.buildAffiliateNetwork(order.referral_code);
-      }
-
-      // Calcular split (SEMPRE 30%, sem incluir 70% da fábrica)
-      const splits = this.calculateSplit(affiliateNetwork);
-
-      // Log detalhado para auditoria
-      console.log('💰 Processando pagamento:', {
+      console.log('💰 Processando pagamento via backend seguro:', {
         orderId: order.id,
         orderNumber: order.order_number,
         totalCents: order.total_cents,
-        referralCode: order.referral_code,
-        affiliateNetwork: {
-          n1: affiliateNetwork.n1?.id,
-          n2: affiliateNetwork.n2?.id,
-          n3: affiliateNetwork.n3?.id
+        referralCode: order.referral_code
+      });
+      
+      // Chamar backend seguro (API key protegida no servidor)
+      const backendUrl = import.meta.env.VITE_API_URL || 'https://slimquality.com.br';
+      
+      const response = await fetch(`${backendUrl}/api/checkout`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
         },
-        splits
-      });
-      
-      // Processar checkout no Asaas COM split incluído na criação
-      const checkoutResult = await asaasService.processCheckout({
-        customer: asaasCustomer,
-        amount: order.total_cents / 100,
-        description: `Pedido ${order.order_number} - ${firstItem.product_name}`,
-        externalReference: order.id,
-        billingType: payment.method.toUpperCase() as 'PIX' | 'CREDIT_CARD' | 'BOLETO',
-        installments: payment.installments,
-        splits: splits // Split incluído na criação do pagamento
-      });
-      
-      if (checkoutResult.success) {
-        // Criar registro de pagamento na tabela payments
-        const { data: paymentRecord, error: paymentError } = await supabase
-          .from('payments')
-          .insert({
-            order_id: order.id,
-            payment_method: payment.method as 'pix' | 'credit_card',
-            amount_cents: order.total_cents,
-            status: 'pending',
-            asaas_payment_id: checkoutResult.paymentId,
-            pix_qr_code: checkoutResult.pixQrCode,
-            pix_copy_paste: checkoutResult.pixCopyPaste,
-            installments: payment.installments || 1
-          })
-          .select()
-          .single();
-        
-        if (paymentError) {
-          console.warn('⚠️ Erro ao criar registro de pagamento:', paymentError.message);
-        } else {
-          console.log('💾 Registro de pagamento criado:', paymentRecord.id);
-        }
-
-        // Salvar informações do split para auditoria
-        await this.saveSplitAuditLog(order.id, splits, affiliateNetwork);
-        
-        // Atualizar pedido com informações do afiliado
-        await supabase
-          .from('orders')
-          .update({ 
-            affiliate_n1_id: affiliateNetwork.n1?.id || null,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', order.id);
-        
-        console.log('✅ Checkout Asaas processado com split:', {
+        body: JSON.stringify({
+          customer: asaasCustomer,
           orderId: order.id,
-          paymentId: checkoutResult.paymentId,
-          splitTotal: '30%',
-          checkoutUrl: checkoutResult.checkoutUrl
+          amount: order.total_cents / 100,
+          description: `Pedido ${order.order_number} - ${firstItem.product_name}`,
+          billingType: payment.method.toUpperCase(),
+          installments: payment.installments,
+          referralCode: order.referral_code
+        })
+      });
+
+      const result = await response.json();
+      
+      if (result.success) {
+        console.log('✅ Checkout processado com sucesso:', {
+          orderId: order.id,
+          paymentId: result.paymentId,
+          checkoutUrl: result.checkoutUrl
         });
         
-        return checkoutResult.checkoutUrl || checkoutResult.pixQrCode || checkoutResult.boletoUrl || '';
+        // Retornar URL apropriada baseada no método de pagamento
+        if (payment.method === 'pix' && result.pixQrCode) {
+          // Para PIX, redirecionar para página de pagamento PIX
+          const pixParams = new URLSearchParams({
+            order_id: order.id,
+            payment_id: result.paymentId,
+            qr_code: result.pixQrCode,
+            copy_paste: result.pixCopyPaste || ''
+          });
+          return `${window.location.origin}/pagamento-pix?${pixParams.toString()}`;
+        }
+        
+        return result.checkoutUrl || result.boletoUrl || '';
       } else {
-        console.warn('⚠️ Asaas falhou:', checkoutResult.error);
-        throw new Error(`Asaas indisponível: ${checkoutResult.error}`);
+        console.warn('⚠️ Backend retornou erro:', result.error);
+        throw new Error(result.error || 'Erro ao processar pagamento');
       }
       
     } catch (error) {
-      console.error('❌ Erro ao gerar pagamento Asaas:', error);
+      console.error('❌ Erro ao gerar pagamento:', error);
       
-      // Fallback: retornar URL simulada válida
+      // Fallback: retornar URL de erro
       const baseUrl = window.location.origin;
-      const paymentParams = new URLSearchParams({
+      const errorParams = new URLSearchParams({
         order_id: order.id,
-        amount: (order.total_cents / 100).toString(),
-        method: payment.method,
-        ...(payment.installments && { installments: payment.installments.toString() })
+        error: 'payment_failed',
+        message: error instanceof Error ? error.message : 'Erro desconhecido'
       });
       
-      return `${baseUrl}/pagamento-simulado?${paymentParams.toString()}`;
+      return `${baseUrl}/pagamento-erro?${errorParams.toString()}`;
     }
   }
 
   /**
-   * Salva log de auditoria do split para rastreabilidade
+   * Salva log de auditoria do split para rastreabilidade (chamado pelo backend)
+   * Mantido aqui apenas para compatibilidade, mas o backend faz isso automaticamente
    */
   private async saveSplitAuditLog(
     orderId: string, 
@@ -520,34 +482,8 @@ export class CheckoutService {
       n3?: { id: string; walletId: string };
     }
   ): Promise<void> {
-    try {
-      // Tentar salvar na tabela de auditoria se existir
-      const { error } = await supabase
-        .from('commission_logs')
-        .insert({
-          order_id: orderId,
-          action: 'SPLIT_CALCULATED',
-          details: JSON.stringify({
-            splits,
-            network: {
-              n1_id: network.n1?.id,
-              n2_id: network.n2?.id,
-              n3_id: network.n3?.id
-            },
-            total_percentage: 30,
-            calculated_at: new Date().toISOString()
-          })
-        });
-
-      if (error) {
-        // Se tabela não existir, apenas logar
-        console.log('📝 Audit log (tabela não disponível):', { orderId, splits });
-      } else {
-        console.log('📝 Audit log salvo para pedido:', orderId);
-      }
-    } catch (err) {
-      console.warn('⚠️ Erro ao salvar audit log:', err);
-    }
+    // Backend já faz isso automaticamente
+    console.log('📝 Audit log será salvo pelo backend:', { orderId });
   }
   
   /**
