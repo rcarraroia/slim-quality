@@ -1,100 +1,106 @@
 /**
  * Vercel Serverless Function - Checkout Asaas
- * Versão ultra-defensiva para debug
+ * Versão de diagnóstico para identificar causa do FUNCTION_INVOCATION_FAILED
  */
 
 module.exports = async function handler(req, res) {
-  // CORS - sempre primeiro
+  // CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS, GET');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
+  // Preflight
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
   }
 
+  // GET para diagnóstico
+  if (req.method === 'GET') {
+    return res.status(200).json({
+      status: 'ok',
+      message: 'Checkout API funcionando',
+      env: {
+        hasAsaasKey: !!process.env.ASAAS_API_KEY,
+        hasWalletRenum: !!process.env.ASAAS_WALLET_RENUM,
+        hasWalletJB: !!process.env.ASAAS_WALLET_JB,
+        hasSupabaseUrl: !!process.env.SUPABASE_URL || !!process.env.VITE_SUPABASE_URL,
+        nodeEnv: process.env.NODE_ENV || 'not-set'
+      },
+      timestamp: new Date().toISOString()
+    });
+  }
+
+  // Apenas POST permitido para checkout
   if (req.method !== 'POST') {
     return res.status(405).json({ success: false, error: 'Método não permitido' });
   }
 
-  // Wrap TUDO em try-catch
   try {
-    // 1. Verificar variáveis de ambiente
-    const envCheck = {
-      ASAAS_API_KEY: !!process.env.ASAAS_API_KEY,
-      ASAAS_WALLET_RENUM: !!process.env.ASAAS_WALLET_RENUM,
-      ASAAS_WALLET_JB: !!process.env.ASAAS_WALLET_JB,
-      SUPABASE_URL: !!process.env.SUPABASE_URL,
-      VITE_SUPABASE_URL: !!process.env.VITE_SUPABASE_URL,
-      SUPABASE_SERVICE_KEY: !!process.env.SUPABASE_SERVICE_KEY,
-      NODE_ENV: process.env.NODE_ENV || 'unknown'
-    };
+    // Verificar variáveis de ambiente
+    const ASAAS_API_KEY = process.env.ASAAS_API_KEY;
+    const ASAAS_WALLET_RENUM = process.env.ASAAS_WALLET_RENUM;
+    const ASAAS_WALLET_JB = process.env.ASAAS_WALLET_JB;
 
-    console.log('[Checkout] ENV Check:', JSON.stringify(envCheck));
-
-    // Validar variáveis críticas
-    if (!process.env.ASAAS_API_KEY) {
+    if (!ASAAS_API_KEY) {
       return res.status(500).json({ 
         success: false, 
-        error: 'ASAAS_API_KEY não configurada no Vercel',
-        envCheck
+        error: 'ASAAS_API_KEY não configurada',
+        hint: 'Configure no Vercel Dashboard > Settings > Environment Variables'
       });
     }
 
-    if (!process.env.ASAAS_WALLET_RENUM || !process.env.ASAAS_WALLET_JB) {
+    if (!ASAAS_WALLET_RENUM || !ASAAS_WALLET_JB) {
       return res.status(500).json({ 
         success: false, 
-        error: 'ASAAS_WALLET_RENUM ou ASAAS_WALLET_JB não configuradas',
-        envCheck
+        error: 'Wallets não configuradas',
+        missing: {
+          ASAAS_WALLET_RENUM: !ASAAS_WALLET_RENUM,
+          ASAAS_WALLET_JB: !ASAAS_WALLET_JB
+        }
       });
     }
 
-    // 2. Parse do body
+    // Parse body
     const body = req.body || {};
-    const { customer, orderId, amount, billingType, description, installments } = body;
-
-    console.log('[Checkout] Request:', JSON.stringify({ orderId, amount, billingType, hasCustomer: !!customer }));
+    const { customer, orderId, amount, billingType, description } = body;
 
     if (!customer || !orderId || !amount || !billingType) {
       return res.status(400).json({ 
         success: false, 
-        error: 'Dados obrigatórios: customer, orderId, amount, billingType',
-        received: { hasCustomer: !!customer, orderId, amount, billingType }
+        error: 'Dados obrigatórios faltando',
+        required: ['customer', 'orderId', 'amount', 'billingType'],
+        received: { 
+          hasCustomer: !!customer, 
+          orderId: orderId || null, 
+          amount: amount || null, 
+          billingType: billingType || null 
+        }
       });
     }
 
-    // 3. Configurar headers para Asaas
-    const ASAAS_API_KEY = process.env.ASAAS_API_KEY;
-    const ASAAS_WALLET_RENUM = process.env.ASAAS_WALLET_RENUM;
-    const ASAAS_WALLET_JB = process.env.ASAAS_WALLET_JB;
-    const ASAAS_BASE_URL = 'https://api.asaas.com/v3';
-
+    // Headers para Asaas
     const headers = {
       'Content-Type': 'application/json',
       'access_token': ASAAS_API_KEY
     };
 
-    // 4. Buscar/criar customer no Asaas
-    console.log('[Checkout] Buscando customer no Asaas...');
+    // Buscar ou criar customer
+    let asaasCustomerId = null;
     
-    let asaasCustomerId;
+    const searchRes = await fetch(
+      `https://api.asaas.com/v3/customers?email=${encodeURIComponent(customer.email)}`,
+      { method: 'GET', headers }
+    );
     
-    // Buscar customer existente
-    const searchUrl = `${ASAAS_BASE_URL}/customers?email=${encodeURIComponent(customer.email)}`;
-    const searchResponse = await fetch(searchUrl, { method: 'GET', headers });
-    
-    if (searchResponse.ok) {
-      const searchResult = await searchResponse.json();
-      if (searchResult.data && searchResult.data.length > 0) {
-        asaasCustomerId = searchResult.data[0].id;
-        console.log('[Checkout] Customer existente:', asaasCustomerId);
+    if (searchRes.ok) {
+      const searchData = await searchRes.json();
+      if (searchData.data && searchData.data.length > 0) {
+        asaasCustomerId = searchData.data[0].id;
       }
     }
 
-    // Criar customer se não existe
     if (!asaasCustomerId) {
-      console.log('[Checkout] Criando novo customer...');
-      const createCustomerResponse = await fetch(`${ASAAS_BASE_URL}/customers`, {
+      const createRes = await fetch('https://api.asaas.com/v3/customers', {
         method: 'POST',
         headers,
         body: JSON.stringify({
@@ -105,77 +111,65 @@ module.exports = async function handler(req, res) {
         })
       });
 
-      if (!createCustomerResponse.ok) {
-        const errorData = await createCustomerResponse.json();
-        console.error('[Checkout] Erro criar customer:', JSON.stringify(errorData));
+      if (!createRes.ok) {
+        const errData = await createRes.json();
         return res.status(500).json({ 
           success: false, 
-          error: `Erro ao criar customer no Asaas: ${errorData.errors?.[0]?.description || 'Erro desconhecido'}`,
-          asaasError: errorData
+          error: 'Erro ao criar customer no Asaas',
+          details: errData
         });
       }
 
-      const newCustomer = await createCustomerResponse.json();
+      const newCustomer = await createRes.json();
       asaasCustomerId = newCustomer.id;
-      console.log('[Checkout] Novo customer criado:', asaasCustomerId);
     }
 
-    // 5. Criar pagamento com split
-    console.log('[Checkout] Criando pagamento...');
+    // Criar pagamento
+    const dueDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
     
-    const splits = [
-      { walletId: ASAAS_WALLET_RENUM, percentualValue: 15 },
-      { walletId: ASAAS_WALLET_JB, percentualValue: 15 }
-    ];
-
-    const paymentPayload = {
-      customer: asaasCustomerId,
-      billingType: billingType,
-      value: amount,
-      dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-      description: description || `Pedido ${orderId}`,
-      externalReference: orderId,
-      split: splits
-    };
-
-    console.log('[Checkout] Payment payload:', JSON.stringify(paymentPayload));
-
-    const paymentResponse = await fetch(`${ASAAS_BASE_URL}/payments`, {
+    const paymentRes = await fetch('https://api.asaas.com/v3/payments', {
       method: 'POST',
       headers,
-      body: JSON.stringify(paymentPayload)
+      body: JSON.stringify({
+        customer: asaasCustomerId,
+        billingType: billingType,
+        value: amount,
+        dueDate: dueDate,
+        description: description || `Pedido ${orderId}`,
+        externalReference: orderId,
+        split: [
+          { walletId: ASAAS_WALLET_RENUM, percentualValue: 15 },
+          { walletId: ASAAS_WALLET_JB, percentualValue: 15 }
+        ]
+      })
     });
 
-    const paymentResult = await paymentResponse.json();
+    const paymentData = await paymentRes.json();
 
-    if (!paymentResponse.ok) {
-      console.error('[Checkout] Erro criar pagamento:', JSON.stringify(paymentResult));
+    if (!paymentRes.ok) {
       return res.status(500).json({ 
         success: false, 
-        error: `Erro ao criar pagamento no Asaas: ${paymentResult.errors?.[0]?.description || 'Erro desconhecido'}`,
-        asaasError: paymentResult
+        error: 'Erro ao criar pagamento no Asaas',
+        details: paymentData
       });
     }
 
-    console.log('[Checkout] Pagamento criado:', paymentResult.id);
-
-    // 6. Retornar sucesso
+    // Sucesso
     return res.status(200).json({
       success: true,
-      paymentId: paymentResult.id,
-      checkoutUrl: paymentResult.invoiceUrl,
-      pixQrCode: paymentResult.pixQrCode,
-      pixCopyPaste: paymentResult.pixCopyPaste,
-      boletoUrl: paymentResult.bankSlipUrl,
-      status: paymentResult.status
+      paymentId: paymentData.id,
+      checkoutUrl: paymentData.invoiceUrl,
+      pixQrCode: paymentData.pixQrCode,
+      pixCopyPaste: paymentData.pixCopyPaste,
+      boletoUrl: paymentData.bankSlipUrl,
+      status: paymentData.status
     });
 
   } catch (error) {
-    console.error('[Checkout] ERRO FATAL:', error.message, error.stack);
     return res.status(500).json({ 
       success: false, 
-      error: error.message || 'Erro interno do servidor',
-      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      error: error.message || 'Erro interno',
+      type: error.name || 'Error'
     });
   }
 };
