@@ -97,13 +97,16 @@ export default async function handler(req, res) {
     }
 
     // Headers para Asaas
-    // Detectar ambiente baseado na API key (sandbox keys começam com $aact_)
-    const isSandbox = ASAAS_API_KEY.startsWith('$aact_');
-    const asaasBaseUrl = isSandbox 
-      ? 'https://api-sandbox.asaas.com/v3'
-      : 'https://api.asaas.com/v3';
+    // Detectar ambiente baseado na API key
+    // Produção: $aact_prod_... ou $aact_MjA... (contém _prod_ ou começa com padrão de produção)
+    // Sandbox: $aact_YTU5... (não contém _prod_)
+    const isProduction = ASAAS_API_KEY.includes('_prod_');
+    const asaasBaseUrl = isProduction 
+      ? 'https://api.asaas.com/v3'
+      : 'https://api-sandbox.asaas.com/v3';
     
-    console.log('Asaas environment:', isSandbox ? 'SANDBOX' : 'PRODUCTION');
+    console.log('Asaas environment:', isProduction ? 'PRODUCTION' : 'SANDBOX');
+    console.log('API Key prefix:', ASAAS_API_KEY.substring(0, 15) + '...');
     
     const headers = {
       'Content-Type': 'application/json',
