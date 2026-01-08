@@ -47,6 +47,7 @@ import LandingPageWithRef from "./pages/LandingPageWithRef";
 import NotFound from "./pages/NotFound";
 import PagamentoErro from "./pages/PagamentoErro";
 import PagamentoPix from "./pages/PagamentoPix";
+import PagamentoSucesso from "./pages/PagamentoSucesso";
 
 const queryClient = new QueryClient();
 
@@ -86,6 +87,7 @@ const App = () => (
               {/* Páginas de Pagamento (sem layout) */}
               <Route path="/pagamento-erro" element={<PagamentoErro />} />
               <Route path="/pagamento-pix" element={<PagamentoPix />} />
+              <Route path="/pagamento-sucesso" element={<PagamentoSucesso />} />
 
               {/* 2. CONTEXTO ADMIN (Dashboard Administrativo) */}
               <Route path="/dashboard" element={<DashboardLayout />}>

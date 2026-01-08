@@ -1,8 +1,9 @@
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
-import { Copy, Check, Clock, ArrowLeft, QrCode } from 'lucide-react';
+import { Copy, Check, Clock, ArrowLeft, QrCode, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/config/supabase';
 
 export default function PagamentoPix() {
   const [searchParams] = useSearchParams();
@@ -11,6 +12,7 @@ export default function PagamentoPix() {
   
   const [copied, setCopied] = useState(false);
   const [timeLeft, setTimeLeft] = useState(30 * 60); // 30 minutos
+  const [checkingPayment, setCheckingPayment] = useState(false);
   
   const orderId = searchParams.get('order_id');
   const paymentId = searchParams.get('payment_id');
@@ -31,6 +33,49 @@ export default function PagamentoPix() {
 
     return () => clearInterval(timer);
   }, []);
+
+  // Verificar status do pagamento periodicamente
+  useEffect(() => {
+    if (!orderId) return;
+
+    const checkPaymentStatus = async () => {
+      try {
+        setCheckingPayment(true);
+        const { data: order, error } = await supabase
+          .from('orders')
+          .select('status, payment_status')
+          .eq('id', orderId)
+          .single();
+
+        if (error) {
+          console.error('Erro ao verificar status:', error);
+          return;
+        }
+
+        // Se pagamento confirmado, redirecionar para página de sucesso
+        if (order?.payment_status === 'paid' || order?.status === 'confirmed') {
+          toast({
+            title: "🎉 Pagamento confirmado!",
+            description: "Redirecionando para página de confirmação...",
+          });
+          
+          setTimeout(() => {
+            navigate(`/pagamento-sucesso?order_id=${orderId}&payment_id=${paymentId}`);
+          }, 1500);
+        }
+      } catch (err) {
+        console.error('Erro ao verificar pagamento:', err);
+      } finally {
+        setCheckingPayment(false);
+      }
+    };
+
+    // Verificar imediatamente e depois a cada 5 segundos
+    checkPaymentStatus();
+    const interval = setInterval(checkPaymentStatus, 5000);
+
+    return () => clearInterval(interval);
+  }, [orderId, paymentId, navigate, toast]);
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -88,6 +133,14 @@ export default function PagamentoPix() {
           <span className="font-mono text-lg">{formatTime(timeLeft)}</span>
           <span className="text-sm">para pagar</span>
         </div>
+
+        {/* Status de verificação */}
+        {checkingPayment && (
+          <div className="flex items-center justify-center gap-2 mb-4 text-blue-600 text-sm">
+            <Loader2 className="w-4 h-4 animate-spin" />
+            <span>Verificando pagamento...</span>
+          </div>
+        )}
 
         {/* QR Code */}
         {qrCode && (
