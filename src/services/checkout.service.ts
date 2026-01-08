@@ -496,8 +496,19 @@ export class CheckoutService {
         console.log('✅ Checkout processado com sucesso:', {
           orderId: order.id,
           paymentId: result.paymentId,
-          checkoutUrl: result.checkoutUrl
+          checkoutUrl: result.checkoutUrl,
+          status: result.status,
+          orderStatus: result.orderStatus
         });
+        
+        // Se pagamento com cartão foi confirmado, redirecionar para página de sucesso
+        if (payment.method === 'credit_card' && (result.status === 'CONFIRMED' || result.orderStatus === 'paid')) {
+          const successParams = new URLSearchParams({
+            order_id: order.id,
+            payment_id: result.paymentId || ''
+          });
+          return `${window.location.origin}/pagamento-sucesso?${successParams.toString()}`;
+        }
         
         // Retornar URL apropriada baseada no método de pagamento
         if (payment.method === 'pix' && result.pixQrCode) {
@@ -511,7 +522,8 @@ export class CheckoutService {
           return `${window.location.origin}/pagamento-pix?${pixParams.toString()}`;
         }
         
-        return result.checkoutUrl || result.boletoUrl || '';
+        // Fallback para URL do Asaas ou página de sucesso
+        return result.checkoutUrl || result.boletoUrl || `${window.location.origin}/pagamento-sucesso?order_id=${order.id}`;
       } else {
         console.warn('⚠️ Backend retornou erro:', result.error, 'Detalhes:', result.details, 'Debug:', result.debug);
         

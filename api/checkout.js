@@ -278,6 +278,9 @@ export default async function handler(req, res) {
         });
       }
 
+      // Determinar se pagamento foi confirmado
+      const isConfirmed = cardPaymentData.status === 'CONFIRMED' || cardPaymentData.status === 'RECEIVED';
+
       // Registrar no banco de dados
       await savePaymentToDatabase({
         orderId,
@@ -285,11 +288,17 @@ export default async function handler(req, res) {
         asaasCustomerId,
         billingType,
         amount,
-        status: cardPaymentData.status === 'CONFIRMED' ? 'confirmed' : 'pending',
+        status: isConfirmed ? 'confirmed' : 'pending',
         installments: installments || 1,
         cardBrand: cardPaymentData.creditCard?.creditCardBrand,
         cardLastDigits: creditCard.number?.slice(-4)
       });
+
+      // Se pagamento confirmado, atualizar status do pedido para 'paid'
+      if (isConfirmed) {
+        await updateOrderStatus(orderId, 'paid');
+        console.log(`Pedido ${orderId} atualizado para 'paid' após confirmação do cartão`);
+      }
 
       // Sucesso no pagamento com cartão
       return res.status(200).json({
@@ -297,7 +306,8 @@ export default async function handler(req, res) {
         paymentId: paymentData.id,
         status: cardPaymentData.status,
         confirmedDate: cardPaymentData.confirmedDate,
-        message: 'Pagamento com cartão processado com sucesso'
+        message: 'Pagamento com cartão processado com sucesso',
+        orderStatus: isConfirmed ? 'paid' : 'pending'
       });
     }
 
@@ -409,5 +419,38 @@ async function savePaymentToDatabase(data) {
 
   } catch (error) {
     console.error('Erro ao salvar pagamento no banco:', error);
+  }
+}
+
+/**
+ * Atualiza o status do pedido na tabela orders
+ */
+async function updateOrderStatus(orderId, status) {
+  try {
+    const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+    const supabaseKey = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY;
+
+    if (!supabaseUrl || !supabaseKey) {
+      console.error('Supabase não configurado para atualizar pedido');
+      return;
+    }
+
+    const supabase = createClient(supabaseUrl, supabaseKey);
+
+    const { error } = await supabase
+      .from('orders')
+      .update({
+        status: status,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', orderId);
+
+    if (error) {
+      console.error('Erro ao atualizar status do pedido:', error);
+    } else {
+      console.log(`Pedido ${orderId} atualizado para status: ${status}`);
+    }
+  } catch (error) {
+    console.error('Erro ao atualizar pedido:', error);
   }
 }
