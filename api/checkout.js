@@ -3,6 +3,8 @@
  * Processa pagamentos PIX e Cartão via Asaas
  */
 
+import { createClient } from '@supabase/supabase-js';
+
 export default async function handler(req, res) {
   // CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -276,6 +278,19 @@ export default async function handler(req, res) {
         });
       }
 
+      // Registrar no banco de dados
+      await savePaymentToDatabase({
+        orderId,
+        asaasPaymentId: paymentData.id,
+        asaasCustomerId,
+        billingType,
+        amount,
+        status: cardPaymentData.status === 'CONFIRMED' ? 'confirmed' : 'pending',
+        installments: installments || 1,
+        cardBrand: cardPaymentData.creditCard?.creditCardBrand,
+        cardLastDigits: creditCard.number?.slice(-4)
+      });
+
       // Sucesso no pagamento com cartão
       return res.status(200).json({
         success: true,
@@ -286,13 +301,27 @@ export default async function handler(req, res) {
       });
     }
 
+    // Registrar pagamento PIX no banco de dados
+    await savePaymentToDatabase({
+      orderId,
+      asaasPaymentId: paymentData.id,
+      asaasCustomerId,
+      billingType,
+      amount,
+      status: 'pending',
+      installments: 1,
+      pixQrCode: paymentData.encodedImage,
+      pixCopyPaste: paymentData.payload,
+      pixExpiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() // 24h
+    });
+
     // Sucesso (PIX ou aguardando dados do cartão)
     return res.status(200).json({
       success: true,
       paymentId: paymentData.id,
       checkoutUrl: paymentData.invoiceUrl,
-      pixQrCode: paymentData.pixQrCode,
-      pixCopyPaste: paymentData.pixCopyPaste,
+      pixQrCode: paymentData.encodedImage || paymentData.pixQrCode,
+      pixCopyPaste: paymentData.payload || paymentData.pixCopyPaste,
       boletoUrl: paymentData.bankSlipUrl,
       status: paymentData.status
     });
@@ -303,5 +332,82 @@ export default async function handler(req, res) {
       error: error.message || 'Erro interno',
       type: error.name || 'Error'
     });
+  }
+}
+
+/**
+ * Salva o pagamento no banco de dados (tabelas payments e asaas_transactions)
+ */
+async function savePaymentToDatabase(data) {
+  try {
+    const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+    const supabaseKey = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY;
+
+    if (!supabaseUrl || !supabaseKey) {
+      console.error('Supabase não configurado para salvar pagamento');
+      return;
+    }
+
+    const supabase = createClient(supabaseUrl, supabaseKey);
+
+    // Mapear billingType para payment_method
+    const paymentMethodMap = {
+      'PIX': 'pix',
+      'CREDIT_CARD': 'credit_card',
+      'BOLETO': 'boleto'
+    };
+
+    // 1. Criar registro na tabela payments
+    const paymentRecord = {
+      order_id: data.orderId,
+      payment_method: paymentMethodMap[data.billingType] || 'pix',
+      amount_cents: Math.round(data.amount * 100),
+      status: data.status,
+      asaas_payment_id: data.asaasPaymentId,
+      installments: data.installments || 1,
+      pix_qr_code: data.pixQrCode || null,
+      pix_copy_paste: data.pixCopyPaste || null,
+      pix_expires_at: data.pixExpiresAt || null,
+      card_brand: data.cardBrand || null,
+      card_last_digits: data.cardLastDigits || null
+    };
+
+    const { data: paymentData, error: paymentError } = await supabase
+      .from('payments')
+      .insert(paymentRecord)
+      .select()
+      .single();
+
+    if (paymentError) {
+      console.error('Erro ao criar registro de pagamento:', paymentError);
+    } else {
+      console.log('Pagamento registrado:', paymentData.id);
+    }
+
+    // 2. Registrar transação em asaas_transactions
+    const transactionRecord = {
+      order_id: data.orderId,
+      payment_id: paymentData?.id || null,
+      transaction_type: 'CREATE_PAYMENT',
+      request_payload: { billingType: data.billingType, amount: data.amount },
+      response_payload: { asaasPaymentId: data.asaasPaymentId, status: data.status },
+      success: true,
+      http_status: 200,
+      asaas_customer_id: data.asaasCustomerId,
+      asaas_payment_id: data.asaasPaymentId
+    };
+
+    const { error: transactionError } = await supabase
+      .from('asaas_transactions')
+      .insert(transactionRecord);
+
+    if (transactionError) {
+      console.error('Erro ao registrar transação:', transactionError);
+    } else {
+      console.log('Transação registrada com sucesso');
+    }
+
+  } catch (error) {
+    console.error('Erro ao salvar pagamento no banco:', error);
   }
 }
