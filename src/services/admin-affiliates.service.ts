@@ -1,9 +1,9 @@
 /**
  * Serviço de Afiliados Admin
- * BLOCO 4 - Frontend
+ * Usando Supabase diretamente
  */
 
-import { apiService, ApiResponse } from './api.service';
+import { supabase } from '@/config/supabase';
 
 export interface AffiliateMetrics {
   totalAffiliates: number;
@@ -63,24 +63,10 @@ export interface AffiliateListResponse {
   };
 }
 
-export interface NetworkNode {
-  id: string;
-  name: string;
-  email: string;
-  level: number;
-  totalCommissions: number;
-  directReferrals: number;
-  children: NetworkNode[];
-}
-
-export interface NetworkStats {
-  totalLevels: number;
-  totalAffiliates: number;
-  levelStats: Array<{
-    level: number;
-    count: number;
-    totalCommissions: number;
-  }>;
+export interface ApiResponse<T> {
+  success: boolean;
+  data?: T;
+  error?: string;
 }
 
 class AdminAffiliatesService {
@@ -88,104 +74,218 @@ class AdminAffiliatesService {
    * Buscar métricas do dashboard
    */
   async getMetrics(): Promise<ApiResponse<AffiliateMetrics>> {
-    return apiService.get<AffiliateMetrics>('/admin/affiliates/metrics');
+    try {
+      // Buscar todos os afiliados
+      const { data: affiliates, error } = await supabase
+        .from('affiliates')
+        .select('id, status, total_conversions')
+        .is('deleted_at', null);
+
+      if (error) throw error;
+
+      // Buscar comissões pagas
+      const { data: commissions } = await supabase
+        .from('commissions')
+        .select('commission_value_cents, status');
+
+      const totalAffiliates = affiliates?.length || 0;
+      const activeAffiliates = affiliates?.filter(a => a.status === 'active').length || 0;
+      const pendingAffiliates = affiliates?.filter(a => a.status === 'pending').length || 0;
+      
+      const paidCommissions = commissions?.filter(c => c.status === 'paid') || [];
+      const totalCommissionsPaid = paidCommissions.reduce((sum, c) => sum + (c.commission_value_cents || 0), 0) / 100;
+      
+      const totalSalesGenerated = affiliates?.reduce((sum, a) => sum + (a.total_conversions || 0), 0) || 0;
+
+      return {
+        success: true,
+        data: {
+          totalAffiliates,
+          activeAffiliates,
+          pendingAffiliates,
+          totalCommissionsPaid,
+          totalSalesGenerated,
+          conversionRate: 0,
+          averageCommissionPerAffiliate: totalAffiliates > 0 ? totalCommissionsPaid / totalAffiliates : 0,
+          topPerformers: []
+        }
+      };
+    } catch (error: any) {
+      console.error('Erro ao buscar métricas:', error);
+      return { success: false, error: error.message };
+    }
   }
 
   /**
    * Listar afiliados com filtros e paginação
    */
   async getAll(params: AffiliateListParams = {}): Promise<ApiResponse<AffiliateListResponse>> {
-    const queryParams = new URLSearchParams();
-    
-    if (params.page) queryParams.append('page', params.page.toString());
-    if (params.limit) queryParams.append('limit', params.limit.toString());
-    if (params.search) queryParams.append('search', params.search);
-    if (params.status) queryParams.append('status', params.status);
-    if (params.orderBy) queryParams.append('orderBy', params.orderBy);
-    if (params.orderDirection) queryParams.append('orderDirection', params.orderDirection);
+    try {
+      const page = params.page || 1;
+      const limit = params.limit || 50;
+      const offset = (page - 1) * limit;
 
-    const url = `/admin/affiliates${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
-    return apiService.get<AffiliateListResponse>(url);
+      let query = supabase
+        .from('affiliates')
+        .select('*', { count: 'exact' })
+        .is('deleted_at', null);
+
+      // Filtro por status
+      if (params.status) {
+        query = query.eq('status', params.status);
+      }
+
+      // Filtro por busca
+      if (params.search) {
+        query = query.or(`name.ilike.%${params.search}%,email.ilike.%${params.search}%`);
+      }
+
+      // Ordenação
+      const orderBy = params.orderBy || 'created_at';
+      const ascending = params.orderDirection === 'asc';
+      query = query.order(orderBy, { ascending });
+
+      // Paginação
+      query = query.range(offset, offset + limit - 1);
+
+      const { data, error, count } = await query;
+
+      if (error) throw error;
+
+      // Mapear dados para o formato esperado
+      const affiliates: Affiliate[] = (data || []).map(a => ({
+        id: a.id,
+        name: a.name || '',
+        email: a.email || '',
+        phone: a.phone || '',
+        city: a.city || '',
+        state: a.state || '',
+        wallet_id: a.wallet_id || '',
+        referral_code: a.referral_code || '',
+        status: a.status || 'pending',
+        level: 1,
+        available_balance: 0,
+        pending_balance: 0,
+        total_commissions: 0,
+        total_sales: a.total_conversions || 0,
+        pix_key: a.pix_key || '',
+        created_at: a.created_at,
+        updated_at: a.updated_at
+      }));
+
+      return {
+        success: true,
+        data: {
+          affiliates,
+          pagination: {
+            page,
+            limit,
+            total: count || 0,
+            totalPages: Math.ceil((count || 0) / limit)
+          }
+        }
+      };
+    } catch (error: any) {
+      console.error('Erro ao listar afiliados:', error);
+      return { success: false, error: error.message };
+    }
   }
 
   /**
    * Buscar afiliado por ID
    */
   async getById(id: string): Promise<ApiResponse<Affiliate>> {
-    return apiService.get<Affiliate>(`/admin/affiliates/${id}`);
-  }
+    try {
+      const { data, error } = await supabase
+        .from('affiliates')
+        .select('*')
+        .eq('id', id)
+        .single();
 
-  /**
-   * Atualizar dados do afiliado
-   */
-  async update(id: string, data: Partial<Affiliate>): Promise<ApiResponse<Affiliate>> {
-    return apiService.put<Affiliate>(`/admin/affiliates/${id}`, data);
+      if (error) throw error;
+
+      return { success: true, data: data as Affiliate };
+    } catch (error: any) {
+      return { success: false, error: error.message };
+    }
   }
 
   /**
    * Ativar afiliado
    */
   async activate(id: string): Promise<ApiResponse<{ message: string }>> {
-    return apiService.post<{ message: string }>(`/admin/affiliates/${id}/activate`);
+    try {
+      const { error } = await supabase
+        .from('affiliates')
+        .update({ status: 'active', updated_at: new Date().toISOString() })
+        .eq('id', id);
+
+      if (error) throw error;
+
+      return { success: true, data: { message: 'Afiliado ativado com sucesso' } };
+    } catch (error: any) {
+      return { success: false, error: error.message };
+    }
   }
 
   /**
    * Desativar afiliado
    */
   async deactivate(id: string): Promise<ApiResponse<{ message: string }>> {
-    return apiService.post<{ message: string }>(`/admin/affiliates/${id}/deactivate`);
+    try {
+      const { error } = await supabase
+        .from('affiliates')
+        .update({ status: 'inactive', updated_at: new Date().toISOString() })
+        .eq('id', id);
+
+      if (error) throw error;
+
+      return { success: true, data: { message: 'Afiliado desativado com sucesso' } };
+    } catch (error: any) {
+      return { success: false, error: error.message };
+    }
   }
 
   /**
-   * Listar solicitações pendentes
-   */
-  async getPendingRequests(): Promise<ApiResponse<Affiliate[]>> {
-    return apiService.get<Affiliate[]>('/admin/affiliates/requests');
-  }
-
-  /**
-   * Aprovar solicitação de afiliado
-   */
-  async approve(id: string): Promise<ApiResponse<{ message: string }>> {
-    return apiService.post<{ message: string }>(`/admin/affiliates/${id}/approve`);
-  }
-
-  /**
-   * Rejeitar solicitação de afiliado
-   */
-  async reject(id: string, reason: string): Promise<ApiResponse<{ message: string }>> {
-    return apiService.post<{ message: string }>(`/admin/affiliates/${id}/reject`, { reason });
-  }
-
-  /**
-   * Buscar rede genealógica
-   */
-  async getNetwork(): Promise<ApiResponse<{ tree: NetworkNode[]; stats: NetworkStats }>> {
-    return apiService.get<{ tree: NetworkNode[]; stats: NetworkStats }>('/admin/affiliates/network');
-  }
-
-  /**
-   * Exportar lista de afiliados
+   * Exportar CSV (gera download no browser)
    */
   async exportCSV(params: AffiliateListParams = {}): Promise<ApiResponse<void>> {
-    const queryParams = new URLSearchParams();
-    
-    if (params.search) queryParams.append('search', params.search);
-    if (params.status) queryParams.append('status', params.status);
+    try {
+      const response = await this.getAll({ ...params, limit: 10000 });
+      
+      if (!response.success || !response.data) {
+        throw new Error('Erro ao buscar dados');
+      }
 
-    const url = `/admin/affiliates/export${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
-    
-    const timestamp = new Date().toISOString().split('T')[0];
-    const filename = `afiliados_${timestamp}.csv`;
-    
-    return apiService.download(url, filename);
-  }
+      const affiliates = response.data.affiliates;
+      
+      // Gerar CSV
+      const headers = ['ID', 'Nome', 'Email', 'Telefone', 'Status', 'Código Referência', 'Data Cadastro'];
+      const rows = affiliates.map(a => [
+        a.id,
+        a.name,
+        a.email,
+        a.phone,
+        a.status,
+        a.referral_code,
+        new Date(a.created_at).toLocaleDateString('pt-BR')
+      ]);
 
-  /**
-   * Validar Wallet ID do Asaas
-   */
-  async validateWallet(walletId: string): Promise<ApiResponse<{ isValid: boolean; isActive: boolean; accountName?: string }>> {
-    return apiService.post<{ isValid: boolean; isActive: boolean; accountName?: string }>('/admin/affiliates/validate-wallet', { walletId });
+      const csv = [headers, ...rows].map(row => row.join(',')).join('\n');
+      
+      // Download
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `afiliados_${new Date().toISOString().split('T')[0]}.csv`;
+      link.click();
+      URL.revokeObjectURL(url);
+
+      return { success: true };
+    } catch (error: any) {
+      return { success: false, error: error.message };
+    }
   }
 }
 

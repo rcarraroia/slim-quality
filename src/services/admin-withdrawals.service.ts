@@ -1,160 +1,158 @@
 /**
  * Serviço de Saques Admin
- * BLOCO 4 - Frontend
+ * Usando Supabase diretamente
  */
 
-import { apiService, ApiResponse } from './api.service';
+import { supabase } from '@/config/supabase';
 
 export interface Withdrawal {
   id: string;
   affiliate_id: string;
   amount: number;
+  status: 'pending' | 'processing' | 'approved' | 'rejected';
   pix_key: string;
-  payment_method: 'pix' | 'bank_transfer';
-  status: 'pending' | 'processing' | 'approved' | 'rejected' | 'cancelled';
+  payment_method: string;
   created_at: string;
   processed_at?: string;
   rejection_reason?: string;
-  transaction_id?: string;
-  affiliate: {
+  affiliate?: {
     id: string;
     name: string;
     email: string;
-    available_balance: number;
   };
 }
 
 export interface WithdrawalListParams {
   page?: number;
   limit?: number;
-  search?: string;
   status?: string;
-  dateFrom?: string;
-  dateTo?: string;
   orderBy?: string;
   orderDirection?: 'asc' | 'desc';
 }
 
 export interface WithdrawalListResponse {
   withdrawals: Withdrawal[];
-  pagination: {
-    page: number;
-    limit: number;
-    total: number;
-    totalPages: number;
-  };
   summary: {
-    totalAmount: number;
-    pendingAmount: number;
-    approvedAmount: number;
-    rejectedAmount: number;
+    totalPending: number;
+    totalApproved: number;
+    pendingCount: number;
   };
+}
+
+export interface ApiResponse<T> {
+  success: boolean;
+  data?: T;
+  error?: string;
 }
 
 class AdminWithdrawalsService {
   /**
-   * Listar saques com filtros e paginação
+   * Listar saques com filtros
    */
   async getAll(params: WithdrawalListParams = {}): Promise<ApiResponse<WithdrawalListResponse>> {
-    const queryParams = new URLSearchParams();
-    
-    if (params.page) queryParams.append('page', params.page.toString());
-    if (params.limit) queryParams.append('limit', params.limit.toString());
-    if (params.search) queryParams.append('search', params.search);
-    if (params.status) queryParams.append('status', params.status);
-    if (params.dateFrom) queryParams.append('dateFrom', params.dateFrom);
-    if (params.dateTo) queryParams.append('dateTo', params.dateTo);
-    if (params.orderBy) queryParams.append('orderBy', params.orderBy);
-    if (params.orderDirection) queryParams.append('orderDirection', params.orderDirection);
+    try {
+      let query = supabase
+        .from('withdrawals')
+        .select(`
+          *,
+          affiliates:affiliate_id (id, name, email)
+        `)
+        .order(params.orderBy || 'created_at', { 
+          ascending: params.orderDirection === 'asc' 
+        });
 
-    const url = `/admin/withdrawals${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
-    return apiService.get<WithdrawalListResponse>(url);
-  }
+      // Filtro por status
+      if (params.status) {
+        query = query.eq('status', params.status);
+      }
 
-  /**
-   * Buscar saque por ID
-   */
-  async getById(id: string): Promise<ApiResponse<Withdrawal>> {
-    return apiService.get<Withdrawal>(`/admin/withdrawals/${id}`);
+      // Limite
+      if (params.limit) {
+        query = query.limit(params.limit);
+      }
+
+      const { data, error } = await query;
+
+      if (error) throw error;
+
+      // Mapear dados
+      const withdrawals: Withdrawal[] = (data || []).map(w => ({
+        id: w.id,
+        affiliate_id: w.affiliate_id,
+        amount: w.amount_cents ? w.amount_cents / 100 : w.amount || 0,
+        status: w.status,
+        pix_key: w.pix_key || '',
+        payment_method: w.payment_method || 'PIX',
+        created_at: w.created_at,
+        processed_at: w.processed_at,
+        rejection_reason: w.rejection_reason,
+        affiliate: w.affiliates ? {
+          id: w.affiliates.id,
+          name: w.affiliates.name,
+          email: w.affiliates.email
+        } : undefined
+      }));
+
+      // Calcular sumário
+      const summary = {
+        totalPending: withdrawals.filter(w => w.status === 'pending').reduce((sum, w) => sum + w.amount, 0),
+        totalApproved: withdrawals.filter(w => w.status === 'approved').reduce((sum, w) => sum + w.amount, 0),
+        pendingCount: withdrawals.filter(w => w.status === 'pending').length
+      };
+
+      return {
+        success: true,
+        data: { withdrawals, summary }
+      };
+    } catch (error: any) {
+      console.error('Erro ao listar saques:', error);
+      return { success: false, error: error.message };
+    }
   }
 
   /**
    * Aprovar saque
    */
-  async approve(id: string): Promise<ApiResponse<{ message: string; transactionId?: string }>> {
-    return apiService.post<{ message: string; transactionId?: string }>(`/admin/withdrawals/${id}/approve`);
+  async approve(id: string): Promise<ApiResponse<{ message: string }>> {
+    try {
+      const { error } = await supabase
+        .from('withdrawals')
+        .update({ 
+          status: 'approved',
+          processed_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', id);
+
+      if (error) throw error;
+
+      return { success: true, data: { message: 'Saque aprovado com sucesso' } };
+    } catch (error: any) {
+      return { success: false, error: error.message };
+    }
   }
 
   /**
    * Rejeitar saque
    */
   async reject(id: string, reason: string): Promise<ApiResponse<{ message: string }>> {
-    return apiService.post<{ message: string }>(`/admin/withdrawals/${id}/reject`, { reason });
-  }
+    try {
+      const { error } = await supabase
+        .from('withdrawals')
+        .update({ 
+          status: 'rejected',
+          rejection_reason: reason,
+          processed_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', id);
 
-  /**
-   * Cancelar saque
-   */
-  async cancel(id: string, reason: string): Promise<ApiResponse<{ message: string }>> {
-    return apiService.post<{ message: string }>(`/admin/withdrawals/${id}/cancel`, { reason });
-  }
+      if (error) throw error;
 
-  /**
-   * Marcar saque como processado
-   */
-  async markAsProcessed(id: string, transactionId: string): Promise<ApiResponse<{ message: string }>> {
-    return apiService.post<{ message: string }>(`/admin/withdrawals/${id}/mark-processed`, { transactionId });
-  }
-
-  /**
-   * Processar lote de saques
-   */
-  async processBatch(withdrawalIds: string[], action: 'approve' | 'reject', reason?: string): Promise<ApiResponse<{ processed: number; failed: number }>> {
-    return apiService.post<{ processed: number; failed: number }>('/admin/withdrawals/batch', {
-      withdrawalIds,
-      action,
-      reason
-    });
-  }
-
-  /**
-   * Exportar relatório de saques
-   */
-  async exportCSV(params: WithdrawalListParams = {}): Promise<ApiResponse<void>> {
-    const queryParams = new URLSearchParams();
-    
-    if (params.search) queryParams.append('search', params.search);
-    if (params.status) queryParams.append('status', params.status);
-    if (params.dateFrom) queryParams.append('dateFrom', params.dateFrom);
-    if (params.dateTo) queryParams.append('dateTo', params.dateTo);
-
-    const url = `/admin/withdrawals/export${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
-    
-    const timestamp = new Date().toISOString().split('T')[0];
-    const filename = `saques_${timestamp}.csv`;
-    
-    return apiService.download(url, filename);
-  }
-
-  /**
-   * Buscar estatísticas de saques
-   */
-  async getStats(period: 'week' | 'month' | 'quarter' | 'year' = 'month'): Promise<ApiResponse<{
-    totalWithdrawals: number;
-    totalAmount: number;
-    averageWithdrawal: number;
-    withdrawalsByStatus: Array<{ status: string; count: number; amount: number }>;
-    withdrawalsByMethod: Array<{ method: string; count: number; amount: number }>;
-    topWithdrawers: Array<{ id: string; name: string; totalWithdrawals: number; totalAmount: number }>;
-  }>> {
-    return apiService.get(`/admin/withdrawals/stats?period=${period}`);
-  }
-
-  /**
-   * Validar chave PIX
-   */
-  async validatePixKey(pixKey: string): Promise<ApiResponse<{ isValid: boolean; type: string; name?: string }>> {
-    return apiService.post<{ isValid: boolean; type: string; name?: string }>('/admin/withdrawals/validate-pix', { pixKey });
+      return { success: true, data: { message: 'Saque rejeitado' } };
+    } catch (error: any) {
+      return { success: false, error: error.message };
+    }
   }
 }
 

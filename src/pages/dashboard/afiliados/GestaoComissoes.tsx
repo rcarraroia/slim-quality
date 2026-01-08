@@ -259,7 +259,7 @@ export default function GestaoComissoes() {
                   <p className="text-muted-foreground">Carregando comissões...</p>
                 </TableCell>
               </TableRow>
-            ) : filteredComissoes.length === 0 ? (
+            ) : comissoes.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={10} className="text-center py-12">
                   <PackageOpen className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
@@ -272,7 +272,7 @@ export default function GestaoComissoes() {
                 </TableCell>
               </TableRow>
             ) : (
-              filteredComissoes.map((comissao) => (
+              comissoes.map((comissao) => (
                 <TableRow key={comissao.id}>
                   <TableCell className="font-medium">#{comissao.id.slice(0, 8)}</TableCell>
                   <TableCell>
