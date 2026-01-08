@@ -147,10 +147,18 @@ export default async function handler(req, res) {
     const paymentData = await paymentRes.json();
 
     if (!paymentRes.ok) {
+      console.error('Asaas payment error:', JSON.stringify(paymentData, null, 2));
       return res.status(500).json({ 
         success: false, 
         error: 'Erro ao criar pagamento no Asaas',
-        details: paymentData
+        details: paymentData,
+        debug: {
+          customerId: asaasCustomerId,
+          billingType,
+          amount,
+          walletRenum: ASAAS_WALLET_RENUM?.substring(0, 10) + '...',
+          walletJB: ASAAS_WALLET_JB?.substring(0, 10) + '...'
+        }
       });
     }
 
