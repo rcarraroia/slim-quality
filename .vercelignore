@@ -1,6 +1,11 @@
 # Ignorar pasta do backend (vai para Easypanel)
 agent/
 
+# Ignorar APIs TypeScript do backend (usa server/index.js CommonJS)
+src/api/
+src/server.ts
+api/
+
 # Ignorar arquivos de desenvolvimento
 *.log
 .env
