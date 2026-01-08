@@ -1,0 +1,4 @@
+// Função de health check mínima
+module.exports = function handler(req, res) {
+  res.status(200).json({ status: 'ok', timestamp: Date.now() });
+};
