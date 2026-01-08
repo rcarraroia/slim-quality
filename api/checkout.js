@@ -3,7 +3,7 @@
  * Processa pagamentos de forma segura (API key no servidor)
  */
 
-import { createClient } from '@supabase/supabase-js';
+const { createClient } = require('@supabase/supabase-js');
 
 // Configuração
 const ASAAS_API_KEY = process.env.ASAAS_API_KEY;
@@ -16,7 +16,7 @@ const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SU
 
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   // CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -126,7 +126,7 @@ export default async function handler(req, res) {
       error: error.message || 'Erro ao processar pagamento' 
     });
   }
-}
+};
 
 // Busca rede de afiliados (N1, N2, N3)
 async function buildAffiliateNetwork(referralCode) {
@@ -153,7 +153,7 @@ async function buildAffiliateNetwork(referralCode) {
       .eq('status', 'active')
       .single();
 
-    if (n2?.wallet_id && isValidWalletId(n2.wallet_id)) {
+    if (n2 && n2.wallet_id && isValidWalletId(n2.wallet_id)) {
       network.n2 = { id: n2.id, walletId: n2.wallet_id };
 
       if (n2.referred_by) {
@@ -164,7 +164,7 @@ async function buildAffiliateNetwork(referralCode) {
           .eq('status', 'active')
           .single();
 
-        if (n3?.wallet_id && isValidWalletId(n3.wallet_id)) {
+        if (n3 && n3.wallet_id && isValidWalletId(n3.wallet_id)) {
           network.n3 = { id: n3.id, walletId: n3.wallet_id };
         }
       }
