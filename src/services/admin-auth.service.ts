@@ -57,11 +57,11 @@ class AdminAuthService {
         };
       }
 
-      // Buscar dados do admin na tabela admins
+      // Buscar dados do admin na tabela admins (usando id, não user_id)
       const { data: adminData, error: adminError } = await supabase
         .from('admins')
         .select('*')
-        .eq('user_id', authData.user.id)
+        .eq('id', authData.user.id)
         .single();
 
       if (adminError || !adminData) {
@@ -208,11 +208,11 @@ class AdminAuthService {
         };
       }
 
-      // Buscar dados do admin
+      // Buscar dados do admin (usando id, não user_id)
       const { data: adminData, error: adminError } = await supabase
         .from('admins')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('id', user.id)
         .single();
 
       if (adminError || !adminData) {
