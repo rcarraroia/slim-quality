@@ -30,6 +30,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { usePendingLearningBadge } from '@/hooks/useRealtimeConversations';
+import { useAuth } from '@/hooks/useAuth';
 
 export function DashboardLayout() {
   const location = useLocation();
@@ -45,6 +46,9 @@ export function DashboardLayout() {
   
   // Hook para badge dinâmico de aprendizados pendentes
   const { count: pendingLearningCount } = usePendingLearningBadge();
+  
+  // Hook de autenticação para logout
+  const { logout } = useAuth();
 
   const menuItems = [
     { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard', disabled: false },
@@ -88,8 +92,8 @@ export function DashboardLayout() {
     return currentItem?.label || 'Dashboard';
   };
 
-  const handleLogout = () => {
-    navigate('/login');
+  const handleLogout = async () => {
+    await logout();
   };
   
   const handleNavigation = (path: string) => {
