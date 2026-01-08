@@ -43,8 +43,8 @@ export class CheckoutService {
         await this.processAffiliateTracking(order.id, data.affiliate);
       }
       
-      // 6. Gerar link de pagamento (simulado por enquanto)
-      const paymentUrl = await this.generatePaymentUrl(order, data.payment);
+      // 6. Gerar link de pagamento - passar CPF diretamente do formulário
+      const paymentUrl = await this.generatePaymentUrl(order, data.payment, data.customer.cpf_cnpj, data.shipping);
       
       console.log('✅ Checkout concluído:', { 
         customer_id: customer.id, 
@@ -70,6 +70,7 @@ export class CheckoutService {
   
   /**
    * Encontra cliente existente ou cria novo
+   * Se cliente existe mas CPF foi fornecido, atualiza o CPF
    */
   private async findOrCreateCustomer(customerData: CreateCustomerData): Promise<Customer> {
     // Verificar se cliente já existe pelo email
@@ -82,7 +83,30 @@ export class CheckoutService {
     
     if (existingCustomer) {
       console.log('👤 Cliente existente encontrado:', existingCustomer.id);
-      return existingCustomer;
+      
+      // Se CPF foi fornecido e cliente não tem CPF, atualizar
+      if (customerData.cpf_cnpj && !existingCustomer.cpf_cnpj) {
+        console.log('📝 Atualizando CPF do cliente existente');
+        const { data: updatedCustomer, error: updateError } = await supabase
+          .from('customers')
+          .update({ 
+            cpf_cnpj: customerData.cpf_cnpj,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', existingCustomer.id)
+          .select()
+          .single();
+        
+        if (!updateError && updatedCustomer) {
+          return updatedCustomer;
+        }
+      }
+      
+      // Retornar cliente com CPF atualizado se foi fornecido
+      return {
+        ...existingCustomer,
+        cpf_cnpj: customerData.cpf_cnpj || existingCustomer.cpf_cnpj
+      };
     }
     
     // Criar novo cliente
@@ -367,7 +391,12 @@ export class CheckoutService {
   /**
    * Gera URL de pagamento via backend seguro (API key protegida)
    */
-  private async generatePaymentUrl(order: Order, payment: CheckoutData['payment']): Promise<string> {
+  private async generatePaymentUrl(
+    order: Order, 
+    payment: CheckoutData['payment'],
+    cpfCnpj?: string,
+    shippingData?: Omit<CreateShippingAddressData, 'order_id'>
+  ): Promise<string> {
     try {
       // Buscar dados do cliente
       const { data: customer } = await supabase
@@ -399,15 +428,18 @@ export class CheckoutService {
       
       const firstItem = orderItems[0];
       
+      // Usar CPF passado diretamente do formulário (prioridade) ou do banco
+      const finalCpfCnpj = cpfCnpj || customer.cpf_cnpj;
+      
       // Preparar dados do customer para Asaas
       const asaasCustomer = {
         name: customer.name,
         email: customer.email,
         phone: customer.phone,
         mobilePhone: customer.phone,
-        cpfCnpj: customer.cpf_cnpj || undefined,
-        postalCode: shippingAddress?.postal_code?.replace(/\D/g, '') || undefined,
-        addressNumber: shippingAddress?.number || undefined
+        cpfCnpj: finalCpfCnpj,
+        postalCode: shippingData?.postal_code?.replace(/\D/g, '') || shippingAddress?.postal_code?.replace(/\D/g, '') || undefined,
+        addressNumber: shippingData?.number || shippingAddress?.number || undefined
       };
 
       // Validar CPF antes de enviar
