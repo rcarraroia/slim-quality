@@ -5,16 +5,40 @@
 
 const { createClient } = require('@supabase/supabase-js');
 
-// Configuração
-const ASAAS_API_KEY = process.env.ASAAS_API_KEY;
-const ASAAS_WALLET_RENUM = process.env.ASAAS_WALLET_RENUM;
-const ASAAS_WALLET_JB = process.env.ASAAS_WALLET_JB;
+// Configuração Asaas (constantes)
 const ASAAS_BASE_URL = 'https://api.asaas.com/v3';
 
-const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY;
+// Variáveis lazy-loaded dentro do handler
+let supabase = null;
+let ASAAS_API_KEY = null;
+let ASAAS_WALLET_RENUM = null;
+let ASAAS_WALLET_JB = null;
 
-const supabase = createClient(supabaseUrl, supabaseKey);
+function initializeClients() {
+  // Carregar variáveis de ambiente
+  ASAAS_API_KEY = process.env.ASAAS_API_KEY;
+  ASAAS_WALLET_RENUM = process.env.ASAAS_WALLET_RENUM;
+  ASAAS_WALLET_JB = process.env.ASAAS_WALLET_JB;
+  
+  const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+  const supabaseKey = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY;
+  
+  // Log para debug (sem expor valores sensíveis)
+  console.log('[Checkout] Inicializando com:', {
+    hasSupabaseUrl: !!supabaseUrl,
+    hasSupabaseKey: !!supabaseKey,
+    hasAsaasKey: !!ASAAS_API_KEY,
+    hasWalletRenum: !!ASAAS_WALLET_RENUM,
+    hasWalletJB: !!ASAAS_WALLET_JB
+  });
+  
+  if (!supabaseUrl || !supabaseKey) {
+    throw new Error(`Supabase não configurado: URL=${!!supabaseUrl}, KEY=${!!supabaseKey}`);
+  }
+  
+  supabase = createClient(supabaseUrl, supabaseKey);
+  return true;
+}
 
 module.exports = async function handler(req, res) {
   // CORS
@@ -31,6 +55,11 @@ module.exports = async function handler(req, res) {
   }
 
   try {
+    // Inicializar clientes (lazy loading)
+    if (!supabase) {
+      initializeClients();
+    }
+    
     const { customer, orderId, amount, description, billingType, installments, referralCode } = req.body;
 
     console.log(`[Checkout] 🛒 Processando pedido: ${orderId}`);
