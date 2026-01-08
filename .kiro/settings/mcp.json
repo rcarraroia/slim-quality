@@ -8,21 +8,8 @@
         "get-endpoint",
         "search-specs",
         "get-request-body",
-        "get-response-schema"
-      ]
-    },
-    "vercel": {
-      "command": "npx",
-      "args": ["@vercel/mcp"],
-      "env": {
-        "VERCEL_TOKEN": "TcvNIUTOB7A4v2DeAMDyCG8d"
-      },
-      "autoApprove": [
-        "list_projects",
-        "get_project",
-        "list_deployments",
-        "get_deployment",
-        "get_logs"
+        "get-response-schema",
+        "execute-request"
       ]
     }
   }

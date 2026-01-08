@@ -178,13 +178,11 @@ export class OrderAffiliateProcessor {
   ): Promise<{ totalCommission: number }> {
     
     // Calcular comissões usando o CommissionCalculatorService
-    const commissionData = {
+    const result = await this.commissionCalculator.calculateCommissions({
       orderId: orderData.orderId,
       totalAmount: orderData.totalAmount,
       affiliateId: affiliate.id
-    };
-
-    const result = await this.commissionCalculator.calculateCommissions(commissionData);
+    });
     
     if (!result.success) {
       throw new Error(`Erro ao calcular comissões: ${result.error}`);

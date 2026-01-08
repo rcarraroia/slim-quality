@@ -214,7 +214,158 @@ export class CheckoutService {
   }
   
   /**
-   * Gera URL de pagamento via Asaas
+   * Valida formato de Wallet ID do Asaas
+   * Aceita formato wal_xxxxx (novo) ou UUID (legado)
+   */
+  private isValidWalletId(walletId: string): boolean {
+    // Formato novo: wal_xxxxx
+    const walFormat = /^wal_[a-zA-Z0-9]{16,32}$/.test(walletId);
+    // Formato UUID (legado, ainda aceito pelo Asaas)
+    const uuidFormat = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(walletId);
+    return walFormat || uuidFormat;
+  }
+
+  /**
+   * Busca rede de afiliados completa (N1, N2, N3) baseado no referral_code
+   */
+  private async buildAffiliateNetwork(referralCode: string): Promise<{
+    n1?: { id: string; walletId: string };
+    n2?: { id: string; walletId: string };
+    n3?: { id: string; walletId: string };
+  }> {
+    const network: {
+      n1?: { id: string; walletId: string };
+      n2?: { id: string; walletId: string };
+      n3?: { id: string; walletId: string };
+    } = {};
+
+    // Buscar N1 pelo referral_code
+    const { data: n1Affiliate } = await supabase
+      .from('affiliates')
+      .select('id, wallet_id, referred_by')
+      .eq('referral_code', referralCode)
+      .eq('status', 'active')
+      .single();
+
+    if (!n1Affiliate || !n1Affiliate.wallet_id || !this.isValidWalletId(n1Affiliate.wallet_id)) {
+      console.log('⚠️ N1 não encontrado ou wallet inválida:', referralCode);
+      return network;
+    }
+
+    network.n1 = { id: n1Affiliate.id, walletId: n1Affiliate.wallet_id };
+    console.log('✅ N1 encontrado:', network.n1.id);
+
+    // Buscar N2 (quem indicou o N1)
+    if (n1Affiliate.referred_by) {
+      const { data: n2Affiliate } = await supabase
+        .from('affiliates')
+        .select('id, wallet_id, referred_by')
+        .eq('id', n1Affiliate.referred_by)
+        .eq('status', 'active')
+        .single();
+
+      if (n2Affiliate?.wallet_id && this.isValidWalletId(n2Affiliate.wallet_id)) {
+        network.n2 = { id: n2Affiliate.id, walletId: n2Affiliate.wallet_id };
+        console.log('✅ N2 encontrado:', network.n2.id);
+
+        // Buscar N3 (quem indicou o N2)
+        if (n2Affiliate.referred_by) {
+          const { data: n3Affiliate } = await supabase
+            .from('affiliates')
+            .select('id, wallet_id')
+            .eq('id', n2Affiliate.referred_by)
+            .eq('status', 'active')
+            .single();
+
+          if (n3Affiliate?.wallet_id && this.isValidWalletId(n3Affiliate.wallet_id)) {
+            network.n3 = { id: n3Affiliate.id, walletId: n3Affiliate.wallet_id };
+            console.log('✅ N3 encontrado:', network.n3.id);
+          }
+        }
+      }
+    }
+
+    return network;
+  }
+
+  /**
+   * Calcula split baseado na rede de afiliados
+   * REGRAS:
+   * - Total split: SEMPRE 30% (70% fica automático na conta principal via API Key)
+   * - Sem afiliado: 15% Renum + 15% JB
+   * - Apenas N1: 15% N1 + 7.5% Renum + 7.5% JB
+   * - N1+N2: 15% N1 + 3% N2 + 6% Renum + 6% JB
+   * - Rede completa: 15% N1 + 3% N2 + 2% N3 + 5% Renum + 5% JB
+   */
+  private calculateSplit(network: {
+    n1?: { id: string; walletId: string };
+    n2?: { id: string; walletId: string };
+    n3?: { id: string; walletId: string };
+  }): { walletId: string; percentualValue: number }[] {
+    const WALLET_RENUM = import.meta.env.VITE_ASAAS_WALLET_RENUM;
+    const WALLET_JB = import.meta.env.VITE_ASAAS_WALLET_JB;
+
+    // Validar wallets dos gestores
+    if (!WALLET_RENUM || !this.isValidWalletId(WALLET_RENUM)) {
+      console.error('❌ VITE_ASAAS_WALLET_RENUM inválida ou não configurada');
+      throw new Error('Wallet Renum não configurada corretamente');
+    }
+    if (!WALLET_JB || !this.isValidWalletId(WALLET_JB)) {
+      console.error('❌ VITE_ASAAS_WALLET_JB inválida ou não configurada');
+      throw new Error('Wallet JB não configurada corretamente');
+    }
+
+    const splits: { walletId: string; percentualValue: number }[] = [];
+
+    if (!network.n1) {
+      // SEM AFILIADO: 15% cada para gestores = 30%
+      console.log('📊 Split: Sem afiliado (15% + 15%)');
+      splits.push(
+        { walletId: WALLET_RENUM, percentualValue: 15 },
+        { walletId: WALLET_JB, percentualValue: 15 }
+      );
+    } else if (!network.n2) {
+      // APENAS N1: 15% N1 + 7.5% Renum + 7.5% JB = 30%
+      console.log('📊 Split: Apenas N1 (15% + 7.5% + 7.5%)');
+      splits.push(
+        { walletId: network.n1.walletId, percentualValue: 15 },
+        { walletId: WALLET_RENUM, percentualValue: 7.5 },
+        { walletId: WALLET_JB, percentualValue: 7.5 }
+      );
+    } else if (!network.n3) {
+      // N1+N2: 15% N1 + 3% N2 + 6% Renum + 6% JB = 30%
+      console.log('📊 Split: N1+N2 (15% + 3% + 6% + 6%)');
+      splits.push(
+        { walletId: network.n1.walletId, percentualValue: 15 },
+        { walletId: network.n2.walletId, percentualValue: 3 },
+        { walletId: WALLET_RENUM, percentualValue: 6 },
+        { walletId: WALLET_JB, percentualValue: 6 }
+      );
+    } else {
+      // REDE COMPLETA: 15% N1 + 3% N2 + 2% N3 + 5% Renum + 5% JB = 30%
+      console.log('📊 Split: Rede completa (15% + 3% + 2% + 5% + 5%)');
+      splits.push(
+        { walletId: network.n1.walletId, percentualValue: 15 },
+        { walletId: network.n2.walletId, percentualValue: 3 },
+        { walletId: network.n3.walletId, percentualValue: 2 },
+        { walletId: WALLET_RENUM, percentualValue: 5 },
+        { walletId: WALLET_JB, percentualValue: 5 }
+      );
+    }
+
+    // Validação crítica: deve ser exatamente 30%
+    const totalSplit = splits.reduce((sum, split) => sum + split.percentualValue, 0);
+    if (totalSplit !== 30) {
+      console.error(`❌ Erro no cálculo do split: ${totalSplit}% ao invés de 30%`);
+      throw new Error(`Split calculation error: total is ${totalSplit}%, expected 30%`);
+    }
+
+    console.log('✅ Split calculado corretamente:', splits);
+    return splits;
+  }
+
+  /**
+   * Gera URL de pagamento via Asaas com split integrado na criação
    */
   private async generatePaymentUrl(order: Order, payment: CheckoutData['payment']): Promise<string> {
     try {
@@ -253,70 +404,44 @@ export class CheckoutService {
         cpfCnpj: customer.cpf_cnpj || undefined
       };
       
-      // Preparar splits se houver afiliado
-      const splits = [];
-      
-      // 70% para a fábrica (Slim Quality)
-      splits.push({
-        walletId: 'f9c7d1dd-9e52-4e81-8194-8b666f276405', // Wallet principal
-        percentualValue: 70
+      // Construir rede de afiliados se houver referral_code
+      let affiliateNetwork: {
+        n1?: { id: string; walletId: string };
+        n2?: { id: string; walletId: string };
+        n3?: { id: string; walletId: string };
+      } = {};
+
+      if (order.referral_code) {
+        console.log('🔍 Buscando rede de afiliados para:', order.referral_code);
+        affiliateNetwork = await this.buildAffiliateNetwork(order.referral_code);
+      }
+
+      // Calcular split (SEMPRE 30%, sem incluir 70% da fábrica)
+      const splits = this.calculateSplit(affiliateNetwork);
+
+      // Log detalhado para auditoria
+      console.log('💰 Processando pagamento:', {
+        orderId: order.id,
+        orderNumber: order.order_number,
+        totalCents: order.total_cents,
+        referralCode: order.referral_code,
+        affiliateNetwork: {
+          n1: affiliateNetwork.n1?.id,
+          n2: affiliateNetwork.n2?.id,
+          n3: affiliateNetwork.n3?.id
+        },
+        splits
       });
       
-      // Se houver afiliado, calcular comissões
-      if (order.affiliate_n1_id) {
-        // 15% para afiliado N1
-        const { data: affiliate } = await supabase
-          .from('affiliates')
-          .select('wallet_id')
-          .eq('user_id', order.affiliate_n1_id)
-          .single();
-        
-        if (affiliate?.wallet_id) {
-          splits.push({
-            walletId: affiliate.wallet_id,
-            percentualValue: 15
-          });
-        }
-        
-        // 5% para Renum
-        splits.push({
-          walletId: import.meta.env.VITE_ASAAS_WALLET_RENUM || 'f9c7d1dd-9e52-4e81-8194-8b666f276405',
-          percentualValue: 5
-        });
-        
-        // 5% para JB
-        splits.push({
-          walletId: import.meta.env.VITE_ASAAS_WALLET_JB || '7c06e9d9-dbae-4a85-82f4-36716775bcb2',
-          percentualValue: 5
-        });
-        
-        // 5% restante para a fábrica (redistribuição)
-        splits[0].percentualValue = 75; // 70% + 5%
-      } else {
-        // Sem afiliado: 15% redistribuído para gestores
-        splits.push({
-          walletId: import.meta.env.VITE_ASAAS_WALLET_RENUM || 'f9c7d1dd-9e52-4e81-8194-8b666f276405',
-          percentualValue: 7.5
-        });
-        
-        splits.push({
-          walletId: import.meta.env.VITE_ASAAS_WALLET_JB || '7c06e9d9-dbae-4a85-82f4-36716775bcb2',
-          percentualValue: 7.5
-        });
-        
-        // Fábrica fica com 85% (70% + 15%)
-        splits[0].percentualValue = 85;
-      }
-      
-      // Tentar processar checkout no Asaas
+      // Processar checkout no Asaas COM split incluído na criação
       const checkoutResult = await asaasService.processCheckout({
         customer: asaasCustomer,
-        amount: order.total_cents / 100, // Converter centavos para reais
+        amount: order.total_cents / 100,
         description: `Pedido ${order.order_number} - ${firstItem.product_name}`,
         externalReference: order.id,
         billingType: payment.method.toUpperCase() as 'PIX' | 'CREDIT_CARD' | 'BOLETO',
         installments: payment.installments,
-        splits: splits
+        splits: splits // Split incluído na criação do pagamento
       });
       
       if (checkoutResult.success) {
@@ -341,25 +466,29 @@ export class CheckoutService {
         } else {
           console.log('💾 Registro de pagamento criado:', paymentRecord.id);
         }
+
+        // Salvar informações do split para auditoria
+        await this.saveSplitAuditLog(order.id, splits, affiliateNetwork);
         
-        // Atualizar pedido com ID do pagamento Asaas
+        // Atualizar pedido com informações do afiliado
         await supabase
           .from('orders')
           .update({ 
+            affiliate_n1_id: affiliateNetwork.n1?.id || null,
             updated_at: new Date().toISOString()
           })
           .eq('id', order.id);
         
-        console.log('💳 Checkout Asaas processado:', {
+        console.log('✅ Checkout Asaas processado com split:', {
           orderId: order.id,
           paymentId: checkoutResult.paymentId,
+          splitTotal: '30%',
           checkoutUrl: checkoutResult.checkoutUrl
         });
         
         return checkoutResult.checkoutUrl || checkoutResult.pixQrCode || checkoutResult.boletoUrl || '';
       } else {
-        // Asaas falhou - usar fallback
-        console.warn('⚠️ Asaas falhou, usando fallback:', checkoutResult.error);
+        console.warn('⚠️ Asaas falhou:', checkoutResult.error);
         throw new Error(`Asaas indisponível: ${checkoutResult.error}`);
       }
       
@@ -376,6 +505,48 @@ export class CheckoutService {
       });
       
       return `${baseUrl}/pagamento-simulado?${paymentParams.toString()}`;
+    }
+  }
+
+  /**
+   * Salva log de auditoria do split para rastreabilidade
+   */
+  private async saveSplitAuditLog(
+    orderId: string, 
+    splits: { walletId: string; percentualValue: number }[],
+    network: {
+      n1?: { id: string; walletId: string };
+      n2?: { id: string; walletId: string };
+      n3?: { id: string; walletId: string };
+    }
+  ): Promise<void> {
+    try {
+      // Tentar salvar na tabela de auditoria se existir
+      const { error } = await supabase
+        .from('commission_logs')
+        .insert({
+          order_id: orderId,
+          action: 'SPLIT_CALCULATED',
+          details: JSON.stringify({
+            splits,
+            network: {
+              n1_id: network.n1?.id,
+              n2_id: network.n2?.id,
+              n3_id: network.n3?.id
+            },
+            total_percentage: 30,
+            calculated_at: new Date().toISOString()
+          })
+        });
+
+      if (error) {
+        // Se tabela não existir, apenas logar
+        console.log('📝 Audit log (tabela não disponível):', { orderId, splits });
+      } else {
+        console.log('📝 Audit log salvo para pedido:', orderId);
+      }
+    } catch (err) {
+      console.warn('⚠️ Erro ao salvar audit log:', err);
     }
   }
   
