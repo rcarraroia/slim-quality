@@ -286,12 +286,317 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+// ============================================
+// WEBHOOK ASAAS - Sistema de Pagamentos
+// ============================================
+
+// Eventos suportados pelo webhook
+const SUPPORTED_WEBHOOK_EVENTS = [
+  'PAYMENT_RECEIVED',
+  'PAYMENT_CONFIRMED', 
+  'PAYMENT_SPLIT_CANCELLED',
+  'PAYMENT_SPLIT_DIVERGENCE_BLOCK',
+  'PAYMENT_OVERDUE',
+  'PAYMENT_REFUNDED'
+];
+
+/**
+ * POST /api/webhooks/asaas
+ * Processa notificações de pagamento do Asaas
+ */
+app.post('/api/webhooks/asaas', async (req, res) => {
+  const startTime = Date.now();
+  
+  try {
+    const webhookData = req.body;
+    const event = webhookData.event;
+    const payment = webhookData.payment;
+    
+    console.log(`[AsaasWebhook] 📥 Recebido: ${event} | Payment: ${payment?.id}`);
+
+    // Verificar se é um evento suportado
+    if (!SUPPORTED_WEBHOOK_EVENTS.includes(event)) {
+      console.log(`[AsaasWebhook] ⏭️ Evento não suportado: ${event}`);
+      return res.json({ message: 'Evento não suportado', event });
+    }
+
+    // Processar evento
+    let result = { success: false };
+    
+    switch (event) {
+      case 'PAYMENT_RECEIVED':
+        result = await handlePaymentReceived(payment);
+        break;
+      case 'PAYMENT_CONFIRMED':
+        result = await handlePaymentConfirmed(payment);
+        break;
+      case 'PAYMENT_SPLIT_CANCELLED':
+      case 'PAYMENT_SPLIT_DIVERGENCE_BLOCK':
+        result = await handleSplitError(payment, event);
+        break;
+      case 'PAYMENT_OVERDUE':
+        result = await handlePaymentOverdue(payment);
+        break;
+      case 'PAYMENT_REFUNDED':
+        result = await handlePaymentRefunded(payment);
+        break;
+    }
+
+    // Log do tempo de processamento
+    const processingTime = Date.now() - startTime;
+    console.log(`[AsaasWebhook] ⏱️ Processado em ${processingTime}ms`);
+
+    // Registrar webhook no log
+    await logWebhookEvent(webhookData, result, processingTime);
+
+    res.json({
+      success: result.success,
+      message: result.success ? 'Webhook processado com sucesso' : 'Falha no processamento',
+      orderId: result.orderId,
+      processingTime: `${processingTime}ms`
+    });
+
+  } catch (error) {
+    console.error('[AsaasWebhook] ❌ Erro crítico:', error);
+    res.status(500).json({ success: false, error: 'Erro interno do servidor' });
+  }
+});
+
+/**
+ * GET /api/webhooks/asaas/health
+ * Health check do webhook
+ */
+app.get('/api/webhooks/asaas/health', (req, res) => {
+  res.json({ 
+    status: 'ok', 
+    timestamp: new Date().toISOString(),
+    supportedEvents: SUPPORTED_WEBHOOK_EVENTS
+  });
+});
+
+// Handler: PAYMENT_RECEIVED
+async function handlePaymentReceived(payment) {
+  console.log(`[AsaasWebhook] 💰 Pagamento recebido: ${payment.id}`);
+  
+  const orderId = await findOrderByAsaasPaymentId(payment.id, payment.externalReference);
+  if (!orderId) {
+    return { success: false, error: `Pedido não encontrado para payment: ${payment.id}` };
+  }
+  
+  await updateOrderStatus(orderId, 'processing');
+  return { success: true, orderId };
+}
+
+// Handler: PAYMENT_CONFIRMED
+async function handlePaymentConfirmed(payment) {
+  console.log(`[AsaasWebhook] ✅ Pagamento confirmado: ${payment.id}`);
+  
+  const orderId = await findOrderByAsaasPaymentId(payment.id, payment.externalReference);
+  if (!orderId) {
+    return { success: false, error: `Pedido não encontrado para payment: ${payment.id}` };
+  }
+  
+  await updateOrderStatus(orderId, 'paid');
+  
+  // Processar comissões
+  const commissionResult = await processOrderCommissions(orderId, payment.value);
+  
+  return {
+    success: true,
+    orderId,
+    commissionsCalculated: commissionResult.calculated,
+    totalCommission: commissionResult.totalCommission
+  };
+}
+
+// Handler: SPLIT_ERROR
+async function handleSplitError(payment, event) {
+  console.error(`[AsaasWebhook] ⚠️ Erro de split: ${event} | Payment: ${payment.id}`);
+  
+  const orderId = await findOrderByAsaasPaymentId(payment.id, payment.externalReference);
+  
+  await supabase.from('commission_logs').insert({
+    order_id: orderId,
+    action: 'SPLIT_ERROR',
+    details: JSON.stringify({
+      event,
+      payment_id: payment.id,
+      split_data: payment.split,
+      error_at: new Date().toISOString()
+    })
+  });
+  
+  return { success: false, orderId, error: `Split error: ${event}` };
+}
+
+// Handler: PAYMENT_OVERDUE
+async function handlePaymentOverdue(payment) {
+  console.log(`[AsaasWebhook] ⏰ Pagamento vencido: ${payment.id}`);
+  
+  const orderId = await findOrderByAsaasPaymentId(payment.id, payment.externalReference);
+  if (orderId) {
+    await updateOrderStatus(orderId, 'overdue');
+  }
+  
+  return { success: true, orderId };
+}
+
+// Handler: PAYMENT_REFUNDED
+async function handlePaymentRefunded(payment) {
+  console.log(`[AsaasWebhook] 💸 Pagamento estornado: ${payment.id}`);
+  
+  const orderId = await findOrderByAsaasPaymentId(payment.id, payment.externalReference);
+  if (orderId) {
+    await updateOrderStatus(orderId, 'refunded');
+    await cancelOrderCommissions(orderId);
+  }
+  
+  return { success: true, orderId };
+}
+
+// Busca pedido pelo ID do pagamento Asaas
+async function findOrderByAsaasPaymentId(asaasPaymentId, externalReference) {
+  try {
+    // 1. Tentar pela referência externa (order_id)
+    if (externalReference) {
+      const { data: orderByRef } = await supabase
+        .from('orders')
+        .select('id')
+        .eq('id', externalReference)
+        .single();
+      
+      if (orderByRef) return orderByRef.id;
+    }
+
+    // 2. Buscar na tabela payments
+    const { data: payment } = await supabase
+      .from('payments')
+      .select('order_id')
+      .eq('asaas_payment_id', asaasPaymentId)
+      .single();
+
+    if (payment) return payment.order_id;
+
+    return null;
+  } catch (error) {
+    console.error('[AsaasWebhook] Erro ao buscar pedido:', error);
+    return null;
+  }
+}
+
+// Atualiza status do pedido
+async function updateOrderStatus(orderId, status) {
+  try {
+    const updateData = {
+      status,
+      updated_at: new Date().toISOString()
+    };
+
+    if (status === 'paid') {
+      updateData.paid_at = new Date().toISOString();
+    }
+
+    await supabase.from('orders').update(updateData).eq('id', orderId);
+    console.log(`[AsaasWebhook] 📊 Pedido ${orderId} atualizado para: ${status}`);
+  } catch (error) {
+    console.error('[AsaasWebhook] Erro ao atualizar pedido:', error);
+  }
+}
+
+// Processa comissões do pedido
+async function processOrderCommissions(orderId, orderValue) {
+  try {
+    const { data: order } = await supabase
+      .from('orders')
+      .select('*, referral_code, affiliate_n1_id')
+      .eq('id', orderId)
+      .single();
+
+    if (!order?.referral_code) {
+      console.log(`[AsaasWebhook] Pedido ${orderId} sem afiliado`);
+      return { calculated: false };
+    }
+
+    const { data: affiliate } = await supabase
+      .from('affiliates')
+      .select('id, user_id, wallet_id')
+      .eq('referral_code', order.referral_code)
+      .eq('status', 'active')
+      .single();
+
+    if (!affiliate) {
+      return { calculated: false };
+    }
+
+    const totalCommission = orderValue * 0.30;
+
+    await supabase.from('commission_logs').insert({
+      order_id: orderId,
+      action: 'COMMISSION_CALCULATED',
+      details: JSON.stringify({
+        affiliate_id: affiliate.id,
+        order_value: orderValue,
+        total_commission: totalCommission,
+        calculated_at: new Date().toISOString()
+      })
+    });
+
+    console.log(`[AsaasWebhook] 💰 Comissão calculada: R$ ${totalCommission.toFixed(2)}`);
+
+    return { calculated: true, totalCommission };
+  } catch (error) {
+    console.error('[AsaasWebhook] Erro ao processar comissões:', error);
+    return { calculated: false };
+  }
+}
+
+// Cancela comissões de um pedido
+async function cancelOrderCommissions(orderId) {
+  try {
+    await supabase
+      .from('commissions')
+      .update({ status: 'cancelled', updated_at: new Date().toISOString() })
+      .eq('order_id', orderId);
+
+    console.log(`[AsaasWebhook] ❌ Comissões canceladas para pedido: ${orderId}`);
+  } catch (error) {
+    console.error('[AsaasWebhook] Erro ao cancelar comissões:', error);
+  }
+}
+
+// Registra evento do webhook no log
+async function logWebhookEvent(webhookData, result, processingTime) {
+  try {
+    await supabase.from('webhook_logs').insert({
+      provider: 'asaas',
+      event_type: webhookData.event,
+      payment_id: webhookData.payment?.id,
+      status: result.success ? 'success' : 'error',
+      payload: webhookData,
+      processing_result: result,
+      processing_time_ms: processingTime,
+      processed_at: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('[AsaasWebhook] Erro ao registrar log:', error);
+  }
+}
+
+// ============================================
+// FIM WEBHOOK ASAAS
+// ============================================
+
 // Rota raiz
 app.get('/', (req, res) => {
   res.json({ 
     message: 'Slim Quality Chat API',
     version: '1.0.0',
-    endpoints: ['/api/chat', '/api/health']
+    endpoints: [
+      '/api/chat', 
+      '/api/health',
+      '/api/webhooks/asaas',
+      '/api/webhooks/asaas/health'
+    ]
   });
 });
 

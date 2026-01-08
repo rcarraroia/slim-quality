@@ -125,14 +125,15 @@ export class AsaasService {
   }
 
   /**
-   * Cria cobrança no Asaas
+   * Cria cobrança no Asaas COM split integrado na criação
+   * IMPORTANTE: Split deve ser incluído na criação, não separadamente
    */
-  async createPayment(paymentData: AsaasPayment): Promise<any> {
+  async createPayment(paymentData: AsaasPayment & { split?: AsaasSplit[] }): Promise<any> {
     if (!this.apiKey) {
       console.log('🔄 Modo simulação - cobrança criada:', paymentData);
       
       // Gerar URL de checkout válida para simulação
-      const baseUrl = window.location.origin;
+      const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://slimquality.com.br';
       const simulatedId = `pay_simulated_${Date.now()}`;
       
       return {
@@ -144,15 +145,29 @@ export class AsaasService {
         status: 'PENDING',
         value: paymentData.value,
         netValue: paymentData.value,
-        billingType: paymentData.billingType
+        billingType: paymentData.billingType,
+        split: paymentData.split // Incluir split na resposta simulada
       };
     }
 
     try {
+      // Incluir split diretamente no payload de criação do pagamento
+      const payload = {
+        ...paymentData,
+        // Split vai junto na criação - NÃO separadamente!
+        split: paymentData.split
+      };
+
+      console.log('💳 Criando pagamento COM split integrado:', {
+        value: paymentData.value,
+        billingType: paymentData.billingType,
+        splitCount: paymentData.split?.length || 0
+      });
+
       const response = await fetch(`${this.baseUrl}/payments`, {
         method: 'POST',
         headers: this.getHeaders(),
-        body: JSON.stringify(paymentData)
+        body: JSON.stringify(payload)
       });
 
       if (!response.ok) {
@@ -161,7 +176,7 @@ export class AsaasService {
       }
 
       const payment = await response.json();
-      console.log('💳 Cobrança criada:', payment.id);
+      console.log('💳 Cobrança criada COM split:', payment.id);
       return payment;
 
     } catch (error) {
@@ -258,6 +273,7 @@ export class AsaasService {
 
   /**
    * Processa checkout completo com Asaas
+   * IMPORTANTE: Split é incluído NA criação do pagamento, não separadamente
    */
   async processCheckout(orderData: {
     customer: AsaasCustomer;
@@ -274,14 +290,16 @@ export class AsaasService {
       // 1. Criar/buscar customer
       const customerId = await this.createOrUpdateCustomer(orderData.customer);
 
-      // 2. Criar cobrança
-      const paymentData: AsaasPayment = {
+      // 2. Criar cobrança COM split integrado (não separadamente!)
+      const paymentData: AsaasPayment & { split?: AsaasSplit[] } = {
         customer: customerId,
         billingType: orderData.billingType,
         value: orderData.amount,
         dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 7 dias
         description: orderData.description,
-        externalReference: orderData.externalReference
+        externalReference: orderData.externalReference,
+        // SPLIT INCLUÍDO NA CRIAÇÃO - NÃO SEPARADAMENTE!
+        split: orderData.splits
       };
 
       // Adicionar parcelamento se for cartão de crédito
@@ -290,13 +308,21 @@ export class AsaasService {
         paymentData.installmentValue = orderData.amount / orderData.installments;
       }
 
-      const payment = await this.createPayment(paymentData);
-
-      // 3. Criar split se houver
-      let splitResult = null;
+      // Log detalhado do split para auditoria
       if (orderData.splits && orderData.splits.length > 0) {
-        splitResult = await this.createSplit(payment.id, orderData.splits);
+        const totalSplitPercentage = orderData.splits.reduce((sum, s) => sum + (s.percentualValue || 0), 0);
+        console.log('💰 Split configurado:', {
+          totalPercentage: `${totalSplitPercentage}%`,
+          recipients: orderData.splits.length,
+          splits: orderData.splits.map(s => ({
+            wallet: s.walletId.substring(0, 10) + '...',
+            percentage: s.percentualValue
+          }))
+        });
       }
+
+      // Criar pagamento COM split integrado
+      const payment = await this.createPayment(paymentData);
 
       return {
         success: true,
@@ -305,7 +331,7 @@ export class AsaasService {
         pixQrCode: payment.pixQrCode,
         pixCopyPaste: payment.pixCopyPaste,
         boletoUrl: payment.bankSlipUrl,
-        splitId: splitResult?.id,
+        splitIncluded: !!(orderData.splits && orderData.splits.length > 0),
         status: payment.status
       };
 
