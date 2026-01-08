@@ -116,6 +116,9 @@ export default async function handler(req, res) {
     // Buscar ou criar customer
     let asaasCustomerId = null;
     
+    // Limpar CPF/CNPJ - remover pontos, traços e espaços
+    const cleanCpfCnpj = customer.cpfCnpj ? customer.cpfCnpj.replace(/\D/g, '') : null;
+    
     const searchRes = await fetch(
       `${asaasBaseUrl}/customers?email=${encodeURIComponent(customer.email)}`,
       { method: 'GET', headers }
@@ -124,20 +127,38 @@ export default async function handler(req, res) {
     if (searchRes.ok) {
       const searchData = await searchRes.json();
       if (searchData.data && searchData.data.length > 0) {
-        asaasCustomerId = searchData.data[0].id;
+        const existingCustomer = searchData.data[0];
+        asaasCustomerId = existingCustomer.id;
+        
+        // Se o customer existe mas não tem CPF, atualizar
+        if (!existingCustomer.cpfCnpj && cleanCpfCnpj) {
+          console.log('Updating existing Asaas customer with CPF:', asaasCustomerId);
+          
+          const updateRes = await fetch(`${asaasBaseUrl}/customers/${asaasCustomerId}`, {
+            method: 'PUT',
+            headers,
+            body: JSON.stringify({
+              cpfCnpj: cleanCpfCnpj
+            })
+          });
+          
+          if (!updateRes.ok) {
+            const updateErr = await updateRes.json();
+            console.error('Failed to update customer CPF:', updateErr);
+          } else {
+            console.log('Customer CPF updated successfully');
+          }
+        }
       }
     }
 
     if (!asaasCustomerId) {
-      // Limpar CPF/CNPJ - remover pontos, traços e espaços
-      const cleanCpfCnpj = customer.cpfCnpj.replace(/\D/g, '');
-      
       console.log('Creating Asaas customer:', {
         name: customer.name,
         email: customer.email,
         phone: customer.phone || customer.mobilePhone,
         cpfCnpj: cleanCpfCnpj,
-        cpfCnpjLength: cleanCpfCnpj.length
+        cpfCnpjLength: cleanCpfCnpj?.length
       });
 
       const createRes = await fetch(`${asaasBaseUrl}/customers`, {
