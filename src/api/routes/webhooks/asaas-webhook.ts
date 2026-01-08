@@ -56,7 +56,7 @@ interface ProcessingResult {
  * Verifica a assinatura do webhook do Asaas
  */
 function verifyAsaasSignature(payload: string, signature: string): boolean {
-  const webhookSecret = process.env.ASAAS_WEBHOOK_SECRET;
+  const webhookSecret = process.env.ASAAS_WEBHOOK_TOKEN || process.env.ASAAS_WEBHOOK_SECRET;
   if (!webhookSecret) {
     console.warn('[AsaasWebhook] ASAAS_WEBHOOK_SECRET não configurado');
     return true; // Permitir em desenvolvimento
