@@ -45,6 +45,8 @@ import AffiliateDashboardConfiguracoes from "./pages/afiliados/dashboard/Configu
 import TermosAfiliados from "./pages/afiliados/TermosAfiliados";
 import LandingPageWithRef from "./pages/LandingPageWithRef";
 import NotFound from "./pages/NotFound";
+import PagamentoErro from "./pages/PagamentoErro";
+import PagamentoPix from "./pages/PagamentoPix";
 
 const queryClient = new QueryClient();
 
@@ -80,6 +82,10 @@ const App = () => (
 
               {/* Teste do Chat Widget */}
               <Route path="/chat-test" element={<ChatTest />} />
+
+              {/* Páginas de Pagamento (sem layout) */}
+              <Route path="/pagamento-erro" element={<PagamentoErro />} />
+              <Route path="/pagamento-pix" element={<PagamentoPix />} />
 
               {/* 2. CONTEXTO ADMIN (Dashboard Administrativo) */}
               <Route path="/dashboard" element={<DashboardLayout />}>
