@@ -1,9 +1,9 @@
 /**
  * Serviço de Autenticação Admin
- * BLOCO 4 - Frontend
+ * Usando Supabase Auth diretamente
  */
 
-import { apiService, ApiResponse } from './api.service';
+import { supabase } from '@/config/supabase';
 
 export interface AdminUser {
   id: string;
@@ -32,111 +32,217 @@ export interface RefreshTokenResponse {
   expiresIn: number;
 }
 
+export interface ApiResponse<T> {
+  success: boolean;
+  data?: T;
+  error?: string;
+}
+
 class AdminAuthService {
   /**
-   * Fazer login
+   * Fazer login usando Supabase Auth
    */
   async login(credentials: LoginCredentials): Promise<ApiResponse<LoginResponse>> {
-    const response = await apiService.post<{
-      accessToken: string;
-      refreshToken: string;
-      admin: AdminUser;
-    }>('/auth/login', credentials);
-    
-    if (response.success && response.data) {
-      // Adaptar resposta da API para formato esperado
-      const adaptedResponse: LoginResponse = {
-        user: response.data.admin,
-        token: response.data.accessToken,
-        refreshToken: response.data.refreshToken,
-        expiresIn: 24 * 60 * 60 // 1 dia em segundos
+    try {
+      // Login via Supabase Auth
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+        email: credentials.email,
+        password: credentials.password
+      });
+
+      if (authError || !authData.user || !authData.session) {
+        return {
+          success: false,
+          error: authError?.message || 'Credenciais inválidas'
+        };
+      }
+
+      // Buscar dados do admin na tabela admins
+      const { data: adminData, error: adminError } = await supabase
+        .from('admins')
+        .select('*')
+        .eq('user_id', authData.user.id)
+        .single();
+
+      if (adminError || !adminData) {
+        // Usuário não é admin
+        await supabase.auth.signOut();
+        return {
+          success: false,
+          error: 'Usuário não tem permissão de administrador'
+        };
+      }
+
+      if (!adminData.is_active) {
+        await supabase.auth.signOut();
+        return {
+          success: false,
+          error: 'Conta de administrador desativada'
+        };
+      }
+
+      // Montar objeto do usuário admin
+      const adminUser: AdminUser = {
+        id: adminData.id,
+        email: authData.user.email || '',
+        name: adminData.name || authData.user.email?.split('@')[0] || 'Admin',
+        role: adminData.role || 'admin',
+        is_active: adminData.is_active,
+        last_login_at: new Date().toISOString(),
+        created_at: adminData.created_at
       };
+
+      // Atualizar último login
+      await supabase
+        .from('admins')
+        .update({ last_login_at: new Date().toISOString() })
+        .eq('id', adminData.id);
+
+      // Salvar dados no localStorage
+      localStorage.setItem('admin_token', authData.session.access_token);
+      localStorage.setItem('admin_refresh_token', authData.session.refresh_token);
+      localStorage.setItem('admin_user', JSON.stringify(adminUser));
       
-      // Salvar tokens no localStorage
-      localStorage.setItem('admin_token', adaptedResponse.token);
-      localStorage.setItem('admin_refresh_token', adaptedResponse.refreshToken);
-      localStorage.setItem('admin_user', JSON.stringify(adaptedResponse.user));
-      
-      // Configurar expiração do token
-      const expirationTime = Date.now() + (adaptedResponse.expiresIn * 1000);
+      const expirationTime = Date.now() + (authData.session.expires_in || 3600) * 1000;
       localStorage.setItem('admin_token_expires', expirationTime.toString());
-      
+
       return {
         success: true,
-        data: adaptedResponse
+        data: {
+          user: adminUser,
+          token: authData.session.access_token,
+          refreshToken: authData.session.refresh_token,
+          expiresIn: authData.session.expires_in || 3600
+        }
       };
-    }
-    
-    return response as ApiResponse<LoginResponse>;
-  }
-
-  /**
-   * Fazer logout
-   */
-  async logout(): Promise<ApiResponse<{ message: string }>> {
-    const response = await apiService.post<{ message: string }>('/auth/logout');
-    
-    // Limpar dados do localStorage independente da resposta
-    this.clearAuthData();
-    
-    return response;
-  }
-
-  /**
-   * Renovar token
-   */
-  async refreshToken(): Promise<ApiResponse<RefreshTokenResponse>> {
-    const refreshToken = localStorage.getItem('admin_refresh_token');
-    
-    if (!refreshToken) {
+    } catch (error: any) {
+      console.error('Erro no login:', error);
       return {
         success: false,
-        error: 'Refresh token não encontrado'
+        error: error.message || 'Erro interno no login'
       };
     }
+  }
 
-    const response = await apiService.post<{ accessToken: string }>('/auth/refresh', { refreshToken });
-    
-    if (response.success && response.data) {
-      // Adaptar resposta
-      const adaptedResponse: RefreshTokenResponse = {
-        token: response.data.accessToken,
-        expiresIn: 24 * 60 * 60 // 1 dia em segundos
-      };
+  /**
+   * Fazer logout usando Supabase Auth
+   */
+  async logout(): Promise<ApiResponse<{ message: string }>> {
+    try {
+      // Logout via Supabase Auth
+      const { error } = await supabase.auth.signOut();
       
-      // Atualizar token no localStorage
-      localStorage.setItem('admin_token', adaptedResponse.token);
-      
-      // Atualizar expiração
-      const expirationTime = Date.now() + (adaptedResponse.expiresIn * 1000);
-      localStorage.setItem('admin_token_expires', expirationTime.toString());
-      
+      if (error) {
+        console.warn('Erro ao fazer logout no Supabase:', error);
+      }
+
+      // Limpar dados do localStorage independente da resposta
+      this.clearAuthData();
+
       return {
         success: true,
-        data: adaptedResponse
+        data: { message: 'Logout realizado com sucesso' }
       };
-    } else {
-      // Se refresh falhou, limpar dados
+    } catch (error: any) {
+      console.error('Erro no logout:', error);
+      // Mesmo com erro, limpar dados locais
       this.clearAuthData();
+      return {
+        success: true,
+        data: { message: 'Logout realizado' }
+      };
     }
-    
-    return response as ApiResponse<RefreshTokenResponse>;
+  }
+
+  /**
+   * Renovar token usando Supabase Auth
+   */
+  async refreshToken(): Promise<ApiResponse<RefreshTokenResponse>> {
+    try {
+      const { data, error } = await supabase.auth.refreshSession();
+
+      if (error || !data.session) {
+        this.clearAuthData();
+        return {
+          success: false,
+          error: error?.message || 'Falha ao renovar sessão'
+        };
+      }
+
+      // Atualizar tokens no localStorage
+      localStorage.setItem('admin_token', data.session.access_token);
+      localStorage.setItem('admin_refresh_token', data.session.refresh_token);
+      
+      const expirationTime = Date.now() + (data.session.expires_in || 3600) * 1000;
+      localStorage.setItem('admin_token_expires', expirationTime.toString());
+
+      return {
+        success: true,
+        data: {
+          token: data.session.access_token,
+          expiresIn: data.session.expires_in || 3600
+        }
+      };
+    } catch (error: any) {
+      console.error('Erro ao renovar token:', error);
+      this.clearAuthData();
+      return {
+        success: false,
+        error: error.message || 'Erro ao renovar sessão'
+      };
+    }
   }
 
   /**
    * Buscar dados do usuário atual
    */
   async getCurrentUser(): Promise<ApiResponse<AdminUser>> {
-    const response = await apiService.get<{ admin: AdminUser }>('/auth/me');
-    
-    if (response.success && response.data) {
+    try {
+      // Verificar sessão atual no Supabase
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+
+      if (authError || !user) {
+        return {
+          success: false,
+          error: 'Usuário não autenticado'
+        };
+      }
+
+      // Buscar dados do admin
+      const { data: adminData, error: adminError } = await supabase
+        .from('admins')
+        .select('*')
+        .eq('user_id', user.id)
+        .single();
+
+      if (adminError || !adminData) {
+        return {
+          success: false,
+          error: 'Dados do administrador não encontrados'
+        };
+      }
+
+      const adminUser: AdminUser = {
+        id: adminData.id,
+        email: user.email || '',
+        name: adminData.name || user.email?.split('@')[0] || 'Admin',
+        role: adminData.role || 'admin',
+        is_active: adminData.is_active,
+        last_login_at: adminData.last_login_at,
+        created_at: adminData.created_at
+      };
+
       return {
         success: true,
-        data: response.data.admin
+        data: adminUser
+      };
+    } catch (error: any) {
+      console.error('Erro ao buscar usuário:', error);
+      return {
+        success: false,
+        error: error.message || 'Erro ao buscar dados do usuário'
       };
     }
-    
-    return response as ApiResponse<AdminUser>;
   }
 
   /**
@@ -192,7 +298,7 @@ class AdminAuthService {
     
     const now = Date.now();
     const expiration = parseInt(expiresAt);
-    const fiveMinutes = 5 * 60 * 1000; // 5 minutos em ms
+    const fiveMinutes = 5 * 60 * 1000;
     
     return (expiration - now) <= fiveMinutes;
   }
