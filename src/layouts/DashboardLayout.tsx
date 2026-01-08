@@ -36,7 +36,11 @@ export function DashboardLayout() {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   const [affiliatesMenuOpen, setAffiliatesMenuOpen] = useState(location.pathname.startsWith('/dashboard/afiliados'));
-  const [agentMenuOpen, setAgentMenuOpen] = useState(location.pathname.startsWith('/dashboard/agente'));
+  const [agentMenuOpen, setAgentMenuOpen] = useState(
+    location.pathname.startsWith('/dashboard/agente') || 
+    location.pathname === '/dashboard/agendamentos' || 
+    location.pathname === '/dashboard/automacoes'
+  );
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false); // Novo estado para mobile
   
   // Hook para badge dinâmico de aprendizados pendentes
@@ -63,12 +67,12 @@ export function DashboardLayout() {
     { label: 'Integrações', path: '/dashboard/agente/mcp', icon: Plug },
     { label: 'Métricas', path: '/dashboard/agente/metricas', icon: BarChart3 },
     { label: 'Aprendizados', path: '/dashboard/agente/aprendizados', icon: Lightbulb },
+    { label: 'Agendamentos', path: '/dashboard/agendamentos', icon: Calendar },
+    { label: 'Automações', path: '/dashboard/automacoes', icon: Bot },
   ];
 
   const secondaryItems = [
     { icon: UserCircle, label: 'Clientes', path: '/dashboard/clientes', disabled: false },
-    { icon: Calendar, label: 'Agendamentos', path: '/dashboard/agendamentos', disabled: false },
-    { icon: Bot, label: 'Automações', path: '/dashboard/automacoes', disabled: false },
     { icon: BarChart3, label: 'Analytics', path: '/dashboard/analytics', disabled: false },
     { icon: Settings, label: 'Configurações', path: '/dashboard/configuracoes', disabled: false },
   ];
@@ -200,7 +204,9 @@ export function DashboardLayout() {
             onClick={() => setAgentMenuOpen(!agentMenuOpen)}
             className={cn(
               "flex items-center w-full gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors relative",
-              location.pathname.startsWith('/dashboard/agente')
+              (location.pathname.startsWith('/dashboard/agente') || 
+               location.pathname === '/dashboard/agendamentos' || 
+               location.pathname === '/dashboard/automacoes')
                 ? "bg-primary/10 text-primary"
                 : "text-foreground hover:bg-muted hover:text-primary"
             )}
