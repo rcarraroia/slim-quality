@@ -79,6 +79,14 @@ export default async function handler(req, res) {
     }
 
     // Headers para Asaas
+    // Detectar ambiente baseado na API key (sandbox keys começam com $aact_)
+    const isSandbox = ASAAS_API_KEY.startsWith('$aact_');
+    const asaasBaseUrl = isSandbox 
+      ? 'https://api-sandbox.asaas.com/v3'
+      : 'https://api.asaas.com/v3';
+    
+    console.log('Asaas environment:', isSandbox ? 'SANDBOX' : 'PRODUCTION');
+    
     const headers = {
       'Content-Type': 'application/json',
       'access_token': ASAAS_API_KEY
@@ -88,7 +96,7 @@ export default async function handler(req, res) {
     let asaasCustomerId = null;
     
     const searchRes = await fetch(
-      `https://api.asaas.com/v3/customers?email=${encodeURIComponent(customer.email)}`,
+      `${asaasBaseUrl}/customers?email=${encodeURIComponent(customer.email)}`,
       { method: 'GET', headers }
     );
     
@@ -100,7 +108,7 @@ export default async function handler(req, res) {
     }
 
     if (!asaasCustomerId) {
-      const createRes = await fetch('https://api.asaas.com/v3/customers', {
+      const createRes = await fetch(`${asaasBaseUrl}/customers`, {
         method: 'POST',
         headers,
         body: JSON.stringify({
@@ -127,7 +135,7 @@ export default async function handler(req, res) {
     // Criar pagamento
     const dueDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
     
-    const paymentRes = await fetch('https://api.asaas.com/v3/payments', {
+    const paymentRes = await fetch(`${asaasBaseUrl}/payments`, {
       method: 'POST',
       headers,
       body: JSON.stringify({
