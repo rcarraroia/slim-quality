@@ -510,20 +510,14 @@ export class CheckoutService {
           return `${window.location.origin}/pagamento-sucesso?${successParams.toString()}`;
         }
         
-        // Retornar URL apropriada baseada no método de pagamento
-        if (payment.method === 'pix' && result.pixQrCode) {
-          // Para PIX, redirecionar para página de pagamento PIX
-          const pixParams = new URLSearchParams({
-            order_id: order.id,
-            payment_id: result.paymentId,
-            qr_code: result.pixQrCode,
-            copy_paste: result.pixCopyPaste || ''
-          });
-          return `${window.location.origin}/pagamento-pix?${pixParams.toString()}`;
+        // Para PIX e outros métodos, usar a página de pagamento do Asaas (invoiceUrl)
+        // É mais seguro e profissional - já tem QR Code, copia e cola, etc.
+        if (result.checkoutUrl) {
+          return result.checkoutUrl;
         }
         
-        // Fallback para URL do Asaas ou página de sucesso
-        return result.checkoutUrl || result.boletoUrl || `${window.location.origin}/pagamento-sucesso?order_id=${order.id}`;
+        // Fallback para página de sucesso se não tiver URL do Asaas
+        return `${window.location.origin}/pagamento-sucesso?order_id=${order.id}`;
       } else {
         console.warn('⚠️ Backend retornou erro:', result.error, 'Detalhes:', result.details, 'Debug:', result.debug);
         
