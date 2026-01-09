@@ -105,7 +105,7 @@ export function CustomerDashboardLayout() {
       }
       referralCode = referralCode.substring(0, 6).replace(/[^A-Z0-9]/g, 'X');
 
-      // Criar registro de afiliado
+      // Criar registro de afiliado (ativação automática)
       const { data: affiliateData, error } = await supabase
         .from('affiliates')
         .insert({
@@ -114,7 +114,7 @@ export function CustomerDashboardLayout() {
           email: user.email,
           phone: user.phone,
           referral_code: referralCode,
-          status: 'pending'
+          status: 'active'  // Ativação automática - admin só desativa se necessário
         })
         .select('id, status')
         .single();

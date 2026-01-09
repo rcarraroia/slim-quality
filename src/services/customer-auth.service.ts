@@ -279,7 +279,7 @@ class CustomerAuthService {
         }
       }
 
-      // Criar afiliado
+      // Criar afiliado (ativação automática - admin só desativa se necessário)
       const { data: affiliateData, error: affiliateError } = await supabase
         .from('affiliates')
         .insert({
@@ -288,7 +288,7 @@ class CustomerAuthService {
           email: data.email,
           phone: data.phone,
           referral_code: referralCode,
-          status: 'pending', // Aguardando configuração de wallet
+          status: 'active', // Ativação automática
           referred_by: referrerId
         })
         .select('id, status')
