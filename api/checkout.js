@@ -241,6 +241,28 @@ export default async function handler(req, res) {
       });
     }
 
+    // Se for PIX, buscar QR Code separadamente
+    let pixQrCode = null;
+    let pixCopyPaste = null;
+    
+    if (billingType === 'PIX') {
+      console.log('Fetching PIX QR Code for payment:', paymentData.id);
+      
+      const pixRes = await fetch(`${asaasBaseUrl}/payments/${paymentData.id}/pixQrCode`, {
+        method: 'GET',
+        headers
+      });
+      
+      if (pixRes.ok) {
+        const pixData = await pixRes.json();
+        pixQrCode = pixData.encodedImage;
+        pixCopyPaste = pixData.payload;
+        console.log('PIX QR Code obtained successfully');
+      } else {
+        console.warn('Failed to get PIX QR Code, using fallback');
+      }
+    }
+
     // Se for cartão de crédito com dados do cartão, processar pagamento imediatamente
     if (billingType === 'CREDIT_CARD' && creditCard) {
       console.log('Processing credit card payment for payment:', paymentData.id);
@@ -320,8 +342,8 @@ export default async function handler(req, res) {
       amount,
       status: 'pending',
       installments: 1,
-      pixQrCode: paymentData.encodedImage,
-      pixCopyPaste: paymentData.payload,
+      pixQrCode: pixQrCode,
+      pixCopyPaste: pixCopyPaste,
       pixExpiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() // 24h
     });
 
@@ -330,8 +352,8 @@ export default async function handler(req, res) {
       success: true,
       paymentId: paymentData.id,
       checkoutUrl: paymentData.invoiceUrl,
-      pixQrCode: paymentData.encodedImage || paymentData.pixQrCode,
-      pixCopyPaste: paymentData.payload || paymentData.pixCopyPaste,
+      pixQrCode: pixQrCode,
+      pixCopyPaste: pixCopyPaste,
       boletoUrl: paymentData.bankSlipUrl,
       status: paymentData.status
     });
