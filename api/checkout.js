@@ -205,6 +205,9 @@ export default async function handler(req, res) {
       dueDate: dueDate,
       description: description || `Pedido ${orderId}`,
       externalReference: orderId,
+      // Desabilitar multa e juros explicitamente
+      fine: { value: 0 },
+      interest: { value: 0 },
       split: [
         { walletId: ASAAS_WALLET_RENUM, percentualValue: 15 },
         { walletId: ASAAS_WALLET_JB, percentualValue: 15 }
