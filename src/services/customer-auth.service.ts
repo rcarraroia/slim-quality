@@ -323,7 +323,7 @@ class CustomerAuthService {
   }
 
   /**
-   * Gerar código de indicação único
+   * Gerar código de indicação único (6 caracteres: 4 do nome + 2 aleatórios)
    */
   private async generateUniqueReferralCode(name: string): Promise<string> {
     const baseCode = name
@@ -331,9 +331,11 @@ class CustomerAuthService {
       .normalize('NFD')
       .replace(/[\u0300-\u036f]/g, '')
       .replace(/[^A-Z]/g, '')
-      .substring(0, 4);
+      .substring(0, 4)
+      .padEnd(4, 'X'); // Garantir 4 caracteres mesmo com nomes curtos
     
-    let code = baseCode + Math.random().toString(36).substring(2, 6).toUpperCase();
+    // Gerar código de 6 caracteres: 4 do nome + 2 aleatórios
+    let code = baseCode + Math.random().toString(36).substring(2, 4).toUpperCase();
     let attempts = 0;
 
     while (attempts < 10) {
@@ -341,18 +343,18 @@ class CustomerAuthService {
         .from('affiliates')
         .select('id')
         .eq('referral_code', code)
-        .single();
+        .maybeSingle();
 
       if (!existing) {
         return code;
       }
 
-      code = baseCode + Math.random().toString(36).substring(2, 6).toUpperCase();
+      code = baseCode + Math.random().toString(36).substring(2, 4).toUpperCase();
       attempts++;
     }
 
-    // Fallback com timestamp
-    return baseCode + Date.now().toString(36).toUpperCase().substring(-4);
+    // Fallback: usar números aleatórios
+    return baseCode.substring(0, 4) + Math.floor(Math.random() * 100).toString().padStart(2, '0');
   }
 
   /**
