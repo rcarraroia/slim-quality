@@ -186,10 +186,12 @@ export default function AffiliateAwareCheckout({
         userId = loggedUser?.id || null;
       }
 
-      // Montar dados do checkout
+      // Montar dados do checkout (excluindo password e confirmPassword)
+      const { password, confirmPassword, ...customerDataClean } = customerData;
+      
       const checkoutData: CheckoutData = {
         customer: {
-          ...customerData,
+          ...customerDataClean,
           user_id: userId, // Vincular user_id ao customer
           cpf_cnpj: customerData.cpf.replace(/\D/g, ''), // CPF limpo para Asaas
           source: referralInfo ? 'affiliate' : 'website',
