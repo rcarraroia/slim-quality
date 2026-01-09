@@ -1,17 +1,21 @@
 /**
  * Componente de checkout integrado com sistema de afiliados
  * Automaticamente associa vendas aos afiliados quando há código de referência
+ * Cria conta de cliente automaticamente durante a compra
  */
 
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { CheckCircle2, Users, Gift, Loader2 } from 'lucide-react';
+import { CheckCircle2, Users, Gift, Loader2, LogIn, Eye, EyeOff } from 'lucide-react';
 import { useReferralTracking } from '@/hooks/useReferralTracking';
 import { checkoutService } from '@/services/checkout.service';
 import { useToast } from '@/hooks/use-toast';
+import { useCustomerAuth } from '@/hooks/useCustomerAuth';
+import { supabase } from '@/config/supabase';
 import PaymentMethodSelector, { type PaymentMethod } from './PaymentMethodSelector';
 import type { CheckoutData, Product } from '@/types/database.types';
 
@@ -38,14 +42,19 @@ export default function AffiliateAwareCheckout({
 }: AffiliateAwareCheckoutProps) {
   const { referralInfo, trackConversion, getCurrentReferralCode } = useReferralTracking();
   const { toast } = useToast();
+  const { user: loggedUser, isAuthenticated } = useCustomerAuth();
   const [isProcessing, setIsProcessing] = useState(false);
   const [orderCreated, setOrderCreated] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentMethod>({ type: 'pix' });
   const [customerData, setCustomerData] = useState({
     name: '',
     email: '',
     phone: '',
     cpf: '', // CPF obrigatório para Asaas
+    password: '', // Senha para criar conta
+    confirmPassword: '', // Confirmação de senha
     street: '',
     number: '',
     complement: '',
@@ -55,8 +64,21 @@ export default function AffiliateAwareCheckout({
     postal_code: ''
   });
 
+  // Pré-preencher dados se cliente já estiver logado
+  useEffect(() => {
+    if (isAuthenticated && loggedUser) {
+      setCustomerData(prev => ({
+        ...prev,
+        name: loggedUser.name || prev.name,
+        email: loggedUser.email || prev.email,
+        phone: loggedUser.phone || prev.phone
+      }));
+    }
+  }, [isAuthenticated, loggedUser]);
+
   /**
    * Processa o checkout com integração real
+   * Cria conta de cliente automaticamente se não estiver logado
    */
   const handleCheckout = async () => {
     try {
@@ -83,6 +105,36 @@ export default function AffiliateAwareCheckout({
         return;
       }
 
+      // Validar senha se não estiver logado
+      if (!isAuthenticated) {
+        if (!customerData.password) {
+          toast({
+            title: "Senha obrigatória",
+            description: "Digite uma senha para criar sua conta.",
+            variant: "destructive"
+          });
+          return;
+        }
+
+        if (customerData.password.length < 6) {
+          toast({
+            title: "Senha muito curta",
+            description: "A senha deve ter no mínimo 6 caracteres.",
+            variant: "destructive"
+          });
+          return;
+        }
+
+        if (customerData.password !== customerData.confirmPassword) {
+          toast({
+            title: "Senhas não coincidem",
+            description: "A senha e a confirmação devem ser iguais.",
+            variant: "destructive"
+          });
+          return;
+        }
+      }
+
       // Validar dados do cartão se for pagamento com cartão
       if (selectedPaymentMethod.type === 'credit_card') {
         if (!selectedPaymentMethod.creditCard?.number || 
@@ -99,10 +151,46 @@ export default function AffiliateAwareCheckout({
         }
       }
 
+      let userId: string | null = null;
+
+      // Se não estiver logado, criar conta primeiro
+      if (!isAuthenticated) {
+        // Criar usuário no auth.users
+        const { data: authData, error: authError } = await supabase.auth.signUp({
+          email: customerData.email,
+          password: customerData.password,
+          options: {
+            data: { name: customerData.name }
+          }
+        });
+
+        if (authError) {
+          if (authError.message?.includes('already registered')) {
+            toast({
+              title: "Email já cadastrado",
+              description: "Este email já possui uma conta. Faça login para continuar.",
+              variant: "destructive"
+            });
+          } else {
+            toast({
+              title: "Erro ao criar conta",
+              description: authError.message || "Não foi possível criar sua conta.",
+              variant: "destructive"
+            });
+          }
+          return;
+        }
+
+        userId = authData.user?.id || null;
+      } else {
+        userId = loggedUser?.id || null;
+      }
+
       // Montar dados do checkout
       const checkoutData: CheckoutData = {
         customer: {
           ...customerData,
+          user_id: userId, // Vincular user_id ao customer
           cpf_cnpj: customerData.cpf.replace(/\D/g, ''), // CPF limpo para Asaas
           source: referralInfo ? 'affiliate' : 'website',
           referral_code: getCurrentReferralCode(),
@@ -276,6 +364,30 @@ export default function AffiliateAwareCheckout({
           {/* Formulário de Dados do Cliente */}
           {!orderCreated && (
             <div className="space-y-4">
+              {/* Link para login se já tem conta */}
+              {!isAuthenticated && (
+                <div className="flex items-center justify-center gap-2 p-3 bg-muted/50 rounded-lg">
+                  <LogIn className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm text-muted-foreground">Já tem conta?</span>
+                  <Link 
+                    to="/entrar" 
+                    className="text-sm font-medium text-primary hover:underline"
+                  >
+                    Fazer login
+                  </Link>
+                </div>
+              )}
+
+              {/* Indicador de cliente logado */}
+              {isAuthenticated && loggedUser && (
+                <div className="flex items-center gap-2 p-3 bg-green-50 border border-green-200 rounded-lg">
+                  <CheckCircle2 className="h-4 w-4 text-green-600" />
+                  <span className="text-sm text-green-700">
+                    Logado como <strong>{loggedUser.name}</strong>
+                  </span>
+                </div>
+              )}
+
               <h4 className="font-semibold text-sm">Dados para entrega:</h4>
               
               <div className="grid grid-cols-1 gap-3">
@@ -323,6 +435,66 @@ export default function AffiliateAwareCheckout({
                   className="w-full px-3 py-2 border rounded-md text-sm"
                   required
                 />
+
+                {/* Campos de senha - apenas se não estiver logado */}
+                {!isAuthenticated && (
+                  <>
+                    <div className="pt-2 border-t">
+                      <h4 className="font-semibold text-sm mb-2">Criar sua conta:</h4>
+                    </div>
+                    
+                    <div className="relative">
+                      <input
+                        type={showPassword ? "text" : "password"}
+                        placeholder="Senha * (mínimo 6 caracteres)"
+                        value={customerData.password}
+                        onChange={(e) => updateCustomerData('password', e.target.value)}
+                        className="w-full px-3 py-2 pr-10 border rounded-md text-sm"
+                        required
+                        minLength={6}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      >
+                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
+
+                    <div className="relative">
+                      <input
+                        type={showConfirmPassword ? "text" : "password"}
+                        placeholder="Confirmar senha *"
+                        value={customerData.confirmPassword}
+                        onChange={(e) => updateCustomerData('confirmPassword', e.target.value)}
+                        className={`w-full px-3 py-2 pr-10 border rounded-md text-sm ${
+                          customerData.confirmPassword && 
+                          customerData.password !== customerData.confirmPassword 
+                            ? 'border-red-500' 
+                            : ''
+                        }`}
+                        required
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      >
+                        {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
+
+                    {customerData.confirmPassword && 
+                     customerData.password !== customerData.confirmPassword && (
+                      <p className="text-xs text-red-500">As senhas não coincidem</p>
+                    )}
+
+                    <p className="text-xs text-muted-foreground">
+                      Sua conta será criada automaticamente para acompanhar seus pedidos.
+                    </p>
+                  </>
+                )}
                 
                 <div className="grid grid-cols-3 gap-2">
                   <input
