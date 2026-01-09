@@ -19,6 +19,7 @@ import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { affiliateFrontendService } from "@/services/frontend/affiliate.service";
+import { supabase } from "@/config/supabase";
 
 export function AffiliateDashboardLayout() {
   const navigate = useNavigate();
@@ -84,8 +85,24 @@ export function AffiliateDashboardLayout() {
     return currentItem?.label || "Dashboard Afiliado";
   };
 
-  const handleLogout = () => {
-    navigate("/entrar");
+  const handleLogout = async () => {
+    try {
+      // Fazer logout no Supabase
+      await supabase.auth.signOut();
+      
+      // Limpar dados do localStorage
+      localStorage.removeItem('customer_token');
+      localStorage.removeItem('customer_refresh_token');
+      localStorage.removeItem('customer_user');
+      localStorage.removeItem('customer_token_expires');
+      
+      // Redirecionar para login
+      navigate("/entrar");
+    } catch (error) {
+      console.error('Erro ao fazer logout:', error);
+      // Mesmo com erro, redirecionar
+      navigate("/entrar");
+    }
   };
 
   return (
