@@ -48,7 +48,6 @@ export default function CustomerPedidos() {
           created_at, 
           status, 
           total_cents,
-          payment_method,
           order_items (
             product_name,
             quantity,

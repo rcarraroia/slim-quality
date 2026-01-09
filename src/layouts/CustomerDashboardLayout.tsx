@@ -87,15 +87,23 @@ export function CustomerDashboardLayout() {
     setIsActivating(true);
     
     try {
-      // Gerar código de indicação único
+      // Gerar código de indicação único (exatamente 6 caracteres alfanuméricos maiúsculos)
       const baseCode = user.name
         .toUpperCase()
         .normalize('NFD')
         .replace(/[\u0300-\u036f]/g, '')
-        .replace(/[^A-Z]/g, '')
-        .substring(0, 4);
+        .replace(/[^A-Z0-9]/g, '')
+        .substring(0, 3);
       
-      const referralCode = baseCode + Math.random().toString(36).substring(2, 6).toUpperCase();
+      // Completar com caracteres aleatórios para ter exatamente 6 caracteres
+      const randomPart = Math.random().toString(36).substring(2, 2 + (6 - baseCode.length)).toUpperCase().replace(/[^A-Z0-9]/g, '');
+      let referralCode = (baseCode + randomPart).substring(0, 6);
+      
+      // Garantir que tenha exatamente 6 caracteres
+      while (referralCode.length < 6) {
+        referralCode += Math.random().toString(36).substring(2, 3).toUpperCase();
+      }
+      referralCode = referralCode.substring(0, 6).replace(/[^A-Z0-9]/g, 'X');
 
       // Criar registro de afiliado
       const { data: affiliateData, error } = await supabase
