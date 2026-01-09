@@ -207,30 +207,97 @@ export default function AffiliateDashboardInicio() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <LinkIcon className="h-5 w-5 text-primary" />
-            Seu Link de Indicação
+            Seus Links de Indicação
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex gap-2">
-            <Input 
-              value={referralLink || "Carregando..."} 
-              readOnly 
-              className="font-mono text-sm"
-            />
-            <Button onClick={handleCopyLink} variant="outline" size="icon" disabled={!referralLink}>
-              <Copy className="h-4 w-4" />
-            </Button>
-            <Button onClick={handleShare} variant="outline" size="icon" disabled={!referralLink}>
-              <Share2 className="h-4 w-4" />
-            </Button>
-            <Button 
-              onClick={() => setShowQRCode(!showQRCode)} 
-              variant="outline"
-              size="icon"
-              disabled={!referralLink}
-            >
-              <QrCode className="h-4 w-4" />
-            </Button>
+          {/* Link de Vendas */}
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-muted-foreground">
+              LINK DE VENDAS:
+            </label>
+            <div className="flex gap-2">
+              <Input 
+                value={referralLink || "Carregando..."} 
+                readOnly 
+                className="font-mono text-sm"
+              />
+              <Button onClick={handleCopyLink} variant="outline" size="icon" disabled={!referralLink} title="Copiar link">
+                <Copy className="h-4 w-4" />
+              </Button>
+              <Button onClick={handleShare} variant="outline" size="icon" disabled={!referralLink} title="Compartilhar">
+                <Share2 className="h-4 w-4" />
+              </Button>
+              <Button 
+                onClick={() => setShowQRCode(!showQRCode)} 
+                variant="outline"
+                size="icon"
+                disabled={!referralLink}
+                title="QR Code"
+              >
+                <QrCode className="h-4 w-4" />
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Use este link para divulgar os produtos e gerar vendas
+            </p>
+          </div>
+
+          {/* Link de Cadastro Direto */}
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-muted-foreground">
+              LINK DE CADASTRO DIRETO:
+            </label>
+            <div className="flex gap-2">
+              <Input 
+                value={referralLink ? `${window.location.origin}/afiliados/cadastro?ref=${referralLink.split('/').pop()}` : "Carregando..."} 
+                readOnly 
+                className="font-mono text-sm"
+              />
+              <Button 
+                onClick={() => {
+                  const cadastroLink = `${window.location.origin}/afiliados/cadastro?ref=${referralLink.split('/').pop()}`;
+                  navigator.clipboard.writeText(cadastroLink);
+                  toast({
+                    title: "Link copiado!",
+                    description: "Link de cadastro direto copiado para a área de transferência.",
+                  });
+                }} 
+                variant="outline" 
+                size="icon" 
+                disabled={!referralLink}
+                title="Copiar link"
+              >
+                <Copy className="h-4 w-4" />
+              </Button>
+              <Button 
+                onClick={() => {
+                  const cadastroLink = `${window.location.origin}/afiliados/cadastro?ref=${referralLink.split('/').pop()}`;
+                  if (navigator.share) {
+                    navigator.share({
+                      title: "Seja um Afiliado Slim Quality",
+                      text: "Cadastre-se como afiliado e comece a ganhar comissões!",
+                      url: cadastroLink
+                    });
+                  } else {
+                    navigator.clipboard.writeText(cadastroLink);
+                    toast({
+                      title: "Link copiado!",
+                      description: "Link de cadastro direto copiado para a área de transferência.",
+                    });
+                  }
+                }} 
+                variant="outline" 
+                size="icon" 
+                disabled={!referralLink}
+                title="Compartilhar"
+              >
+                <Share2 className="h-4 w-4" />
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Use este link para recrutar novos afiliados diretamente
+            </p>
           </div>
 
           {showQRCode && referralLink && (
@@ -255,7 +322,7 @@ export default function AffiliateDashboardInicio() {
                 </div>
               </div>
               <p className="text-sm text-muted-foreground text-center">
-                Escaneie o QR Code para acessar seu link de indicação
+                Escaneie o QR Code para acessar seu link de vendas
               </p>
             </div>
           )}
