@@ -265,20 +265,6 @@ class CustomerAuthService {
       // Gerar referral_code único
       const referralCode = await this.generateUniqueReferralCode(data.name);
 
-      // Buscar referrer se houver código de indicação
-      let referrerId: string | null = null;
-      if (data.referralCode) {
-        const { data: referrer } = await supabase
-          .from('affiliates')
-          .select('id')
-          .eq('referral_code', data.referralCode)
-          .single();
-        
-        if (referrer) {
-          referrerId = referrer.id;
-        }
-      }
-
       // Criar afiliado (ativação automática - admin só desativa se necessário)
       const { data: affiliateData, error: affiliateError } = await supabase
         .from('affiliates')
@@ -288,8 +274,8 @@ class CustomerAuthService {
           email: data.email,
           phone: data.phone,
           referral_code: referralCode,
-          status: 'active', // Ativação automática
-          referred_by: referrerId
+          status: 'active' // Ativação automática
+          // Nota: referred_by removido pois coluna não existe na tabela
         })
         .select('id, status')
         .single();
@@ -323,9 +309,10 @@ class CustomerAuthService {
   }
 
   /**
-   * Gerar código de indicação único
+   * Gerar código de indicação único (exatamente 6 caracteres)
    */
   private async generateUniqueReferralCode(name: string): Promise<string> {
+    // Pegar até 4 letras do nome
     const baseCode = name
       .toUpperCase()
       .normalize('NFD')
@@ -333,7 +320,15 @@ class CustomerAuthService {
       .replace(/[^A-Z]/g, '')
       .substring(0, 4);
     
-    let code = baseCode + Math.random().toString(36).substring(2, 6).toUpperCase();
+    // Completar com caracteres aleatórios para ter exatamente 6
+    const randomLength = 6 - baseCode.length;
+    let randomPart = '';
+    for (let i = 0; i < randomLength; i++) {
+      const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+      randomPart += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    
+    let code = (baseCode + randomPart).substring(0, 6);
     let attempts = 0;
 
     while (attempts < 10) {
@@ -341,18 +336,25 @@ class CustomerAuthService {
         .from('affiliates')
         .select('id')
         .eq('referral_code', code)
-        .single();
+        .maybeSingle();
 
       if (!existing) {
         return code;
       }
 
-      code = baseCode + Math.random().toString(36).substring(2, 6).toUpperCase();
+      // Gerar novo código aleatório
+      randomPart = '';
+      for (let i = 0; i < randomLength; i++) {
+        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+        randomPart += chars.charAt(Math.floor(Math.random() * chars.length));
+      }
+      code = (baseCode + randomPart).substring(0, 6);
       attempts++;
     }
 
-    // Fallback com timestamp
-    return baseCode + Date.now().toString(36).toUpperCase().substring(-4);
+    // Fallback: usar timestamp
+    const timestamp = Date.now().toString(36).toUpperCase();
+    return (baseCode + timestamp).substring(0, 6);
   }
 
   /**
