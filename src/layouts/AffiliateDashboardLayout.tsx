@@ -85,7 +85,7 @@ export function AffiliateDashboardLayout() {
   };
 
   const handleLogout = () => {
-    navigate("/login");
+    navigate("/entrar");
   };
 
   return (

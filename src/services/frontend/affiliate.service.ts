@@ -368,59 +368,103 @@ export class AffiliateFrontendService {
 
   /**
    * Busca rede do afiliado
-   * TEMPORÁRIO: Mock data até implementar autenticação de afiliados
+   * Busca dados reais do banco de dados
    */
   async getNetwork(): Promise<any> {
     try {
-      console.log('🔄 Usando mock data para rede de afiliados');
+      // Buscar usuário autenticado
+      const { data: { user } } = await supabase.auth.getUser();
       
-      // Simular delay de API
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      const mockNetwork = {
-        affiliate: {
-          id: 'mock-affiliate-1',
-          name: 'Afiliado Teste',
-          email: 'afiliado@teste.com',
-          level: 0,
-          referralCode: 'TESTE123',
-          totalCommissions: 2140.50
-        },
-        directReferrals: [
-          {
-            id: 'mock-n1-1',
-            name: 'João Silva',
-            email: 'joao@teste.com',
-            level: 1,
-            totalCommissions: 1250.00,
-            status: 'active',
-            joinedAt: '2025-12-15'
-          },
-          {
-            id: 'mock-n1-2', 
-            name: 'Maria Santos',
-            email: 'maria@teste.com',
-            level: 1,
-            totalCommissions: 890.50,
-            status: 'active',
-            joinedAt: '2025-12-20'
-          }
-        ],
-        stats: {
-          totalN1: 2,
-          totalN2: 3,
-          totalN3: 1,
-          totalCommissions: 2140.50,
-          totalReferrals: 6,
-          conversionRate: 12.5
-        }
+      if (!user) {
+        throw new Error('Usuário não autenticado');
+      }
+
+      // Buscar dados do afiliado atual
+      const { data: currentAffiliate, error: affiliateError } = await supabase
+        .from('affiliates')
+        .select('*')
+        .eq('user_id', user.id)
+        .is('deleted_at', null)
+        .single();
+
+      if (affiliateError || !currentAffiliate) {
+        throw new Error('Afiliado não encontrado');
+      }
+
+      // Buscar afiliados diretos (N1) - referidos por este afiliado
+      const { data: directReferrals, error: networkError } = await supabase
+        .from('affiliate_network')
+        .select(`
+          affiliate_id,
+          level,
+          affiliates!affiliate_network_affiliate_id_fkey (
+            id,
+            name,
+            email,
+            status,
+            total_commissions_cents,
+            created_at
+          )
+        `)
+        .eq('parent_affiliate_id', currentAffiliate.id)
+        .eq('level', 1);
+
+      // Contar afiliados por nível
+      const { data: networkStats } = await supabase
+        .from('affiliate_network')
+        .select('level')
+        .eq('parent_affiliate_id', currentAffiliate.id);
+
+      const stats = {
+        totalN1: networkStats?.filter(n => n.level === 1).length || 0,
+        totalN2: networkStats?.filter(n => n.level === 2).length || 0,
+        totalN3: networkStats?.filter(n => n.level === 3).length || 0,
+        totalCommissions: (currentAffiliate.total_commissions_cents || 0) / 100,
+        totalReferrals: networkStats?.length || 0,
+        conversionRate: currentAffiliate.total_clicks > 0 
+          ? ((currentAffiliate.total_conversions || 0) / currentAffiliate.total_clicks * 100).toFixed(1)
+          : 0
       };
 
-      return mockNetwork;
+      // Mapear afiliados diretos
+      const mappedReferrals = (directReferrals || []).map((item: any) => ({
+        id: item.affiliates?.id,
+        name: item.affiliates?.name,
+        email: item.affiliates?.email,
+        level: item.level,
+        totalCommissions: (item.affiliates?.total_commissions_cents || 0) / 100,
+        status: item.affiliates?.status,
+        joinedAt: item.affiliates?.created_at
+      })).filter((r: any) => r.id);
+
+      return {
+        affiliate: {
+          id: currentAffiliate.id,
+          name: currentAffiliate.name,
+          email: currentAffiliate.email,
+          level: 0,
+          referralCode: currentAffiliate.referral_code,
+          totalCommissions: (currentAffiliate.total_commissions_cents || 0) / 100
+        },
+        directReferrals: mappedReferrals,
+        stats
+      };
 
     } catch (error) {
       console.error('Erro ao buscar rede:', error);
-      throw new Error('Erro ao carregar rede de afiliados');
+      // Retornar estrutura vazia em caso de erro
+      return {
+        affiliate: null,
+        directReferrals: [],
+        stats: {
+          totalN1: 0,
+          totalN2: 0,
+          totalN3: 0,
+          totalCommissions: 0,
+          totalReferrals: 0,
+          conversionRate: 0
+        }
+      };
     }
   }
 
@@ -440,122 +484,153 @@ export class AffiliateFrontendService {
 
   /**
    * Busca comissões do afiliado
-   * TEMPORÁRIO: Mock data até implementar autenticação de afiliados
+   * Busca dados reais do banco de dados
    */
   async getCommissions(page = 1, limit = 20) {
     try {
-      console.log('🔄 Usando mock data para comissões de afiliados');
+      // Buscar usuário autenticado
+      const { data: { user } } = await supabase.auth.getUser();
       
-      // Simular delay de API
-      await new Promise(resolve => setTimeout(resolve, 300));
+      if (!user) {
+        throw new Error('Usuário não autenticado');
+      }
+
+      // Buscar afiliado
+      const { data: affiliate } = await supabase
+        .from('affiliates')
+        .select('id')
+        .eq('user_id', user.id)
+        .is('deleted_at', null)
+        .single();
+
+      if (!affiliate) {
+        return {
+          commissions: [],
+          pagination: { page, limit, total: 0, totalPages: 0 },
+          summary: { totalPaid: 0, totalPending: 0, totalCommissions: 0 }
+        };
+      }
+
+      // Buscar comissões com paginação
+      const offset = (page - 1) * limit;
       
-      const mockCommissions = [
-        {
-          id: 'comm-1',
-          amount: 493.50,
-          type: 'N1',
-          status: 'paid',
-          createdAt: '2026-01-05T10:30:00Z',
-          paidAt: '2026-01-05T14:30:00Z',
-          order: {
-            id: 'order-1',
-            total_cents: 329000,
-            status: 'paid',
-            customer_name: 'Cliente Teste 1'
-          }
-        },
-        {
-          id: 'comm-2',
-          amount: 98.70,
-          type: 'N2', 
-          status: 'paid',
-          createdAt: '2026-01-04T15:20:00Z',
-          paidAt: '2026-01-04T18:20:00Z',
-          order: {
-            id: 'order-2',
-            total_cents: 329000,
-            status: 'paid',
-            customer_name: 'Cliente Teste 2'
-          }
-        },
-        {
-          id: 'comm-3',
-          amount: 65.80,
-          type: 'N3',
-          status: 'pending',
-          createdAt: '2026-01-03T09:15:00Z',
-          order: {
-            id: 'order-3',
-            total_cents: 329000,
-            status: 'paid',
-            customer_name: 'Cliente Teste 3'
-          }
-        },
-        {
-          id: 'comm-4',
-          amount: 246.75,
-          type: 'N1',
-          status: 'paid',
-          createdAt: '2026-01-02T11:45:00Z',
-          paidAt: '2026-01-02T16:45:00Z',
-          order: {
-            id: 'order-4',
-            total_cents: 164500,
-            status: 'paid',
-            customer_name: 'Cliente Teste 4'
-          }
-        }
-      ];
+      const { data: commissions, error, count } = await supabase
+        .from('commissions')
+        .select(`
+          id,
+          amount_cents,
+          level,
+          status,
+          created_at,
+          paid_at,
+          order_id,
+          orders (
+            id,
+            total_cents,
+            status,
+            customers (name)
+          )
+        `, { count: 'exact' })
+        .eq('affiliate_id', affiliate.id)
+        .order('created_at', { ascending: false })
+        .range(offset, offset + limit - 1);
+
+      if (error) {
+        console.error('Erro ao buscar comissões:', error);
+      }
+
+      // Mapear comissões
+      const mappedCommissions = (commissions || []).map((c: any) => ({
+        id: c.id,
+        amount: (c.amount_cents || 0) / 100,
+        type: `N${c.level || 1}`,
+        status: c.status,
+        createdAt: c.created_at,
+        paidAt: c.paid_at,
+        order: c.orders ? {
+          id: c.orders.id,
+          total_cents: c.orders.total_cents,
+          status: c.orders.status,
+          customer_name: c.orders.customers?.name || 'Cliente'
+        } : null
+      }));
+
+      // Calcular totais
+      const totalPaid = mappedCommissions
+        .filter(c => c.status === 'paid')
+        .reduce((sum, c) => sum + c.amount, 0);
+      
+      const totalPending = mappedCommissions
+        .filter(c => c.status === 'pending')
+        .reduce((sum, c) => sum + c.amount, 0);
 
       return {
-        commissions: mockCommissions,
+        commissions: mappedCommissions,
         pagination: {
           page,
           limit,
-          total: mockCommissions.length,
-          totalPages: Math.ceil(mockCommissions.length / limit)
+          total: count || 0,
+          totalPages: Math.ceil((count || 0) / limit)
         },
         summary: {
-          totalPaid: mockCommissions.filter(c => c.status === 'paid').reduce((sum, c) => sum + c.amount, 0),
-          totalPending: mockCommissions.filter(c => c.status === 'pending').reduce((sum, c) => sum + c.amount, 0),
-          totalCommissions: mockCommissions.reduce((sum, c) => sum + c.amount, 0)
+          totalPaid,
+          totalPending,
+          totalCommissions: totalPaid + totalPending
         }
       };
     } catch (error) {
       console.error('Erro ao buscar comissões:', error);
-      throw new Error('Erro ao carregar comissões');
+      return {
+        commissions: [],
+        pagination: { page, limit, total: 0, totalPages: 0 },
+        summary: { totalPaid: 0, totalPending: 0, totalCommissions: 0 }
+      };
     }
   }
 
   /**
    * Verifica se usuário atual é afiliado
-   * TEMPORÁRIO: Mock data até implementar autenticação de afiliados
+   * Busca dados reais do banco de dados
    */
   async checkAffiliateStatus(): Promise<{ isAffiliate: boolean; affiliate?: AffiliateData }> {
     try {
-      console.log('🔄 Usando mock data para status de afiliado');
+      // Buscar usuário autenticado
+      const { data: { user } } = await supabase.auth.getUser();
       
-      // Simular delay de API
-      await new Promise(resolve => setTimeout(resolve, 200));
-      
-      const mockAffiliate: AffiliateData = {
-        id: 'mock-affiliate-1',
-        name: 'Afiliado Teste',
-        email: 'afiliado@teste.com',
-        phone: '(11) 99999-9999',
-        referralCode: 'TESTE123',
-        slug: 'afiliado-teste',
-        walletId: 'wal_abc123',
-        status: 'active',
-        totalClicks: 150,
-        totalConversions: 8,
-        totalCommissions: 2140.50,
-        createdAt: '2025-12-01T10:00:00Z'
+      if (!user) {
+        return { isAffiliate: false };
+      }
+
+      // Buscar afiliado pelo user_id
+      const { data: affiliateData, error } = await supabase
+        .from('affiliates')
+        .select('*')
+        .eq('user_id', user.id)
+        .is('deleted_at', null)
+        .single();
+
+      if (error || !affiliateData) {
+        return { isAffiliate: false };
+      }
+
+      const affiliate: AffiliateData = {
+        id: affiliateData.id,
+        name: affiliateData.name,
+        email: affiliateData.email,
+        phone: affiliateData.phone,
+        referralCode: affiliateData.referral_code,
+        slug: affiliateData.slug,
+        walletId: affiliateData.wallet_id,
+        status: affiliateData.status,
+        totalClicks: affiliateData.total_clicks || 0,
+        totalConversions: affiliateData.total_conversions || 0,
+        totalCommissions: (affiliateData.total_commissions_cents || 0) / 100,
+        createdAt: affiliateData.created_at
       };
 
       return {
         isAffiliate: true,
-        affiliate: mockAffiliate
+        affiliate
       };
     } catch (error) {
       console.error('Erro ao verificar status de afiliado:', error);

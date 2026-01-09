@@ -19,9 +19,9 @@ export function ProtectedRoute({
 
   useEffect(() => {
     if (!loading) {
-      // Se não está logado, redirecionar para login
+      // Se não está logado, redirecionar para login admin
       if (!user) {
-        navigate('/login');
+        navigate('/admin/login');
         return;
       }
 

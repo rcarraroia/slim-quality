@@ -37,7 +37,7 @@ export function Footer() {
                 </Link>
               </li>
               <li>
-                <Link to="/login" className="hover:text-primary transition-colors">
+                <Link to="/entrar" className="hover:text-primary transition-colors">
                   Área do Cliente
                 </Link>
               </li>

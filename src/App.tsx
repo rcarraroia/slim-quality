@@ -9,11 +9,14 @@ import { useAffiliateTracking } from "@/hooks/useAffiliateTracking";
 import { PublicLayout } from "./layouts/PublicLayout";
 import { DashboardLayout } from "./layouts/DashboardLayout";
 import { AffiliateDashboardLayout } from "./layouts/AffiliateDashboardLayout";
+import { CustomerDashboardLayout } from "./layouts/CustomerDashboardLayout";
 import Index from "./pages/Index";
 import ProductPage from "./pages/produtos/ProductPage";
 import ProdutoDetalhe from "./pages/produtos/ProdutoDetalhe";
 import Sobre from "./pages/Sobre";
 import Login from "./pages/Login";
+import AdminLogin from "./pages/admin/AdminLogin";
+import CustomerLogin from "./pages/CustomerLogin";
 import AfiliadosLanding from "./pages/afiliados/AfiliadosLanding";
 import AfiliadosCadastro from "./pages/afiliados/AfiliadosCadastro";
 import Dashboard from "./pages/dashboard/Dashboard";
@@ -43,6 +46,9 @@ import AffiliateDashboardComissoes from "./pages/afiliados/dashboard/Comissoes";
 import AffiliateDashboardRecebimentos from "./pages/afiliados/dashboard/Recebimentos";
 import AffiliateDashboardConfiguracoes from "./pages/afiliados/dashboard/Configuracoes";
 import TermosAfiliados from "./pages/afiliados/TermosAfiliados";
+import CustomerInicio from "./pages/minha-conta/Inicio";
+import CustomerPedidos from "./pages/minha-conta/Pedidos";
+import CustomerDados from "./pages/minha-conta/Dados";
 import LandingPageWithRef from "./pages/LandingPageWithRef";
 import NotFound from "./pages/NotFound";
 import PagamentoErro from "./pages/PagamentoErro";
@@ -78,7 +84,9 @@ const App = () => (
               </Route>
 
               {/* Auth routes without header/footer */}
-              <Route path="/login" element={<Login />} />
+              <Route path="/login" element={<CustomerLogin />} /> {/* Redirect antigo para /entrar */}
+              <Route path="/entrar" element={<CustomerLogin />} />
+              <Route path="/admin/login" element={<AdminLogin />} />
               <Route path="/afiliados/cadastro" element={<AfiliadosCadastro />} />
 
               {/* Teste do Chat Widget */}
@@ -126,6 +134,13 @@ const App = () => (
                 <Route path="comissoes" element={<AffiliateDashboardComissoes />} />
                 <Route path="recebimentos" element={<AffiliateDashboardRecebimentos />} />
                 <Route path="configuracoes" element={<AffiliateDashboardConfiguracoes />} />
+              </Route>
+
+              {/* 4. CONTEXTO CLIENTE (Dashboard do Cliente) */}
+              <Route path="/minha-conta" element={<CustomerDashboardLayout />}>
+                <Route index element={<CustomerInicio />} />
+                <Route path="pedidos" element={<CustomerPedidos />} />
+                <Route path="dados" element={<CustomerDados />} />
               </Route>
 
               {/* Captura de slug/referral_code (DEVE VIR ANTES DO 404) */}

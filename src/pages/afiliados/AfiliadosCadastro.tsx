@@ -8,13 +8,14 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { CheckCircle2, Loader2, UserCheck } from "lucide-react";
-import { affiliateFrontendService } from "@/services/frontend/affiliate.service";
+import { useCustomerAuth } from "@/hooks/useCustomerAuth";
 import { supabase } from "@/config/supabase";
 
 export default function AfiliadosCadastro() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [searchParams] = useSearchParams();
+  const { registerWithAffiliate, isAuthenticated } = useCustomerAuth();
   const [showSuccess, setShowSuccess] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -23,13 +24,22 @@ export default function AfiliadosCadastro() {
   const [referrerName, setReferrerName] = useState<string | null>(null);
   const [referralCode, setReferralCode] = useState<string | null>(null);
   
-  // Form data - Apenas campos essenciais
+  // Form data - Campos essenciais + senha
   const [formData, setFormData] = useState({
     name: "",
     cpf: "",
     email: "",
-    phone: ""
+    phone: "",
+    password: "",
+    confirmPassword: ""
   });
+
+  // Redirecionar se já autenticado
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate("/afiliados/dashboard");
+    }
+  }, [isAuthenticated, navigate]);
 
   // Buscar nome do afiliado indicador ao carregar
   useEffect(() => {
@@ -82,7 +92,7 @@ export default function AfiliadosCadastro() {
     }
 
     // Validar campos obrigatórios
-    if (!formData.name || !formData.email || !formData.phone) {
+    if (!formData.name || !formData.email || !formData.phone || !formData.password) {
       toast({
         title: "Campos obrigatórios",
         description: "Preencha todos os campos obrigatórios",
@@ -91,20 +101,45 @@ export default function AfiliadosCadastro() {
       return;
     }
 
+    // Validar senha
+    if (formData.password.length < 6) {
+      toast({
+        title: "Senha fraca",
+        description: "A senha deve ter pelo menos 6 caracteres",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (formData.password !== formData.confirmPassword) {
+      toast({
+        title: "Senhas não coincidem",
+        description: "A confirmação de senha deve ser igual à senha",
+        variant: "destructive"
+      });
+      return;
+    }
+
     setLoading(true);
     try {
-      // REMOVIDO: walletId e referralCode do payload
-      const affiliateData = {
+      // Usar customerAuthService.registerWithAffiliate
+      const result = await registerWithAffiliate({
         name: formData.name,
         email: formData.email,
         phone: formData.phone,
-        document: formData.cpf
-      };
-
-      const result = await affiliateFrontendService.registerAffiliate(affiliateData);
+        password: formData.password,
+        referralCode: referralCode || undefined
+      });
       
-      // Se chegou até aqui, o cadastro foi bem-sucedido
-      setShowSuccess(true);
+      if (result.success) {
+        setShowSuccess(true);
+      } else {
+        toast({
+          title: "Erro no cadastro",
+          description: result.error || "Não foi possível criar sua conta",
+          variant: "destructive"
+        });
+      }
     } catch (error) {
       console.error('Erro ao cadastrar afiliado:', error);
       toast({
@@ -206,6 +241,36 @@ export default function AfiliadosCadastro() {
                     placeholder="(00) 00000-0000" 
                     value={formData.phone}
                     onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
+                    required 
+                  />
+                </div>
+
+                {/* Senha */}
+                <div className="space-y-2">
+                  <Label htmlFor="password">
+                    Senha <span className="text-destructive">*</span>
+                  </Label>
+                  <Input 
+                    id="password" 
+                    type="password"
+                    placeholder="Mínimo 6 caracteres" 
+                    value={formData.password}
+                    onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
+                    required 
+                  />
+                </div>
+
+                {/* Confirmar Senha */}
+                <div className="space-y-2">
+                  <Label htmlFor="confirmPassword">
+                    Confirmar Senha <span className="text-destructive">*</span>
+                  </Label>
+                  <Input 
+                    id="confirmPassword" 
+                    type="password"
+                    placeholder="Repita a senha" 
+                    value={formData.confirmPassword}
+                    onChange={(e) => setFormData(prev => ({ ...prev, confirmPassword: e.target.value }))}
                     required 
                   />
                 </div>

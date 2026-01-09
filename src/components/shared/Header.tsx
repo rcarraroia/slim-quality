@@ -40,7 +40,7 @@ export function Header() {
               Seja Afiliado
             </Link>
             <Link 
-              to="/login" 
+              to="/entrar" 
               className="text-sm font-medium transition-colors hover:text-primary"
             >
               Entrar
@@ -96,7 +96,7 @@ export function Header() {
                   Seja Afiliado
                 </Link>
                 <Link 
-                  to="/login" 
+                  to="/entrar" 
                   className="block py-3 text-lg font-medium border-b hover:text-primary transition-colors"
                   onClick={() => setMobileMenuOpen(false)}
                 >
