@@ -123,7 +123,7 @@ export default function AffiliateDashboardConfiguracoes() {
         phone: phoneInput?.value || '',
         city: cityInput?.value || null,
         state: stateSelect?.textContent !== 'Selecione' ? stateSelect?.textContent : null,
-        postal_code: cepInput?.value || null,
+        cep: cepInput?.value || null,
         birth_date: birthDateInput?.value || null,
       };
 
@@ -137,13 +137,17 @@ export default function AffiliateDashboardConfiguracoes() {
         return;
       }
 
-      // 1. Atualizar dados básicos na tabela affiliates
+      // 1. Atualizar dados na tabela affiliates (incluindo city, state, cep, birth_date)
       const { error: affiliateError } = await supabase
         .from('affiliates')
         .update({
           name: formData.name,
           email: formData.email,
           phone: formData.phone,
+          city: formData.city,
+          state: formData.state,
+          cep: formData.cep,
+          birth_date: formData.birth_date,
           updated_at: new Date().toISOString()
         })
         .eq('user_id', user.id)
@@ -151,7 +155,23 @@ export default function AffiliateDashboardConfiguracoes() {
 
       if (affiliateError) throw affiliateError;
 
-      // 2. Atualizar dados de endereço na tabela customers
+      // 2. Atualizar dados na tabela profiles (sincronizar)
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .update({
+          full_name: formData.name,
+          phone: formData.phone,
+          is_affiliate: true,
+          affiliate_status: 'active',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', user.id);
+
+      if (profileError) {
+        console.warn('Erro ao atualizar profile:', profileError);
+      }
+
+      // 3. Atualizar dados de endereço na tabela customers
       if (customer?.id) {
         const { error: customerError } = await supabase
           .from('customers')
@@ -161,7 +181,7 @@ export default function AffiliateDashboardConfiguracoes() {
             phone: formData.phone,
             city: formData.city,
             state: formData.state,
-            postal_code: formData.postal_code,
+            postal_code: formData.cep,
             birth_date: formData.birth_date,
             updated_at: new Date().toISOString()
           })
