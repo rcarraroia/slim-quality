@@ -54,13 +54,14 @@ export default function AfiliadosCadastro() {
 
       try {
         // 3. Buscar afiliado pelo código ou slug
+        const savedRefUpper = savedRef.toUpperCase();
         const { data } = await supabase
           .from('affiliates')
           .select('name, referral_code')
-          .or(`referral_code.eq.${savedRef},slug.eq.${savedRef}`)
+          .or(`referral_code.eq.${savedRef},referral_code.eq.${savedRefUpper},slug.eq.${savedRef},slug.eq.${savedRefUpper}`)
           .eq('status', 'active')
           .is('deleted_at', null)
-          .single();
+          .maybeSingle();
 
         if (data) {
           setReferrerName(data.name);

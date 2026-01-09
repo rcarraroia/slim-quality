@@ -22,13 +22,14 @@ export default function LandingPageWithRef() {
 
       try {
         // 1. Buscar afiliado pelo slug ou referral_code
+        const slugUpper = slug.toUpperCase();
         const { data: affiliate, error } = await supabase
           .from('affiliates')
           .select('id, name, referral_code')
-          .or(`slug.eq.${slug},referral_code.eq.${slug}`)
+          .or(`slug.eq.${slug},slug.eq.${slugUpper},referral_code.eq.${slug},referral_code.eq.${slugUpper}`)
           .eq('status', 'active')
           .is('deleted_at', null)
-          .single();
+          .maybeSingle();
 
         if (error || !affiliate) {
           console.warn('Afiliado não encontrado:', slug);
