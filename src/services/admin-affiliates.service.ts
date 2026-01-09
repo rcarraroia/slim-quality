@@ -211,37 +211,81 @@ class AdminAffiliatesService {
   }
 
   /**
-   * Ativar afiliado
+   * Ativar afiliado (usado apenas internamente ou para reativar)
    */
   async activate(id: string): Promise<ApiResponse<{ message: string }>> {
     try {
       const { error } = await supabase
         .from('affiliates')
-        .update({ status: 'active', updated_at: new Date().toISOString() })
-        .eq('id', id);
+        .update({ 
+          status: 'active', 
+          updated_at: new Date().toISOString() 
+        })
+        .eq('id', id)
+        .is('deleted_at', null);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Erro ao ativar afiliado:', error);
+        throw error;
+      }
 
       return { success: true, data: { message: 'Afiliado ativado com sucesso' } };
     } catch (error: any) {
+      console.error('Erro ao ativar afiliado:', error);
       return { success: false, error: error.message };
     }
   }
 
   /**
-   * Desativar afiliado
+   * Desativar afiliado (ação administrativa)
    */
   async deactivate(id: string): Promise<ApiResponse<{ message: string }>> {
     try {
       const { error } = await supabase
         .from('affiliates')
-        .update({ status: 'inactive', updated_at: new Date().toISOString() })
-        .eq('id', id);
+        .update({ 
+          status: 'inactive', 
+          updated_at: new Date().toISOString() 
+        })
+        .eq('id', id)
+        .is('deleted_at', null);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Erro ao desativar afiliado:', error);
+        throw error;
+      }
 
       return { success: true, data: { message: 'Afiliado desativado com sucesso' } };
     } catch (error: any) {
+      console.error('Erro ao desativar afiliado:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Suspender afiliado (ação administrativa mais severa)
+   */
+  async suspend(id: string, reason?: string): Promise<ApiResponse<{ message: string }>> {
+    try {
+      const { error } = await supabase
+        .from('affiliates')
+        .update({ 
+          status: 'suspended', 
+          suspension_reason: reason || 'Suspenso pela administração',
+          suspended_at: new Date().toISOString(),
+          updated_at: new Date().toISOString() 
+        })
+        .eq('id', id)
+        .is('deleted_at', null);
+
+      if (error) {
+        console.error('Erro ao suspender afiliado:', error);
+        throw error;
+      }
+
+      return { success: true, data: { message: 'Afiliado suspenso com sucesso' } };
+    } catch (error: any) {
+      console.error('Erro ao suspender afiliado:', error);
       return { success: false, error: error.message };
     }
   }

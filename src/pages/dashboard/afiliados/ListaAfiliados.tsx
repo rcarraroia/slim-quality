@@ -443,14 +443,24 @@ export default function ListaAfiliados() {
                     <UserX className="h-4 w-4" />
                     Desativar Afiliado
                   </Button>
-                ) : (
+                ) : selectedAfiliado.status === "inactive" ? (
                   <Button
                     variant="default"
                     className="gap-2"
                     onClick={() => handleStatusChange(selectedAfiliado.id, "active")}
                   >
                     <UserCheck className="h-4 w-4" />
-                    Ativar Afiliado
+                    Reativar Afiliado
+                  </Button>
+                ) : (
+                  // Status pending - mostrar opção de ativar manualmente se necessário
+                  <Button
+                    variant="default"
+                    className="gap-2"
+                    onClick={() => handleStatusChange(selectedAfiliado.id, "active")}
+                  >
+                    <UserCheck className="h-4 w-4" />
+                    Aprovar Afiliado
                   </Button>
                 )}
                 <Button variant="outline">Ver Histórico Completo</Button>
