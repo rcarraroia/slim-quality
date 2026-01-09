@@ -192,24 +192,137 @@ export class AffiliateFrontendService {
 
   /**
    * Busca dados do dashboard do afiliado
-   * API: GET /api/affiliates/dashboard
+   * Busca dados diretamente do Supabase
    */
   async getDashboard(): Promise<DashboardData> {
     try {
-      const response = await fetch(`${this.baseUrl}/dashboard`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.error || 'Erro ao buscar dashboard');
+      // Buscar usuário autenticado
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        throw new Error('Usuário não autenticado');
       }
 
-      return result.data;
+      // Buscar dados do afiliado
+      const { data: affiliateData, error: affiliateError } = await supabase
+        .from('affiliates')
+        .select('*')
+        .eq('user_id', user.id)
+        .is('deleted_at', null)
+        .single();
+
+      if (affiliateError || !affiliateData) {
+        throw new Error('Afiliado não encontrado');
+      }
+
+      // Buscar rede do afiliado
+      const { data: networkData } = await supabase
+        .from('affiliate_network')
+        .select(`
+          affiliate_id,
+          level,
+          affiliates!affiliate_network_affiliate_id_fkey (
+            id,
+            name,
+            email,
+            status,
+            total_commissions_cents,
+            created_at
+          )
+        `)
+        .eq('parent_affiliate_id', affiliateData.id);
+
+      // Buscar comissões recentes
+      const { data: commissionsData } = await supabase
+        .from('commissions')
+        .select(`
+          id,
+          commission_value_cents,
+          level,
+          status,
+          created_at,
+          paid_at,
+          order_id,
+          orders (
+            id,
+            total_cents,
+            status,
+            customers (name)
+          )
+        `)
+        .eq('affiliate_id', affiliateData.id)
+        .order('created_at', { ascending: false })
+        .limit(10);
+
+      // Mapear dados do afiliado
+      const affiliate: AffiliateData = {
+        id: affiliateData.id,
+        name: affiliateData.name,
+        email: affiliateData.email,
+        phone: affiliateData.phone,
+        referralCode: affiliateData.referral_code,
+        slug: affiliateData.slug,
+        walletId: affiliateData.wallet_id,
+        status: affiliateData.status,
+        totalClicks: affiliateData.total_clicks || 0,
+        totalConversions: affiliateData.total_conversions || 0,
+        totalCommissions: (affiliateData.total_commissions_cents || 0) / 100,
+        createdAt: affiliateData.created_at
+      };
+
+      // Calcular estatísticas
+      const stats: AffiliateStats = {
+        totalClicks: affiliateData.total_clicks || 0,
+        totalConversions: affiliateData.total_conversions || 0,
+        totalCommissions: (affiliateData.total_commissions_cents || 0) / 100,
+        conversionRate: affiliateData.total_clicks > 0 
+          ? ((affiliateData.total_conversions || 0) / affiliateData.total_clicks * 100)
+          : 0,
+        avgCommission: affiliateData.total_conversions > 0
+          ? ((affiliateData.total_commissions_cents || 0) / 100) / affiliateData.total_conversions
+          : 0
+      };
+
+      // Mapear rede
+      const network = (networkData || []).map((item: any) => ({
+        id: item.affiliates?.id,
+        name: item.affiliates?.name,
+        email: item.affiliates?.email,
+        level: item.level,
+        status: item.affiliates?.status,
+        totalCommissions: (item.affiliates?.total_commissions_cents || 0) / 100,
+        createdAt: item.affiliates?.created_at
+      })).filter((n: any) => n.id);
+
+      // Mapear comissões
+      const commissions = (commissionsData || []).map((c: any) => ({
+        id: c.id,
+        amount_cents: c.commission_value_cents || 0,
+        level: c.level,
+        status: c.status,
+        created_at: c.created_at,
+        paid_at: c.paid_at,
+        order: c.orders ? {
+          id: c.orders.id,
+          total_cents: c.orders.total_cents,
+          status: c.orders.status,
+          customer_name: c.orders.customers?.name || 'Cliente'
+        } : null
+      }));
+
+      // Gerar link de indicação
+      const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://slimquality.com.br';
+      const identifier = affiliateData.slug || affiliateData.referral_code;
+      const referralLink = `${baseUrl}/${identifier}`;
+
+      return {
+        affiliate,
+        stats,
+        network,
+        commissions,
+        referralLink
+      };
+
     } catch (error) {
       console.error('Erro ao buscar dashboard:', error);
       throw error;
@@ -518,7 +631,7 @@ export class AffiliateFrontendService {
         .from('commissions')
         .select(`
           id,
-          amount_cents,
+          commission_value_cents,
           level,
           status,
           created_at,
@@ -542,7 +655,7 @@ export class AffiliateFrontendService {
       // Mapear comissões
       const mappedCommissions = (commissions || []).map((c: any) => ({
         id: c.id,
-        amount: (c.amount_cents || 0) / 100,
+        amount: (c.commission_value_cents || 0) / 100,
         type: `N${c.level || 1}`,
         status: c.status,
         createdAt: c.created_at,
