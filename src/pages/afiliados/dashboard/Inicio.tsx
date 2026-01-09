@@ -81,7 +81,8 @@ export default function AffiliateDashboardInicio() {
         commissions: [],
         network: []
       });
-      setReferralLink("https://slimquality.com.br/?ref=DEMO");
+      // Não definir link de fallback - deixar vazio para mostrar "Carregando..."
+      setReferralLink("");
       
     } finally {
       setLoading(false);

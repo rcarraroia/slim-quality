@@ -1149,46 +1149,63 @@ export class AffiliateFrontendService {
       // Simular delay de API
       await new Promise(resolve => setTimeout(resolve, 400));
       
+      // Mock com formato correto (amount_cents e created_at)
       const mockWithdrawals = [
         {
           id: 'with-1',
-          amount: 1500.00,
+          amount_cents: 150000,
           status: 'completed',
           method: 'pix',
-          createdAt: '2026-01-01T10:00:00Z',
-          processedAt: '2026-01-01T14:30:00Z',
-          walletId: 'wal_abc123',
-          description: 'Saque de comissões - Dezembro 2025'
+          created_at: '2026-01-01T10:00:00Z',
+          processed_at: '2026-01-01T14:30:00Z',
+          wallet_id: 'wal_abc123',
+          description: 'Saque de comissões - Dezembro 2025',
+          commission: {
+            level: 1,
+            order: { id: 'ord-001', customer_name: 'João Silva' }
+          }
         },
         {
           id: 'with-2',
-          amount: 750.50,
-          status: 'pending',
+          amount_cents: 75050,
+          status: 'processing',
           method: 'pix',
-          createdAt: '2025-12-28T16:20:00Z',
-          walletId: 'wal_abc123',
-          description: 'Saque de comissões - Semana 52'
+          created_at: '2025-12-28T16:20:00Z',
+          wallet_id: 'wal_abc123',
+          description: 'Saque de comissões - Semana 52',
+          commission: {
+            level: 1,
+            order: { id: 'ord-002', customer_name: 'Maria Santos' }
+          }
         },
         {
           id: 'with-3',
-          amount: 2250.75,
+          amount_cents: 225075,
           status: 'completed',
           method: 'pix',
-          createdAt: '2025-12-15T09:15:00Z',
-          processedAt: '2025-12-15T11:45:00Z',
-          walletId: 'wal_abc123',
-          description: 'Saque de comissões - Novembro 2025'
+          created_at: '2025-12-15T09:15:00Z',
+          processed_at: '2025-12-15T11:45:00Z',
+          wallet_id: 'wal_abc123',
+          description: 'Saque de comissões - Novembro 2025',
+          commission: {
+            level: 2,
+            order: { id: 'ord-003', customer_name: 'Pedro Oliveira' }
+          }
         },
         {
           id: 'with-4',
-          amount: 890.25,
+          amount_cents: 89025,
           status: 'rejected',
           method: 'pix',
-          createdAt: '2025-12-10T14:30:00Z',
-          rejectedAt: '2025-12-10T16:00:00Z',
-          walletId: 'wal_abc123',
+          created_at: '2025-12-10T14:30:00Z',
+          rejected_at: '2025-12-10T16:00:00Z',
+          wallet_id: 'wal_abc123',
           description: 'Saque de comissões - Semana 49',
-          rejectionReason: 'Dados bancários inválidos'
+          rejection_reason: 'Dados bancários inválidos',
+          commission: {
+            level: 1,
+            order: { id: 'ord-004', customer_name: 'Ana Costa' }
+          }
         }
       ];
 
@@ -1201,9 +1218,9 @@ export class AffiliateFrontendService {
           totalPages: Math.ceil(mockWithdrawals.length / limit)
         },
         summary: {
-          totalCompleted: mockWithdrawals.filter(w => w.status === 'completed').reduce((sum, w) => sum + w.amount, 0),
-          totalPending: mockWithdrawals.filter(w => w.status === 'pending').reduce((sum, w) => sum + w.amount, 0),
-          totalRejected: mockWithdrawals.filter(w => w.status === 'rejected').reduce((sum, w) => sum + w.amount, 0)
+          totalCompleted: mockWithdrawals.filter(w => w.status === 'completed').reduce((sum, w) => sum + w.amount_cents, 0),
+          totalPending: mockWithdrawals.filter(w => w.status === 'processing').reduce((sum, w) => sum + w.amount_cents, 0),
+          totalRejected: mockWithdrawals.filter(w => w.status === 'rejected').reduce((sum, w) => sum + w.amount_cents, 0)
         }
       };
     } catch (error) {

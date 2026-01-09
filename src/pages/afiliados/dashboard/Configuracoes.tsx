@@ -21,6 +21,7 @@ export default function AffiliateDashboardConfiguracoes() {
   
   // Estados para dados do afiliado
   const [affiliate, setAffiliate] = useState<any>(null);
+  const [customer, setCustomer] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   
   // Estados para Wallet ID
@@ -50,6 +51,12 @@ export default function AffiliateDashboardConfiguracoes() {
   const loadAffiliateData = async () => {
     try {
       setLoading(true);
+      
+      // Buscar usuário autenticado
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Usuário não autenticado');
+
+      // Buscar dados do afiliado
       const { isAffiliate, affiliate: affiliateData } = await affiliateFrontendService.checkAffiliateStatus();
       
       if (isAffiliate && affiliateData) {
@@ -65,13 +72,25 @@ export default function AffiliateDashboardConfiguracoes() {
           setWalletId(affiliateData.walletId);
           setWalletStatus({
             configured: true,
-            valid: true, // Assumir válida se está salva
+            valid: true,
             lastTested: new Date().toISOString()
           });
         } else {
           setWalletStatus({ configured: false });
         }
       }
+
+      // Buscar dados do customer (cidade, estado, CEP, data nascimento)
+      const { data: customerData } = await supabase
+        .from('customers')
+        .select('*')
+        .eq('user_id', user.id)
+        .single();
+
+      if (customerData) {
+        setCustomer(customerData);
+      }
+
     } catch (error) {
       console.error('Erro ao carregar dados do afiliado:', error);
       toast({
@@ -94,7 +113,7 @@ export default function AffiliateDashboardConfiguracoes() {
       const emailInput = document.getElementById('email') as HTMLInputElement;
       const phoneInput = document.getElementById('telefone') as HTMLInputElement;
       const cityInput = document.getElementById('cidade') as HTMLInputElement;
-      const stateSelect = document.getElementById('estado') as HTMLSelectElement;
+      const stateSelect = document.querySelector('#estado button') as HTMLButtonElement;
       const cepInput = document.getElementById('cep') as HTMLInputElement;
       const birthDateInput = document.getElementById('birthDate') as HTMLInputElement;
 
@@ -103,8 +122,8 @@ export default function AffiliateDashboardConfiguracoes() {
         email: emailInput?.value || '',
         phone: phoneInput?.value || '',
         city: cityInput?.value || null,
-        state: stateSelect?.value || null,
-        cep: cepInput?.value || null,
+        state: stateSelect?.textContent !== 'Selecione' ? stateSelect?.textContent : null,
+        postal_code: cepInput?.value || null,
         birth_date: birthDateInput?.value || null,
       };
 
@@ -118,23 +137,40 @@ export default function AffiliateDashboardConfiguracoes() {
         return;
       }
 
-      // Atualizar no banco
-      const { error } = await supabase
+      // 1. Atualizar dados básicos na tabela affiliates
+      const { error: affiliateError } = await supabase
         .from('affiliates')
         .update({
           name: formData.name,
           email: formData.email,
           phone: formData.phone,
-          city: formData.city,
-          state: formData.state,
-          cep: formData.cep,
-          birth_date: formData.birth_date,
           updated_at: new Date().toISOString()
         })
         .eq('user_id', user.id)
         .is('deleted_at', null);
 
-      if (error) throw error;
+      if (affiliateError) throw affiliateError;
+
+      // 2. Atualizar dados de endereço na tabela customers
+      if (customer?.id) {
+        const { error: customerError } = await supabase
+          .from('customers')
+          .update({
+            name: formData.name,
+            email: formData.email,
+            phone: formData.phone,
+            city: formData.city,
+            state: formData.state,
+            postal_code: formData.postal_code,
+            birth_date: formData.birth_date,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', customer.id);
+
+        if (customerError) {
+          console.warn('Erro ao atualizar customer:', customerError);
+        }
+      }
 
       toast({ title: "✅ Dados salvos com sucesso!" });
       
@@ -445,12 +481,12 @@ export default function AffiliateDashboardConfiguracoes() {
               <Input 
                 id="cidade" 
                 placeholder="Sua cidade" 
-                defaultValue={affiliate?.city || ""}
+                defaultValue={customer?.city || ""}
               />
             </div>
             <div className="space-y-2">
               <Label htmlFor="estado">Estado</Label>
-              <Select defaultValue={affiliate?.state || ""}>
+              <Select defaultValue={customer?.state || ""}>
                 <SelectTrigger id="estado">
                   <SelectValue placeholder="Selecione" />
                 </SelectTrigger>
@@ -466,7 +502,7 @@ export default function AffiliateDashboardConfiguracoes() {
               <Input 
                 id="cep" 
                 placeholder="00000-000" 
-                defaultValue={affiliate?.cep || ""}
+                defaultValue={customer?.postal_code || ""}
               />
             </div>
           </div>
@@ -476,7 +512,7 @@ export default function AffiliateDashboardConfiguracoes() {
             <Input 
               id="birthDate" 
               type="date" 
-              defaultValue={affiliate?.birthDate || ""}
+              defaultValue={customer?.birth_date || ""}
             />
             <p className="text-xs text-muted-foreground">
               Opcional - Pode ser útil para validações futuras
