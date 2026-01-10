@@ -157,7 +157,7 @@ export function CustomerDashboardLayout() {
           .from('affiliate_network')
           .insert({
             affiliate_id: affiliateData.id,
-            parent_affiliate_id: referredById,
+            parent_id: referredById,
             level: 1,
             path: `${referredById}.${affiliateData.id}`
           });

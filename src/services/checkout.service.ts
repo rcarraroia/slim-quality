@@ -126,22 +126,42 @@ export class CheckoutService {
   
   /**
    * Cria pedido
+   * Task 4.3: Atualizado para buscar rede completa de afiliados
    */
   private async createOrder(customerId: string, data: CheckoutData): Promise<Order> {
+    // Buscar rede de afiliados se houver referral code
+    let affiliateN1Id = data.affiliate?.affiliate_id;
+    let affiliateN2Id = null;
+    let affiliateN3Id = null;
+
+    if (data.affiliate?.referral_code) {
+      const network = await this.buildAffiliateNetwork(data.affiliate.referral_code);
+      affiliateN1Id = network.n1?.id;
+      affiliateN2Id = network.n2?.id || null;
+      affiliateN3Id = network.n3?.id || null;
+
+      console.log('🌳 Rede de afiliados identificada:', {
+        n1: affiliateN1Id,
+        n2: affiliateN2Id,
+        n3: affiliateN3Id
+      });
+    }
+
     const orderData: CreateOrderData = {
       customer_id: customerId,
       customer_name: data.customer.name,
       customer_email: data.customer.email,
       customer_phone: data.customer.phone,
-      // Usar campos reais do banco
-      affiliate_n1_id: data.affiliate?.affiliate_id,
+      // Salvar rede completa de afiliados
+      affiliate_n1_id: affiliateN1Id,
+      affiliate_n2_id: affiliateN2Id,
+      affiliate_n3_id: affiliateN3Id,
       referral_code: data.affiliate?.referral_code,
       discount_cents: data.totals.discount_cents,
       shipping_cents: data.totals.shipping_cents,
       subtotal_cents: data.totals.subtotal_cents,
       total_cents: data.totals.total_cents,
       status: 'pending'
-      // Remover payment_method - não existe na tabela real
     };
     
     const { data: order, error } = await supabase

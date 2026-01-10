@@ -256,7 +256,7 @@ export class AffiliateFrontendService {
             created_at
           )
         `)
-        .eq('parent_affiliate_id', affiliateData.id);
+        .eq('parent_id', affiliateData.id);
 
       // Buscar comissões recentes
       const { data: commissionsData } = await supabase
@@ -545,7 +545,7 @@ export class AffiliateFrontendService {
             created_at
           )
         `)
-        .eq('parent_affiliate_id', currentAffiliate.id);
+        .eq('parent_id', currentAffiliate.id);
 
       if (networkError) {
         console.error('Erro ao buscar rede:', networkError);
@@ -555,7 +555,7 @@ export class AffiliateFrontendService {
       const { data: networkStats } = await supabase
         .from('affiliate_network')
         .select('level')
-        .eq('parent_affiliate_id', currentAffiliate.id);
+        .eq('parent_id', currentAffiliate.id);
 
       const stats = {
         totalN1: networkStats?.filter(n => n.level === 1).length || 0,
@@ -1021,7 +1021,7 @@ export class AffiliateFrontendService {
         .from('affiliate_network')
         .insert({
           affiliate_id: affiliateId,
-          parent_affiliate_id: parentId,
+          parent_id: parentId,
           level: Math.min(level, 3), // Máximo 3 níveis
           created_at: new Date().toISOString()
         });
@@ -1242,7 +1242,7 @@ export class AffiliateFrontendService {
         .from('affiliate_network')
         .select(`
           affiliate_id,
-          parent_affiliate_id,
+          parent_id,
           level,
           affiliate:affiliates!affiliate_network_affiliate_id_fkey (
             id,
@@ -1254,7 +1254,7 @@ export class AffiliateFrontendService {
             created_at
           )
         `)
-        .or(`parent_affiliate_id.eq.${affiliateId},affiliate_id.eq.${affiliateId}`)
+        .or(`parent_id.eq.${affiliateId},affiliate_id.eq.${affiliateId}`)
         .is('affiliate.deleted_at', null)
         .order('level', { ascending: true });
 
@@ -1292,17 +1292,17 @@ export class AffiliateFrontendService {
         affiliateMap.set(item.affiliate_id, affiliate);
 
         // Se é filho direto do afiliado atual, adicionar como raiz
-        if (item.parent_affiliate_id === affiliateId) {
+        if (item.parent_id === affiliateId) {
           rootNodes.push(affiliate);
         }
       });
 
       // Depois, organizar hierarquia
       networkData.forEach(item => {
-        if (!item.affiliate || item.parent_affiliate_id === affiliateId) return;
+        if (!item.affiliate || item.parent_id === affiliateId) return;
 
         const child = affiliateMap.get(item.affiliate_id);
-        const parent = affiliateMap.get(item.parent_affiliate_id);
+        const parent = affiliateMap.get(item.parent_id);
 
         if (child && parent) {
           parent.children.push(child);

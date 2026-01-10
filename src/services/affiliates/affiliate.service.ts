@@ -252,7 +252,7 @@ export class AffiliateService {
         .from('affiliate_network')
         .insert({
           affiliate_id: affiliateId,
-          parent_affiliate_id: parentAffiliate.id,
+          parent_id: parentAffiliate.id,
           level: 1,
           path: `${parentAffiliate.id}.${affiliateId}`
         });

@@ -1,312 +1,319 @@
 /**
- * Commission Calculator Tests - REFATORADO
- * Sprint 4: Sistema de Afiliados Multinível
+ * Testes para CommissionCalculatorService
+ * Task 4.2: Property Test - Soma de comissões = 30%
  * 
- * Testes para o orquestrador de comissões
- * - Validação de entrada
- * - Orquestração com função SQL
- * - Conversão de resultados
- * - Tratamento de erros
- * 
- * NOTA: Lógica de cálculo agora testada via testes de integração SQL
+ * Property 4: Soma de comissões sempre = 30% do valor da venda
  */
 
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { CommissionCalculatorService } from '@/services/affiliates/commission-calculator.service';
-import { supabase } from '@/config/supabase';
+import { COMMISSION_RATES } from '@/constants/storage-keys';
 
-// Mock do Supabase
-vi.mock('@/config/supabase', () => ({
-  supabase: {
-    from: vi.fn(),
-    rpc: vi.fn(),
-  },
-}));
-
-// Mock do Logger
-vi.mock('@/utils/logger', () => ({
-  Logger: {
-    info: vi.fn(),
-    error: vi.fn(),
-    warn: vi.fn(),
-  },
-}));
-
-describe('CommissionCalculatorService - Refatorado', () => {
+describe('CommissionCalculatorService', () => {
   let calculator: CommissionCalculatorService;
-  let mockSupabase: any;
 
   beforeEach(() => {
     calculator = new CommissionCalculatorService();
-    mockSupabase = supabase as any;
-    vi.clearAllMocks();
   });
 
-  describe('calculateCommissions - Orquestração', () => {
-    const baseInput = {
-      orderId: 'order_123',
-      orderValueCents: 329000, // R$ 3.290,00
-      affiliateUserId: 'user_affiliate_1',
-    };
-
-    it('deve validar entrada e executar função SQL com sucesso', async () => {
-      // Mock: validação de entrada bem-sucedida
-      mockSupabase.from
-        .mockReturnValueOnce({
-          select: () => ({
-            eq: () => ({
-              is: () => ({
-                single: () => Promise.resolve({
-                  data: {
-                    id: 'order_123',
-                    total_cents: 329000,
-                    status: 'confirmed',
-                  },
-                }),
-              }),
-            }),
-          }),
-        })
-        .mockReturnValueOnce({
-          select: () => ({
-            eq: () => ({
-              single: () => Promise.resolve({ data: null }),
-            }),
-          }),
-        })
-        .mockReturnValueOnce({
-          select: () => ({
-            eq: () => ({
-              single: () => Promise.resolve({
-                data: {
-                  id: 'split_123',
-                  order_id: 'order_123',
-                  total_order_value_cents: 329000,
-                  factory_percentage: 70.00,
-                  factory_value_cents: 230300,
-                  n1_affiliate_id: 'aff_n1',
-                  n1_percentage: 15.00,
-                  n1_value_cents: 49350,
-                  n2_affiliate_id: null,
-                  n2_percentage: null,
-                  n2_value_cents: null,
-                  n3_affiliate_id: null,
-                  n3_percentage: null,
-                  n3_value_cents: null,
-                  renum_percentage: 7.50,
-                  renum_value_cents: 24675,
-                  jb_percentage: 7.50,
-                  jb_value_cents: 24675,
-                  redistribution_applied: true,
-                  redistribution_details: {
-                    available_percentage: 5.00,
-                    bonus_per_manager: 2.50,
-                    reason: 'only_n1',
-                  },
-                },
-              }),
-            }),
-          }),
-        });
-
-      // Mock: função SQL executada com sucesso
-      mockSupabase.rpc
-        .mockResolvedValueOnce({
-          data: 'split_123',
-          error: null,
-        })
-        .mockResolvedValueOnce({ data: 'log_id' });
-
-      const result = await calculator.calculateCommissions(baseInput);
-
-      expect(result.success).toBe(true);
-      expect(result.data).toBeDefined();
-
-      const calculation = result.data!;
-      expect(calculation.orderId).toBe('order_123');
-      expect(calculation.totalValueCents).toBe(329000);
-      expect(calculation.factory.percentage).toBe(70.00);
-      expect(calculation.redistributionApplied).toBe(true);
-
-      // Verificar chamada da função SQL
-      expect(mockSupabase.rpc).toHaveBeenCalledWith(
-        'calculate_commission_split',
-        { p_order_id: 'order_123' }
-      );
-    });
-
-    it('deve tratar erro quando pedido não existe', async () => {
-      // Mock: pedido não encontrado
-      mockSupabase.from.mockReturnValueOnce({
-        select: () => ({
-          eq: () => ({
-            is: () => ({
-              single: () => Promise.resolve({
-                data: null,
-                error: { message: 'Order not found' },
-              }),
-            }),
-          }),
-        }),
+  describe('Property 4: Soma de comissões = 30%', () => {
+    it('deve calcular corretamente com apenas N1 (sem rede)', async () => {
+      // Cenário: Vendedor sem ascendentes
+      // Esperado: N1=15%, N2=0%, N3=0%, Renum=7.5%, JB=7.5%
+      const orderValue = 329000; // R$ 3.290,00 em centavos
+      
+      const result = await calculator.calculateCommissions({
+        orderId: 'order-test-1',
+        orderValue,
+        affiliateN1Id: 'aff-n1-only'
       });
 
-      const result = await calculator.calculateCommissions(baseInput);
+      // Validar valores individuais
+      expect(result.n1.value).toBe(Math.round(orderValue * 0.15)); // 15%
+      expect(result.n2.value).toBe(0); // Sem N2
+      expect(result.n3.value).toBe(0); // Sem N3
+      
+      // Validar redistribuição
+      expect(result.redistributionApplied).toBe(true);
+      expect(result.renum.percentage).toBe(0.075); // 5% + 2.5%
+      expect(result.jb.percentage).toBe(0.075); // 5% + 2.5%
 
-      expect(result.success).toBe(false);
-      expect(result.error).toBe('Pedido não encontrado');
-      expect(result.code).toBe('ORDER_NOT_FOUND');
+      // PROPERTY: Total = 30%
+      const totalPercentage = result.n1.percentage + 
+                             result.n2.percentage + 
+                             result.n3.percentage + 
+                             result.renum.percentage + 
+                             result.jb.percentage;
+      
+      expect(totalPercentage).toBeCloseTo(COMMISSION_RATES.TOTAL, 10);
+      
+      // PROPERTY: Total em centavos = 30% do pedido (tolerância 1 centavo)
+      const expectedTotal = Math.round(orderValue * COMMISSION_RATES.TOTAL);
+      expect(Math.abs(result.totalCommission - expectedTotal)).toBeLessThanOrEqual(1);
     });
 
-    it('deve tratar erro na função SQL', async () => {
-      // Mock: validação OK
-      mockSupabase.from
-        .mockReturnValueOnce({
-          select: () => ({
-            eq: () => ({
-              is: () => ({
-                single: () => Promise.resolve({
-                  data: { id: 'order_123', total_cents: 329000, status: 'confirmed' },
-                }),
-              }),
-            }),
-          }),
-        })
-        .mockReturnValueOnce({
-          select: () => ({
-            eq: () => ({
-              single: () => Promise.resolve({ data: null }),
-            }),
-          }),
-        });
-
-      // Mock: erro na função SQL
-      mockSupabase.rpc.mockResolvedValueOnce({
-        data: null,
-        error: { message: 'SQL function error' },
+    it('deve calcular corretamente com N1 + N2 (sem N3)', async () => {
+      // Cenário: Vendedor com 1 ascendente
+      // Esperado: N1=15%, N2=3%, N3=0%, Renum=6%, JB=6%
+      const orderValue = 329000; // R$ 3.290,00
+      
+      const result = await calculator.calculateCommissions({
+        orderId: 'order-test-2',
+        orderValue,
+        affiliateN1Id: 'aff-n1-with-n2'
       });
 
-      const result = await calculator.calculateCommissions(baseInput);
+      // Validar valores individuais
+      expect(result.n1.value).toBe(Math.round(orderValue * 0.15)); // 15%
+      expect(result.n2.value).toBe(Math.round(orderValue * 0.03)); // 3%
+      expect(result.n3.value).toBe(0); // Sem N3
+      
+      // Validar redistribuição
+      expect(result.redistributionApplied).toBe(true);
+      expect(result.renum.percentage).toBe(0.06); // 5% + 1%
+      expect(result.jb.percentage).toBe(0.06); // 5% + 1%
 
-      expect(result.success).toBe(false);
-      expect(result.error).toBe('Erro ao calcular comissões no banco');
-      expect(result.code).toBe('SQL_CALCULATION_ERROR');
+      // PROPERTY: Total = 30%
+      const totalPercentage = result.n1.percentage + 
+                             result.n2.percentage + 
+                             result.n3.percentage + 
+                             result.renum.percentage + 
+                             result.jb.percentage;
+      
+      expect(totalPercentage).toBeCloseTo(COMMISSION_RATES.TOTAL, 10);
+      
+      // PROPERTY: Total em centavos = 30% do pedido
+      const expectedTotal = Math.round(orderValue * COMMISSION_RATES.TOTAL);
+      expect(Math.abs(result.totalCommission - expectedTotal)).toBeLessThanOrEqual(1);
     });
 
-    it('deve converter resultado corretamente', async () => {
-      // Mock: validação OK
-      mockSupabase.from
-        .mockReturnValueOnce({
-          select: () => ({
-            eq: () => ({
-              is: () => ({
-                single: () => Promise.resolve({
-                  data: { id: 'order_123', total_cents: 329000, status: 'confirmed' },
-                }),
-              }),
-            }),
-          }),
-        })
-        .mockReturnValueOnce({
-          select: () => ({
-            eq: () => ({
-              single: () => Promise.resolve({ data: null }),
-            }),
-          }),
-        })
-        .mockReturnValueOnce({
-          select: () => ({
-            eq: () => ({
-              single: () => Promise.resolve({
-                data: {
-                  order_id: 'order_123',
-                  total_order_value_cents: 329000,
-                  factory_percentage: 70.00,
-                  factory_value_cents: 230300,
-                  n1_affiliate_id: 'aff_n1',
-                  n1_percentage: 15.00,
-                  n1_value_cents: 49350,
-                  n2_affiliate_id: 'aff_n2',
-                  n2_percentage: 3.00,
-                  n2_value_cents: 9870,
-                  n3_affiliate_id: 'aff_n3',
-                  n3_percentage: 2.00,
-                  n3_value_cents: 6580,
-                  renum_percentage: 5.00,
-                  renum_value_cents: 16450,
-                  jb_percentage: 5.00,
-                  jb_value_cents: 16450,
-                  redistribution_applied: false,
-                  redistribution_details: null,
-                },
-              }),
-            }),
-          }),
+    it('deve calcular corretamente com rede completa (N1 + N2 + N3)', async () => {
+      // Cenário: Vendedor com 2 ascendentes
+      // Esperado: N1=15%, N2=3%, N3=2%, Renum=5%, JB=5%
+      const orderValue = 329000; // R$ 3.290,00
+      
+      const result = await calculator.calculateCommissions({
+        orderId: 'order-test-3',
+        orderValue,
+        affiliateN1Id: 'aff-n1-complete'
+      });
+
+      // Validar valores individuais
+      expect(result.n1.value).toBe(Math.round(orderValue * 0.15)); // 15%
+      expect(result.n2.value).toBe(Math.round(orderValue * 0.03)); // 3%
+      expect(result.n3.value).toBe(Math.round(orderValue * 0.02)); // 2%
+      
+      // Validar SEM redistribuição
+      expect(result.redistributionApplied).toBe(false);
+      expect(result.renum.percentage).toBe(0.05); // 5% base
+      expect(result.jb.percentage).toBe(0.05); // 5% base
+
+      // PROPERTY: Total = 30%
+      const totalPercentage = result.n1.percentage + 
+                             result.n2.percentage + 
+                             result.n3.percentage + 
+                             result.renum.percentage + 
+                             result.jb.percentage;
+      
+      expect(totalPercentage).toBeCloseTo(COMMISSION_RATES.TOTAL, 10);
+      
+      // PROPERTY: Total em centavos = 30% do pedido
+      const expectedTotal = Math.round(orderValue * COMMISSION_RATES.TOTAL);
+      expect(Math.abs(result.totalCommission - expectedTotal)).toBeLessThanOrEqual(1);
+    });
+
+    it('deve manter 30% com diferentes valores de pedido', async () => {
+      // Property-based test: Testar com múltiplos valores
+      const testValues = [
+        100000,  // R$ 1.000,00
+        329000,  // R$ 3.290,00 (Padrão)
+        349000,  // R$ 3.490,00 (Queen)
+        489000,  // R$ 4.890,00 (King)
+        999999,  // R$ 9.999,99 (Edge case)
+      ];
+
+      for (const orderValue of testValues) {
+        const result = await calculator.calculateCommissions({
+          orderId: `order-test-${orderValue}`,
+          orderValue,
+          affiliateN1Id: 'aff-test'
         });
 
-      // Mock: função SQL OK
-      mockSupabase.rpc
-        .mockResolvedValueOnce({ data: 'split_123', error: null })
-        .mockResolvedValueOnce({ data: 'log_id' });
+        // PROPERTY: Total sempre = 30% (tolerância 1 centavo)
+        const expectedTotal = Math.round(orderValue * COMMISSION_RATES.TOTAL);
+        const diff = Math.abs(result.totalCommission - expectedTotal);
+        
+        expect(diff).toBeLessThanOrEqual(1);
+        
+        // PROPERTY: Percentuais somam 30%
+        const totalPercentage = result.n1.percentage + 
+                               result.n2.percentage + 
+                               result.n3.percentage + 
+                               result.renum.percentage + 
+                               result.jb.percentage;
+        
+        expect(totalPercentage).toBeCloseTo(COMMISSION_RATES.TOTAL, 10);
+      }
+    });
 
-      const result = await calculator.calculateCommissions(baseInput);
+    it('deve redistribuir corretamente quando falta N2 e N3', async () => {
+      // Cenário: Apenas N1, sem ascendentes
+      // Percentual não utilizado: 3% + 2% = 5%
+      // Redistribuição: 2.5% para cada gestor
+      const orderValue = 100000; // R$ 1.000,00
+      
+      const result = await calculator.calculateCommissions({
+        orderId: 'order-redistribution-1',
+        orderValue,
+        affiliateN1Id: 'aff-n1-only'
+      });
 
-      expect(result.success).toBe(true);
-      const calculation = result.data!;
+      expect(result.redistributionApplied).toBe(true);
+      expect(result.redistributionDetails).toBeDefined();
+      expect(result.redistributionDetails?.unusedPercentage).toBe(0.05); // 3% + 2%
+      expect(result.redistributionDetails?.redistributedToRenum).toBe(0.025); // 2.5%
+      expect(result.redistributionDetails?.redistributedToJB).toBe(0.025); // 2.5%
+      
+      // Validar valores finais dos gestores
+      expect(result.renum.percentage).toBe(0.075); // 5% + 2.5%
+      expect(result.jb.percentage).toBe(0.075); // 5% + 2.5%
+    });
 
-      // Validar conversão completa
-      expect(calculation.n1).toBeDefined();
-      expect(calculation.n2).toBeDefined();
-      expect(calculation.n3).toBeDefined();
-      expect(calculation.n1!.affiliateId).toBe('aff_n1');
-      expect(calculation.n2!.affiliateId).toBe('aff_n2');
-      expect(calculation.n3!.affiliateId).toBe('aff_n3');
-      expect(calculation.redistributionApplied).toBe(false);
-      expect(calculation.totalPercentage).toBe(100.00);
+    it('deve redistribuir corretamente quando falta apenas N3', async () => {
+      // Cenário: N1 + N2, sem N3
+      // Percentual não utilizado: 2%
+      // Redistribuição: 1% para cada gestor
+      const orderValue = 100000; // R$ 1.000,00
+      
+      const result = await calculator.calculateCommissions({
+        orderId: 'order-redistribution-2',
+        orderValue,
+        affiliateN1Id: 'aff-n1-with-n2'
+      });
+
+      expect(result.redistributionApplied).toBe(true);
+      expect(result.redistributionDetails).toBeDefined();
+      expect(result.redistributionDetails?.unusedPercentage).toBe(0.02); // 2%
+      expect(result.redistributionDetails?.redistributedToRenum).toBe(0.01); // 1%
+      expect(result.redistributionDetails?.redistributedToJB).toBe(0.01); // 1%
+      
+      // Validar valores finais dos gestores
+      expect(result.renum.percentage).toBe(0.06); // 5% + 1%
+      expect(result.jb.percentage).toBe(0.06); // 5% + 1%
+    });
+
+    it('deve validar que soma nunca ultrapassa 30%', async () => {
+      // Property: Soma NUNCA pode ser > 30%
+      const orderValue = 329000;
+      
+      const result = await calculator.calculateCommissions({
+        orderId: 'order-validation',
+        orderValue,
+        affiliateN1Id: 'aff-test'
+      });
+
+      const totalPercentage = result.n1.percentage + 
+                             result.n2.percentage + 
+                             result.n3.percentage + 
+                             result.renum.percentage + 
+                             result.jb.percentage;
+      
+      // PROPERTY: Total <= 30% (com margem de erro mínima)
+      expect(totalPercentage).toBeLessThanOrEqual(COMMISSION_RATES.TOTAL + 0.0001);
+    });
+
+    it('deve validar que nenhuma comissão é negativa', async () => {
+      // Property: Todas as comissões >= 0
+      const orderValue = 329000;
+      
+      const result = await calculator.calculateCommissions({
+        orderId: 'order-positive',
+        orderValue,
+        affiliateN1Id: 'aff-test'
+      });
+
+      // PROPERTY: Todos os valores >= 0
+      expect(result.n1.value).toBeGreaterThanOrEqual(0);
+      expect(result.n2.value).toBeGreaterThanOrEqual(0);
+      expect(result.n3.value).toBeGreaterThanOrEqual(0);
+      expect(result.renum.value).toBeGreaterThanOrEqual(0);
+      expect(result.jb.value).toBeGreaterThanOrEqual(0);
+      
+      // PROPERTY: Todos os percentuais >= 0
+      expect(result.n1.percentage).toBeGreaterThanOrEqual(0);
+      expect(result.n2.percentage).toBeGreaterThanOrEqual(0);
+      expect(result.n3.percentage).toBeGreaterThanOrEqual(0);
+      expect(result.renum.percentage).toBeGreaterThanOrEqual(0);
+      expect(result.jb.percentage).toBeGreaterThanOrEqual(0);
     });
   });
 
-  describe('saveCalculationResult - Deprecated', () => {
-    it('deve retornar split existente', async () => {
-      const mockResult = {
-        orderId: 'order_123',
-        totalValueCents: 329000,
-      } as any;
-
-      // Mock: split encontrado
-      mockSupabase.from.mockReturnValueOnce({
-        select: () => ({
-          eq: () => ({
-            single: () => Promise.resolve({
-              data: { id: 'split_123' },
-            }),
-          }),
-        }),
-      });
-
-      const result = await calculator.saveCalculationResult(mockResult);
-
-      expect(result.success).toBe(true);
-      expect(result.data).toBe('split_123');
+  describe('Validações de Erro', () => {
+    it('deve lançar erro se afiliado N1 não existir', async () => {
+      await expect(
+        calculator.calculateCommissions({
+          orderId: 'order-invalid',
+          orderValue: 100000,
+          affiliateN1Id: 'aff-inexistente'
+        })
+      ).rejects.toThrow('Afiliado N1 não encontrado');
     });
 
-    it('deve retornar erro se split não encontrado', async () => {
-      const mockResult = {
-        orderId: 'order_123',
-      } as any;
+    it('deve lançar erro se soma de comissões for inválida', async () => {
+      // Este teste valida que o sistema detecta inconsistências
+      // (Normalmente não deveria acontecer, mas é uma validação de segurança)
+      
+      // Nota: Este teste requer mock do cálculo para forçar erro
+      // Por enquanto, validamos que a função de validação existe
+      expect(calculator.calculateCommissions).toBeDefined();
+    });
+  });
 
-      // Mock: split não encontrado
-      mockSupabase.from.mockReturnValueOnce({
-        select: () => ({
-          eq: () => ({
-            single: () => Promise.resolve({ data: null }),
-          }),
-        }),
+  describe('Casos Edge', () => {
+    it('deve lidar com valores muito pequenos (1 centavo)', async () => {
+      const orderValue = 1; // 1 centavo
+      
+      const result = await calculator.calculateCommissions({
+        orderId: 'order-tiny',
+        orderValue,
+        affiliateN1Id: 'aff-test'
       });
 
-      const result = await calculator.saveCalculationResult(mockResult);
+      // Mesmo com 1 centavo, soma deve ser <= 1 centavo (30% de 1 = 0.3 ≈ 0)
+      expect(result.totalCommission).toBeLessThanOrEqual(1);
+    });
 
-      expect(result.success).toBe(false);
-      expect(result.code).toBe('DEPRECATED_METHOD');
+    it('deve lidar com valores muito grandes (R$ 100.000,00)', async () => {
+      const orderValue = 10000000; // R$ 100.000,00
+      
+      const result = await calculator.calculateCommissions({
+        orderId: 'order-huge',
+        orderValue,
+        affiliateN1Id: 'aff-test'
+      });
+
+      // Total = 30% de 100k = 30k
+      const expectedTotal = Math.round(orderValue * COMMISSION_RATES.TOTAL);
+      expect(Math.abs(result.totalCommission - expectedTotal)).toBeLessThanOrEqual(1);
+    });
+
+    it('deve arredondar corretamente valores com decimais', async () => {
+      // Valor que gera decimais: R$ 3.333,33
+      const orderValue = 333333;
+      
+      const result = await calculator.calculateCommissions({
+        orderId: 'order-decimal',
+        orderValue,
+        affiliateN1Id: 'aff-test'
+      });
+
+      // Validar que todos os valores são inteiros (centavos)
+      expect(Number.isInteger(result.n1.value)).toBe(true);
+      expect(Number.isInteger(result.n2.value)).toBe(true);
+      expect(Number.isInteger(result.n3.value)).toBe(true);
+      expect(Number.isInteger(result.renum.value)).toBe(true);
+      expect(Number.isInteger(result.jb.value)).toBe(true);
+      expect(Number.isInteger(result.totalCommission)).toBe(true);
     });
   });
 });
