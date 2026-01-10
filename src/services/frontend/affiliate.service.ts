@@ -519,8 +519,11 @@ export class AffiliateFrontendService {
             created_at
           )
         `)
-        .eq('parent_affiliate_id', currentAffiliate.id)
-        .eq('level', 1);
+        .eq('parent_affiliate_id', currentAffiliate.id);
+
+      if (networkError) {
+        console.error('Erro ao buscar rede:', networkError);
+      }
 
       // Contar afiliados por nível
       const { data: networkStats } = await supabase
@@ -539,18 +542,20 @@ export class AffiliateFrontendService {
           : 0
       };
 
-      // Mapear afiliados diretos
+      // Mapear afiliados diretos para o formato esperado pelo componente
       const mappedReferrals = (directReferrals || []).map((item: any) => ({
-        id: item.affiliates?.id,
-        name: item.affiliates?.name,
-        email: item.affiliates?.email,
-        level: item.level,
-        totalCommissions: (item.affiliates?.total_commissions_cents || 0) / 100,
-        status: item.affiliates?.status,
-        joinedAt: item.affiliates?.created_at
+        id: item.affiliates?.id || item.affiliate_id,
+        name: item.affiliates?.name || 'Afiliado',
+        level: item.level || 1,
+        sales_count: 0,
+        commission_generated: (item.affiliates?.total_commissions_cents || 0) / 100,
+        children: []
       })).filter((r: any) => r.id);
 
+      // Retornar no formato esperado pelo componente MinhaRede
       return {
+        success: true,
+        data: mappedReferrals,
         affiliate: {
           id: currentAffiliate.id,
           name: currentAffiliate.name,
@@ -559,16 +564,16 @@ export class AffiliateFrontendService {
           referralCode: currentAffiliate.referral_code,
           totalCommissions: (currentAffiliate.total_commissions_cents || 0) / 100
         },
-        directReferrals: mappedReferrals,
         stats
       };
 
     } catch (error) {
       console.error('Erro ao buscar rede:', error);
-      // Retornar estrutura vazia em caso de erro
+      // Retornar estrutura de erro
       return {
+        success: false,
+        data: [],
         affiliate: null,
-        directReferrals: [],
         stats: {
           totalN1: 0,
           totalN2: 0,
