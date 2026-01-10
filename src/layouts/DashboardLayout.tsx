@@ -143,7 +143,12 @@ export function DashboardLayout() {
                   ? "text-muted-foreground cursor-not-allowed opacity-50"
                   : "text-foreground hover:bg-muted hover:text-primary"
               )}
-              onClick={(e) => { item.disabled && e.preventDefault(); handleNavigation(item.path); }}
+              onClick={(e) => { 
+                if (item.disabled) {
+                  e.preventDefault();
+                }
+                handleNavigation(item.path); 
+              }}
             >
               <Icon className="h-5 w-5" />
               <span>{item.label}</span>

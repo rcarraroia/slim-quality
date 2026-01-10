@@ -1,0 +1,120 @@
+{
+  "mcpServers": {
+    "n8n-mcp": {
+      "args": [
+        "n8n-mcp"
+      ],
+      "env": {
+        "MCP_MODE": "stdio",
+        "N8N_API_URL": "https://primary-production-b7fe.up.railway.app",
+        "N8N_API_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5NWI2NzBlZi00ODdkLTQ1MGUtYmUzNC1kZjE2NWQwZTViYWEiLCJpc3MiOiJuOG4iLCJhdWQiOiJwdWJsaWMtYXBpIiwiaWF0IjoxNzU2NTA3MTk4fQ.VLfvXOCnRg4sKh32WDZcNczUjcgES6dZh63MNhAk9bs",
+        "LOG_LEVEL": "debug",
+        "DISABLE_CONSOLE_OUTPUT": "false"
+      },
+      "command": "npx",
+      "autoApprove": [],
+      "disabled": true
+    },
+    "fetch": {
+      "args": [
+        "mcp-server-fetch"
+      ],
+      "env": {},
+      "command": "uvx",
+      "autoApprove": [],
+      "disabled": true
+    },
+    "vercel": {
+      "url": "https://mcp.vercel.com",
+      "type": "http",
+      "autoApprove": [
+        "list_projects",
+        "get_project",
+        "list_deployments",
+        "get_deployment",
+        "get_logs",
+        "list_env",
+        "get_env",
+        "list_teams",
+        "get_deployment_build_logs",
+        "deploy_to_vercel",
+        "web_fetch_vercel_url",
+        "search_vercel_documentation"
+      ],
+      "disabled": false
+    },
+    "langchain-docs": {
+      "autoApprove": [
+        "SearchDocsByLangChain"
+      ],
+      "url": "https://docs.langchain.com/mcp",
+      "type": "http",
+      "disabled": false
+    },
+    "github": {
+      "command": "uvx",
+      "args": [
+        "mcp-server-github"
+      ],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "SEU_TOKEN_GITHUB_AQUI"
+      },
+      "autoApprove": [
+        "list_repositories",
+        "get_repository",
+        "list_issues",
+        "get_issue",
+        "create_issue",
+        "update_issue",
+        "list_pull_requests",
+        "get_pull_request",
+        "list_commits",
+        "get_commit",
+        "search_repositories",
+        "search_code",
+        "search_issues"
+      ],
+      "disabled": false
+    },
+    "sentry": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-sentry"
+      ],
+      "env": {
+        "SENTRY_AUTH_TOKEN": "SEU_TOKEN_SENTRY_AQUI",
+        "SENTRY_ORG_SLUG": "slim-quality"
+      },
+      "autoApprove": [
+        "list_projects",
+        "get_project_details",
+        "list_issues",
+        "get_issue_details",
+        "update_issue",
+        "list_events",
+        "get_event_details",
+        "search_issues"
+      ],
+      "disabled": false
+    }
+  },
+  "powers": {
+    "mcpServers": {
+      "power-supabase-hosted-supabase": {
+        "url": "https://mcp.supabase.com/mcp",
+        "disabled": false,
+        "autoApprove": [
+          "list_tables",
+          "apply_migration",
+          "list_projects",
+          "execute_sql",
+          "get_advisors",
+          "get_project",
+          "list_organizations",
+          "get_logs"
+        ]
+      }
+    }
+  }
+}

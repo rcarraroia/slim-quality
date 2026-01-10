@@ -6,6 +6,7 @@
 import { useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '@/config/supabase';
+import { STORAGE_KEYS } from '@/constants/storage-keys';
 
 export default function LandingPageWithRef() {
   const { slug } = useParams<{ slug: string }>();
@@ -39,7 +40,7 @@ export default function LandingPageWithRef() {
             timestamp: Date.now(),
             expiry: expiryDate.getTime()
           };
-          localStorage.setItem('slim_referral_code', JSON.stringify(referralData));
+          localStorage.setItem(STORAGE_KEYS.REFERRAL_CODE, JSON.stringify(referralData));
           
           // Cookie também (para compatibilidade)
           document.cookie = `slim_referral_code=${affiliate.referral_code}; expires=${expiryDate.toUTCString()}; path=/; SameSite=Lax`;

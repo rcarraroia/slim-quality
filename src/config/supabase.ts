@@ -24,3 +24,6 @@ if (!supabaseUrl || !supabaseKey) {
 }
 
 export const supabase = createClient(supabaseUrl, supabaseKey);
+
+// Exportar URL para uso em Edge Functions
+export { supabaseUrl };

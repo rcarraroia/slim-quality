@@ -10,6 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { CheckCircle2, Loader2, UserCheck } from "lucide-react";
 import { useCustomerAuth } from "@/hooks/useCustomerAuth";
 import { supabase } from "@/config/supabase";
+import { STORAGE_KEYS } from "@/constants/storage-keys";
 
 export default function AfiliadosCadastro() {
   const navigate = useNavigate();
@@ -48,7 +49,7 @@ export default function AfiliadosCadastro() {
       const refParam = searchParams.get('ref');
       
       // 2. Se não tem na URL, verificar localStorage
-      const savedRef = refParam || localStorage.getItem('referralCode');
+      const savedRef = refParam || localStorage.getItem(STORAGE_KEYS.REFERRAL_CODE);
       
       if (!savedRef) return;
 
@@ -69,7 +70,7 @@ export default function AfiliadosCadastro() {
           
           // Salvar no localStorage se veio da URL
           if (refParam) {
-            localStorage.setItem('referralCode', data.referral_code);
+            localStorage.setItem(STORAGE_KEYS.REFERRAL_CODE, data.referral_code);
           }
         }
       } catch (error) {

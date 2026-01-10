@@ -27,7 +27,7 @@ export class CheckoutService {
       console.log('🛒 Iniciando checkout:', data);
       
       // 1. Verificar se cliente já existe
-      let customer = await this.findOrCreateCustomer(data.customer);
+      const customer = await this.findOrCreateCustomer(data.customer);
       
       // 2. Criar pedido
       const order = await this.createOrder(customer.id, data);

@@ -3,7 +3,8 @@
  * Integração Frontend - Task 8: APIs REST
  */
 
-import { supabase } from '@/config/supabase';
+import { supabase, supabaseUrl } from '@/config/supabase';
+import { STORAGE_KEYS } from '@/constants/storage-keys';
 
 export interface CreateAffiliateData {
   name: string;
@@ -145,17 +146,16 @@ export class AffiliateFrontendService {
 
   /**
    * Valida Wallet ID do Asaas
-   * Integração direta com API Asaas
+   * Usa Edge Function para validação real via API Asaas
    */
   async validateWallet(walletId: string): Promise<WalletValidation> {
     try {
-      // 1. Validar formato UUID
-      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-      if (!uuidRegex.test(walletId)) {
+      // 1. Validar formato básico
+      if (!walletId || typeof walletId !== 'string' || walletId.trim().length === 0) {
         return {
           isValid: false,
           isActive: false,
-          error: 'Wallet ID deve ser um UUID válido'
+          error: 'Wallet ID é obrigatório'
         };
       }
 
@@ -170,15 +170,41 @@ export class AffiliateFrontendService {
         };
       }
 
-      // 3. Validar via API Asaas
-      // NOTA: Por segurança, validação real deve ser feita via Edge Function
-      // Por enquanto, simular validação para desenvolvimento
-      const mockValidation = await this.mockWalletValidation(walletId);
+      // 3. Chamar Edge Function para validação real
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      const response = await fetch(
+        `${supabaseUrl}/functions/v1/validate-asaas-wallet`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session?.access_token || ''}`
+          },
+          body: JSON.stringify({ walletId })
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Erro na validação: ${response.status}`);
+      }
+
+      const result = await response.json();
       
       // 4. Atualizar cache
-      await this.updateWalletCache(walletId, mockValidation);
+      await this.updateWalletCache(walletId, {
+        isValid: result.valid,
+        isActive: result.active || false,
+        name: result.name,
+        error: result.error
+      });
 
-      return mockValidation;
+      return {
+        isValid: result.valid,
+        isActive: result.active || false,
+        name: result.name,
+        error: result.error
+      };
 
     } catch (error) {
       console.error('Erro ao validar wallet:', error);
@@ -765,7 +791,7 @@ export class AffiliateFrontendService {
   async trackReferralClick(referralCode: string, utmParams?: any): Promise<void> {
     try {
       // Salvar código e UTMs no localStorage para rastreamento
-      localStorage.setItem('referralCode', referralCode);
+      localStorage.setItem(STORAGE_KEYS.REFERRAL_CODE, referralCode);
       localStorage.setItem('referralClickedAt', new Date().toISOString());
       
       if (utmParams) {
@@ -926,14 +952,14 @@ export class AffiliateFrontendService {
    * Obtém código de referência salvo
    */
   getSavedReferralCode(): string | null {
-    return localStorage.getItem('referralCode');
+    return localStorage.getItem(STORAGE_KEYS.REFERRAL_CODE);
   }
 
   /**
    * Remove código de referência salvo
    */
   clearReferralCode(): void {
-    localStorage.removeItem('referralCode');
+    localStorage.removeItem(STORAGE_KEYS.REFERRAL_CODE);
     localStorage.removeItem('referralClickedAt');
   }
 
@@ -1036,30 +1062,6 @@ export class AffiliateFrontendService {
     const diffMinutes = (now.getTime() - lastValidated.getTime()) / (1000 * 60);
     
     return diffMinutes > 5;
-  }
-
-  /**
-   * Simulação de validação de wallet (desenvolvimento)
-   * TODO: Substituir por Edge Function real
-   */
-  private async mockWalletValidation(walletId: string): Promise<WalletValidation> {
-    // Simular delay de API
-    await new Promise(resolve => setTimeout(resolve, 1000));
-
-    // Wallets válidas para teste
-    const validWallets = [
-      'f9c7d1dd-9e52-4e81-8194-8b666f276405', // RENUM
-      '7c06e9d9-dbae-4a85-82f4-36716775bcb2', // JB
-    ];
-
-    const isValid = validWallets.includes(walletId) || walletId.length === 36;
-
-    return {
-      isValid,
-      isActive: isValid,
-      name: isValid ? 'Usuário Teste' : undefined,
-      error: isValid ? undefined : 'Wallet ID não encontrada'
-    };
   }
 
   /**

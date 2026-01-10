@@ -50,8 +50,6 @@ serve(async (req) => {
     // Parse do body
     const { walletId }: ValidateWalletRequest = await req.json();
 
-    console.log('Validating wallet', { walletId });
-
     // 1. Validar entrada
     if (!walletId || typeof walletId !== 'string') {
       return new Response(JSON.stringify({
@@ -81,11 +79,6 @@ serve(async (req) => {
       .single();
 
     if (cachedValidation && cachedValidation.cached) {
-      console.log('Using cached validation', { 
-        walletId, 
-        isValid: cachedValidation.is_valid 
-      });
-      
       return new Response(JSON.stringify({
         isValid: cachedValidation.is_valid,
         isActive: cachedValidation.is_active,
@@ -107,12 +100,6 @@ serve(async (req) => {
       p_validation_response: validationResult.response,
       p_is_valid: validationResult.isValid,
       p_error_message: validationResult.error,
-    });
-
-    console.log('Wallet validation completed', {
-      walletId,
-      isValid: validationResult.isValid,
-      isActive: validationResult.isActive,
     });
 
     return new Response(JSON.stringify({
@@ -153,8 +140,6 @@ async function validateWalletWithAsaas(walletId: string): Promise<{
   response?: any;
 }> {
   try {
-    console.log('Validating wallet with Asaas API', { walletId });
-
     const response = await fetch(`${asaasBaseUrl}/wallets/${walletId}`, {
       method: 'GET',
       headers: {
@@ -164,7 +149,6 @@ async function validateWalletWithAsaas(walletId: string): Promise<{
     });
 
     if (response.status === 404) {
-      console.log('Wallet not found', { walletId });
       return {
         isValid: false,
         isActive: false,
@@ -188,12 +172,6 @@ async function validateWalletWithAsaas(walletId: string): Promise<{
 
     const walletData = await response.json();
     const isActive = walletData.status === 'ACTIVE';
-
-    console.log('Wallet validation successful', {
-      walletId,
-      isActive,
-      name: walletData.name,
-    });
 
     return {
       isValid: true,
@@ -232,7 +210,6 @@ async function retryWithBackoff<T>(
       
       if (attempt < maxRetries - 1) {
         const delay = baseDelay * Math.pow(2, attempt);
-        console.log(`Retry attempt ${attempt + 1}/${maxRetries} after ${delay}ms`);
         await new Promise(resolve => setTimeout(resolve, delay));
       }
     }

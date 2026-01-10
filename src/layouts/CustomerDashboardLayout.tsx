@@ -31,6 +31,7 @@ import {
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/config/supabase";
+import { STORAGE_KEYS } from "@/constants/storage-keys";
 
 export function CustomerDashboardLayout() {
   const navigate = useNavigate();
@@ -108,7 +109,7 @@ export function CustomerDashboardLayout() {
       // Buscar quem indicou (referred_by) do localStorage
       let referredById: string | null = null;
       try {
-        const storedReferral = localStorage.getItem('slim_referral_code');
+        const storedReferral = localStorage.getItem(STORAGE_KEYS.REFERRAL_CODE);
         if (storedReferral) {
           const referralData = JSON.parse(storedReferral);
           if (referralData.code && Date.now() < referralData.expiry) {

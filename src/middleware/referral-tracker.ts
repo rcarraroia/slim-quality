@@ -3,8 +3,10 @@
  * Captura parâmetros ?ref= e armazena em cookies/localStorage
  */
 
+import { STORAGE_KEYS } from '@/constants/storage-keys';
+
 export class ReferralTracker {
-  private static readonly REFERRAL_COOKIE_KEY = 'slim_referral_code';
+  private static readonly REFERRAL_COOKIE_KEY = STORAGE_KEYS.REFERRAL_CODE;
   private static readonly REFERRAL_EXPIRY_DAYS = 30;
 
   /**

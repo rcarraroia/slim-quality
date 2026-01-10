@@ -1,0 +1,13 @@
+{
+  "enabled": true,
+  "name": "Validação Antes de Commit",
+  "description": "Executa checklist de validação completo antes de permitir commit/push, garantindo que código compila, testes passam, lint está ok e não há console.logs esquecidos",
+  "version": "1",
+  "when": {
+    "type": "promptSubmit"
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "ANTES DE FAZER COMMIT/PUSH, VALIDE:\n□ Código compila sem erros? (npm run build)\n□ Testes passam? (npm test)\n□ Lint está ok? (npm run lint)\n□ Não há console.logs esquecidos?\n□ Variáveis de ambiente estão corretas?\n□ RLS policies foram verificadas?\n\nSe TUDO estiver OK, pode fazer commit.\nSe ALGO falhar, CORRIJA antes de commitar."
+  }
+}
