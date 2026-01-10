@@ -18,7 +18,7 @@ describe('Banco de Dados - Tabelas', () => {
         'payments', 'shipping_addresses',
         'asaas_transactions', 'asaas_splits', 'asaas_webhook_logs',
         // Sprint 4 - Afiliados
-        'affiliates', 'affiliate_network', 'referral_codes',
+        'affiliates', 'referral_codes',
         'referral_clicks', 'referral_conversions',
         'commissions', 'commission_splits', 'commission_logs',
         'asaas_wallets', 'notification_logs',

@@ -241,22 +241,20 @@ export class AffiliateFrontendService {
         throw new Error('Afiliado não encontrado');
       }
 
-      // Buscar rede do afiliado
+      // Buscar rede do afiliado usando view materializada
       const { data: networkData } = await supabase
-        .from('affiliate_network')
+        .from('affiliate_hierarchy')
         .select(`
-          affiliate_id,
+          id,
           level,
-          affiliates!affiliate_network_affiliate_id_fkey (
-            id,
-            name,
-            email,
-            status,
-            total_commissions_cents,
-            created_at
-          )
+          name,
+          email,
+          status,
+          total_commissions_cents,
+          created_at
         `)
-        .eq('parent_id', affiliateData.id);
+        .eq('root_id', affiliateData.id)
+        .neq('id', affiliateData.id); // Excluir o próprio afiliado
 
       // Buscar comissões recentes
       const { data: commissionsData } = await supabase
@@ -1010,34 +1008,13 @@ export class AffiliateFrontendService {
 
   /**
    * Cria entrada na rede genealógica
+   * @deprecated Não é mais necessário - a view materializada affiliate_hierarchy
+   * é atualizada automaticamente via trigger quando affiliates.referred_by é definido
    */
   private async createNetworkEntry(affiliateId: string, parentId: string): Promise<void> {
-    try {
-      // Buscar nível do pai
-      const { data: parentNetwork } = await supabase
-        .from('affiliate_network')
-        .select('level')
-        .eq('affiliate_id', parentId)
-        .single();
-
-      const level = parentNetwork ? parentNetwork.level + 1 : 1;
-
-      // Criar entrada na rede
-      const { error } = await supabase
-        .from('affiliate_network')
-        .insert({
-          affiliate_id: affiliateId,
-          parent_id: parentId,
-          level: Math.min(level, 3), // Máximo 3 níveis
-          created_at: new Date().toISOString()
-        });
-
-      if (error) {
-        console.warn('Erro ao criar entrada na rede:', error);
-      }
-    } catch (error) {
-      console.warn('Erro ao processar rede genealógica:', error);
-    }
+    // DEPRECADO: A view materializada affiliate_hierarchy é atualizada automaticamente
+    // via trigger quando um afiliado é criado com referred_by
+    console.log('[DEPRECATED] createNetworkEntry não é mais necessário - view atualizada via trigger');
   }
 
   /**
@@ -1291,25 +1268,12 @@ export class AffiliateFrontendService {
 
   private async buildNetworkTree(affiliateId: string): Promise<any[]> {
     try {
-      // Buscar todos os afiliados da rede (3 níveis)
+      // Buscar todos os afiliados da rede usando view materializada
       const { data: networkData, error } = await supabase
-        .from('affiliate_network')
-        .select(`
-          affiliate_id,
-          parent_id,
-          level,
-          affiliate:affiliates!affiliate_network_affiliate_id_fkey (
-            id,
-            name,
-            email,
-            status,
-            total_conversions,
-            total_commissions_cents,
-            created_at
-          )
-        `)
-        .or(`parent_id.eq.${affiliateId},affiliate_id.eq.${affiliateId}`)
-        .is('affiliate.deleted_at', null)
+        .from('affiliate_hierarchy')
+        .select('*')
+        .eq('root_id', affiliateId)
+        .neq('id', affiliateId) // Excluir o próprio afiliado
         .order('level', { ascending: true });
 
       if (error) {
@@ -1327,39 +1291,40 @@ export class AffiliateFrontendService {
 
       // Primeiro, criar mapa de todos os afiliados
       networkData.forEach(item => {
-        if (!item.affiliate) return;
-
-        const affiliateData = Array.isArray(item.affiliate) ? item.affiliate[0] : item.affiliate;
-        
         const affiliate = {
-          id: affiliateData.id,
-          name: affiliateData.name,
-          email: affiliateData.email,
+          id: item.id,
+          name: item.name,
+          email: item.email,
           level: item.level,
-          sales_count: affiliateData.total_conversions || 0,
-          commission_generated: (affiliateData.total_commissions_cents || 0) / 100,
-          status: affiliateData.status,
-          created_at: affiliateData.created_at,
+          sales_count: item.total_conversions || 0,
+          commission_generated: (item.total_commissions_cents || 0) / 100,
+          status: item.status,
+          created_at: item.created_at,
           children: []
         };
 
-        affiliateMap.set(item.affiliate_id, affiliate);
+        affiliateMap.set(item.id, affiliate);
 
-        // Se é filho direto do afiliado atual, adicionar como raiz
-        if (item.parent_id === affiliateId) {
+        // Se é nível 1 (filho direto), adicionar como raiz
+        if (item.level === 1) {
           rootNodes.push(affiliate);
         }
       });
 
-      // Depois, organizar hierarquia
+      // Depois, organizar hierarquia usando o path
       networkData.forEach(item => {
-        if (!item.affiliate || item.parent_id === affiliateId) return;
+        if (item.level === 1) return; // Já está em rootNodes
 
-        const child = affiliateMap.get(item.affiliate_id);
-        const parent = affiliateMap.get(item.parent_id);
+        // Extrair parent_id do path (penúltimo elemento)
+        const pathParts = item.path.split('.');
+        if (pathParts.length > 1) {
+          const parentId = pathParts[pathParts.length - 2];
+          const child = affiliateMap.get(item.id);
+          const parent = affiliateMap.get(parentId);
 
-        if (child && parent) {
-          parent.children.push(child);
+          if (child && parent) {
+            parent.children.push(child);
+          }
         }
       });
 

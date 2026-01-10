@@ -451,6 +451,6 @@ async function cleanupTestData() {
   await supabase.from('referral_clicks').delete().like('referral_code', 'TEST%');
   await supabase.from('payments').delete().like('asaas_payment_id', 'pay_test_%');
   await supabase.from('orders').delete().like('order_number', 'TEST-%');
-  await supabase.from('affiliate_network').delete().eq('affiliate_id', 'test_%');
+  // affiliate_network deprecada - view materializada é atualizada automaticamente via trigger
   await supabase.from('affiliates').delete().like('email', '%@test.com');
 }
