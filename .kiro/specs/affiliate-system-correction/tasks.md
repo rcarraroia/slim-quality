@@ -277,6 +277,7 @@ Implementação da correção estrutural do sistema de afiliados, consolidando h
 - [x] 5.8 Preparar commit e push ✅
   - ✅ Commit inicial: consolidação da hierarquia (3395ffb)
   - ✅ Commit correção: RLS policies e auto-ativação (d168807)
+  - ✅ Commit correção: redirect login + acesso dual + FK orders (7168b6c)
   - ✅ Push para repositório realizado
   - _Requirements: 8.4_
 
@@ -296,9 +297,14 @@ Implementação da correção estrutural do sistema de afiliados, consolidando h
 - [x] RLS policies ativas ✅
 - [x] Performance validada (0.105ms) ✅
 - [x] Integridade de dados validada ✅
-- [ ] Commit e push pendentes
+- [x] Commits realizados (3 commits) ✅
+- [x] Push para repositório ✅
+- [x] **CORREÇÕES CRÍTICAS APLICADAS:**
+  - ✅ Redirect após login volta para checkout
+  - ✅ Afiliados podem acessar painel de cliente
+  - ✅ FK constraints de orders corrigidas
 - [ ] Testes manuais pendentes
-- **Status:** Pronto para commit. Aguardando aprovação do usuário.
+- **Status:** Pronto para testes manuais. Aguardando validação do usuário.
 
 ## 📊 Resumo de Fases
 

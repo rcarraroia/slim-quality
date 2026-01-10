@@ -142,7 +142,7 @@ export function CustomerDashboardLayout() {
           phone: user.phone,
           referral_code: referralCode,
           status: 'active',  // Ativação automática - admin só desativa se necessário
-          referred_by: referredById  // Vincular à rede de quem indicou
+          referred_by: referredById  // Vincular à rede de quem indicou (fonte única de verdade)
         })
         .select('id, status')
         .single();
@@ -151,24 +151,11 @@ export function CustomerDashboardLayout() {
         throw error;
       }
 
-      // Se foi indicado por alguém, inserir na tabela affiliate_network
-      if (referredById && affiliateData) {
-        const { error: networkError } = await supabase
-          .from('affiliate_network')
-          .insert({
-            affiliate_id: affiliateData.id,
-            parent_id: referredById,
-            level: 1,
-            path: `${referredById}.${affiliateData.id}`
-          });
-        
-        if (networkError) {
-          console.warn('[Affiliate Activation] Erro ao inserir na rede:', networkError);
-          // Não falhar a ativação por causa disso, apenas logar
-        } else {
-          console.log('[Affiliate Activation] Afiliado inserido na rede com sucesso');
-        }
-      }
+      console.log('[Affiliate Activation] Afiliado criado com sucesso:', {
+        affiliateId: affiliateData.id,
+        referralCode,
+        referredBy: referredById
+      });
 
       // Atualizar estado do usuário
       updateUser({
