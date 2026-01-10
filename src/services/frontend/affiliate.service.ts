@@ -507,7 +507,7 @@ export class AffiliateFrontendService {
 
   /**
    * Busca rede do afiliado
-   * Busca dados reais do banco de dados
+   * Task 3.3: Usa view materializada affiliate_hierarchy
    */
   async getNetwork(): Promise<any> {
     try {
@@ -530,58 +530,36 @@ export class AffiliateFrontendService {
         throw new Error('Afiliado não encontrado');
       }
 
-      // Buscar afiliados diretos (N1) - referidos por este afiliado
-      const { data: directReferrals, error: networkError } = await supabase
-        .from('affiliate_network')
-        .select(`
-          affiliate_id,
-          level,
-          affiliates!affiliate_network_affiliate_id_fkey (
-            id,
-            name,
-            email,
-            status,
-            total_commissions_cents,
-            created_at
-          )
-        `)
-        .eq('parent_id', currentAffiliate.id);
+      // ✅ NOVO: Buscar rede usando view materializada affiliate_hierarchy
+      const { data: hierarchyData, error: hierarchyError } = await supabase
+        .from('affiliate_hierarchy')
+        .select('*')
+        .eq('root_id', currentAffiliate.id)
+        .order('level', { ascending: true });
 
-      if (networkError) {
-        console.error('Erro ao buscar rede:', networkError);
+      if (hierarchyError) {
+        console.error('Erro ao buscar hierarquia:', hierarchyError);
       }
 
-      // Contar afiliados por nível
-      const { data: networkStats } = await supabase
-        .from('affiliate_network')
-        .select('level')
-        .eq('parent_id', currentAffiliate.id);
+      // Construir árvore hierárquica a partir da view
+      const networkTree = this.buildTreeFromHierarchy(hierarchyData || [], currentAffiliate.id);
 
+      // Calcular estatísticas por nível
       const stats = {
-        totalN1: networkStats?.filter(n => n.level === 1).length || 0,
-        totalN2: networkStats?.filter(n => n.level === 2).length || 0,
-        totalN3: networkStats?.filter(n => n.level === 3).length || 0,
+        totalN1: (hierarchyData || []).filter(n => n.level === 1).length,
+        totalN2: (hierarchyData || []).filter(n => n.level === 2).length,
+        totalN3: (hierarchyData || []).filter(n => n.level === 3).length,
         totalCommissions: (currentAffiliate.total_commissions_cents || 0) / 100,
-        totalReferrals: networkStats?.length || 0,
+        totalReferrals: (hierarchyData || []).length,
         conversionRate: currentAffiliate.total_clicks > 0 
           ? ((currentAffiliate.total_conversions || 0) / currentAffiliate.total_clicks * 100).toFixed(1)
           : 0
       };
 
-      // Mapear afiliados diretos para o formato esperado pelo componente
-      const mappedReferrals = (directReferrals || []).map((item: any) => ({
-        id: item.affiliates?.id || item.affiliate_id,
-        name: item.affiliates?.name || 'Afiliado',
-        level: item.level || 1,
-        sales_count: 0,
-        commission_generated: (item.affiliates?.total_commissions_cents || 0) / 100,
-        children: []
-      })).filter((r: any) => r.id);
-
       // Retornar no formato esperado pelo componente MinhaRede
       return {
         success: true,
-        data: mappedReferrals,
+        data: networkTree,
         affiliate: {
           id: currentAffiliate.id,
           name: currentAffiliate.name,
@@ -787,16 +765,19 @@ export class AffiliateFrontendService {
 
   /**
    * Rastreia clique em link de afiliado (melhorado)
+   * Task 3.1: Salva em formato JSON com timestamp e expiração
    */
   async trackReferralClick(referralCode: string, utmParams?: any): Promise<void> {
     try {
-      // Salvar código e UTMs no localStorage para rastreamento
-      localStorage.setItem(STORAGE_KEYS.REFERRAL_CODE, referralCode);
-      localStorage.setItem('referralClickedAt', new Date().toISOString());
+      // Salvar código em formato JSON estruturado
+      const referralData = {
+        code: referralCode,
+        timestamp: Date.now(),
+        expiry: Date.now() + (30 * 24 * 60 * 60 * 1000), // 30 dias
+        utmParams: utmParams || {}
+      };
       
-      if (utmParams) {
-        localStorage.setItem('utmParams', JSON.stringify(utmParams));
-      }
+      localStorage.setItem(STORAGE_KEYS.REFERRAL_CODE, JSON.stringify(referralData));
 
       // Registrar clique no banco
       const { error } = await supabase
@@ -950,17 +931,42 @@ export class AffiliateFrontendService {
 
   /**
    * Obtém código de referência salvo
+   * Task 3.1: Valida expiração de 30 dias
    */
   getSavedReferralCode(): string | null {
-    return localStorage.getItem(STORAGE_KEYS.REFERRAL_CODE);
+    try {
+      const stored = localStorage.getItem(STORAGE_KEYS.REFERRAL_CODE);
+      if (!stored) return null;
+
+      // Tentar parsear como JSON (novo formato)
+      try {
+        const referralData = JSON.parse(stored);
+        
+        // Validar expiração
+        if (Date.now() > referralData.expiry) {
+          this.clearReferralCode();
+          return null;
+        }
+        
+        return referralData.code;
+      } catch {
+        // Formato antigo (string simples) - manter compatibilidade
+        return stored;
+      }
+    } catch (error) {
+      console.warn('Erro ao recuperar código de referência:', error);
+      return null;
+    }
   }
 
   /**
    * Remove código de referência salvo
+   * Task 3.1: Limpa dados de rastreamento
    */
   clearReferralCode(): void {
     localStorage.removeItem(STORAGE_KEYS.REFERRAL_CODE);
     localStorage.removeItem('referralClickedAt');
+    localStorage.removeItem('utmParams');
   }
 
   /**
@@ -1235,6 +1241,54 @@ export class AffiliateFrontendService {
       throw new Error('Erro ao carregar histórico de saques');
     }
   }
+  /**
+   * Constrói árvore hierárquica a partir da view affiliate_hierarchy
+   * Task 3.3: Método auxiliar para organizar dados da view em árvore
+   */
+  private buildTreeFromHierarchy(hierarchyData: any[], rootId: string): any[] {
+    if (!hierarchyData || hierarchyData.length === 0) return [];
+
+    // Criar mapa de afiliados por ID
+    const affiliateMap = new Map();
+    
+    hierarchyData.forEach(item => {
+      affiliateMap.set(item.id, {
+        id: item.id,
+        name: item.name,
+        email: item.email,
+        level: item.level,
+        sales_count: 0, // TODO: Adicionar na view se necessário
+        commission_generated: 0, // TODO: Adicionar na view se necessário
+        status: item.status,
+        created_at: item.created_at,
+        children: []
+      });
+    });
+
+    // Organizar hierarquia usando o campo path da view
+    const rootNodes: any[] = [];
+    
+    hierarchyData.forEach(item => {
+      const affiliate = affiliateMap.get(item.id);
+      if (!affiliate) return;
+
+      // Se é nível 1 (filho direto da raiz), adicionar como root node
+      if (item.level === 1) {
+        rootNodes.push(affiliate);
+      } else {
+        // Encontrar pai usando o path (penúltimo elemento é o pai)
+        const parentId = item.path[item.path.length - 2];
+        const parent = affiliateMap.get(parentId);
+        
+        if (parent) {
+          parent.children.push(affiliate);
+        }
+      }
+    });
+
+    return rootNodes;
+  }
+
   private async buildNetworkTree(affiliateId: string): Promise<any[]> {
     try {
       // Buscar todos os afiliados da rede (3 níveis)

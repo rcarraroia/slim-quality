@@ -54,7 +54,7 @@ export interface NetworkTree {
 export class AffiliateService {
   /**
    * Cria novo afiliado com validações completas
-   * Task 3.1: Implementar createAffiliate() com validações completas
+   * ATUALIZADO: Usa referred_by como fonte única de verdade
    */
   async createAffiliate(data: CreateAffiliateRequest, userId: string): Promise<Affiliate> {
     try {
@@ -92,10 +92,23 @@ export class AffiliateService {
         throw new Error('Wallet ID já cadastrada por outro afiliado');
       }
 
-      // 4. Gerar código de indicação único
+      // 4. Validar código de indicação (se fornecido)
+      let referredBy: string | null = null;
+      if (data.referralCode) {
+        const parent = await this.getAffiliateByCode(data.referralCode);
+        if (!parent) {
+          throw new Error('Código de indicação inválido');
+        }
+        if (parent.status !== 'active') {
+          throw new Error('Afiliado indicador não está ativo');
+        }
+        referredBy = parent.id;
+      }
+
+      // 5. Gerar código de indicação único
       const referralCode = await this.generateReferralCode();
 
-      // 5. Criar afiliado
+      // 6. Criar afiliado com referred_by (fonte única de verdade)
       const affiliateData = {
         user_id: userId,
         name: data.name,
@@ -105,6 +118,7 @@ export class AffiliateService {
         referral_code: referralCode,
         wallet_id: data.walletId,
         wallet_validated_at: new Date().toISOString(),
+        referred_by: referredBy, // ⭐ FONTE ÚNICA
         status: 'pending' as const
       };
 
@@ -118,10 +132,8 @@ export class AffiliateService {
         throw new Error(`Erro ao criar afiliado: ${error.message}`);
       }
 
-      // 6. Construir rede genealógica se há código de indicação
-      if (data.referralCode) {
-        await this.buildNetwork(newAffiliate.id, data.referralCode);
-      }
+      // View materializada será atualizada automaticamente via trigger
+      console.log('✅ Afiliado criado com referred_by:', referredBy || 'raiz');
 
       return this.mapAffiliateFromDB(newAffiliate);
 
@@ -225,83 +237,139 @@ export class AffiliateService {
   }
 
   /**
-   * Constrói rede genealógica
-   * Task 3.2: Implementar buildNetwork() para vincular afiliados
+   * Busca rede completa do afiliado usando view materializada
+   * NOVO: Usa affiliate_hierarchy para performance
    */
-  async buildNetwork(affiliateId: string, parentReferralCode: string): Promise<void> {
+  async getNetwork(affiliateId: string): Promise<Affiliate[]> {
     try {
-      // 1. Buscar afiliado pai pelo código
-      const parentAffiliate = await this.getAffiliateByCode(parentReferralCode);
-      if (!parentAffiliate) {
-        throw new Error('Código de indicação não encontrado');
-      }
-
-      // 2. Verificar se pai está ativo
-      if (parentAffiliate.status !== 'active') {
-        throw new Error('Afiliado indicador não está ativo');
-      }
-
-      // 3. Verificar se não criaria loop
-      const wouldCreateLoop = await this.wouldCreateLoop(affiliateId, parentAffiliate.id);
-      if (wouldCreateLoop) {
-        throw new Error('Vinculação criaria loop na rede');
-      }
-
-      // 4. Criar entrada na rede
-      const { error } = await supabase
-        .from('affiliate_network')
-        .insert({
-          affiliate_id: affiliateId,
-          parent_id: parentAffiliate.id,
-          level: 1,
-          path: `${parentAffiliate.id}.${affiliateId}`
-        });
+      const { data, error } = await supabase
+        .from('affiliate_hierarchy')
+        .select('*')
+        .eq('root_id', affiliateId)
+        .order('level', { ascending: true });
 
       if (error) {
-        throw new Error(`Erro ao criar rede: ${error.message}`);
+        console.error('Erro ao buscar rede:', error);
+        return [];
       }
 
+      return (data || []).map(item => ({
+        id: item.id,
+        userId: '', // Não necessário para listagem
+        name: item.name,
+        email: item.email,
+        referralCode: item.referral_code,
+        walletId: '', // Não expor wallet na listagem
+        status: item.status,
+        totalClicks: 0,
+        totalConversions: 0,
+        totalCommissions: 0,
+        createdAt: item.created_at,
+        updatedAt: item.created_at
+      }));
     } catch (error) {
-      console.error('Erro ao construir rede:', error);
-      throw error;
+      console.error('Erro ao buscar rede:', error);
+      return [];
     }
+  }
+
+  /**
+   * Busca ancestrais do afiliado (N2, N3) para cálculo de split
+   * NOVO: Usa referred_by recursivamente
+   */
+  async getAncestors(affiliateId: string, maxLevels: number = 3): Promise<{
+    id: string;
+    level: number;
+    walletId: string;
+    referralCode: string;
+  }[]> {
+    try {
+      const ancestors: {
+        id: string;
+        level: number;
+        walletId: string;
+        referralCode: string;
+      }[] = [];
+      
+      let currentId = affiliateId;
+      
+      for (let level = 1; level <= maxLevels; level++) {
+        const { data } = await supabase
+          .from('affiliates')
+          .select('id, referred_by, wallet_id, referral_code')
+          .eq('id', currentId)
+          .is('deleted_at', null)
+          .single();
+        
+        if (!data || !data.referred_by) break;
+        
+        // Buscar dados do pai
+        const { data: parent } = await supabase
+          .from('affiliates')
+          .select('id, wallet_id, referral_code, referred_by')
+          .eq('id', data.referred_by)
+          .eq('status', 'active')
+          .is('deleted_at', null)
+          .single();
+        
+        if (!parent) break;
+        
+        ancestors.push({
+          id: parent.id,
+          level: level,
+          walletId: parent.wallet_id,
+          referralCode: parent.referral_code
+        });
+        
+        currentId = parent.id;
+      }
+      
+      return ancestors;
+    } catch (error) {
+      console.error('Erro ao buscar ancestrais:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Aprova afiliado e ativa na rede
+   * NOVO: Método simplificado
+   */
+  async approveAffiliate(affiliateId: string, adminId: string): Promise<Affiliate> {
+    return this.updateStatus(affiliateId, 'active', adminId);
+  }
+
+  /**
+   * Constrói rede genealógica
+   * REMOVIDO: Não é mais necessário - referred_by é definido na criação
+   * @deprecated Use createAffiliate com referralCode
+   */
+  async buildNetwork(affiliateId: string, parentReferralCode: string): Promise<void> {
+    console.warn('buildNetwork() está deprecated - use createAffiliate com referralCode');
+    // Mantido apenas para compatibilidade
   }
 
   /**
    * Verifica se vinculação criaria loop
-   * Task 3.2: Implementar validateNetworkIntegrity() para detectar loops
+   * REMOVIDO: Validação agora é feita pelo banco (constraint + trigger)
+   * @deprecated Validação automática via banco
    */
   private async wouldCreateLoop(affiliateId: string, parentId: string): Promise<boolean> {
-    try {
-      // Verificar se o parentId é descendente do affiliateId
-      const { data, error } = await supabase
-        .rpc('get_network_ancestors', { affiliate_uuid: parentId });
-
-      if (error) {
-        console.warn('Erro ao verificar loop:', error);
-        return false; // Em caso de erro, permitir (será validado pelo trigger)
-      }
-
-      // Se affiliateId está entre os ancestrais de parentId, seria loop
-      return data?.some((ancestor: any) => ancestor.affiliate_id === affiliateId) || false;
-
-    } catch (error) {
-      console.warn('Erro ao verificar loop:', error);
-      return false;
-    }
+    console.warn('wouldCreateLoop() está deprecated - validação automática via banco');
+    return false;
   }
 
   /**
    * Busca árvore genealógica do afiliado
-   * Task 3.2: Implementar getNetworkTree() com estrutura hierárquica
+   * ATUALIZADO: Usa affiliate_hierarchy
    */
   async getNetworkTree(affiliateId: string): Promise<NetworkTree | null> {
     try {
       const { data, error } = await supabase
-        .rpc('get_network_tree', { 
-          root_affiliate_id: affiliateId,
-          max_levels: 3 
-        });
+        .from('affiliate_hierarchy')
+        .select('*')
+        .eq('root_id', affiliateId)
+        .order('level', { ascending: true });
 
       if (error || !data || data.length === 0) {
         return null;
@@ -316,31 +384,23 @@ export class AffiliateService {
 
   /**
    * Busca rede direta do afiliado (apenas filhos diretos)
-   * Task 3.2: Implementar getMyNetwork() para dashboard
+   * ATUALIZADO: Usa referred_by
    */
   async getMyNetwork(affiliateId: string): Promise<Affiliate[]> {
     try {
       const { data, error } = await supabase
-        .rpc('get_direct_children', { parent_affiliate_id: affiliateId });
+        .from('affiliates')
+        .select('*')
+        .eq('referred_by', affiliateId)
+        .eq('status', 'active')
+        .is('deleted_at', null)
+        .order('created_at', { ascending: false });
 
       if (error || !data) {
         return [];
       }
 
-      return data.map((child: any) => ({
-        id: child.affiliate_id,
-        userId: '', // Não necessário para listagem
-        name: child.name,
-        email: '', // Não expor email na listagem
-        referralCode: child.referral_code,
-        walletId: '', // Não expor wallet na listagem
-        status: child.status,
-        totalClicks: 0,
-        totalConversions: child.total_conversions || 0,
-        totalCommissions: 0,
-        createdAt: child.created_at,
-        updatedAt: child.created_at
-      }));
+      return data.map(child => this.mapAffiliateFromDB(child));
     } catch (error) {
       console.error('Erro ao buscar rede:', error);
       return [];
@@ -403,24 +463,69 @@ export class AffiliateService {
   }
 
   /**
-   * Constrói estrutura de árvore a partir dos dados do banco
+   * Constrói estrutura de árvore a partir dos dados da view materializada
+   * ATUALIZADO: Usa affiliate_hierarchy
    */
   private buildTreeStructure(data: any[]): NetworkTree {
-    const root = data[0];
+    if (data.length === 0) {
+      throw new Error('Dados vazios para construir árvore');
+    }
+
+    // Encontrar raiz (level = 0)
+    const root = data.find(item => item.level === 0);
+    if (!root) {
+      throw new Error('Raiz não encontrada na hierarquia');
+    }
     
     const tree: NetworkTree = {
-      affiliate: this.mapAffiliateFromDB(root),
+      affiliate: {
+        id: root.id,
+        userId: '',
+        name: root.name,
+        email: root.email,
+        referralCode: root.referral_code,
+        walletId: '',
+        status: root.status,
+        totalClicks: 0,
+        totalConversions: 0,
+        totalCommissions: 0,
+        createdAt: root.created_at,
+        updatedAt: root.created_at
+      },
       children: [],
       level: root.level,
-      path: root.path
+      path: root.path.join('.')
     };
 
     // Construir filhos recursivamente
-    const children = data.filter(item => item.parent_id === root.affiliate_id);
-    tree.children = children.map(child => this.buildTreeStructure(
-      data.filter(item => item.path.startsWith(child.path))
-    ));
+    const buildChildren = (parentId: string, parentLevel: number): NetworkTree[] => {
+      const children = data.filter(item => 
+        item.level === parentLevel + 1 && 
+        item.path[item.path.length - 2] === parentId
+      );
 
+      return children.map(child => ({
+        affiliate: {
+          id: child.id,
+          userId: '',
+          name: child.name,
+          email: child.email,
+          referralCode: child.referral_code,
+          walletId: '',
+          status: child.status,
+          totalClicks: 0,
+          totalConversions: 0,
+          totalCommissions: 0,
+          createdAt: child.created_at,
+          updatedAt: child.created_at
+        },
+        children: buildChildren(child.id, child.level),
+        level: child.level,
+        path: child.path.join('.')
+      }));
+    };
+
+    tree.children = buildChildren(root.id, root.level);
     return tree;
   }
 
