@@ -27,11 +27,14 @@ export const STORAGE_KEYS = {
 
 /**
  * Padrão de validação para Wallet ID do Asaas
- * Formato: wal_ seguido de 20 caracteres alfanuméricos
+ * Formato: UUID v4 (8-4-4-4-12 caracteres hexadecimais)
  * 
- * Exemplo válido: wal_abc123def456ghi789jk
+ * Exemplo válido: cd912fa1-5fa4-4d49-92eb-b5ab4dfba961
+ * 
+ * Fonte: API Asaas - GET /v3/wallets/
+ * Schema: WalletGetResponseDTO.id
  */
-export const WALLET_ID_PATTERN = /^wal_[a-zA-Z0-9]{20}$/;
+export const WALLET_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
  * Taxas de comissão do sistema de afiliados

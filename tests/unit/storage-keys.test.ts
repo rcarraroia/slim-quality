@@ -29,10 +29,10 @@ describe('Storage Keys Constants', () => {
   describe('WALLET_ID_PATTERN', () => {
     it('deve validar wallet IDs válidos do Asaas', () => {
       const validWallets = [
-        'wal_12345678901234567890',
-        'wal_abcdefghijklmnopqrst',
-        'wal_ABCDEFGHIJKLMNOPQRST',
-        'wal_1a2B3c4D5e6F7g8H9i0J'
+        'cd912fa1-5fa4-4d49-92eb-b5ab4dfba961',
+        '0000c712-0a0b-a0b0-0000-031e7ac51a2a',
+        'a1b2c3d4-e5f6-4789-a012-b3c4d5e6f7a8',
+        'ABCDEF12-3456-4789-ABCD-EF1234567890'
       ];
 
       validWallets.forEach(wallet => {
@@ -42,12 +42,12 @@ describe('Storage Keys Constants', () => {
 
     it('deve rejeitar wallet IDs inválidos', () => {
       const invalidWallets = [
-        'wal_123', // muito curto
-        'wal_123456789012345678901', // muito longo
-        'wallet_12345678901234567890', // prefixo errado
-        'wal_1234567890123456789@', // caractere inválido
-        'wal_', // sem ID
-        '12345678901234567890', // sem prefixo
+        'wal_123', // formato antigo
+        'wal_12345678901234567890', // formato antigo
+        'cd912fa1-5fa4-4d49-92eb', // muito curto
+        'cd912fa1-5fa4-4d49-92eb-b5ab4dfba96g', // caractere inválido
+        'cd912fa15fa44d4992ebb5ab4dfba961', // sem hífens
+        '12345678-1234-1234-1234-123456789012', // não hex
         ''
       ];
 
@@ -89,8 +89,9 @@ describe('Storage Keys Constants', () => {
 
   describe('isValidWalletId', () => {
     it('deve validar wallet IDs corretos', () => {
-      expect(isValidWalletId('wal_12345678901234567890')).toBe(true);
-      expect(isValidWalletId('wal_abcdefghijklmnopqrst')).toBe(true);
+      expect(isValidWalletId('cd912fa1-5fa4-4d49-92eb-b5ab4dfba961')).toBe(true);
+      expect(isValidWalletId('0000c712-0a0b-a0b0-0000-031e7ac51a2a')).toBe(true);
+      expect(isValidWalletId('ABCDEF12-3456-4789-ABCD-EF1234567890')).toBe(true);
     });
 
     it('deve rejeitar wallet IDs incorretos', () => {

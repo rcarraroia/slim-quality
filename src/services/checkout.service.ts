@@ -259,14 +259,13 @@ export class CheckoutService {
   
   /**
    * Valida formato de Wallet ID do Asaas
-   * Aceita formato wal_xxxxx (novo) ou UUID (legado)
+   * Formato oficial: UUID v4 (ex: cd912fa1-5fa4-4d49-92eb-b5ab4dfba961)
+   * Fonte: API Asaas - GET /v3/wallets/
    */
   private isValidWalletId(walletId: string): boolean {
-    // Formato novo: wal_xxxxx
-    const walFormat = /^wal_[a-zA-Z0-9]{16,32}$/.test(walletId);
-    // Formato UUID (legado, ainda aceito pelo Asaas)
+    // Formato UUID v4 (formato oficial do Asaas)
     const uuidFormat = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(walletId);
-    return walFormat || uuidFormat;
+    return uuidFormat;
   }
 
   /**

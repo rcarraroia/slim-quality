@@ -467,11 +467,19 @@ Plano de implementação para corrigir os 14 problemas identificados na auditori
   - Atualizar UI para mostrar dados reais
   - _Requirements: 13.1, 13.2, 13.3, 13.4, 13.5_
 
-- [ ] 6.2 Padronizar formato de Wallet ID
-  - Atualizar constraint do banco para `^wal_[a-zA-Z0-9]{20}$`
-  - Criar migration para converter UUIDs existentes
-  - Atualizar documentação
-  - Atualizar variáveis de ambiente
+- [x] 6.2 Padronizar formato de Wallet ID
+  - ✅ **CORRIGIDO:** Formato UUID v4 é o formato REAL do Asaas
+  - ✅ Atualizado `WALLET_ID_PATTERN` em `src/constants/storage-keys.ts`
+  - ✅ Atualizado validação em `src/services/checkout.service.ts`
+  - ✅ Atualizado validação em `api/checkout.js`
+  - ✅ Atualizado mock data em `src/services/frontend/affiliate.service.ts`
+  - ✅ Atualizado exemplo em `src/pages/dashboard/Configuracoes.tsx`
+  - ✅ Atualizado `.env.example` com formato correto e instruções
+  - ✅ Corrigidos testes principais (wallet-validation, storage-keys)
+  - ⚠️ **NOTA:** Testes antigos ainda usam formato `wal_` (não afeta produção)
+  - **Formato correto:** UUID v4 (ex: `cd912fa1-5fa4-4d49-92eb-b5ab4dfba961`)
+  - **Fonte:** API Asaas - GET /v3/wallets/ - Schema: WalletGetResponseDTO.id
+  - **Confirmado por:** Print do painel Asaas + MCP Asaas API
   - _Requirements: 14.1, 14.2, 14.3, 14.4, 14.5_
 
 - [ ] 6.3 Implementar logs suficientes

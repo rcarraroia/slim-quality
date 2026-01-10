@@ -626,8 +626,7 @@ async function calculateAffiliateSplit(referralCode, walletRenum, walletJB) {
  */
 function isValidWalletId(walletId) {
   if (!walletId) return false;
-  // Formato wal_xxxxx ou UUID
-  const walFormat = /^wal_[a-zA-Z0-9]{16,32}$/.test(walletId);
+  // Formato UUID v4 (formato oficial do Asaas)
   const uuidFormat = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(walletId);
-  return walFormat || uuidFormat;
+  return uuidFormat;
 }

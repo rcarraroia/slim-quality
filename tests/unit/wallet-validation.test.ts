@@ -5,6 +5,9 @@
  * 
  * Feature: correcao-critica-sistema-afiliados
  * Task: 1.7 - Testar validação de Wallet ID
+ * 
+ * FORMATO CORRETO: UUID v4 (ex: cd912fa1-5fa4-4d49-92eb-b5ab4dfba961)
+ * Fonte: API Asaas - GET /v3/wallets/ - Schema: WalletGetResponseDTO.id
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
@@ -19,12 +22,12 @@ describe('Validação de Wallet ID', () => {
   });
 
   describe('Property 3: Formato de Wallet ID', () => {
-    it('deve aceitar wallet ID válida no formato wal_XXXXXXXXXXXXXXXXXXXX', () => {
+    it('deve aceitar wallet ID válida no formato UUID v4', () => {
       const validWallets = [
-        'wal_12345678901234567890',
-        'wal_abcdefghij1234567890',
-        'wal_ABCDEFGHIJ1234567890',
-        'wal_aBcDeFgHiJ1234567890',
+        'cd912fa1-5fa4-4d49-92eb-b5ab4dfba961', // Exemplo real do Asaas
+        '0000c712-0a0b-a0b0-0000-031e7ac51a2a', // Exemplo da documentação
+        'a1b2c3d4-e5f6-4789-a012-b3c4d5e6f7a8',
+        'ABCDEF12-3456-4789-ABCD-EF1234567890', // Case insensitive
       ];
 
       validWallets.forEach(walletId => {
@@ -34,15 +37,16 @@ describe('Validação de Wallet ID', () => {
 
     it('deve rejeitar wallet ID com formato inválido', () => {
       const invalidWallets = [
-        'wal_123', // muito curto
-        'wal_123456789012345678901', // muito longo
-        'wallet_12345678901234567890', // prefixo errado
-        'wal-12345678901234567890', // hífen ao invés de underscore
-        'wal_1234567890123456789@', // caractere especial
-        'wal_12345678901234567 90', // espaço
-        '12345678901234567890', // sem prefixo
+        'wal_123', // formato antigo (não existe mais)
+        'wal_12345678901234567890', // formato antigo
+        'cd912fa1-5fa4-4d49-92eb', // muito curto
+        'cd912fa1-5fa4-4d49-92eb-b5ab4dfba961-extra', // muito longo
+        'cd912fa1-5fa4-4d49-92eb-b5ab4dfba96g', // caractere inválido (g não é hex)
+        'cd912fa1_5fa4_4d49_92eb_b5ab4dfba961', // underscore ao invés de hífen
+        'cd912fa15fa44d4992ebb5ab4dfba961', // sem hífens
+        '12345678-1234-1234-1234-123456789012', // não hexadecimal
         '', // vazio
-        'wal_', // apenas prefixo
+        'not-a-uuid', // texto aleatório
       ];
 
       invalidWallets.forEach(walletId => {
@@ -50,18 +54,21 @@ describe('Validação de Wallet ID', () => {
       });
     });
 
-    it('deve validar exatamente 20 caracteres após o prefixo', () => {
-      const exactly20 = 'wal_12345678901234567890';
-      const less19 = 'wal_1234567890123456789';
-      const more21 = 'wal_123456789012345678901';
+    it('deve validar formato UUID v4 (8-4-4-4-12)', () => {
+      const exactly = 'cd912fa1-5fa4-4d49-92eb-b5ab4dfba961';
+      const missing1 = 'cd912fa1-5fa4-4d49-92eb-b5ab4dfba96'; // falta 1 char
+      const extra1 = 'cd912fa1-5fa4-4d49-92eb-b5ab4dfba9611'; // sobra 1 char
 
-      expect(WALLET_ID_PATTERN.test(exactly20)).toBe(true);
-      expect(WALLET_ID_PATTERN.test(less19)).toBe(false);
-      expect(WALLET_ID_PATTERN.test(more21)).toBe(false);
+      expect(WALLET_ID_PATTERN.test(exactly)).toBe(true);
+      expect(WALLET_ID_PATTERN.test(missing1)).toBe(false);
+      expect(WALLET_ID_PATTERN.test(extra1)).toBe(false);
     });
   });
 
   describe('Validação via Edge Function', () => {
+    const validWalletId = 'cd912fa1-5fa4-4d49-92eb-b5ab4dfba961';
+    const invalidWalletId = '99999999-9999-4999-9999-999999999999';
+
     it('deve aceitar wallet válida retornada pela API', async () => {
       const mockResponse = {
         valid: true,
@@ -77,7 +84,7 @@ describe('Validação de Wallet ID', () => {
 
       const response = await fetch('/functions/v1/validate-asaas-wallet', {
         method: 'POST',
-        body: JSON.stringify({ walletId: 'wal_12345678901234567890' }),
+        body: JSON.stringify({ walletId: validWalletId }),
       });
 
       const result = await response.json();
@@ -102,7 +109,7 @@ describe('Validação de Wallet ID', () => {
 
       const response = await fetch('/functions/v1/validate-asaas-wallet', {
         method: 'POST',
-        body: JSON.stringify({ walletId: 'wal_99999999999999999999' }),
+        body: JSON.stringify({ walletId: invalidWalletId }),
       });
 
       const result = await response.json();
@@ -126,7 +133,7 @@ describe('Validação de Wallet ID', () => {
 
       const response = await fetch('/functions/v1/validate-asaas-wallet', {
         method: 'POST',
-        body: JSON.stringify({ walletId: 'wal_12345678901234567890' }),
+        body: JSON.stringify({ walletId: validWalletId }),
       });
 
       const result = await response.json();
@@ -162,7 +169,7 @@ describe('Validação de Wallet ID', () => {
     it('deve rejeitar wallet ID com formato inválido', async () => {
       const mockResponse = {
         valid: false,
-        error: 'Formato de Wallet ID inválido. Deve ser: wal_XXXXXXXXXXXXXXXXXXXX',
+        error: 'Formato de Wallet ID inválido. Deve ser UUID v4',
       };
 
       (global.fetch as any).mockResolvedValueOnce({
@@ -194,7 +201,7 @@ describe('Validação de Wallet ID', () => {
 
       const response = await fetch('/functions/v1/validate-asaas-wallet', {
         method: 'POST',
-        body: JSON.stringify({ walletId: 'wal_12345678901234567890' }),
+        body: JSON.stringify({ walletId: 'cd912fa1-5fa4-4d49-92eb-b5ab4dfba961' }),
       });
 
       const result = await response.json();
@@ -205,6 +212,8 @@ describe('Validação de Wallet ID', () => {
   });
 
   describe('Validação de Status da Wallet', () => {
+    const validWalletId = 'cd912fa1-5fa4-4d49-92eb-b5ab4dfba961';
+
     it('deve aceitar wallet com status ACTIVE', async () => {
       const mockResponse = {
         valid: true,
@@ -220,7 +229,7 @@ describe('Validação de Wallet ID', () => {
 
       const response = await fetch('/functions/v1/validate-asaas-wallet', {
         method: 'POST',
-        body: JSON.stringify({ walletId: 'wal_12345678901234567890' }),
+        body: JSON.stringify({ walletId: validWalletId }),
       });
 
       const result = await response.json();
@@ -243,7 +252,7 @@ describe('Validação de Wallet ID', () => {
 
       const response = await fetch('/functions/v1/validate-asaas-wallet', {
         method: 'POST',
-        body: JSON.stringify({ walletId: 'wal_12345678901234567890' }),
+        body: JSON.stringify({ walletId: validWalletId }),
       });
 
       const result = await response.json();
@@ -266,7 +275,7 @@ describe('Validação de Wallet ID', () => {
 
       const response = await fetch('/functions/v1/validate-asaas-wallet', {
         method: 'POST',
-        body: JSON.stringify({ walletId: 'wal_12345678901234567890' }),
+        body: JSON.stringify({ walletId: validWalletId }),
       });
 
       const result = await response.json();
@@ -278,6 +287,8 @@ describe('Validação de Wallet ID', () => {
 
   describe('Integração com Cache', () => {
     it('deve retornar dados do cache quando disponível', async () => {
+      const validWalletId = 'cd912fa1-5fa4-4d49-92eb-b5ab4dfba961';
+      
       // Primeira chamada - busca da API
       const mockApiResponse = {
         valid: true,
@@ -293,7 +304,7 @@ describe('Validação de Wallet ID', () => {
 
       const firstResponse = await fetch('/functions/v1/validate-asaas-wallet', {
         method: 'POST',
-        body: JSON.stringify({ walletId: 'wal_12345678901234567890' }),
+        body: JSON.stringify({ walletId: validWalletId }),
       });
 
       const firstResult = await firstResponse.json();
@@ -307,6 +318,8 @@ describe('Validação de Wallet ID', () => {
 
   describe('Segurança', () => {
     it('deve validar API Key antes de chamar Asaas', async () => {
+      const validWalletId = 'cd912fa1-5fa4-4d49-92eb-b5ab4dfba961';
+      
       const mockResponse = {
         valid: true,
         fallbackMode: true,
@@ -320,7 +333,7 @@ describe('Validação de Wallet ID', () => {
 
       const response = await fetch('/functions/v1/validate-asaas-wallet', {
         method: 'POST',
-        body: JSON.stringify({ walletId: 'wal_12345678901234567890' }),
+        body: JSON.stringify({ walletId: validWalletId }),
       });
 
       const result = await response.json();

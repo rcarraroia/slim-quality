@@ -1165,7 +1165,7 @@ export class AffiliateFrontendService {
           method: 'pix',
           created_at: '2026-01-01T10:00:00Z',
           processed_at: '2026-01-01T14:30:00Z',
-          wallet_id: 'wal_abc123',
+          wallet_id: 'cd912fa1-5fa4-4d49-92eb-b5ab4dfba961',
           description: 'Saque de comissões - Dezembro 2025',
           commission: {
             level: 1,
@@ -1178,7 +1178,7 @@ export class AffiliateFrontendService {
           status: 'processing',
           method: 'pix',
           created_at: '2025-12-28T16:20:00Z',
-          wallet_id: 'wal_abc123',
+          wallet_id: 'cd912fa1-5fa4-4d49-92eb-b5ab4dfba961',
           description: 'Saque de comissões - Semana 52',
           commission: {
             level: 1,
@@ -1192,7 +1192,7 @@ export class AffiliateFrontendService {
           method: 'pix',
           created_at: '2025-12-15T09:15:00Z',
           processed_at: '2025-12-15T11:45:00Z',
-          wallet_id: 'wal_abc123',
+          wallet_id: 'cd912fa1-5fa4-4d49-92eb-b5ab4dfba961',
           description: 'Saque de comissões - Novembro 2025',
           commission: {
             level: 2,
@@ -1206,7 +1206,7 @@ export class AffiliateFrontendService {
           method: 'pix',
           created_at: '2025-12-10T14:30:00Z',
           rejected_at: '2025-12-10T16:00:00Z',
-          wallet_id: 'wal_abc123',
+          wallet_id: 'cd912fa1-5fa4-4d49-92eb-b5ab4dfba961',
           description: 'Saque de comissões - Semana 49',
           rejection_reason: 'Dados bancários inválidos',
           commission: {

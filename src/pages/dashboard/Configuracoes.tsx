@@ -372,7 +372,7 @@ export default function Configuracoes() {
               </div>
               <div className="space-y-2">
                 <Label>Wallet ID (Split)</Label>
-                <Input defaultValue="wal_000005162549" />
+                <Input defaultValue="cd912fa1-5fa4-4d49-92eb-b5ab4dfba961" />
                 <Button variant="outline" size="sm">Validar Wallet ID</Button>
               </div>
             </Card>
