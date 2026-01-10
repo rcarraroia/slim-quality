@@ -105,6 +105,32 @@ export function CustomerDashboardLayout() {
       }
       referralCode = referralCode.substring(0, 6).replace(/[^A-Z0-9]/g, 'X');
 
+      // Buscar quem indicou (referred_by) do localStorage
+      let referredById: string | null = null;
+      try {
+        const storedReferral = localStorage.getItem('slim_referral_code');
+        if (storedReferral) {
+          const referralData = JSON.parse(storedReferral);
+          if (referralData.code && Date.now() < referralData.expiry) {
+            // Buscar o afiliado que indicou pelo código
+            const { data: referrerAffiliate } = await supabase
+              .from('affiliates')
+              .select('id')
+              .eq('referral_code', referralData.code.toUpperCase())
+              .eq('status', 'active')
+              .is('deleted_at', null)
+              .single();
+            
+            if (referrerAffiliate) {
+              referredById = referrerAffiliate.id;
+              console.log('[Affiliate Activation] Vinculando à rede de:', referralData.code);
+            }
+          }
+        }
+      } catch (e) {
+        console.warn('[Affiliate Activation] Erro ao buscar referrer:', e);
+      }
+
       // Criar registro de afiliado (ativação automática)
       const { data: affiliateData, error } = await supabase
         .from('affiliates')
@@ -114,7 +140,8 @@ export function CustomerDashboardLayout() {
           email: user.email,
           phone: user.phone,
           referral_code: referralCode,
-          status: 'active'  // Ativação automática - admin só desativa se necessário
+          status: 'active',  // Ativação automática - admin só desativa se necessário
+          referred_by: referredById  // Vincular à rede de quem indicou
         })
         .select('id, status')
         .single();
