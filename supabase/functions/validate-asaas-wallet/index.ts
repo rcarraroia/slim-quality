@@ -18,7 +18,7 @@ interface ValidationResponse {
   active?: boolean;
   name?: string;
   error?: string;
-  fallbackMode?: boolean;
+  formatValidation?: boolean; // Indica que foi validação apenas de formato
 }
 
 serve(async (req) => {
@@ -59,87 +59,23 @@ serve(async (req) => {
       );
     }
 
-    // Buscar API Key do Asaas das variáveis de ambiente
-    const asaasApiKey = Deno.env.get('ASAAS_API_KEY');
+    // VALIDAÇÃO APENAS DE FORMATO (Opção 1)
+    // Asaas não fornece endpoint público para validar Wallet IDs de terceiros
+    // A validação real acontece no momento do split - se a wallet não existir, o Asaas retorna erro
+    console.log(`Wallet ID validada (formato): ${walletId}`);
     
-    if (!asaasApiKey) {
-      console.error('ASAAS_API_KEY não configurada');
-      // Fallback: aceitar temporariamente se formato está correto
-      return new Response(
-        JSON.stringify({
-          valid: true,
-          fallbackMode: true,
-          error: 'Validação temporária - API Key não configurada',
-        } as ValidationResponse),
-        {
-          status: 200,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        }
-      );
-    }
-
-    // Chamar API Asaas para validar wallet
-    try {
-      const response = await fetch(`${ASAAS_API_URL}/wallets/${walletId}`, {
-        method: 'GET',
-        headers: {
-          'access_token': asaasApiKey,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (response.status === 404) {
-        return new Response(
-          JSON.stringify({
-            valid: false,
-            exists: false,
-            error: 'Wallet ID não encontrada no Asaas',
-          } as ValidationResponse),
-          {
-            status: 200,
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          }
-        );
+    return new Response(
+      JSON.stringify({
+        valid: true,
+        exists: true, // Assumimos que existe (será validado no split)
+        active: true, // Assumimos que está ativa (será validado no split)
+        formatValidation: true, // Indica que foi validação apenas de formato
+      } as ValidationResponse),
+      {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       }
-
-      if (!response.ok) {
-        throw new Error(`Asaas API error: ${response.status}`);
-      }
-
-      const walletData = await response.json();
-
-      // Validar se wallet está ativa
-      const isActive = walletData.status === 'ACTIVE' || walletData.status === 'APPROVED';
-
-      return new Response(
-        JSON.stringify({
-          valid: true,
-          exists: true,
-          active: isActive,
-          name: walletData.name || walletData.ownerName,
-        } as ValidationResponse),
-        {
-          status: 200,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        }
-      );
-
-    } catch (apiError) {
-      console.error('Erro ao chamar API Asaas:', apiError);
-      
-      // Fallback em caso de erro de rede
-      return new Response(
-        JSON.stringify({
-          valid: true,
-          fallbackMode: true,
-          error: 'Erro ao validar com Asaas - validação temporária aplicada',
-        } as ValidationResponse),
-        {
-          status: 200,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        }
-      );
-    }
+    );
 
   } catch (error) {
     console.error('Erro na Edge Function:', error);
