@@ -274,10 +274,10 @@ Implementação da correção estrutural do sistema de afiliados, consolidando h
   - ✅ Sem erros de compilação TypeScript
   - _Requirements: 8.3_
 
-- [ ] 5.8 Preparar commit e push (PRÓXIMO)
-  - Criar mensagem de commit descritiva
-  - Fazer commit das alterações
-  - Push para repositório
+- [x] 5.8 Preparar commit e push ✅
+  - ✅ Commit inicial: consolidação da hierarquia (3395ffb)
+  - ✅ Commit correção: RLS policies e auto-ativação (d168807)
+  - ✅ Push para repositório realizado
   - _Requirements: 8.4_
 
 - [ ] 5.9 Atualizar documentação (PENDENTE)

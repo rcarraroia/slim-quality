@@ -22,9 +22,10 @@ export function CustomerProtectedRoute({
 
   useEffect(() => {
     if (!isLoading) {
-      // Se não está logado, redirecionar para login de cliente
+      // Se não está logado, redirecionar para login de cliente com returnUrl
       if (!isAuthenticated || !user) {
-        navigate('/entrar');
+        const currentPath = window.location.pathname + window.location.search;
+        navigate(`/entrar?returnUrl=${encodeURIComponent(currentPath)}`);
         return;
       }
 
@@ -33,6 +34,9 @@ export function CustomerProtectedRoute({
         navigate('/minha-conta');
         return;
       }
+
+      // REMOVIDO: Não redirecionar afiliados automaticamente
+      // Afiliados podem acessar tanto /minha-conta quanto /afiliados/dashboard
     }
   }, [isAuthenticated, user, isLoading, navigate, requireAffiliate, isAffiliate]);
 

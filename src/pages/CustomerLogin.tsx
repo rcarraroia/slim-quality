@@ -33,10 +33,23 @@ export default function CustomerLogin() {
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Capturar returnUrl da query string ao montar componente
+  useEffect(() => {
+    const returnUrl = searchParams.get('returnUrl');
+    if (returnUrl) {
+      localStorage.setItem('customer_login_return_url', returnUrl);
+    }
+  }, [searchParams]);
+
   // Redirecionar se já autenticado
   useEffect(() => {
     if (isAuthenticated && !isLoading) {
-      if (isAffiliate) {
+      // Verificar se há returnUrl salva
+      const returnUrl = localStorage.getItem('customer_login_return_url');
+      if (returnUrl) {
+        localStorage.removeItem('customer_login_return_url');
+        navigate(returnUrl);
+      } else if (isAffiliate) {
         navigate("/afiliados/dashboard");
       } else {
         navigate("/minha-conta");
@@ -61,7 +74,15 @@ export default function CustomerLogin() {
     try {
       if (mode === 'login') {
         const result = await login(formData.email, formData.password);
-        if (!result.success) {
+        if (result.success) {
+          // Verificar se há returnUrl salva
+          const returnUrl = localStorage.getItem('customer_login_return_url');
+          if (returnUrl) {
+            localStorage.removeItem('customer_login_return_url');
+            navigate(returnUrl);
+          }
+          // Se não há returnUrl, o useEffect já redireciona
+        } else {
           toast({
             title: "Erro no login",
             description: result.error || "Email ou senha incorretos",

@@ -25,10 +25,26 @@ export default function Login() {
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Capturar returnUrl da query string ao montar componente
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const returnUrl = params.get('returnUrl');
+    if (returnUrl) {
+      localStorage.setItem('login_return_url', returnUrl);
+    }
+  }, []);
+
   // Redirecionar se já autenticado
   useEffect(() => {
     if (isAuthenticated && !isLoading) {
-      navigate("/dashboard");
+      // Verificar se há returnUrl salva
+      const returnUrl = localStorage.getItem('login_return_url');
+      if (returnUrl) {
+        localStorage.removeItem('login_return_url');
+        navigate(returnUrl);
+      } else {
+        navigate("/dashboard");
+      }
     }
   }, [isAuthenticated, isLoading, navigate]);
 
@@ -50,7 +66,14 @@ export default function Login() {
       const success = await login(formData);
       
       if (success) {
-        navigate("/dashboard");
+        // Verificar se há returnUrl salva
+        const returnUrl = localStorage.getItem('login_return_url');
+        if (returnUrl) {
+          localStorage.removeItem('login_return_url');
+          navigate(returnUrl);
+        } else {
+          navigate("/dashboard");
+        }
       }
     } catch (error) {
       console.error('Erro no login:', error);
