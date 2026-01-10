@@ -64,7 +64,9 @@ export default async function handler(req, res) {
 
     // Parse body
     const body = req.body || {};
-    const { customer, orderId, amount, billingType, description, installments, creditCard, creditCardHolderInfo } = body;
+    const { customer, orderId, amount, billingType, description, installments, creditCard, creditCardHolderInfo, referralCode } = body;
+    
+    console.log('Checkout request:', { orderId, amount, billingType, referralCode: referralCode || 'none' });
 
     if (!customer || !orderId || !amount || !billingType) {
       return res.status(400).json({ 
@@ -197,6 +199,11 @@ export default async function handler(req, res) {
     // Criar pagamento
     const dueDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
     
+    // Calcular split baseado na rede de afiliados
+    const splits = await calculateAffiliateSplit(referralCode, ASAAS_WALLET_RENUM, ASAAS_WALLET_JB);
+    
+    console.log('Split calculado:', splits);
+    
     // Payload base do pagamento
     const paymentPayload = {
       customer: asaasCustomerId,
@@ -208,10 +215,7 @@ export default async function handler(req, res) {
       // Desabilitar multa e juros explicitamente
       fine: { value: 0 },
       interest: { value: 0 },
-      split: [
-        { walletId: ASAAS_WALLET_RENUM, percentualValue: 15 },
-        { walletId: ASAAS_WALLET_JB, percentualValue: 15 }
-      ]
+      split: splits
     };
 
     // Adicionar parcelas se for cartão de crédito
@@ -478,4 +482,152 @@ async function updateOrderStatus(orderId, status) {
   } catch (error) {
     console.error('Erro ao atualizar pedido:', error);
   }
+}
+
+/**
+ * Calcula o split de comissões baseado na rede de afiliados
+ * 
+ * REGRAS DE DISTRIBUIÇÃO (sempre 30% do total):
+ * - Sem afiliado: 15% Renum + 15% JB
+ * - Apenas N1: 15% N1 + 7.5% Renum + 7.5% JB
+ * - N1 + N2: 15% N1 + 3% N2 + 6% Renum + 6% JB
+ * - Rede completa: 15% N1 + 3% N2 + 2% N3 + 5% Renum + 5% JB
+ */
+async function calculateAffiliateSplit(referralCode, walletRenum, walletJB) {
+  const splits = [];
+  
+  // Se não tem referralCode, split vai todo para gestores
+  if (!referralCode) {
+    console.log('Sem referralCode - split 15% Renum + 15% JB');
+    return [
+      { walletId: walletRenum, percentualValue: 15 },
+      { walletId: walletJB, percentualValue: 15 }
+    ];
+  }
+  
+  try {
+    const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+    const supabaseKey = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY;
+
+    if (!supabaseUrl || !supabaseKey) {
+      console.error('Supabase não configurado - usando split padrão');
+      return [
+        { walletId: walletRenum, percentualValue: 15 },
+        { walletId: walletJB, percentualValue: 15 }
+      ];
+    }
+
+    const supabase = createClient(supabaseUrl, supabaseKey);
+    
+    // Buscar N1 pelo referral_code
+    const { data: n1Affiliate, error: n1Error } = await supabase
+      .from('affiliates')
+      .select('id, wallet_id, referred_by')
+      .eq('referral_code', referralCode)
+      .eq('status', 'active')
+      .is('deleted_at', null)
+      .single();
+    
+    if (n1Error || !n1Affiliate) {
+      console.log('Afiliado N1 não encontrado para referralCode:', referralCode);
+      return [
+        { walletId: walletRenum, percentualValue: 15 },
+        { walletId: walletJB, percentualValue: 15 }
+      ];
+    }
+    
+    // Validar wallet_id do N1
+    if (!n1Affiliate.wallet_id || !isValidWalletId(n1Affiliate.wallet_id)) {
+      console.log('N1 sem wallet_id válido:', n1Affiliate.id);
+      return [
+        { walletId: walletRenum, percentualValue: 15 },
+        { walletId: walletJB, percentualValue: 15 }
+      ];
+    }
+    
+    console.log('N1 encontrado:', { id: n1Affiliate.id, wallet: n1Affiliate.wallet_id.substring(0, 10) + '...' });
+    
+    // Buscar N2 (quem indicou o N1)
+    let n2Affiliate = null;
+    if (n1Affiliate.referred_by) {
+      const { data: n2Data } = await supabase
+        .from('affiliates')
+        .select('id, wallet_id, referred_by')
+        .eq('id', n1Affiliate.referred_by)
+        .eq('status', 'active')
+        .is('deleted_at', null)
+        .single();
+      
+      if (n2Data?.wallet_id && isValidWalletId(n2Data.wallet_id)) {
+        n2Affiliate = n2Data;
+        console.log('N2 encontrado:', { id: n2Affiliate.id, wallet: n2Affiliate.wallet_id.substring(0, 10) + '...' });
+      }
+    }
+    
+    // Buscar N3 (quem indicou o N2)
+    let n3Affiliate = null;
+    if (n2Affiliate?.referred_by) {
+      const { data: n3Data } = await supabase
+        .from('affiliates')
+        .select('id, wallet_id')
+        .eq('id', n2Affiliate.referred_by)
+        .eq('status', 'active')
+        .is('deleted_at', null)
+        .single();
+      
+      if (n3Data?.wallet_id && isValidWalletId(n3Data.wallet_id)) {
+        n3Affiliate = n3Data;
+        console.log('N3 encontrado:', { id: n3Affiliate.id, wallet: n3Affiliate.wallet_id.substring(0, 10) + '...' });
+      }
+    }
+    
+    // Calcular split baseado na rede encontrada
+    if (!n2Affiliate) {
+      // APENAS N1: 15% N1 + 7.5% Renum + 7.5% JB = 30%
+      console.log('Split: Apenas N1 (15% + 7.5% + 7.5%)');
+      return [
+        { walletId: n1Affiliate.wallet_id, percentualValue: 15 },
+        { walletId: walletRenum, percentualValue: 7.5 },
+        { walletId: walletJB, percentualValue: 7.5 }
+      ];
+    } else if (!n3Affiliate) {
+      // N1 + N2: 15% N1 + 3% N2 + 6% Renum + 6% JB = 30%
+      console.log('Split: N1+N2 (15% + 3% + 6% + 6%)');
+      return [
+        { walletId: n1Affiliate.wallet_id, percentualValue: 15 },
+        { walletId: n2Affiliate.wallet_id, percentualValue: 3 },
+        { walletId: walletRenum, percentualValue: 6 },
+        { walletId: walletJB, percentualValue: 6 }
+      ];
+    } else {
+      // REDE COMPLETA: 15% N1 + 3% N2 + 2% N3 + 5% Renum + 5% JB = 30%
+      console.log('Split: Rede completa (15% + 3% + 2% + 5% + 5%)');
+      return [
+        { walletId: n1Affiliate.wallet_id, percentualValue: 15 },
+        { walletId: n2Affiliate.wallet_id, percentualValue: 3 },
+        { walletId: n3Affiliate.wallet_id, percentualValue: 2 },
+        { walletId: walletRenum, percentualValue: 5 },
+        { walletId: walletJB, percentualValue: 5 }
+      ];
+    }
+    
+  } catch (error) {
+    console.error('Erro ao calcular split:', error);
+    // Fallback para split padrão
+    return [
+      { walletId: walletRenum, percentualValue: 15 },
+      { walletId: walletJB, percentualValue: 15 }
+    ];
+  }
+}
+
+/**
+ * Valida formato de Wallet ID do Asaas
+ */
+function isValidWalletId(walletId) {
+  if (!walletId) return false;
+  // Formato wal_xxxxx ou UUID
+  const walFormat = /^wal_[a-zA-Z0-9]{16,32}$/.test(walletId);
+  const uuidFormat = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(walletId);
+  return walFormat || uuidFormat;
 }
