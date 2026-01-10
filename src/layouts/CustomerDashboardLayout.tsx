@@ -150,6 +150,25 @@ export function CustomerDashboardLayout() {
         throw error;
       }
 
+      // Se foi indicado por alguém, inserir na tabela affiliate_network
+      if (referredById && affiliateData) {
+        const { error: networkError } = await supabase
+          .from('affiliate_network')
+          .insert({
+            affiliate_id: affiliateData.id,
+            parent_affiliate_id: referredById,
+            level: 1,
+            path: `${referredById}.${affiliateData.id}`
+          });
+        
+        if (networkError) {
+          console.warn('[Affiliate Activation] Erro ao inserir na rede:', networkError);
+          // Não falhar a ativação por causa disso, apenas logar
+        } else {
+          console.log('[Affiliate Activation] Afiliado inserido na rede com sucesso');
+        }
+      }
+
       // Atualizar estado do usuário
       updateUser({
         isAffiliate: true,
