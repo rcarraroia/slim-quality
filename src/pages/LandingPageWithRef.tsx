@@ -30,9 +30,21 @@ export default function LandingPageWithRef() {
           .maybeSingle();
 
         if (affiliate) {
-          // 2. Salvar no localStorage (silenciosamente)
-          localStorage.setItem('referralCode', affiliate.referral_code);
-          localStorage.setItem('referralClickedAt', new Date().toISOString());
+          // 2. Salvar no localStorage usando a mesma chave do ReferralTracker
+          const expiryDate = new Date();
+          expiryDate.setDate(expiryDate.getDate() + 30); // 30 dias de validade
+          
+          const referralData = {
+            code: affiliate.referral_code,
+            timestamp: Date.now(),
+            expiry: expiryDate.getTime()
+          };
+          localStorage.setItem('slim_referral_code', JSON.stringify(referralData));
+          
+          // Cookie também (para compatibilidade)
+          document.cookie = `slim_referral_code=${affiliate.referral_code}; expires=${expiryDate.toUTCString()}; path=/; SameSite=Lax`;
+          
+          console.log('[LandingPageWithRef] Código de referência salvo:', affiliate.referral_code);
 
           // 3. Registrar clique em background (não bloqueia redirecionamento)
           getClientIP().then(ip => {
