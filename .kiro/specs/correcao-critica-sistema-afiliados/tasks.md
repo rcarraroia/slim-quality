@@ -616,3 +616,99 @@ Plano de implementação para corrigir os 14 problemas identificados na auditori
 **Total de Smoke Tests:** 1  
 **Cobertura:** 100% dos 16 requirements  
 **Riscos:** 4 identificados e mitigados
+
+
+---
+
+## CORREÇÃO CRÍTICA: Edge Function validate-asaas-wallet
+
+**Data:** 10/01/2026  
+**Prioridade:** CRÍTICA  
+**Status:** ✅ CÓDIGO CORRIGIDO - AGUARDANDO DEPLOY PELO USUÁRIO
+
+### Problema Identificado
+
+A Edge Function `validate-asaas-wallet` tinha um erro crítico que impedia a validação correta de Wallet IDs:
+
+- ❌ **Regex errado:** Esperava formato `wal_xxxxx` (linha 8)
+- ❌ **Formato real:** Asaas usa UUID v4 (ex: `cd912fa1-5fa4-4d49-92eb-b5ab4dfba961`)
+- ❌ **Função não deployada:** Erro CORS ao tentar acessar
+- ❌ **Secret faltando:** `ASAAS_API_KEY` não configurado
+
+### Correções Realizadas
+
+- [x] **6.1 Corrigir regex da Edge Function**
+  - ✅ Arquivo: `supabase/functions/validate-asaas-wallet/index.ts`
+  - ✅ Linha 8: Regex atualizado para UUID v4
+  - ✅ Linha 51: Mensagem de erro atualizada
+  - ✅ Comentário explicativo adicionado
+
+- [x] **6.2 Criar migration para corrigir constraint**
+  - ✅ Arquivo: `supabase/migrations/20260111000007_fix_asaas_wallets_constraint.sql`
+  - ✅ Remove constraint antigo (formato `wal_xxxxx`)
+  - ✅ Adiciona constraint correto (UUID v4)
+  - ✅ Comentário explicativo no constraint
+
+- [x] **6.3 Documentar instruções de deploy**
+  - ✅ Arquivo: `.kiro/specs/correcao-critica-sistema-afiliados/INSTRUCOES_DEPLOY_EDGE_FUNCTION.md`
+  - ✅ Passo a passo completo
+  - ✅ Comandos prontos para executar
+  - ✅ Troubleshooting incluído
+
+- [x] **6.4 Verificar banco de dados**
+  - ✅ Arquivo: `.kiro/specs/correcao-critica-sistema-afiliados/RELATORIO_VERIFICACAO_BANCO.md`
+  - ✅ Verificado via Power: Supabase Hosted Development
+  - ✅ Tabela `asaas_wallets`: existe, vazia, constraint errado
+  - ✅ Tabela `affiliates`: 2 registros, constraint correto
+  - ✅ Protocolo de segurança seguido
+
+### Pendente (Ações do Usuário)
+
+- [ ] **6.5 Aplicar migration no banco**
+  - Comando: `supabase db push`
+  - Tempo: 1 minuto
+
+- [ ] **6.6 Deploy da Edge Function**
+  - Comando: `supabase functions deploy validate-asaas-wallet`
+  - Tempo: 2 minutos
+
+- [ ] **6.7 Configurar secret ASAAS_API_KEY**
+  - Via Dashboard ou CLI
+  - Tempo: 2 minutos
+
+- [ ] **6.8 Testar validação**
+  - Via cURL ou frontend
+  - Tempo: 5 minutos
+
+- [ ] **6.9 Atualizar Wallet ID do Giuseppe**
+  - Via Dashboard do Supabase
+  - Substituir UUID de teste por UUID real
+  - Tempo: 2 minutos
+
+### Arquivos Modificados
+
+- `supabase/functions/validate-asaas-wallet/index.ts` ✅
+- `supabase/migrations/20260111000007_fix_asaas_wallets_constraint.sql` ✅
+
+### Documentação Criada
+
+- `.kiro/specs/correcao-critica-sistema-afiliados/INSTRUCOES_DEPLOY_EDGE_FUNCTION.md` ✅
+- `.kiro/specs/correcao-critica-sistema-afiliados/RELATORIO_VERIFICACAO_BANCO.md` ✅
+
+### Tempo Total
+
+- **Análise e correção:** 25 minutos ✅
+- **Deploy (usuário):** 10 minutos ⏳
+
+### Impacto
+
+- 🔴 **CRÍTICO:** Sistema de validação não funciona sem deploy
+- 🔴 **CRÍTICO:** Afiliados podem cadastrar Wallet ID inválido
+- 🔴 **CRÍTICO:** Comissões podem ser perdidas
+
+### Próximos Passos
+
+1. Usuário executa deploy conforme instruções
+2. Testa validação no frontend
+3. Atualiza Wallet ID do Giuseppe
+4. Confirma que sistema está funcionando

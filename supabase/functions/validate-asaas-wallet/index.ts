@@ -5,7 +5,8 @@ import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { corsHeaders } from '../_shared/cors.ts';
 
 const ASAAS_API_URL = 'https://api.asaas.com/v3';
-const WALLET_ID_PATTERN = /^wal_[a-zA-Z0-9]{20}$/;
+// UUID v4 pattern (formato real usado pelo Asaas)
+const WALLET_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 interface ValidationRequest {
   walletId: string;
@@ -49,7 +50,7 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({
           valid: false,
-          error: 'Formato de Wallet ID inválido. Deve ser: wal_XXXXXXXXXXXXXXXXXXXX',
+          error: 'Formato de Wallet ID inválido. Deve ser um UUID v4 (ex: cd912fa1-5fa4-4d49-92eb-b5ab4dfba961)',
         } as ValidationResponse),
         {
           status: 400,
