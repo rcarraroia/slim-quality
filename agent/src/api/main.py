@@ -36,11 +36,13 @@ try:
         from .mcp import router as mcp_router
         from .sicc import router as sicc_router
         from .affiliates import router as affiliates_router
+        from .webhooks_asaas import router as asaas_webhook_router
         
         app.include_router(agent_router)
         app.include_router(mcp_router)
         app.include_router(sicc_router)
         app.include_router(affiliates_router)
+        app.include_router(asaas_webhook_router)
         
         print("✅ Routers do dashboard registrados (incluindo affiliates)", flush=True)
     except Exception as router_error:
