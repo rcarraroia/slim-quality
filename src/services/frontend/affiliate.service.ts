@@ -505,7 +505,8 @@ export class AffiliateFrontendService {
 
   /**
    * Busca rede do afiliado
-   * Task 3.3: Usa view materializada affiliate_hierarchy
+   * ✅ CORRIGIDO: Usa campo `path` ao invés de `root_id`
+   * Limita profundidade a 2 níveis (N1 e N2)
    */
   async getNetwork(): Promise<any> {
     try {
@@ -528,27 +529,43 @@ export class AffiliateFrontendService {
         throw new Error('Afiliado não encontrado');
       }
 
-      // ✅ NOVO: Buscar rede usando view materializada affiliate_hierarchy
-      const { data: hierarchyData, error: hierarchyError } = await supabase
+      // ✅ CORRIGIDO: Buscar descendentes usando path (PostgreSQL array contains)
+      const { data: descendants, error: hierarchyError } = await supabase
         .from('affiliate_hierarchy')
         .select('*')
-        .eq('root_id', currentAffiliate.id)
+        .contains('path', [currentAffiliate.id])
+        .neq('id', currentAffiliate.id)
         .order('level', { ascending: true });
 
       if (hierarchyError) {
         console.error('Erro ao buscar hierarquia:', hierarchyError);
       }
 
-      // Construir árvore hierárquica a partir da view
-      const networkTree = this.buildTreeFromHierarchy(hierarchyData || [], currentAffiliate.id);
+      // ✅ NOVO: Filtrar apenas 2 níveis de profundidade
+      const filteredDescendants = (descendants || []).filter(item => {
+        const affiliateIndex = item.path.indexOf(currentAffiliate.id);
+        const depth = item.path.length - affiliateIndex - 1;
+        return depth <= 2; // Máximo 2 níveis (N1 e N2)
+      });
 
-      // Calcular estatísticas por nível
+      // Construir árvore hierárquica a partir da view
+      const networkTree = this.buildTreeFromHierarchy(filteredDescendants, currentAffiliate.id);
+
+      // ✅ CORRIGIDO: Calcular estatísticas apenas de N1 e N2
       const stats = {
-        totalN1: (hierarchyData || []).filter(n => n.level === 1).length,
-        totalN2: (hierarchyData || []).filter(n => n.level === 2).length,
-        totalN3: (hierarchyData || []).filter(n => n.level === 3).length,
+        totalN1: filteredDescendants.filter(n => {
+          const affiliateIndex = n.path.indexOf(currentAffiliate.id);
+          const depth = n.path.length - affiliateIndex - 1;
+          return depth === 1;
+        }).length,
+        totalN2: filteredDescendants.filter(n => {
+          const affiliateIndex = n.path.indexOf(currentAffiliate.id);
+          const depth = n.path.length - affiliateIndex - 1;
+          return depth === 2;
+        }).length,
+        totalN3: 0, // Não exibimos N3
         totalCommissions: (currentAffiliate.total_commissions_cents || 0) / 100,
-        totalReferrals: (hierarchyData || []).length,
+        totalReferrals: filteredDescendants.length,
         conversionRate: currentAffiliate.total_clicks > 0 
           ? ((currentAffiliate.total_conversions || 0) / currentAffiliate.total_clicks * 100).toFixed(1)
           : 0
@@ -1220,7 +1237,8 @@ export class AffiliateFrontendService {
   }
   /**
    * Constrói árvore hierárquica a partir da view affiliate_hierarchy
-   * Task 3.3: Método auxiliar para organizar dados da view em árvore
+   * ✅ CORRIGIDO: Usa campo `path` para determinar hierarquia
+   * Limita profundidade a 2 níveis (N1 e N2)
    */
   private buildTreeFromHierarchy(hierarchyData: any[], rootId: string): any[] {
     if (!hierarchyData || hierarchyData.length === 0) return [];
@@ -1229,31 +1247,40 @@ export class AffiliateFrontendService {
     const affiliateMap = new Map();
     
     hierarchyData.forEach(item => {
+      // Calcular nível relativo ao afiliado atual
+      const affiliateIndex = item.path.indexOf(rootId);
+      const relativeLevel = item.path.length - affiliateIndex - 1;
+
       affiliateMap.set(item.id, {
         id: item.id,
         name: item.name,
         email: item.email,
-        level: item.level,
-        sales_count: 0, // TODO: Adicionar na view se necessário
-        commission_generated: 0, // TODO: Adicionar na view se necessário
+        level: relativeLevel, // Nível relativo (1=N1, 2=N2)
+        sales_count: item.total_conversions || 0,
+        commission_generated: (item.total_commissions_cents || 0) / 100,
         status: item.status,
         created_at: item.created_at,
+        path: item.path,
         children: []
       });
     });
 
-    // Organizar hierarquia usando o campo path da view
+    // ✅ CORRIGIDO: Organizar hierarquia usando o campo path
     const rootNodes: any[] = [];
     
     hierarchyData.forEach(item => {
       const affiliate = affiliateMap.get(item.id);
       if (!affiliate) return;
 
-      // Se é nível 1 (filho direto da raiz), adicionar como root node
-      if (item.level === 1) {
+      // Encontrar índice do afiliado atual no path
+      const affiliateIndex = item.path.indexOf(rootId);
+      const relativeLevel = item.path.length - affiliateIndex - 1;
+
+      // Se é nível 1 (filho direto), adicionar como root node
+      if (relativeLevel === 1) {
         rootNodes.push(affiliate);
-      } else {
-        // Encontrar pai usando o path (penúltimo elemento é o pai)
+      } else if (relativeLevel === 2) {
+        // Se é nível 2, encontrar pai (que está no índice anterior do path)
         const parentId = item.path[item.path.length - 2];
         const parent = affiliateMap.get(parentId);
         
@@ -1261,6 +1288,7 @@ export class AffiliateFrontendService {
           parent.children.push(affiliate);
         }
       }
+      // Níveis > 2 são ignorados (não adicionados à árvore)
     });
 
     return rootNodes;
