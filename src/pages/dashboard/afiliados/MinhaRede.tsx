@@ -46,7 +46,6 @@ export default function AdminMinhaRede() {
       const { data, error: queryError } = await supabase
         .from('affiliate_hierarchy')
         .select('*')
-        .is('deleted_at', null)
         .order('level', { ascending: true })
         .order('name', { ascending: true });
 
