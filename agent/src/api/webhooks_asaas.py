@@ -77,13 +77,16 @@ async def asaas_webhook(
                 body_size=len(body_str),
                 environment=os.getenv('ENVIRONMENT'))
     
-    # Verificar assinatura em produção
-    if os.getenv('ENVIRONMENT') == 'production' or x_asaas_signature:
+    # Verificar assinatura APENAS se fornecida
+    # Asaas só envia assinatura se Access Token estiver configurado no painel
+    if x_asaas_signature:
         if not verify_asaas_signature(body_str, x_asaas_signature):
             logger.error("Assinatura do webhook Asaas inválida",
                         signature_received=x_asaas_signature[:20] if x_asaas_signature else None,
                         token_configured=bool(os.getenv('ASAAS_WEBHOOK_TOKEN')))
             raise HTTPException(status_code=401, detail="Invalid signature")
+    else:
+        logger.warning("Webhook recebido SEM assinatura - Access Token não configurado no Asaas")
 
     try:
         data = json.loads(body_str)
