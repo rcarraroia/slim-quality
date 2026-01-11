@@ -1,8 +1,36 @@
 {
-  "rewrites": [
+  "version": 2,
+  "builds": [
     {
-      "source": "/((?!api/).*)",
-      "destination": "/index.html"
+      "src": "server/index.js",
+      "use": "@vercel/node"
+    },
+    {
+      "src": "package.json",
+      "use": "@vercel/static-build",
+      "config": {
+        "distDir": "dist"
+      }
+    }
+  ],
+  "routes": [
+    {
+      "src": "/api/webhooks/asaas",
+      "dest": "server/index.js",
+      "methods": ["POST"]
+    },
+    {
+      "src": "/api/webhooks/asaas/health",
+      "dest": "server/index.js",
+      "methods": ["GET"]
+    },
+    {
+      "src": "/api/(.*)",
+      "dest": "server/index.js"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/index.html"
     }
   ]
 }
