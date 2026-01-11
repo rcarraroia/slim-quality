@@ -36,6 +36,7 @@ def verify_asaas_signature(payload: str, signature: str) -> bool:
         return True # Permitir se não configurado (dev)
 
     if not signature:
+        logger.error("Assinatura não fornecida no header")
         return False
 
     try:
@@ -45,7 +46,15 @@ def verify_asaas_signature(payload: str, signature: str) -> bool:
             hashlib.sha256
         ).hexdigest()
 
-        return hmac.compare_digest(signature, expected_signature)
+        is_valid = hmac.compare_digest(signature, expected_signature)
+        
+        if not is_valid:
+            logger.error("Assinatura inválida",
+                        expected=expected_signature[:20],
+                        received=signature[:20],
+                        payload_size=len(payload))
+        
+        return is_valid
     except Exception as e:
         logger.error("Erro ao verificar assinatura", error=str(e))
         return False
@@ -62,10 +71,18 @@ async def asaas_webhook(
     body_bytes = await request.body()
     body_str = body_bytes.decode('utf-8')
     
+    # Log para debug
+    logger.info("Webhook Asaas recebido", 
+                signature_present=bool(x_asaas_signature),
+                body_size=len(body_str),
+                environment=os.getenv('ENVIRONMENT'))
+    
     # Verificar assinatura em produção
     if os.getenv('ENVIRONMENT') == 'production' or x_asaas_signature:
         if not verify_asaas_signature(body_str, x_asaas_signature):
-            logger.error("Assinatura do webhook Asaas inválida")
+            logger.error("Assinatura do webhook Asaas inválida",
+                        signature_received=x_asaas_signature[:20] if x_asaas_signature else None,
+                        token_configured=bool(os.getenv('ASAAS_WEBHOOK_TOKEN')))
             raise HTTPException(status_code=401, detail="Invalid signature")
 
     try:
