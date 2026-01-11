@@ -393,6 +393,7 @@ async function updatePaymentStatus(asaasPaymentId: string, status: string): Prom
 
 /**
  * Processa comissões do pedido
+ * ✅ CORRIGIDO: Lê IDs dos afiliados de orders e chama função SQL
  */
 async function processOrderCommissions(
   orderId: string, 
@@ -404,60 +405,71 @@ async function processOrderCommissions(
   totalCommission?: number;
 }> {
   try {
-    // Buscar pedido com dados do afiliado
-    const { data: order } = await supabase
+    // Buscar pedido com IDs dos afiliados
+    const { data: order, error: orderError } = await supabase
       .from('orders')
-      .select('*, referral_code, affiliate_n1_id')
+      .select('id, referral_code, affiliate_n1_id, affiliate_n2_id, affiliate_n3_id')
       .eq('id', orderId)
       .single();
 
-    if (!order?.referral_code) {
+    if (orderError || !order) {
+      console.error('[AsaasWebhook] Erro ao buscar pedido:', orderError);
+      return { calculated: false };
+    }
+
+    if (!order.affiliate_n1_id) {
       console.log(`[AsaasWebhook] Pedido ${orderId} sem afiliado`);
       return { calculated: false };
     }
 
-    // Buscar afiliado pelo referral_code
-    const { data: affiliate } = await supabase
-      .from('affiliates')
-      .select('id, user_id, wallet_id, referral_code, referred_by')
-      .eq('referral_code', order.referral_code)
-      .eq('status', 'active')
-      .single();
+    // Chamar função SQL para calcular e criar comissões
+    const { data: splitId, error: splitError } = await supabase
+      .rpc('calculate_commission_split', { p_order_id: orderId });
 
-    if (!affiliate) {
-      console.log(`[AsaasWebhook] Afiliado não encontrado: ${order.referral_code}`);
+    if (splitError) {
+      console.error('[AsaasWebhook] Erro ao calcular comissões:', splitError);
+      
+      // Registrar erro no log
+      await supabase.from('commission_logs').insert({
+        order_id: orderId,
+        action: 'COMMISSION_ERROR',
+        details: JSON.stringify({
+          error: splitError.message,
+          order_value: orderValue,
+          affiliate_n1_id: order.affiliate_n1_id,
+          error_at: new Date().toISOString()
+        })
+      });
+      
       return { calculated: false };
     }
 
-    // Buscar nome do afiliado
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('full_name')
-      .eq('id', affiliate.user_id)
+    // Buscar nome do afiliado N1
+    const { data: affiliate } = await supabase
+      .from('affiliates')
+      .select('id, user_id')
+      .eq('id', order.affiliate_n1_id)
       .single();
 
-    // Calcular comissões (30% do valor)
+    let affiliateName = 'Desconhecido';
+    if (affiliate) {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('full_name')
+        .eq('id', affiliate.user_id)
+        .single();
+      
+      affiliateName = profile?.full_name || 'Desconhecido';
+    }
+
     const totalCommission = orderValue * 0.30;
 
-    // Registrar log de comissão calculada
-    await supabase.from('commission_logs').insert({
-      order_id: orderId,
-      action: 'COMMISSION_CALCULATED',
-      details: JSON.stringify({
-        affiliate_id: affiliate.id,
-        referral_code: order.referral_code,
-        order_value: orderValue,
-        total_commission: totalCommission,
-        calculated_at: new Date().toISOString()
-      })
-    });
-
-    console.log(`[AsaasWebhook] 💰 Comissão calculada: R$ ${totalCommission.toFixed(2)} para ${profile?.full_name || affiliate.id}`);
+    console.log(`[AsaasWebhook] ✅ Comissões calculadas: Split ID ${splitId} | Total: R$ ${totalCommission.toFixed(2)}`);
 
     return {
       calculated: true,
-      affiliateId: affiliate.id,
-      affiliateName: profile?.full_name,
+      affiliateId: order.affiliate_n1_id,
+      affiliateName,
       totalCommission
     };
   } catch (error) {

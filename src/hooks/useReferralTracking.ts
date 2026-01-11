@@ -3,7 +3,7 @@
  */
 
 import { useEffect, useState } from 'react';
-import { ReferralTracker } from '../middleware/referral-tracker';
+import { ReferralTracker } from '@/utils/referral-tracker';
 
 export interface ReferralInfo {
   code: string;

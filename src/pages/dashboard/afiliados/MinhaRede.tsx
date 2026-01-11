@@ -79,9 +79,9 @@ export default function AdminMinhaRede() {
       affiliateMap.set(aff.id, {
         id: aff.id,
         nome: aff.name || 'Sem nome',
-        nivel: aff.level,
-        vendas: aff.total_conversions || 0,
-        comissaoGerada: 0, // TODO: calcular comissões reais
+        nivel: aff.level || 0,  // ✅ Agora vem da view
+        vendas: aff.total_conversions || 0,  // ✅ Agora vem da view
+        comissaoGerada: aff.total_commission_earned || 0,  // ✅ Agora vem da view
         indicados: [],
         expanded: false
       });
@@ -104,6 +104,7 @@ export default function AdminMinhaRede() {
           parent.indicados.push(node);
         } else {
           // Se não encontrar o pai, adicionar como raiz
+          console.warn(`Pai não encontrado para afiliado ${aff.id}, adicionando como raiz`);
           roots.push(node);
         }
       }

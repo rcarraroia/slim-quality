@@ -4,6 +4,7 @@
  */
 
 import { supabase } from '@/config/supabase';
+import { centsToDecimal } from '@/utils/currency';
 
 export interface Commission {
   id: string;
@@ -60,6 +61,9 @@ export interface ApiResponse<T> {
 class AdminCommissionsService {
   /**
    * Listar comissões com filtros
+   * 
+   * IMPORTANTE: Valores monetários são convertidos de centavos para decimal
+   * antes de retornar para o frontend.
    */
   async getAll(params: CommissionListParams = {}): Promise<ApiResponse<CommissionListResponse>> {
     try {
@@ -91,7 +95,7 @@ class AdminCommissionsService {
 
       if (error) throw error;
 
-      // Mapear dados
+      // ✅ Converter valores de centavos para decimal
       const commissions: Commission[] = (data || []).map(c => ({
         id: c.id,
         order_id: c.order_id,
@@ -100,7 +104,7 @@ class AdminCommissionsService {
         percentage: Number(c.percentage),
         base_value_cents: c.base_value_cents,
         commission_value_cents: c.commission_value_cents,
-        amount: c.commission_value_cents / 100,
+        amount: centsToDecimal(c.commission_value_cents),
         status: c.status,
         created_at: c.created_at,
         paid_at: c.paid_at,
@@ -114,7 +118,7 @@ class AdminCommissionsService {
           order_number: c.orders.order_number,
           customer_name: c.orders.customer_name,
           product_name: 'Produto',
-          total_amount: c.orders.total_cents / 100
+          total_amount: centsToDecimal(c.orders.total_cents)
         } : undefined
       }));
 

@@ -5,6 +5,7 @@
 
 import { supabase, supabaseUrl } from '@/config/supabase';
 import { STORAGE_KEYS } from '@/constants/storage-keys';
+import { centsToDecimal } from '@/utils/currency';
 
 export interface CreateAffiliateData {
   name: string;
@@ -241,20 +242,14 @@ export class AffiliateFrontendService {
         throw new Error('Afiliado não encontrado');
       }
 
-      // Buscar rede do afiliado usando view materializada
+      // ✅ CORRIGIDO: Buscar afiliados diretos (N1) usando queries diretas
       const { data: networkData } = await supabase
-        .from('affiliate_hierarchy')
-        .select(`
-          id,
-          level,
-          name,
-          email,
-          status,
-          total_commissions_cents,
-          created_at
-        `)
-        .eq('root_id', affiliateData.id)
-        .neq('id', affiliateData.id); // Excluir o próprio afiliado
+        .from('affiliates')
+        .select('id, user_id, referral_code, referred_by, status, created_at')
+        .eq('referred_by', affiliateData.id)
+        .eq('status', 'active')
+        .is('deleted_at', null)
+        .order('created_at', { ascending: false });
 
       // Buscar comissões recentes
       const { data: commissionsData } = await supabase
@@ -529,26 +524,48 @@ export class AffiliateFrontendService {
         throw new Error('Afiliado não encontrado');
       }
 
-      // ✅ CORRIGIDO: Buscar descendentes usando path (PostgreSQL array contains)
-      const { data: descendants, error: hierarchyError } = await supabase
-        .from('affiliate_hierarchy')
-        .select('*')
-        .contains('path', [currentAffiliate.id])
-        .neq('id', currentAffiliate.id)
-        .order('level', { ascending: true });
+      // ✅ CORRIGIDO: Buscar todos os descendentes (N1 + N2) usando queries diretas
+      const descendants = [];
+      let hierarchyError = null;
+
+      try {
+        // Buscar N1 (diretos)
+        const { data: n1List } = await supabase
+          .from('affiliates')
+          .select('id, user_id, referral_code, referred_by')
+          .eq('referred_by', currentAffiliate.id)
+          .eq('status', 'active')
+          .is('deleted_at', null);
+        
+        if (n1List && n1List.length > 0) {
+          descendants.push(...n1List);
+          
+          // Buscar N2 (indiretos) para cada N1
+          for (const n1 of n1List) {
+            const { data: n2List } = await supabase
+              .from('affiliates')
+              .select('id, user_id, referral_code, referred_by')
+              .eq('referred_by', n1.id)
+              .eq('status', 'active')
+              .is('deleted_at', null);
+            
+            if (n2List && n2List.length > 0) {
+              descendants.push(...n2List);
+            }
+          }
+        }
+      } catch (error) {
+        hierarchyError = error;
+      }
 
       if (hierarchyError) {
         console.error('Erro ao buscar hierarquia:', hierarchyError);
       }
 
       // ✅ NOVO: Filtrar apenas 2 níveis de profundidade
-      const filteredDescendants = (descendants || []).filter(item => {
-        const affiliateIndex = item.path.indexOf(currentAffiliate.id);
-        const depth = item.path.length - affiliateIndex - 1;
-        return depth <= 2; // Máximo 2 níveis (N1 e N2)
-      });
+      const filteredDescendants = descendants;
 
-      // Construir árvore hierárquica a partir da view
+      // Construir árvore hierárquica a partir dos descendentes
       const networkTree = this.buildTreeFromHierarchy(filteredDescendants, currentAffiliate.id);
 
       // ✅ CORRIGIDO: Calcular estatísticas apenas de N1 e N2
@@ -1028,12 +1045,6 @@ export class AffiliateFrontendService {
    * @deprecated Não é mais necessário - a view materializada affiliate_hierarchy
    * é atualizada automaticamente via trigger quando affiliates.referred_by é definido
    */
-  private async createNetworkEntry(affiliateId: string, parentId: string): Promise<void> {
-    // DEPRECADO: A view materializada affiliate_hierarchy é atualizada automaticamente
-    // via trigger quando um afiliado é criado com referred_by
-    console.log('[DEPRECATED] createNetworkEntry não é mais necessário - view atualizada via trigger');
-  }
-
   /**
    * Busca validação de wallet no cache
    */
@@ -1296,13 +1307,59 @@ export class AffiliateFrontendService {
 
   private async buildNetworkTree(affiliateId: string): Promise<any[]> {
     try {
-      // Buscar todos os afiliados da rede usando view materializada
-      const { data: networkData, error } = await supabase
-        .from('affiliate_hierarchy')
-        .select('*')
-        .eq('root_id', affiliateId)
-        .neq('id', affiliateId) // Excluir o próprio afiliado
-        .order('level', { ascending: true });
+      // ✅ CORRIGIDO: Buscar rede completa (N1 + N2 + N3) usando queries diretas
+      let networkData = [];
+      let error = null;
+
+      try {
+        // N1 - Diretos
+        const { data: n1List } = await supabase
+          .from('affiliates')
+          .select('id, user_id, referral_code, referred_by, status, created_at')
+          .eq('referred_by', affiliateId)
+          .eq('status', 'active')
+          .is('deleted_at', null);
+        
+        if (!n1List) {
+          networkData = [];
+        } else {
+          for (const n1 of n1List) {
+            const n1Node = { ...n1, level: 1, children: [] };
+            
+            // N2 - Indiretos do N1
+            const { data: n2List } = await supabase
+              .from('affiliates')
+              .select('id, user_id, referral_code, referred_by, status, created_at')
+              .eq('referred_by', n1.id)
+              .eq('status', 'active')
+              .is('deleted_at', null);
+            
+            if (n2List) {
+              for (const n2 of n2List) {
+                const n2Node = { ...n2, level: 2, children: [] };
+                
+                // N3 - Indiretos do N2
+                const { data: n3List } = await supabase
+                  .from('affiliates')
+                  .select('id, user_id, referral_code, referred_by, status, created_at')
+                  .eq('referred_by', n2.id)
+                  .eq('status', 'active')
+                  .is('deleted_at', null);
+                
+                if (n3List) {
+                  n2Node.children = n3List.map(n3 => ({ ...n3, level: 3 }));
+                }
+                
+                n1Node.children.push(n2Node);
+              }
+            }
+            
+            networkData.push(n1Node);
+          }
+        }
+      } catch (err) {
+        error = err;
+      }
 
       if (error) {
         console.warn('Erro ao buscar rede:', error);

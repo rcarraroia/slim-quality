@@ -139,7 +139,7 @@ export default function AffiliateDashboardComissoes() {
             <div>
               <p className="text-sm text-muted-foreground">Total em Comissões</p>
               <p className="text-3xl font-bold text-primary">
-                R$ {totalComissoes.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                R$ {totalComissoes.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </p>
             </div>
           </CardContent>
@@ -150,7 +150,7 @@ export default function AffiliateDashboardComissoes() {
             <div>
               <p className="text-sm text-muted-foreground">Já Recebido</p>
               <p className="text-3xl font-bold text-success">
-                R$ {totalPago.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                R$ {totalPago.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </p>
             </div>
           </CardContent>
@@ -161,7 +161,7 @@ export default function AffiliateDashboardComissoes() {
             <div>
               <p className="text-sm text-muted-foreground">A Receber</p>
               <p className="text-3xl font-bold text-warning">
-                R$ {totalPendente.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                R$ {totalPendente.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </p>
             </div>
           </CardContent>
@@ -251,7 +251,7 @@ export default function AffiliateDashboardComissoes() {
                   <TableCell className="text-sm text-muted-foreground">{comissao.produto}</TableCell>
                   <TableCell>{new Date(comissao.data).toLocaleDateString('pt-BR')}</TableCell>
                   <TableCell className="font-bold text-primary">
-                    R$ {comissao.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    R$ {comissao.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </TableCell>
                   <TableCell>
                     <StatusBadge status={comissao.status as any} />
@@ -355,7 +355,7 @@ export default function AffiliateDashboardComissoes() {
               <div className="border-t pt-4">
                 <p className="text-sm text-muted-foreground mb-1">Valor da Comissão</p>
                 <p className="text-3xl font-bold text-primary">
-                  R$ {selectedComissao.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                  R$ {selectedComissao.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </p>
               </div>
 

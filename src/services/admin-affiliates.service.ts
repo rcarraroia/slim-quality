@@ -4,6 +4,7 @@
  */
 
 import { supabase } from '@/config/supabase';
+import { centsToDecimal } from '@/utils/currency';
 
 export interface AffiliateMetrics {
   totalAffiliates: number;
@@ -71,30 +72,43 @@ export interface ApiResponse<T> {
 class AdminAffiliatesService {
   /**
    * Buscar métricas do dashboard
+   * 
+   * IMPORTANTE: Métricas são CALCULADAS em tempo real, não lidas de campos.
+   * Isso garante que os valores estejam sempre atualizados.
    */
   async getMetrics(): Promise<ApiResponse<AffiliateMetrics>> {
     try {
       // Buscar todos os afiliados
       const { data: affiliates, error } = await supabase
         .from('affiliates')
-        .select('id, status, total_conversions')
+        .select('id, status')
         .is('deleted_at', null);
 
       if (error) throw error;
 
       // Buscar comissões pagas
-      const { data: commissions } = await supabase
+      const { data: paidCommissions } = await supabase
         .from('commissions')
-        .select('commission_value_cents, status');
+        .select('commission_value_cents')
+        .eq('status', 'paid');
+
+      // Buscar total de vendas (pedidos com afiliados)
+      const { data: orders } = await supabase
+        .from('orders')
+        .select('id')
+        .not('affiliate_n1_id', 'is', null)
+        .is('deleted_at', null);
 
       const totalAffiliates = affiliates?.length || 0;
       const activeAffiliates = affiliates?.filter(a => a.status === 'active').length || 0;
       const pendingAffiliates = affiliates?.filter(a => a.status === 'pending').length || 0;
       
-      const paidCommissions = commissions?.filter(c => c.status === 'paid') || [];
-      const totalCommissionsPaid = paidCommissions.reduce((sum, c) => sum + (c.commission_value_cents || 0), 0) / 100;
+      const totalCommissionsPaid = paidCommissions?.reduce(
+        (sum, c) => sum + centsToDecimal(c.commission_value_cents || 0), 
+        0
+      ) || 0;
       
-      const totalSalesGenerated = affiliates?.reduce((sum, a) => sum + (a.total_conversions || 0), 0) || 0;
+      const totalSalesGenerated = orders?.length || 0;
 
       return {
         success: true,

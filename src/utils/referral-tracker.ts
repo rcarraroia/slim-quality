@@ -14,9 +14,10 @@ export interface ReferralData {
 }
 
 export class ReferralTracker {
-  private static readonly STORAGE_KEY = 'referral_code';
-  private static readonly EXPIRES_KEY = 'referral_expires';
-  private static readonly UTM_KEY = 'referral_utm';
+  // ✅ CORRIGIDO: Usar chave padrão do projeto
+  private static readonly STORAGE_KEY = 'slim_referral_code';
+  private static readonly EXPIRES_KEY = 'slim_referral_expires';
+  private static readonly UTM_KEY = 'slim_referral_utm';
   private static readonly TTL_DAYS = 30;
 
   /**
@@ -282,6 +283,24 @@ export class ReferralTracker {
     try {
       // Verificar se estamos no browser
       if (typeof window === 'undefined') return;
+      
+      // ✅ NOVO: Migrar código antigo se existir
+      const oldCode = localStorage.getItem('referral_code');
+      const newCode = localStorage.getItem('slim_referral_code');
+      
+      if (oldCode && !newCode) {
+        // Migrar dados antigos
+        try {
+          const oldData = JSON.parse(oldCode);
+          localStorage.setItem('slim_referral_code', oldCode);
+          localStorage.removeItem('referral_code');
+          console.log('[ReferralTracker] Código migrado: referral_code → slim_referral_code');
+        } catch {
+          // Se não for JSON, migrar como string simples
+          localStorage.setItem('slim_referral_code', oldCode);
+          localStorage.removeItem('referral_code');
+        }
+      }
       
       // Capturar código se presente na URL
       this.captureReferralCode();

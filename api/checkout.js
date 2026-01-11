@@ -320,7 +320,8 @@ export default async function handler(req, res) {
         status: isConfirmed ? 'confirmed' : 'pending',
         installments: installments || 1,
         cardBrand: cardPaymentData.creditCard?.creditCardBrand,
-        cardLastDigits: creditCard.number?.slice(-4)
+        cardLastDigits: creditCard.number?.slice(-4),
+        referralCode: referralCode || null
       });
 
       // Se pagamento confirmado, atualizar status do pedido para 'paid'
@@ -351,7 +352,8 @@ export default async function handler(req, res) {
       installments: 1,
       pixQrCode: pixQrCode,
       pixCopyPaste: pixCopyPaste,
-      pixExpiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() // 24h
+      pixExpiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // 24h
+      referralCode: referralCode || null
     });
 
     // Sucesso (PIX ou aguardando dados do cartão)
@@ -375,6 +377,76 @@ export default async function handler(req, res) {
 }
 
 /**
+ * Busca rede de afiliados pelo referral code
+ * Retorna IDs de N1, N2 e N3
+ */
+async function getAffiliateNetwork(referralCode, supabase) {
+  try {
+    if (!referralCode) {
+      return { n1: null, n2: null, n3: null };
+    }
+    
+    // Buscar N1 pelo referral_code
+    const { data: n1, error: n1Error } = await supabase
+      .from('affiliates')
+      .select('id, referred_by')
+      .eq('referral_code', referralCode)
+      .eq('status', 'active')
+      .is('deleted_at', null)
+      .single();
+    
+    if (n1Error || !n1) {
+      console.log('N1 não encontrado:', referralCode);
+      return { n1: null, n2: null, n3: null };
+    }
+    
+    let n2Id = null;
+    let n3Id = null;
+    
+    // Buscar N2 (quem indicou o N1)
+    if (n1.referred_by) {
+      const { data: n2 } = await supabase
+        .from('affiliates')
+        .select('id, referred_by')
+        .eq('id', n1.referred_by)
+        .eq('status', 'active')
+        .is('deleted_at', null)
+        .single();
+      
+      if (n2) {
+        n2Id = n2.id;
+        
+        // Buscar N3 (quem indicou o N2)
+        if (n2.referred_by) {
+          const { data: n3 } = await supabase
+            .from('affiliates')
+            .select('id')
+            .eq('id', n2.referred_by)
+            .eq('status', 'active')
+            .is('deleted_at', null)
+            .single();
+          
+          if (n3) {
+            n3Id = n3.id;
+          }
+        }
+      }
+    }
+    
+    console.log('Rede encontrada:', { n1: n1.id, n2: n2Id, n3: n3Id });
+    
+    return {
+      n1: n1.id,
+      n2: n2Id,
+      n3: n3Id
+    };
+  } catch (error) {
+    console.error('Erro ao buscar rede de afiliados:', error);
+    return { n1: null, n2: null, n3: null };
+  }
+}
+
+/**
  * Salva o pagamento no banco de dados (tabelas payments e asaas_transactions)
  */
 async function savePaymentToDatabase(data) {
@@ -388,6 +460,29 @@ async function savePaymentToDatabase(data) {
     }
 
     const supabase = createClient(supabaseUrl, supabaseKey);
+
+    // ✅ NOVO: Buscar rede de afiliados se houver referralCode
+    const affiliateNetwork = await getAffiliateNetwork(data.referralCode, supabase);
+    
+    // ✅ NOVO: Atualizar pedido com dados dos afiliados
+    if (data.referralCode) {
+      const { error: updateError } = await supabase
+        .from('orders')
+        .update({
+          referral_code: data.referralCode,
+          affiliate_n1_id: affiliateNetwork.n1,
+          affiliate_n2_id: affiliateNetwork.n2,
+          affiliate_n3_id: affiliateNetwork.n3,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', data.orderId);
+      
+      if (updateError) {
+        console.error('Erro ao atualizar afiliados do pedido:', updateError);
+      } else {
+        console.log(`Pedido ${data.orderId} vinculado aos afiliados:`, affiliateNetwork);
+      }
+    }
 
     // Mapear billingType para payment_method
     const paymentMethodMap = {

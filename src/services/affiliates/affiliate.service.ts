@@ -237,10 +237,125 @@ export class AffiliateService {
   }
 
   /**
-   * Busca rede completa do afiliado usando view materializada
-   * NOVO: Usa affiliate_hierarchy para performance
+   * Busca rede completa do afiliado (N1 + N2 + N3)
+   * ✅ CORRIGIDO: Usa queries diretas ao invés de affiliate_hierarchy
    */
   async getNetwork(affiliateId: string): Promise<Affiliate[]> {
+    try {
+      const allAffiliates: Affiliate[] = [];
+      
+      // Buscar N1 (diretos)
+      const { data: n1List, error: n1Error } = await supabase
+        .from('affiliates')
+        .select('*')
+        .eq('referred_by', affiliateId)
+        .eq('status', 'active')
+        .is('deleted_at', null);
+      
+      if (n1Error) throw n1Error;
+      if (!n1List || n1List.length === 0) return [];
+      
+      allAffiliates.push(...n1List);
+      
+      // Buscar N2 (para cada N1)
+      for (const n1 of n1List) {
+        const { data: n2List } = await supabase
+          .from('affiliates')
+          .select('*')
+          .eq('referred_by', n1.id)
+          .eq('status', 'active')
+          .is('deleted_at', null);
+        
+        if (n2List && n2List.length > 0) {
+          allAffiliates.push(...n2List);
+          
+          // Buscar N3 (para cada N2)
+          for (const n2 of n2List) {
+            const { data: n3List } = await supabase
+              .from('affiliates')
+              .select('*')
+              .eq('referred_by', n2.id)
+              .eq('status', 'active')
+              .is('deleted_at', null);
+            
+            if (n3List && n3List.length > 0) {
+              allAffiliates.push(...n3List);
+            }
+          }
+        }
+      }
+      
+      return allAffiliates;
+    } catch (error) {
+      console.error('[AffiliateService] Erro ao buscar rede:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Busca árvore genealógica do afiliado
+   * ✅ CORRIGIDO: Usa queries diretas ao invés de affiliate_hierarchy
+   */
+  async getNetworkTree(affiliateId: string): Promise<NetworkTree | null> {
+    try {
+      // Buscar dados do afiliado raiz
+      const { data: rootAffiliate, error: rootError } = await supabase
+        .from('affiliates')
+        .select('*')
+        .eq('id', affiliateId)
+        .single();
+      
+      if (rootError || !rootAffiliate) return null;
+      
+      // Construir árvore recursivamente
+      const tree: NetworkTree = {
+        affiliate: rootAffiliate,
+        level: 0,
+        children: await this.buildTreeLevel(affiliateId, 1)
+      };
+      
+      return tree;
+    } catch (error) {
+      console.error('[AffiliateService] Erro ao buscar árvore:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Constrói um nível da árvore recursivamente
+   * Limita a 3 níveis (N1, N2, N3)
+   */
+  private async buildTreeLevel(parentId: string, level: number): Promise<NetworkTree[]> {
+    if (level > 3) return []; // Limite de profundidade
+    
+    const { data: children } = await supabase
+      .from('affiliates')
+      .select('*')
+      .eq('referred_by', parentId)
+      .eq('status', 'active')
+      .is('deleted_at', null)
+      .order('created_at', { ascending: false });
+    
+    if (!children || children.length === 0) return [];
+    
+    const treeNodes: NetworkTree[] = [];
+    
+    for (const child of children) {
+      treeNodes.push({
+        affiliate: child,
+        level,
+        children: await this.buildTreeLevel(child.id, level + 1)
+      });
+    }
+    
+    return treeNodes;
+  }
+
+  /**
+   * Busca árvore genealógica do afiliado (MÉTODO ANTIGO - MANTER POR COMPATIBILIDADE)
+   * ATUALIZADO: Usa affiliate_hierarchy
+   */
+  async getNetworkTreeOld(affiliateId: string): Promise<NetworkTree | null> {
     try {
       const { data, error } = await supabase
         .from('affiliate_hierarchy')
@@ -248,16 +363,13 @@ export class AffiliateService {
         .eq('root_id', affiliateId)
         .order('level', { ascending: true });
 
-      if (error) {
-        console.error('Erro ao buscar rede:', error);
-        return [];
+      if (error || !data || data.length === 0) {
+        return null;
       }
 
-      return (data || []).map(item => ({
-        id: item.id,
-        userId: '', // Não necessário para listagem
-        name: item.name,
-        email: item.email,
+      return this.buildTreeStructure(data);
+    } catch (error) {
+      console.error('Erro ao buscar árvore:', error);
         referralCode: item.referral_code,
         walletId: '', // Não expor wallet na listagem
         status: item.status,

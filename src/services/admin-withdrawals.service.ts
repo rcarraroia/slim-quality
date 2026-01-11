@@ -4,6 +4,7 @@
  */
 
 import { supabase } from '@/config/supabase';
+import { centsToDecimal } from '@/utils/currency';
 
 export interface Withdrawal {
   id: string;
