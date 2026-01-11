@@ -42,17 +42,98 @@ export default function AdminMinhaRede() {
       setLoading(true);
       setError(null);
       
-      // Buscar todos os afiliados da view affiliate_hierarchy
-      const { data, error: queryError } = await supabase
-        .from('affiliate_hierarchy')
-        .select('*')
-        .order('level', { ascending: true })
-        .order('name', { ascending: true });
+      // ✅ CORRIGIDO: Buscar usuário autenticado
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        throw new Error('Usuário não autenticado');
+      }
 
-      if (queryError) throw queryError;
+      // Buscar afiliado atual
+      const { data: currentAffiliate, error: affiliateError } = await supabase
+        .from('affiliates')
+        .select('id')
+        .eq('user_id', user.id)
+        .is('deleted_at', null)
+        .single();
+
+      if (affiliateError || !currentAffiliate) {
+        throw new Error('Afiliado não encontrado');
+      }
+
+      // Buscar N1 (diretos)
+      const { data: n1List, error: n1Error } = await supabase
+        .from('affiliates')
+        .select(`
+          id,
+          name,
+          referred_by,
+          status,
+          total_conversions,
+          total_commissions_cents,
+          created_at
+        `)
+        .eq('referred_by', currentAffiliate.id)
+        .eq('status', 'active')
+        .is('deleted_at', null)
+        .order('created_at', { ascending: false });
+
+      if (n1Error) throw n1Error;
+
+      const allAffiliates = [];
+      
+      // Adicionar N1 com level
+      if (n1List && n1List.length > 0) {
+        allAffiliates.push(...n1List.map(n1 => ({ ...n1, level: 1 })));
+
+        // Buscar N2 para cada N1
+        for (const n1 of n1List) {
+          const { data: n2List } = await supabase
+            .from('affiliates')
+            .select(`
+              id,
+              name,
+              referred_by,
+              status,
+              total_conversions,
+              total_commissions_cents,
+              created_at
+            `)
+            .eq('referred_by', n1.id)
+            .eq('status', 'active')
+            .is('deleted_at', null)
+            .order('created_at', { ascending: false });
+
+          if (n2List && n2List.length > 0) {
+            allAffiliates.push(...n2List.map(n2 => ({ ...n2, level: 2 })));
+
+            // Buscar N3 para cada N2
+            for (const n2 of n2List) {
+              const { data: n3List } = await supabase
+                .from('affiliates')
+                .select(`
+                  id,
+                  name,
+                  referred_by,
+                  status,
+                  total_conversions,
+                  total_commissions_cents,
+                  created_at
+                `)
+                .eq('referred_by', n2.id)
+                .eq('status', 'active')
+                .is('deleted_at', null)
+                .order('created_at', { ascending: false });
+
+              if (n3List && n3List.length > 0) {
+                allAffiliates.push(...n3List.map(n3 => ({ ...n3, level: 3 })));
+              }
+            }
+          }
+        }
+      }
 
       // Organizar em árvore hierárquica
-      const networkData = buildNetworkTree(data || []);
+      const networkData = buildNetworkTree(allAffiliates);
       setNetwork(networkData);
     } catch (error) {
       console.error('Erro ao carregar rede:', error);
@@ -79,9 +160,9 @@ export default function AdminMinhaRede() {
       affiliateMap.set(aff.id, {
         id: aff.id,
         nome: aff.name || 'Sem nome',
-        nivel: aff.level || 0,  // ✅ Agora vem da view
-        vendas: aff.total_conversions || 0,  // ✅ Agora vem da view
-        comissaoGerada: aff.total_commission_earned || 0,  // ✅ Agora vem da view
+        nivel: aff.level || 0,
+        vendas: aff.total_conversions || 0,
+        comissaoGerada: (aff.total_commissions_cents || 0) / 100,
         indicados: [],
         expanded: false
       });
@@ -94,11 +175,11 @@ export default function AdminMinhaRede() {
       const node = affiliateMap.get(aff.id);
       if (!node) return;
 
-      if (!aff.referred_by || aff.level === 0) {
-        // Afiliado raiz (sem indicador)
+      if (!aff.referred_by || aff.level === 1) {
+        // Afiliado N1 (filho direto do usuário atual)
         roots.push(node);
       } else {
-        // Afiliado com indicador
+        // Afiliado N2 ou N3 (tem pai)
         const parent = affiliateMap.get(aff.referred_by);
         if (parent) {
           parent.indicados.push(node);
