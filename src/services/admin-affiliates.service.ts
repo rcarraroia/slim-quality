@@ -31,7 +31,6 @@ export interface Affiliate {
   wallet_id: string;
   referral_code: string;
   status: 'pending' | 'active' | 'inactive' | 'rejected';
-  level: number;
   available_balance: number;
   pending_balance: number;
   total_commissions: number;
@@ -163,7 +162,6 @@ class AdminAffiliatesService {
         wallet_id: a.wallet_id || '',
         referral_code: a.referral_code || '',
         status: a.status || 'pending',
-        level: 1,
         available_balance: 0,
         pending_balance: 0,
         total_commissions: 0,
