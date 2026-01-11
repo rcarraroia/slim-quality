@@ -13,7 +13,7 @@ from datetime import datetime
 from typing import Optional, Dict, Any, List
 from ..services.supabase_client import get_supabase_client
 
-router = APIRouter(prefix="/webhooks", tags=["webhooks"])
+router = APIRouter(prefix="/api/webhooks", tags=["webhooks"])
 logger = structlog.get_logger(__name__)
 
 # Eventos suportados pelo webhook
