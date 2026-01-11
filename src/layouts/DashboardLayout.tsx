@@ -60,6 +60,7 @@ export function DashboardLayout() {
 
   const affiliateSubmenu = [
     { label: 'Lista de Afiliados', path: '/dashboard/afiliados', icon: List },
+    { label: 'Minha Rede', path: '/dashboard/afiliados/minha-rede', icon: Users },
     { label: 'Comissões', path: '/dashboard/afiliados/comissoes', icon: DollarSign },
     { label: 'Solicitações', path: '/dashboard/afiliados/solicitacoes', icon: CreditCard },
   ];

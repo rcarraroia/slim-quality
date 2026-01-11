@@ -31,6 +31,7 @@ import Agendamentos from "./pages/dashboard/Agendamentos";
 import Automacoes from "./pages/dashboard/Automacoes";
 import Analytics from "./pages/dashboard/Analytics";
 import ListaAfiliados from "./pages/dashboard/afiliados/ListaAfiliados";
+import AdminMinhaRede from "./pages/dashboard/afiliados/MinhaRede";
 import GestaoComissoes from "./pages/dashboard/afiliados/GestaoComissoes";
 import Solicitacoes from "./pages/dashboard/afiliados/Solicitacoes";
 import AgenteIA from "./pages/dashboard/agente/AgenteIA";
@@ -115,6 +116,7 @@ const App = () => (
 
                 {/* Submenu Afiliados Admin */}
                 <Route path="afiliados" element={<ListaAfiliados />} />
+                <Route path="afiliados/minha-rede" element={<AdminMinhaRede />} />
                 <Route path="afiliados/comissoes" element={<GestaoComissoes />} />
                 <Route path="afiliados/solicitacoes" element={<Solicitacoes />} />
 
