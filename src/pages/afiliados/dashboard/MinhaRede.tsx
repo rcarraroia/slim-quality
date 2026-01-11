@@ -18,7 +18,7 @@ import { useToast } from "@/hooks/use-toast";
 interface NetworkNode {
   id: string;
   nome: string;
-  nivel: 1 | 2 | 3;
+  nivel: 1 | 2;
   vendas: number;
   comissaoGerada: number;
   indicados: NetworkNode[];
@@ -189,8 +189,8 @@ export default function AffiliateDashboardMinhaRede() {
   };
 
   const calculateTotals = (nodes: NetworkNode[]) => {
-    let totalN1 = 0, totalN2 = 0, totalN3 = 0;
-    let comissaoN1 = 0, comissaoN2 = 0, comissaoN3 = 0;
+    let totalN1 = 0, totalN2 = 0;
+    let comissaoN1 = 0, comissaoN2 = 0;
 
     const traverse = (node: NetworkNode) => {
       if (node.nivel === 1) {
@@ -199,15 +199,12 @@ export default function AffiliateDashboardMinhaRede() {
       } else if (node.nivel === 2) {
         totalN2++;
         comissaoN2 += node.comissaoGerada;
-      } else if (node.nivel === 3) {
-        totalN3++;
-        comissaoN3 += node.comissaoGerada;
       }
       node.indicados.forEach(traverse);
     };
 
     nodes.forEach(traverse);
-    return { totalN1, totalN2, totalN3, comissaoN1, comissaoN2, comissaoN3 };
+    return { totalN1, totalN2, comissaoN1, comissaoN2 };
   };
 
   // Memoizar cálculos pesados para melhor performance
@@ -263,8 +260,8 @@ export default function AffiliateDashboardMinhaRede() {
   if (loading) {
     return (
       <div className="space-y-6">
-        <div className="grid gap-6 md:grid-cols-3">
-          {[1, 2, 3].map((i) => (
+        <div className="grid gap-6 md:grid-cols-2">
+          {[1, 2].map((i) => (
             <Card key={i} className="p-6">
               <div className="flex items-center justify-between">
                 <div className="space-y-2">
@@ -302,7 +299,7 @@ export default function AffiliateDashboardMinhaRede() {
       )}
 
       {/* Resumo da Rede */}
-      <div className="grid gap-6 md:grid-cols-3">
+      <div className="grid gap-6 md:grid-cols-2">
         <Card className="border-2 border-primary">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
@@ -332,23 +329,6 @@ export default function AffiliateDashboardMinhaRede() {
               </div>
               <div className="w-12 h-12 rounded-full bg-secondary/10 flex items-center justify-center">
                 <TrendingUp className="h-6 w-6 text-secondary" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-2">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Nível 3</p>
-                <p className="text-3xl font-bold">{totals.totalN3}</p>
-                <p className="text-sm text-muted-foreground mt-1">
-                  R$ {totals.comissaoN3.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                </p>
-              </div>
-              <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
-                <DollarSign className="h-6 w-6" />
               </div>
             </div>
           </CardContent>
@@ -390,8 +370,8 @@ export default function AffiliateDashboardMinhaRede() {
                 <div className="flex-1">
                   <p className="text-xl font-bold">{affiliate?.name || 'Afiliado'} (Você)</p>
                   <p className="text-muted-foreground">
-                    {totals.totalN1 + totals.totalN2 + totals.totalN3} pessoas na sua rede • 
-                    R$ {(totals.comissaoN1 + totals.comissaoN2 + totals.comissaoN3).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} gerados
+                    {totals.totalN1 + totals.totalN2} pessoas na sua rede • 
+                    R$ {(totals.comissaoN1 + totals.comissaoN2).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} gerados
                   </p>
                 </div>
               </div>
