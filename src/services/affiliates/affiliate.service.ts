@@ -351,39 +351,7 @@ export class AffiliateService {
     return treeNodes;
   }
 
-  /**
-   * Busca árvore genealógica do afiliado (MÉTODO ANTIGO - MANTER POR COMPATIBILIDADE)
-   * ATUALIZADO: Usa affiliate_hierarchy
-   */
-  async getNetworkTreeOld(affiliateId: string): Promise<NetworkTree | null> {
-    try {
-      const { data, error } = await supabase
-        .from('affiliate_hierarchy')
-        .select('*')
-        .eq('root_id', affiliateId)
-        .order('level', { ascending: true });
 
-      if (error || !data || data.length === 0) {
-        return null;
-      }
-
-      return this.buildTreeStructure(data);
-    } catch (error) {
-      console.error('Erro ao buscar árvore:', error);
-        referralCode: item.referral_code,
-        walletId: '', // Não expor wallet na listagem
-        status: item.status,
-        totalClicks: 0,
-        totalConversions: 0,
-        totalCommissions: 0,
-        createdAt: item.created_at,
-        updatedAt: item.created_at
-      }));
-    } catch (error) {
-      console.error('Erro ao buscar rede:', error);
-      return [];
-    }
-  }
 
   /**
    * Busca ancestrais do afiliado (N2, N3) para cálculo de split
@@ -471,28 +439,7 @@ export class AffiliateService {
     return false;
   }
 
-  /**
-   * Busca árvore genealógica do afiliado
-   * ATUALIZADO: Usa affiliate_hierarchy
-   */
-  async getNetworkTree(affiliateId: string): Promise<NetworkTree | null> {
-    try {
-      const { data, error } = await supabase
-        .from('affiliate_hierarchy')
-        .select('*')
-        .eq('root_id', affiliateId)
-        .order('level', { ascending: true });
 
-      if (error || !data || data.length === 0) {
-        return null;
-      }
-
-      return this.buildTreeStructure(data);
-    } catch (error) {
-      console.error('Erro ao buscar árvore:', error);
-      return null;
-    }
-  }
 
   /**
    * Busca rede direta do afiliado (apenas filhos diretos)
@@ -574,72 +521,7 @@ export class AffiliateService {
     }
   }
 
-  /**
-   * Constrói estrutura de árvore a partir dos dados da view materializada
-   * ATUALIZADO: Usa affiliate_hierarchy
-   */
-  private buildTreeStructure(data: any[]): NetworkTree {
-    if (data.length === 0) {
-      throw new Error('Dados vazios para construir árvore');
-    }
 
-    // Encontrar raiz (level = 0)
-    const root = data.find(item => item.level === 0);
-    if (!root) {
-      throw new Error('Raiz não encontrada na hierarquia');
-    }
-    
-    const tree: NetworkTree = {
-      affiliate: {
-        id: root.id,
-        userId: '',
-        name: root.name,
-        email: root.email,
-        referralCode: root.referral_code,
-        walletId: '',
-        status: root.status,
-        totalClicks: 0,
-        totalConversions: 0,
-        totalCommissions: 0,
-        createdAt: root.created_at,
-        updatedAt: root.created_at
-      },
-      children: [],
-      level: root.level,
-      path: root.path.join('.')
-    };
-
-    // Construir filhos recursivamente
-    const buildChildren = (parentId: string, parentLevel: number): NetworkTree[] => {
-      const children = data.filter(item => 
-        item.level === parentLevel + 1 && 
-        item.path[item.path.length - 2] === parentId
-      );
-
-      return children.map(child => ({
-        affiliate: {
-          id: child.id,
-          userId: '',
-          name: child.name,
-          email: child.email,
-          referralCode: child.referral_code,
-          walletId: '',
-          status: child.status,
-          totalClicks: 0,
-          totalConversions: 0,
-          totalCommissions: 0,
-          createdAt: child.created_at,
-          updatedAt: child.created_at
-        },
-        children: buildChildren(child.id, child.level),
-        level: child.level,
-        path: child.path.join('.')
-      }));
-    };
-
-    tree.children = buildChildren(root.id, root.level);
-    return tree;
-  }
 
   /**
    * Mapeia dados do banco para interface Affiliate
