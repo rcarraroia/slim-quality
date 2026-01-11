@@ -39,7 +39,6 @@ interface Affiliate {
   city: string;
   created_at: string;
   status: string;
-  level: number;
   available_balance: number;
   pending_balance: number;
   pix_key: string;
@@ -265,7 +264,6 @@ export default function ListaAfiliados() {
               <TableHead>Afiliado</TableHead>
               <TableHead>Contato</TableHead>
               <TableHead>Cadastro</TableHead>
-              <TableHead>Nível</TableHead>
               <TableHead>Saldo Disponível</TableHead>
               <TableHead>Saldo Pendente</TableHead>
               <TableHead>Status</TableHead>
@@ -275,14 +273,14 @@ export default function ListaAfiliados() {
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={8} className="text-center py-12">
+                <TableCell colSpan={7} className="text-center py-12">
                   <UserCheck className="h-12 w-12 text-muted-foreground mx-auto mb-3 animate-pulse" />
                   <p className="text-muted-foreground">Carregando afiliados...</p>
                 </TableCell>
               </TableRow>
             ) : filteredAfiliados.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} className="text-center py-12">
+                <TableCell colSpan={7} className="text-center py-12">
                   <PackageOpen className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
                   <h3 className="text-lg font-semibold mb-2">Nenhum afiliado encontrado</h3>
                   <p className="text-muted-foreground">
@@ -316,11 +314,6 @@ export default function ListaAfiliados() {
                   </TableCell>
                   <TableCell>
                     {new Date(afiliado.created_at).toLocaleDateString('pt-BR')}
-                  </TableCell>
-                  <TableCell>
-                    <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 text-primary font-bold">
-                      {afiliado.level || 1}
-                    </span>
                   </TableCell>
                   <TableCell className="font-medium text-green-600">
                     R$ {(afiliado.available_balance || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
@@ -395,11 +388,7 @@ export default function ListaAfiliados() {
               {/* Métricas de Performance */}
               <div className="space-y-3">
                 <h3 className="font-semibold text-lg">Performance</h3>
-                <div className="grid grid-cols-2 gap-4">
-                  <Card className="p-4">
-                    <p className="text-sm text-muted-foreground">Nível Atual</p>
-                    <p className="text-2xl font-bold text-primary">{selectedAfiliado.level || 1}</p>
-                  </Card>
+                <div className="grid grid-cols-1 gap-4">
                   <Card className="p-4">
                     <p className="text-sm text-muted-foreground">Status</p>
                     <div className="mt-2">
