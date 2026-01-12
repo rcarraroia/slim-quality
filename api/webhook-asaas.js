@@ -1,6 +1,13 @@
 /**
  * Webhook Asaas - Recebe notificações de pagamento
  * Atualiza status do pedido e pagamento no Supabase quando pagamento é confirmado
+ * 
+ * ✅ ATUALIZADO: Validação via header asaas-access-token (doc oficial)
+ * 📚 Documentação: https://docs.asaas.com/docs/receba-eventos-do-asaas-no-seu-endpoint-de-webhook
+ * 
+ * IMPORTANTE: Este é um Vercel Serverless Function
+ * URL: https://slimquality.com.br/api/webhook-asaas
+ * Deploy: Automático via Git push
  */
 
 import { createClient } from '@supabase/supabase-js';
@@ -20,6 +27,31 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Método não permitido' });
   }
+
+  // ✅ VALIDAÇÃO DE TOKEN (Documentação oficial Asaas)
+  // https://docs.asaas.com/docs/receba-eventos-do-asaas-no-seu-endpoint-de-webhook
+  const receivedToken = req.headers['asaas-access-token'];
+  const expectedToken = process.env.ASAAS_WEBHOOK_TOKEN;
+
+  if (!expectedToken) {
+    console.error('[WebhookAsaas] ❌ ASAAS_WEBHOOK_TOKEN não configurado');
+    return res.status(500).json({ error: 'Webhook não configurado' });
+  }
+
+  if (!receivedToken) {
+    console.error('[WebhookAsaas] ❌ Header asaas-access-token não fornecido');
+    return res.status(401).json({ error: 'Unauthorized - Token ausente' });
+  }
+
+  if (receivedToken !== expectedToken) {
+    console.error('[WebhookAsaas] ❌ Token inválido', {
+      received: receivedToken.substring(0, 10) + '...',
+      expected: expectedToken.substring(0, 10) + '...'
+    });
+    return res.status(401).json({ error: 'Unauthorized - Token inválido' });
+  }
+
+  console.log('[WebhookAsaas] ✅ Token validado com sucesso');
 
   // Inicializar Supabase
   const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
