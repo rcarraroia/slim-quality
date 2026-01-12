@@ -61,7 +61,8 @@ async def asaas_webhook(
         event = data.get('event')
         payment = data.get('payment', {})
         
-        logger.info(f"Webhook received: {event}", 
+        logger.info("Webhook received", 
+                   event_type=event,
                    payment_id=payment.get('id'),
                    body_size=len(body_str))
 
