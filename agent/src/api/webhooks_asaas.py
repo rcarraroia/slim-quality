@@ -26,83 +26,53 @@ SUPPORTED_EVENTS = {
     'PAYMENT_REFUNDED': 'handle_payment_refunded'
 }
 
-def verify_asaas_signature(payload: str, signature: str) -> bool:
-    """
-    Verifica a assinatura do webhook do Asaas
-    """
-    webhook_secret = os.getenv('ASAAS_WEBHOOK_TOKEN') or os.getenv('ASAAS_WEBHOOK_SECRET')
-    if not webhook_secret:
-        logger.warning("ASAAS_WEBHOOK_SECRET não configurado - pulando validação em dev")
-        return True # Permitir se não configurado (dev)
-
-    if not signature:
-        logger.error("Assinatura não fornecida no header")
-        return False
-
-    try:
-        expected_signature = hmac.new(
-            webhook_secret.encode('utf-8'),
-            payload.encode('utf-8'),
-            hashlib.sha256
-        ).hexdigest()
-
-        is_valid = hmac.compare_digest(signature, expected_signature)
-        
-        if not is_valid:
-            logger.error("Assinatura inválida",
-                        expected=expected_signature[:20],
-                        received=signature[:20],
-                        payload_size=len(payload))
-        
-        return is_valid
-    except Exception as e:
-        logger.error("Erro ao verificar assinatura", error=str(e))
-        return False
-
 @router.post("/asaas")
 async def asaas_webhook(
     request: Request,
     background_tasks: BackgroundTasks,
-    x_asaas_signature: Optional[str] = Header(None)
+    asaas_access_token: Optional[str] = Header(None, alias="asaas-access-token")
 ):
     """
     Endpoint principal para o webhook do Asaas
+    Documentação: https://docs.asaas.com/docs/receba-eventos-do-asaas-no-seu-endpoint-de-webhook
     """
+    # 1. Verificar se token está configurado
+    expected_token = os.getenv('ASAAS_WEBHOOK_TOKEN')
+    if not expected_token:
+        logger.error("ASAAS_WEBHOOK_TOKEN not configured")
+        raise HTTPException(status_code=500, detail="Webhook not configured")
+    
+    # 2. Validar token recebido
+    if asaas_access_token != expected_token:
+        logger.error("Invalid webhook token",
+                    received=asaas_access_token[:10] if asaas_access_token else None)
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    
+    # 3. Processar evento
     body_bytes = await request.body()
     body_str = body_bytes.decode('utf-8')
-    
-    # Log para debug
-    logger.info("Webhook Asaas recebido", 
-                signature_present=bool(x_asaas_signature),
-                body_size=len(body_str),
-                environment=os.getenv('ENVIRONMENT'))
-    
-    # Verificar assinatura APENAS se fornecida
-    # Asaas só envia assinatura se Access Token estiver configurado no painel
-    if x_asaas_signature:
-        if not verify_asaas_signature(body_str, x_asaas_signature):
-            logger.error("Assinatura do webhook Asaas inválida",
-                        signature_received=x_asaas_signature[:20] if x_asaas_signature else None,
-                        token_configured=bool(os.getenv('ASAAS_WEBHOOK_TOKEN')))
-            raise HTTPException(status_code=401, detail="Invalid signature")
-    else:
-        logger.warning("Webhook recebido SEM assinatura - Access Token não configurado no Asaas")
+
+    # 3. Processar evento
+    body_bytes = await request.body()
+    body_str = body_bytes.decode('utf-8')
 
     try:
         data = json.loads(body_str)
         event = data.get('event')
         payment = data.get('payment', {})
         
-        logger.info("Recebido webhook Asaas", event=event, payment_id=payment.get('id'))
+        logger.info(f"Webhook received: {event}", 
+                   payment_id=payment.get('id'),
+                   body_size=len(body_str))
 
         if event not in SUPPORTED_EVENTS:
             logger.info("Evento Asaas não suportado", event=event)
-            return {"message": "Evento não suportado", "event": event}
+            return {"received": True, "event": event}
 
         # Processar em background para responder rápido ao Asaas
         background_tasks.add_task(process_asaas_event, data)
 
-        return {"status": "received", "event": event}
+        return {"received": True, "event": event}
 
     except json.JSONDecodeError:
         raise HTTPException(status_code=400, detail="Invalid JSON payload")
