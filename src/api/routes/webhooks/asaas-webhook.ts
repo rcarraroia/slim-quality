@@ -2,11 +2,13 @@
  * Webhook handler para processar notificações do Asaas
  * Processa pagamentos, splits e calcula comissões automaticamente
  * 
+ * ✅ ATUALIZADO: Autenticação via header asaas-access-token (doc oficial)
+ * 📚 Documentação: https://docs.asaas.com/docs/receba-eventos-do-asaas-no-seu-endpoint-de-webhook
+ * 
  * Task 3: Correção Sistema Pagamentos
  */
 
 import { Router } from 'express';
-import crypto from 'crypto';
 import { supabase } from '../../../config/supabase';
 
 const router = Router();
@@ -53,28 +55,35 @@ interface ProcessingResult {
 }
 
 /**
- * Verifica a assinatura do webhook do Asaas
+ * Verifica o token de autenticação do webhook do Asaas
+ * Documentação: https://docs.asaas.com/docs/receba-eventos-do-asaas-no-seu-endpoint-de-webhook
+ * 
+ * ⚠️ IMPORTANTE: Asaas NÃO usa HMAC SHA256
+ * ✅ Asaas envia header 'asaas-access-token' com token configurado no painel
  */
-function verifyAsaasSignature(payload: string, signature: string): boolean {
-  const webhookSecret = process.env.ASAAS_WEBHOOK_TOKEN || process.env.ASAAS_WEBHOOK_SECRET;
-  if (!webhookSecret) {
-    console.warn('[AsaasWebhook] ASAAS_WEBHOOK_SECRET não configurado');
-    return true; // Permitir em desenvolvimento
-  }
-
-  try {
-    const expectedSignature = crypto
-      .createHmac('sha256', webhookSecret)
-      .update(payload)
-      .digest('hex');
-
-    return crypto.timingSafeEqual(
-      Buffer.from(signature, 'hex'),
-      Buffer.from(expectedSignature, 'hex')
-    );
-  } catch {
+function verifyAsaasToken(receivedToken: string | undefined): boolean {
+  const expectedToken = process.env.ASAAS_WEBHOOK_TOKEN;
+  
+  if (!expectedToken) {
+    console.error('[AsaasWebhook] ❌ ASAAS_WEBHOOK_TOKEN não configurado no .env');
     return false;
   }
+
+  if (!receivedToken) {
+    console.error('[AsaasWebhook] ❌ Header asaas-access-token não fornecido');
+    return false;
+  }
+
+  const isValid = receivedToken === expectedToken;
+  
+  if (!isValid) {
+    console.error('[AsaasWebhook] ❌ Token inválido', {
+      received: receivedToken.substring(0, 10) + '...',
+      expected: expectedToken.substring(0, 10) + '...'
+    });
+  }
+
+  return isValid;
 }
 
 /**
@@ -85,21 +94,22 @@ router.post('/asaas', async (req, res) => {
   const startTime = Date.now();
   
   try {
-    const signature = req.headers['x-asaas-signature'] as string;
-    const payload = JSON.stringify(req.body);
-
-    // Verificar assinatura (em produção)
-    if (process.env.NODE_ENV === 'production' && signature) {
-      if (!verifyAsaasSignature(payload, signature)) {
-        console.error('[AsaasWebhook] ❌ Assinatura inválida');
-        await logWebhookError(req.body, new Error('Assinatura inválida'));
-        return res.status(401).json({ error: 'Assinatura inválida' });
-      }
+    // ✅ CORREÇÃO: Validar token via header asaas-access-token
+    const receivedToken = req.headers['asaas-access-token'] as string;
+    
+    if (!verifyAsaasToken(receivedToken)) {
+      console.error('[AsaasWebhook] ❌ Autenticação falhou');
+      await logWebhookError(req.body, new Error('Token inválido ou ausente'));
+      return res.status(401).json({ 
+        success: false,
+        error: 'Unauthorized - Token inválido' 
+      });
     }
 
     const webhookData: AsaasWebhookPayload = req.body;
     
     console.log(`[AsaasWebhook] 📥 Recebido: ${webhookData.event} | Payment: ${webhookData.payment.id}`);
+    console.log(`[AsaasWebhook] 🔐 Token validado com sucesso`);
 
     // Verificar se é um evento suportado
     if (!(webhookData.event in SUPPORTED_EVENTS)) {
@@ -118,6 +128,7 @@ router.post('/asaas', async (req, res) => {
     await logWebhookEvent(webhookData, result, processingTime);
 
     res.json({
+      received: true, // ✅ Padrão Asaas
       success: result.success,
       message: result.success ? 'Webhook processado com sucesso' : 'Falha no processamento',
       orderId: result.orderId,
