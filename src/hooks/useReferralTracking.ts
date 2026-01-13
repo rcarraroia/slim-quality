@@ -20,10 +20,11 @@ export const useReferralTracking = () => {
     ReferralTracker.initialize();
     
     // Verificar se há referral ativo
-    const info = ReferralTracker.getReferralInfo();
-    if (info) {
+    const data = ReferralTracker.getReferralData();
+    if (data) {
       setReferralInfo({
-        ...info,
+        code: data.code,
+        timestamp: data.timestamp,
         isActive: true
       });
     }
@@ -63,7 +64,7 @@ export const useReferralTracking = () => {
    * Verifica se há um referral ativo
    */
   const hasActiveReferral = (): boolean => {
-    return ReferralTracker.hasActiveReferral();
+    return ReferralTracker.getReferralCode() !== null;
   };
 
   /**
