@@ -148,7 +148,37 @@ export default function Produtos() {
     setImagePreviews(prev => prev.filter((_, i) => i !== index));
   };
 
-  const uploadImages = async (productId: string) => {
+  const uploadImages = async (productId: string, isUpdate: boolean = false) => {
+    // Se for atualização, remover imagens antigas primeiro
+    if (isUpdate) {
+      // 1. Buscar imagens antigas do banco
+      const { data: oldImages } = await supabase
+        .from('product_images')
+        .select('image_url')
+        .eq('product_id', productId);
+
+      // 2. Deletar arquivos do storage
+      if (oldImages && oldImages.length > 0) {
+        for (const img of oldImages) {
+          // Extrair o caminho do arquivo da URL
+          const urlParts = img.image_url.split('/product-images/');
+          if (urlParts.length > 1) {
+            const filePath = urlParts[1];
+            await supabase.storage
+              .from('product-images')
+              .remove([filePath]);
+          }
+        }
+      }
+
+      // 3. Deletar registros do banco
+      await supabase
+        .from('product_images')
+        .delete()
+        .eq('product_id', productId);
+    }
+
+    // Upload das novas imagens
     const uploadedUrls: string[] = [];
 
     for (const file of imageFiles) {
@@ -218,7 +248,7 @@ export default function Produtos() {
 
         // Upload de novas imagens
         if (imageFiles.length > 0) {
-          await uploadImages(editingProduto.id);
+          await uploadImages(editingProduto.id, true); // true = é atualização
         }
 
         toast.success('Produto atualizado com sucesso!');

@@ -1,0 +1,40 @@
+{
+  "workspaceId": "25c4e1e7-2c16-4f52-8579-6a4d623a4578",
+  "workspaceName": "My Workspace",
+  "collectionId": "",
+  "environmentId": "",
+  "userId": 44515336,
+  "teamId": 7574507,
+  "note": "Este arquivo armazena os IDs do Postman para o projeto Slim Quality. A API key já está configurada no MCP.",
+  "collection_file": "Slim_Quality_API_Afiliados.postman_collection.json",
+  "instructions": {
+    "import": "Importe o arquivo Slim_Quality_API_Afiliados.postman_collection.json no Postman Desktop ou Web",
+    "configure": "Configure a variável base_url para apontar para seu servidor (padrão: http://localhost:3000)",
+    "run": "Execute a coleção para testar todos os endpoints da API de afiliados",
+    "tests": "Cada request tem testes automatizados que validam as correções dos bugs"
+  },
+  "power_postman": {
+    "status": "✅ Configurado e pronto para uso",
+    "api_key_configured": true,
+    "hook_enabled": true,
+    "hook_file": ".kiro/hooks/api-postman-testing.kiro.hook",
+    "auto_approve_tools": [
+      "getAuthenticatedUser",
+      "getWorkspaces",
+      "getWorkspace",
+      "getCollections",
+      "getCollection",
+      "runCollection",
+      "getEnvironments",
+      "getEnvironment",
+      "createCollection",
+      "createEnvironment",
+      "createWorkspace"
+    ],
+    "usage_examples": {
+      "list_workspaces": "Use o power para listar todos os seus workspaces",
+      "run_tests": "Modifique arquivos da API e o hook executará testes automaticamente",
+      "create_collection": "Crie collections programaticamente via power"
+    }
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "enabled": true,
+  "name": "API Postman Testing - Slim Quality",
+  "description": "Monitora mudanças no código da API (TypeScript/JavaScript) e automaticamente executa testes do Postman para validar funcionalidades",
+  "version": "1",
+  "when": {
+    "type": "fileEdited",
+    "patterns": [
+      "src/**/*.ts",
+      "src/**/*.js",
+      "api/**/*.ts",
+      "api/**/*.js",
+      "agent/**/*.py",
+      "supabase/functions/**/*.ts",
+      "package.json",
+      "requirements.txt",
+      ".env",
+      ".env.example",
+      "vercel.json"
+    ]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "API source code or configuration has been modified. Please retrieve the contents of the .postman.json file. If the file does not exist or is empty, create a Postman collection for the API. If it exists, get the collection ID and run the collection, showing me the results and propose fixes for any errors found."
+  }
+}

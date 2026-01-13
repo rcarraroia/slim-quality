@@ -1,0 +1,724 @@
+{
+  "info": {
+    "name": "Slim Quality - API Afiliados",
+    "description": "Coleção completa para testar a API de afiliados do sistema Slim Quality",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_postman_id": "slim-quality-affiliates-api",
+    "version": "1.0.0"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:3000",
+      "type": "string"
+    },
+    {
+      "key": "api_url",
+      "value": "{{base_url}}/api",
+      "type": "string"
+    },
+    {
+      "key": "affiliate_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "referral_code",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "order_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "asaas_webhook_token",
+      "value": "seu_token_aqui",
+      "type": "string",
+      "description": "Token configurado no .env como ASAAS_WEBHOOK_TOKEN"
+    }
+  ],
+  "item": [
+    {
+      "name": "Afiliados",
+      "item": [
+        {
+          "name": "Listar Todos Afiliados",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{api_url}}/affiliates",
+              "host": ["{{api_url}}"],
+              "path": ["affiliates"]
+            },
+            "description": "Lista todos os afiliados cadastrados no sistema"
+          },
+          "response": []
+        },
+        {
+          "name": "Buscar Afiliado por ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{api_url}}/affiliates/:id",
+              "host": ["{{api_url}}"],
+              "path": ["affiliates", ":id"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{affiliate_id}}",
+                  "description": "ID do afiliado"
+                }
+              ]
+            },
+            "description": "Busca um afiliado específico pelo ID"
+          },
+          "response": []
+        },
+        {
+          "name": "Buscar por Código de Indicação",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{api_url}}/affiliates/referral/:code",
+              "host": ["{{api_url}}"],
+              "path": ["affiliates", "referral", ":code"],
+              "variable": [
+                {
+                  "key": "code",
+                  "value": "{{referral_code}}",
+                  "description": "Código de indicação"
+                }
+              ]
+            },
+            "description": "Busca afiliado pelo código de indicação (Bug 06 - corrigido)"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code é 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Retorna dados do afiliado', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('id');",
+                  "    pm.expect(jsonData).to.have.property('name');",
+                  "    pm.expect(jsonData).to.have.property('referral_code');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Criar Afiliado",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"João Silva\",\n  \"email\": \"joao@example.com\",\n  \"phone\": \"11999999999\",\n  \"wallet_id\": \"wal_abc123\",\n  \"sponsor_referral_code\": null\n}"
+            },
+            "url": {
+              "raw": "{{api_url}}/affiliates",
+              "host": ["{{api_url}}"],
+              "path": ["affiliates"]
+            },
+            "description": "Cria um novo afiliado no sistema"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code é 201', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test('Afiliado criado com sucesso', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('id');",
+                  "    pm.expect(jsonData).to.have.property('referral_code');",
+                  "    ",
+                  "    // Salvar ID e código para próximos testes",
+                  "    pm.collectionVariables.set('affiliate_id', jsonData.id);",
+                  "    pm.collectionVariables.set('referral_code', jsonData.referral_code);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Hierarquia (Bug 01)",
+      "item": [
+        {
+          "name": "Buscar Rede do Afiliado",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{api_url}}/affiliates/:id/network",
+              "host": ["{{api_url}}"],
+              "path": ["affiliates", ":id", "network"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{affiliate_id}}",
+                  "description": "ID do afiliado"
+                }
+              ]
+            },
+            "description": "Busca a rede genealógica do afiliado (3 níveis)"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code é 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Retorna estrutura de rede', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.be.an('array');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Buscar Ancestrais (N2, N3)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{api_url}}/affiliates/:id/ancestors",
+              "host": ["{{api_url}}"],
+              "path": ["affiliates", ":id", "ancestors"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{affiliate_id}}",
+                  "description": "ID do afiliado"
+                }
+              ]
+            },
+            "description": "Busca os ancestrais do afiliado (N2 e N3) para cálculo de comissões"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code é 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Retorna ancestrais corretos', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('n2');",
+                  "    pm.expect(jsonData).to.have.property('n3');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Comissões (Bugs 04, 05)",
+      "item": [
+        {
+          "name": "Listar Comissões do Afiliado",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{api_url}}/affiliates/:id/commissions",
+              "host": ["{{api_url}}"],
+              "path": ["affiliates", ":id", "commissions"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{affiliate_id}}",
+                  "description": "ID do afiliado"
+                }
+              ]
+            },
+            "description": "Lista todas as comissões do afiliado"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code é 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Retorna lista de comissões', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.be.an('array');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Processar Comissões de Pedido",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"order_id\": \"{{order_id}}\"\n}"
+            },
+            "url": {
+              "raw": "{{api_url}}/commissions/process",
+              "host": ["{{api_url}}"],
+              "path": ["commissions", "process"]
+            },
+            "description": "Processa comissões de um pedido (Bug 04 - RPC implementada)"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code é 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Comissões processadas corretamente', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('success', true);",
+                  "    pm.expect(jsonData).to.have.property('commissions');",
+                  "    ",
+                  "    // Validar valores (Bug 05)",
+                  "    var commissions = jsonData.commissions;",
+                  "    pm.expect(commissions).to.be.an('array');",
+                  "    ",
+                  "    // Verificar se percentuais estão corretos",
+                  "    commissions.forEach(function(commission) {",
+                  "        pm.expect(commission).to.have.property('level');",
+                  "        pm.expect(commission).to.have.property('amount_cents');",
+                  "        pm.expect(commission).to.have.property('percentage');",
+                  "    });",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Dashboard (Bug 02)",
+      "item": [
+        {
+          "name": "Métricas do Afiliado",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{api_url}}/affiliates/:id/metrics",
+              "host": ["{{api_url}}"],
+              "path": ["affiliates", ":id", "metrics"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{affiliate_id}}",
+                  "description": "ID do afiliado"
+                }
+              ]
+            },
+            "description": "Busca métricas do dashboard do afiliado (Bug 02 - corrigido)"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code é 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Métricas calculadas corretamente', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    ",
+                  "    // Validar estrutura",
+                  "    pm.expect(jsonData).to.have.property('total_sales');",
+                  "    pm.expect(jsonData).to.have.property('total_commissions');",
+                  "    pm.expect(jsonData).to.have.property('total_referrals');",
+                  "    pm.expect(jsonData).to.have.property('conversion_rate');",
+                  "    ",
+                  "    // Validar tipos (Bug 08 - formatação monetária)",
+                  "    pm.expect(jsonData.total_sales).to.be.a('number');",
+                  "    pm.expect(jsonData.total_commissions).to.be.a('number');",
+                  "    pm.expect(jsonData.total_referrals).to.be.a('number');",
+                  "    pm.expect(jsonData.conversion_rate).to.be.a('number');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Rastreamento (Bug 03)",
+      "item": [
+        {
+          "name": "Registrar Click de Indicação",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"referral_code\": \"{{referral_code}}\",\n  \"ip_address\": \"192.168.1.1\",\n  \"user_agent\": \"Mozilla/5.0\"\n}"
+            },
+            "url": {
+              "raw": "{{api_url}}/tracking/click",
+              "host": ["{{api_url}}"],
+              "path": ["tracking", "click"]
+            },
+            "description": "Registra um click no link de indicação (Bug 03 - rastreamento)"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code é 201', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test('Click registrado com sucesso', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('success', true);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Webhook Asaas",
+      "item": [
+        {
+          "name": "Webhook - SEM Token (deve falhar)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"event\": \"PAYMENT_CONFIRMED\",\n  \"payment\": {\n    \"id\": \"pay_test123\",\n    \"value\": 3290.00,\n    \"status\": \"CONFIRMED\",\n    \"customer\": \"cus_test456\",\n    \"externalReference\": \"order_789\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/webhooks/asaas",
+              "host": ["{{base_url}}"],
+              "path": ["api", "webhooks", "asaas"]
+            },
+            "description": "Testa webhook SEM token (deve retornar 401 Unauthorized)"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code é 401 (sem token)', function () {",
+                  "    pm.response.to.have.status(401);",
+                  "});",
+                  "",
+                  "pm.test('Mensagem de erro apropriada', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('detail', 'Unauthorized');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Webhook - COM Token Válido",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "asaas-access-token",
+                "value": "{{asaas_webhook_token}}",
+                "description": "Token de acesso configurado no Asaas"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"event\": \"PAYMENT_CONFIRMED\",\n  \"payment\": {\n    \"id\": \"pay_test123\",\n    \"value\": 3290.00,\n    \"status\": \"CONFIRMED\",\n    \"customer\": \"cus_test456\",\n    \"externalReference\": \"order_789\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/webhooks/asaas",
+              "host": ["{{base_url}}"],
+              "path": ["api", "webhooks", "asaas"]
+            },
+            "description": "Testa webhook COM token válido (deve processar com sucesso)"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code é 200 (token válido)', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Webhook processado com sucesso', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('status', 'received');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Webhook - Token Inválido",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "asaas-access-token",
+                "value": "token_invalido_123",
+                "description": "Token inválido para testar rejeição"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"event\": \"PAYMENT_CONFIRMED\",\n  \"payment\": {\n    \"id\": \"pay_test123\",\n    \"value\": 3290.00,\n    \"status\": \"CONFIRMED\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/webhooks/asaas",
+              "host": ["{{base_url}}"],
+              "path": ["api", "webhooks", "asaas"]
+            },
+            "description": "Testa rejeição de webhook com token inválido"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code é 401 (token inválido)', function () {",
+                  "    pm.response.to.have.status(401);",
+                  "});",
+                  "",
+                  "pm.test('Mensagem de erro apropriada', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('detail', 'Unauthorized');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Webhook - Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/webhooks/asaas/health",
+              "host": ["{{base_url}}"],
+              "path": ["api", "webhooks", "asaas", "health"]
+            },
+            "description": "Verifica se o endpoint de webhook está ativo"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code é 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Endpoint está saudável', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('status', 'healthy');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Pedidos",
+      "item": [
+        {
+          "name": "Criar Pedido com Afiliado",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customer_id\": \"customer_123\",\n  \"product_id\": \"product_456\",\n  \"total\": 3290.00,\n  \"referral_code\": \"{{referral_code}}\"\n}"
+            },
+            "url": {
+              "raw": "{{api_url}}/orders",
+              "host": ["{{api_url}}"],
+              "path": ["orders"]
+            },
+            "description": "Cria um pedido vinculado a um afiliado via código de indicação"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code é 201', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test('Pedido criado com afiliado vinculado', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('id');",
+                  "    pm.expect(jsonData).to.have.property('affiliate_n1_id');",
+                  "    ",
+                  "    // Salvar order_id para próximos testes",
+                  "    pm.collectionVariables.set('order_id', jsonData.id);",
+                  "    ",
+                  "    // Validar hierarquia (Bug 01)",
+                  "    pm.expect(jsonData.affiliate_n1_id).to.not.be.null;",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Buscar Pedido por ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{api_url}}/orders/:id",
+              "host": ["{{api_url}}"],
+              "path": ["orders", ":id"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{order_id}}",
+                  "description": "ID do pedido"
+                }
+              ]
+            },
+            "description": "Busca um pedido específico e valida hierarquia de afiliados"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code é 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Hierarquia de afiliados populada (Bug 01)', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    ",
+                  "    // Validar que campos de hierarquia existem",
+                  "    pm.expect(jsonData).to.have.property('affiliate_n1_id');",
+                  "    pm.expect(jsonData).to.have.property('affiliate_n2_id');",
+                  "    pm.expect(jsonData).to.have.property('affiliate_n3_id');",
+                  "    ",
+                  "    // N1 deve estar sempre preenchido se houver afiliado",
+                  "    if (jsonData.affiliate_n1_id) {",
+                  "        pm.expect(jsonData.affiliate_n1_id).to.not.be.null;",
+                  "    }",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
