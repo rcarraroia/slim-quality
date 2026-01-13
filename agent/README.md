@@ -1,303 +1,136 @@
-# Slim Quality Agent
+# 🤖 BACKEND DO AGENTE BIA
 
-Backend conversacional inteligente para o sistema Slim Quality, construído com **FastAPI**, **LangGraph** e integração com **Claude AI**.
+## ⚠️ ATENÇÃO - LEIA ANTES DE IMPLEMENTAR QUALQUER CÓDIGO AQUI
 
-## 🎯 Objetivo
+## 🎯 PROPÓSITO DESTE BACKEND
 
-Este agente conversacional é responsável por:
-- Atendimento automatizado via WhatsApp (BIA)
-- Qualificação de leads
-- Recomendação de produtos
-- Integração com sistema de vendas e afiliados
-- Agendamento via Google Calendar/Meet
+Este backend é **EXCLUSIVAMENTE** para o **Agente BIA** (assistente de IA via WhatsApp).
 
-## 🏗️ Arquitetura
+**NÃO é o backend principal do sistema Slim Quality.**
 
-- **Framework:** FastAPI (Python 3.11)
-- **IA:** LangGraph + Claude AI (Anthropic)
-- **Cache:** Redis
-- **Banco:** Supabase (PostgreSQL)
-- **Integrações:** Evolution API (WhatsApp), Uazapi (WhatsApp), Google Workspace
+---
 
-## 📁 Estrutura
+## 🚫 O QUE **NÃO** VAI AQUI
 
+### ❌ APIs do Sistema Geral
+- Checkout/Pagamento
+- Tracking de afiliados
+- Gestão de pedidos
+- Cadastro de clientes
+- Dashboard administrativo
+- Qualquer endpoint que o frontend React consome
+
+### ❌ Integrações Gerais
+- Asaas (exceto webhooks específicos do agente)
+- Supabase (exceto para salvar conversas do agente)
+- APIs de terceiros não relacionadas ao agente
+
+---
+
+## ✅ O QUE **VAI** AQUI
+
+### ✅ Funcionalidades do Agente BIA
+- Processamento de mensagens via IA
+- Sistema SICC (memória corporativa)
+- Integração com WhatsApp (Evolution API)
+- Webhooks do Evolution API
+- Conversas do agente (salvar no Supabase)
+- Lógica de resposta inteligente
+
+### ✅ Estrutura de Pastas
 ```
 agent/
 ├── src/
-│   ├── graph/              # LangGraph StateGraph
-│   │   ├── state.py        # AgentState TypedDict
-│   │   ├── nodes/          # 4 nodes (router, discovery, sales, support)
-│   │   ├── edges.py        # Conditional edges
-│   │   ├── checkpointer.py # Supabase Checkpointer
-│   │   └── builder.py      # Graph builder
-│   ├── api/                # FastAPI endpoints
-│   │   ├── main.py         # FastAPI app
-│   │   ├── webhooks.py     # POST /api/webhooks/whatsapp
-│   │   ├── chat.py         # POST /api/chat
-│   │   └── health.py       # GET /health
-│   ├── services/           # Serviços externos
-│   │   ├── mcp_gateway.py  # MCP Gateway client
-│   │   ├── supabase_client.py
-│   │   └── claude_client.py
-│   ├── models/             # Pydantic models
-│   ├── config.py           # Configurações
-│   └── main.py             # Entry point
-├── mcp-servers/
-│   ├── whatsapp-uazapi/    # MCP Server Uazapi
-│   ├── whatsapp-evolution/ # MCP Server Evolution
-│   └── google/             # MCP Server Google Workspace
-├── migrations/
-│   └── 001_create_conversations_table.sql
+│   ├── api/              # Endpoints FastAPI
+│   │   ├── main.py       # Entry point
+│   │   ├── agent.py      # Status do agente
+│   │   ├── mcp.py        # Integrações MCP
+│   │   ├── sicc.py       # Sistema SICC
+│   │   └── webhooks_*.py # Webhooks específicos
+│   ├── services/         # Lógica de negócio
+│   │   ├── sicc/         # Sistema de memória
+│   │   └── ai_service.py # Integração OpenAI
+│   └── graph/            # LangGraph (se usado)
 ├── Dockerfile
-├── docker-compose.yml
-├── requirements.txt
-└── .env.example
+└── requirements.txt
 ```
 
-## 🚀 Comandos Básicos
+---
 
-### Desenvolvimento Local
+## 🔄 BACKEND PRINCIPAL DO SISTEMA
 
-```bash
-# 1. Configurar variáveis de ambiente
-cp .env.example .env
-# Editar .env com suas credenciais reais
+**Localização:** `/server/index.js` (Express/Node.js)
 
-# 2. Instalar dependências
-pip install -r requirements.txt
+**Responsável por:**
+- APIs REST do sistema (`/api/*`)
+- Checkout e pagamento
+- Tracking de afiliados
+- Webhooks Asaas
+- Integrações gerais
 
-# 3. Criar tabela conversations no Supabase
-# Executar: migrations/001_create_conversations_table.sql
+**Quando implementar APIs:**
+- Se o frontend React chama → `server/index.js`
+- Se é webhook externo do sistema → `server/index.js`
+- Se é processamento do agente BIA → `agent/src/api/`
 
-# 4. Rodar localmente
-uvicorn src.main:app --reload --port 8000
-```
+---
 
-### Docker
+## 📋 CHECKLIST ANTES DE IMPLEMENTAR
 
-```bash
-# Build e run completo
-docker-compose up --build
+Antes de adicionar código neste backend, perguntar:
 
-# Apenas o agente
-docker-compose up agent
+- [ ] Esta funcionalidade é **exclusiva** do agente BIA?
+- [ ] O frontend React **NÃO** vai chamar esta API?
+- [ ] Não é uma integração geral do sistema?
+- [ ] Está relacionado a WhatsApp/Evolution API?
+- [ ] Está relacionado ao sistema SICC?
 
-# Logs
-docker-compose logs -f agent
-```
+**Se respondeu "NÃO" para qualquer pergunta acima:**
+→ **Implementar em `server/index.js`, NÃO aqui!**
 
-## 🔧 Configuração
+---
 
-### Variáveis de Ambiente Obrigatórias
+## 🛠️ TECNOLOGIAS
 
-Copie `.env.example` para `.env` e configure:
+- **Runtime:** Python 3.11+
+- **Framework:** FastAPI
+- **IA:** OpenAI GPT-4
+- **Memória:** Sistema SICC (Supabase)
+- **WhatsApp:** Evolution API
+- **Deploy:** Docker (EasyPanel)
 
-**Claude AI:**
-- `CLAUDE_API_KEY`: Chave da API Anthropic
+---
 
-**Supabase:**
-- `SUPABASE_URL`: URL do projeto Supabase
-- `SUPABASE_SERVICE_KEY`: Service role key
+## 🚀 DEPLOY
 
-**WhatsApp - Evolution API:**
-- `EVOLUTION_URL`: https://slimquality-evolution-api.wpjtfd.easypanel.host (fixo)
-- `EVOLUTION_API_KEY`: Obter do Easypanel
-- `EVOLUTION_INSTANCE`: "Slim Quality" (fixo)
+**Método:** Docker Hub + EasyPanel (rebuild manual)
 
-**WhatsApp - Uazapi:**
-- `UAZAPI_URL`: URL da API Uazapi
-- `UAZAPI_INSTANCE_ID`: ID da instância
-- `UAZAPI_API_KEY`: Chave de API
+**Processo:**
+1. Fazer alterações no código
+2. Commit e push para GitHub
+3. Rebuild da imagem Docker:
+   ```bash
+   cd agent
+   docker build -t renumvscode/slim-agent:latest .
+   docker push renumvscode/slim-agent:latest
+   ```
+4. Informar Renato para rebuild no EasyPanel
 
-**Google Workspace:**
-- `GOOGLE_CLIENT_ID`: Client ID OAuth
-- `GOOGLE_CLIENT_SECRET`: Client Secret OAuth
-- `GOOGLE_CREDENTIALS_JSON`: Credenciais OAuth em JSON
+**NÃO é deploy automático como o frontend!**
 
-## 📊 Status Atual
+---
 
-### ✅ IMPLEMENTADO (Sprint 2):
+## 📞 DÚVIDAS?
 
-**LangGraph StateGraph:**
-- ✅ Estado global (`AgentState`)
-- ✅ Router Node (detecção de intenção via Claude)
-- ✅ Discovery Node (qualificação de leads)
-- ✅ Sales Node (recomendação de produtos)
-- ✅ Support Node (suporte e FAQ)
-- ✅ Checkpointer Supabase (persistência de estado)
-- ✅ Graph Builder (montagem completa)
+**Antes de implementar qualquer código aqui, pergunte:**
+- "Esta API deve estar no backend Express ou no backend Python?"
+- "O frontend vai chamar esta API?"
+- "Isso é exclusivo do agente BIA?"
 
-**FastAPI Endpoints:**
-- ✅ `POST /api/webhooks/whatsapp` (webhook WhatsApp)
-- ✅ `POST /api/chat` (endpoint genérico)
-- ✅ `GET /health` (health check)
+**Em caso de dúvida, SEMPRE perguntar ao Renato!**
 
-**MCP Servers:**
-- ✅ WhatsApp Uazapi (2 tools: send_message, get_messages)
-- ✅ WhatsApp Evolution (2 tools: send_message_evolution, get_instance_status)
-- ✅ Google Workspace (4 tools: create_event, list_events, upload_file, create_meeting)
+---
 
-**Infraestrutura:**
-- ✅ Docker Compose (3 services: agent, redis, mcp-gateway)
-- ✅ Requirements.txt completo
-- ✅ .env.example atualizado
-- ✅ Migration SQL para tabela conversations
-
-### ⏳ PENDENTE:
-
-- ❌ MCP Gateway HTTP Server (placeholder criado)
-- ❌ Testes automatizados (unitários e integração)
-- ❌ Validação end-to-end
-- ❌ Deploy em produção VPS
-
-### 🚧 PRÓXIMAS SPRINTS:
-
-- **Sprint 3:** Migrations oficiais, testes completos, MCP Gateway server
-- **Sprint 4:** Sistema de qualificação de leads avançado
-- **Sprint 5:** Dashboard de configuração e monitoramento
-- **Sprint 6:** Deploy em produção
-
-## 🔗 Integrações
-
-### WhatsApp
-
-**Evolution API (VPS):**
-- URL fixa: https://slimquality-evolution-api.wpjtfd.easypanel.host
-- Instância "Slim Quality" já existe
-- Apenas API Key precisa ser configurada
-
-**Uazapi:**
-- Documentação: https://docs.uazapi.com/
-
-### Google Workspace
-
-**APIs habilitadas:**
-- Google Calendar API
-- Google Drive API
-- Google Meet (via Calendar)
-
-**Documentação:**
-- Calendar: https://developers.google.com/calendar/api/guides/overview
-- Drive: https://developers.google.com/drive/api/guides/about-sdk
-
-## ⚠️ Importante
-
-### Tabela `conversations`
-
-A migration `001_create_conversations_table.sql` é **temporária** para testes da Sprint 2. Execute manualmente no Supabase SQL Editor:
-
-```sql
--- Ver arquivo: migrations/001_create_conversations_table.sql
-```
-
-A migration oficial será criada na Sprint 3.
-
-### Evolution API
-
-- URL é **fixa** (VPS)
-- Instância "Slim Quality" **já existe**
-- **Não alterar** esses valores
-- Apenas configurar `EVOLUTION_API_KEY`
-
-### Google OAuth
-
-Por enquanto, usar credenciais JSON diretas. O flow OAuth completo será implementado na Sprint 5 (UI dashboard).
-
-## 📝 Endpoints
-
-### POST /api/webhooks/whatsapp
-
-Recebe webhook de WhatsApp (Evolution ou Uazapi).
-
-**Request:**
-```json
-{
-  "from": "5511999999999",
-  "body": "Olá, quero comprar um colchão"
-}
-```
-
-**Response:**
-```json
-{
-  "status": "ok"
-}
-```
-
-### POST /api/chat
-
-Endpoint genérico para testar o agente.
-
-**Request:**
-```json
-{
-  "lead_id": "5511999999999",
-  "message": "Olá, quero comprar um colchão"
-}
-```
-
-**Response:**
-```json
-{
-  "response": "Olá! Sou a BIA, assistente da Slim Quality 😊",
-  "intent": "discovery",
-  "lead_data": {"nome": "João"},
-  "products_recommended": []
-}
-```
-
-### GET /health
-
-Health check dos serviços.
-
-**Response (200 OK):**
-```json
-{
-  "status": "healthy",
-  "checks": {
-    "redis": true,
-    "supabase": true,
-    "claude": true
-  }
-}
-```
-
-**Response (503 Service Unavailable):**
-```json
-{
-  "status": "unhealthy",
-  "checks": {
-    "redis": false,
-    "supabase": true,
-    "claude": true
-  }
-}
-```
-
-## 🧪 Testes
-
-```bash
-# Testes unitários (TODO)
-pytest tests/test_graph.py -v
-
-# Testes de integração (TODO)
-pytest tests/test_api.py -v
-
-# Testes MCP (TODO)
-pytest tests/test_mcp.py -v
-```
-
-## 📦 Progresso Sprint 2
-
-**Concluído:** 20/25 subtarefas (80%)
-
-- ✅ TAREFA 1: LangGraph StateGraph (100%)
-- ✅ TAREFA 2: FastAPI Endpoints (100%)
-- ✅ TAREFA 3: MCP Gateway Client (100%)
-- ✅ TAREFA 4: MCP Servers (100%)
-- 🚧 TAREFA 5: Docker & Testes (60%)
-
-**Faltam:**
-- MCP Gateway HTTP Server
-- Testes automatizados
-- Validação end-to-end
+**Criado em:** 13/01/2026  
+**Última atualização:** 13/01/2026  
+**Status:** Obrigatório - ler antes de qualquer implementação
