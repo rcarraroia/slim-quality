@@ -9,7 +9,6 @@ import { useProducts } from "@/hooks/useProducts";
 import { Package } from "lucide-react";
 
 const ProductPage = () => {
-  const [expandedProduct, setExpandedProduct] = useState<string | null>(null);
   const [showChatWidget, setShowChatWidget] = useState(false);
   const { products, loading, error } = useProducts();
 
@@ -62,146 +61,45 @@ const ProductPage = () => {
             products.map((product) => (
               <Card 
                 key={product.id}
-                className={`transition-all duration-300 ${
-                  expandedProduct === product.id ? 'col-span-full shadow-2xl' : 'hover:shadow-xl hover:scale-[1.02]'
-                }`}
+                className="transition-all duration-300 hover:shadow-xl hover:scale-[1.02]"
               >
-              <CardContent className="p-0">
-                {expandedProduct !== product.id ? (
-                  /* Card Collapsed */
-                  <>
-                    <div className="relative aspect-[4/3] bg-muted flex items-center justify-center">
-                      {product.image ? (
-                        <img 
-                          src={product.image} 
-                          alt={`Slim Quality ${product.name}`}
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <div className="text-center text-muted-foreground">
-                          <div className="text-6xl mb-2">🛏️</div>
-                          <p className="text-sm">Imagem lifestyle do colchão</p>
-                        </div>
-                      )}
-                      <Badge className="absolute top-4 right-4 bg-muted text-muted-foreground border">
-                        {product.dimensions}
-                      </Badge>
-                      {product.badge && (
-                        <Badge className="absolute top-4 left-4 bg-primary text-primary-foreground">
-                          {product.badge}
-                        </Badge>
-                      )}
-                    </div>
-                    <div className="p-6 space-y-4">
-                      <div>
-                        <h3 className="font-semibold text-2xl mb-1">Slim Quality {product.name}</h3>
-                        <p className="text-sm text-muted-foreground">{product.ideal}</p>
+                <CardContent className="p-0">
+                  <div className="relative aspect-[4/3] bg-muted flex items-center justify-center">
+                    {product.image ? (
+                      <img 
+                        src={product.image} 
+                        alt={`Slim Quality ${product.name}`}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="text-center text-muted-foreground">
+                        <div className="text-6xl mb-2">🛏️</div>
+                        <p className="text-sm">Imagem lifestyle do colchão</p>
                       </div>
+                    )}
+                    <Badge className="absolute top-4 right-4 bg-muted text-muted-foreground border">
+                      {product.dimensions}
+                    </Badge>
+                    {product.badge && (
+                      <Badge className="absolute top-4 left-4 bg-primary text-primary-foreground">
+                        {product.badge}
+                      </Badge>
+                    )}
+                  </div>
+                  <div className="p-6 space-y-4">
+                    <div>
+                      <h3 className="font-semibold text-2xl mb-1">Slim Quality {product.name}</h3>
+                      <p className="text-sm text-muted-foreground">{product.ideal}</p>
+                    </div>
+                    <Link to={`/produtos/${product.slug}`}>
                       <Button 
                         className="w-full" 
                         size="lg"
-                        onClick={() => setExpandedProduct(product.id)}
                       >
                         Ver Detalhes
                       </Button>
-                    </div>
-                  </>
-                ) : (
-                  /* Card Expanded */
-                  <div className="grid md:grid-cols-2 gap-8 p-8">
-                    {/* Galeria */}
-                    <div className="space-y-4">
-                      <div className="aspect-square bg-muted rounded-lg flex items-center justify-center">
-                        <div className="text-center text-muted-foreground">
-                          <div className="text-8xl mb-2">🛏️</div>
-                          <p>Imagem principal</p>
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-3 gap-2">
-                        {[1, 2, 3].map((i) => (
-                          <div key={i} className="aspect-square bg-muted rounded-lg flex items-center justify-center">
-                            <p className="text-xs text-muted-foreground">Foto {i}</p>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Informações */}
-                    <div className="space-y-6">
-                      <div>
-                        <div className="flex items-start justify-between mb-4">
-                          <div>
-                            <h2 className="text-3xl font-bold mb-2">Slim Quality {product.name}</h2>
-                            <p className="text-muted-foreground">{product.dimensions}</p>
-                          </div>
-                          {product.badge && (
-                            <Badge className="bg-primary text-primary-foreground">{product.badge}</Badge>
-                          )}
-                        </div>
-
-                        <div className="bg-primary/10 border-l-4 border-primary p-4 rounded-lg mb-6">
-                          <p className="font-semibold mb-1">Ideal para:</p>
-                          <p className="text-muted-foreground">{product.ideal}</p>
-                        </div>
-
-                        <div className="space-y-2">
-                          <p className="text-4xl font-bold text-primary">
-                            R$ {product.price.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            Parcelamento disponível em até 12x
-                          </p>
-                        </div>
-                      </div>
-
-                      {/* Especificações */}
-                      <div className="border rounded-lg p-4 space-y-2">
-                        <h3 className="font-semibold mb-3">Especificações Técnicas</h3>
-                        <div className="grid grid-cols-2 gap-3 text-sm">
-                          <div>
-                            <p className="text-muted-foreground">Dimensões</p>
-                            <p className="font-medium">{product.dimensions}</p>
-                          </div>
-                          <div>
-                            <p className="text-muted-foreground">Altura</p>
-                            <p className="font-medium">28cm</p>
-                          </div>
-                          <div>
-                            <p className="text-muted-foreground">Peso</p>
-                            <p className="font-medium">{product.weight}</p>
-                          </div>
-                          <div>
-                            <p className="text-muted-foreground">Garantia</p>
-                            <p className="font-medium">15 anos</p>
-                          </div>
-                          <div className="col-span-2">
-                            <p className="text-muted-foreground">Tecnologias</p>
-                            <p className="font-medium">8 incluídas</p>
-                          </div>
-                        </div>
-                      </div>
-
-                      <Link 
-                        to="/tecnologias"
-                        className="block text-center text-primary hover:underline font-medium"
-                      >
-                        Ver Todas as Tecnologias Incluídas →
-                      </Link>
-
-                      {/* CTAs */}
-                      <div className="space-y-3 pt-4">
-                        <Button
-                          onClick={() => setShowChatWidget(true)}
-                          className="w-full transition-all duration-300 hover:scale-[1.02]"
-                          size="lg"
-                        >
-                          <MessageCircle className="mr-2 h-5 w-5" />
-                          Falar com BIA sobre este produto
-                        </Button>
-                      </div>
-                    </div>
+                    </Link>
                   </div>
-                )}
                 </CardContent>
               </Card>
             ))
