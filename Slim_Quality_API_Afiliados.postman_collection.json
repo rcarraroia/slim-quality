@@ -79,7 +79,7 @@
           "response": []
         },
         {
-          "name": "Buscar por Código de Indicação",
+          "name": "Buscar por Código/Slug de Indicação",
           "request": {
             "method": "GET",
             "header": [],
@@ -91,11 +91,11 @@
                 {
                   "key": "code",
                   "value": "{{referral_code}}",
-                  "description": "Código de indicação"
+                  "description": "Código de indicação ou slug"
                 }
               ]
             },
-            "description": "Busca afiliado pelo código de indicação (Bug 06 - corrigido)"
+            "description": "Busca afiliado pelo código de indicação ou slug (formato simplificado)"
           },
           "response": [],
           "event": [

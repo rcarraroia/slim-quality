@@ -332,7 +332,7 @@ export class AffiliateFrontendService {
       // Gerar link de indicação
       const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://slimquality.com.br';
       const identifier = affiliateData.slug || affiliateData.referral_code;
-      const referralLink = `${baseUrl}/${identifier}`;
+      const referralLink = `${baseUrl}?ref=${identifier}`;
 
       return {
         affiliate,
