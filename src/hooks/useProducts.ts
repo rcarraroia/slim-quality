@@ -73,27 +73,17 @@ export const useProducts = () => {
   // Função para formatar produto para exibição na home
   const formatProductForHome = (product: Product) => {
     const priceInReais = product.price_cents / 100;
-    const pricePerDay = (priceInReais / 365).toFixed(2);
     
     return {
       id: product.id,
       name: product.name,
       dimensions: `${product.width_cm}x${product.length_cm}x${product.height_cm}cm`,
-      pricePerDay: pricePerDay.replace('.', ','),
       price: priceInReais,
-      comparison: getComparisonText(priceInReais),
       ideal: getIdealText(product.name),
       badge: getBadgeText(product),
       slug: product.slug || product.name.toLowerCase().replace(/\s/g, '-'),
       image: product.product_images?.[0]?.image_url
     };
-  };
-
-  const getComparisonText = (price: number) => {
-    if (price < 3000) return "Menos que um café com pão de queijo";
-    if (price < 3500) return "Menos que uma pizza delivery";
-    if (price < 4000) return "Menos que um combo de fast food";
-    return "Menos que um almoço no restaurante";
   };
 
   const getIdealText = (name: string) => {

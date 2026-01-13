@@ -71,10 +71,18 @@ const ProductPage = () => {
                   /* Card Collapsed */
                   <>
                     <div className="relative aspect-[4/3] bg-muted flex items-center justify-center">
-                      <div className="text-center text-muted-foreground">
-                        <div className="text-6xl mb-2">🛏️</div>
-                        <p className="text-sm">Imagem lifestyle do colchão</p>
-                      </div>
+                      {product.image ? (
+                        <img 
+                          src={product.image} 
+                          alt={`Slim Quality ${product.name}`}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="text-center text-muted-foreground">
+                          <div className="text-6xl mb-2">🛏️</div>
+                          <p className="text-sm">Imagem lifestyle do colchão</p>
+                        </div>
+                      )}
                       <Badge className="absolute top-4 right-4 bg-muted text-muted-foreground border">
                         {product.dimensions}
                       </Badge>
@@ -88,10 +96,6 @@ const ProductPage = () => {
                       <div>
                         <h3 className="font-semibold text-2xl mb-1">Slim Quality {product.name}</h3>
                         <p className="text-sm text-muted-foreground">{product.ideal}</p>
-                      </div>
-                      <div>
-                        <p className="text-4xl font-bold text-primary">R$ {product.pricePerDay}/dia</p>
-                        <p className="text-sm text-muted-foreground">{product.comparison}</p>
                       </div>
                       <Button 
                         className="w-full" 
@@ -142,9 +146,8 @@ const ProductPage = () => {
 
                         <div className="space-y-2">
                           <p className="text-4xl font-bold text-primary">
-                            Invista em sua saúde por R$ {product.pricePerDay}/dia
+                            R$ {product.price.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </p>
-                          <p className="text-lg text-muted-foreground">{product.comparison}</p>
                           <p className="text-sm text-muted-foreground">
                             Parcelamento disponível em até 12x
                           </p>

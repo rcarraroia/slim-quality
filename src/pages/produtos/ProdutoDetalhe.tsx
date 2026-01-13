@@ -119,11 +119,8 @@ export default function ProdutoDetalhe() {
               <p className="text-4xl font-bold text-primary">
                 R$ {priceFormatted}
               </p>
-              <p className="text-lg text-muted-foreground">
-                Ou R$ {(rawProduct.price_cents / 100 / 365).toFixed(2)}/dia
-              </p>
               <p className="text-sm text-muted-foreground">
-                Menos que uma pizza por dia
+                Parcelamento disponível em até 12x
               </p>
             </div>
             

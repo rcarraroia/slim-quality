@@ -407,7 +407,7 @@
       "name": "Rastreamento (Bug 03)",
       "item": [
         {
-          "name": "Registrar Click de Indicação",
+          "name": "Registrar Click de Indicação (Vercel)",
           "request": {
             "method": "POST",
             "header": [
@@ -418,14 +418,14 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"referral_code\": \"{{referral_code}}\",\n  \"ip_address\": \"192.168.1.1\",\n  \"user_agent\": \"Mozilla/5.0\"\n}"
+              "raw": "{\n  \"referralCode\": \"{{referral_code}}\",\n  \"url\": \"https://slimquality.com.br\",\n  \"userAgent\": \"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36\",\n  \"referer\": \"https://google.com\",\n  \"utmSource\": \"instagram\",\n  \"utmMedium\": \"social\",\n  \"utmCampaign\": \"lancamento\",\n  \"utmContent\": \"post-organico\",\n  \"utmTerm\": \"colchao-magnetico\"\n}"
             },
             "url": {
-              "raw": "{{api_url}}/tracking/click",
-              "host": ["{{api_url}}"],
-              "path": ["tracking", "click"]
+              "raw": "{{base_url}}/api/referral/track-click",
+              "host": ["{{base_url}}"],
+              "path": ["api", "referral", "track-click"]
             },
-            "description": "Registra um click no link de indicação (Bug 03 - rastreamento)"
+            "description": "Registra um click no link de indicação via Vercel Serverless Function (Bug 03 - rastreamento)"
           },
           "response": [],
           "event": [
@@ -433,13 +433,192 @@
               "listen": "test",
               "script": {
                 "exec": [
-                  "pm.test('Status code é 201', function () {",
-                  "    pm.response.to.have.status(201);",
+                  "pm.test('Status code é 200', function () {",
+                  "    pm.response.to.have.status(200);",
                   "});",
                   "",
                   "pm.test('Click registrado com sucesso', function () {",
                   "    var jsonData = pm.response.json();",
                   "    pm.expect(jsonData).to.have.property('success', true);",
+                  "    pm.expect(jsonData).to.have.property('message');",
+                  "    pm.expect(jsonData).to.have.property('clickId');",
+                  "});",
+                  "",
+                  "pm.test('Retorna ID do click registrado', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.clickId).to.be.a('string');",
+                  "    pm.expect(jsonData.clickId).to.not.be.empty;",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Track Click - Sem Código (deve falhar)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userAgent\": \"Mozilla/5.0\",\n  \"referer\": \"https://google.com\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/referral/track-click",
+              "host": ["{{base_url}}"],
+              "path": ["api", "referral", "track-click"]
+            },
+            "description": "Testa validação - deve retornar erro 400 quando referralCode não é fornecido"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code é 400 (sem código)', function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});",
+                  "",
+                  "pm.test('Mensagem de erro apropriada', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('success', false);",
+                  "    pm.expect(jsonData).to.have.property('error');",
+                  "    pm.expect(jsonData.error).to.include('obrigatório');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Track Click - Código Inválido",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"referralCode\": \"CODIGO_INEXISTENTE_123\",\n  \"userAgent\": \"Mozilla/5.0\",\n  \"referer\": \"https://google.com\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/referral/track-click",
+              "host": ["{{base_url}}"],
+              "path": ["api", "referral", "track-click"]
+            },
+            "description": "Testa validação - deve retornar erro 404 quando afiliado não existe"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code é 404 (código inválido)', function () {",
+                  "    pm.response.to.have.status(404);",
+                  "});",
+                  "",
+                  "pm.test('Mensagem de erro apropriada', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('success', false);",
+                  "    pm.expect(jsonData).to.have.property('error');",
+                  "    pm.expect(jsonData.error).to.include('não encontrado');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Track Click - Método Inválido (GET)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/referral/track-click",
+              "host": ["{{base_url}}"],
+              "path": ["api", "referral", "track-click"]
+            },
+            "description": "Testa validação - deve retornar erro 405 quando método não é POST"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code é 405 (método não permitido)', function () {",
+                  "    pm.response.to.have.status(405);",
+                  "});",
+                  "",
+                  "pm.test('Mensagem de erro apropriada', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('success', false);",
+                  "    pm.expect(jsonData).to.have.property('error');",
+                  "    pm.expect(jsonData.error).to.include('não permitido');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Track Click - Com UTM Completo",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"referralCode\": \"{{referral_code}}\",\n  \"url\": \"https://slimquality.com.br/produtos/colchao-padrao\",\n  \"userAgent\": \"Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X)\",\n  \"referer\": \"https://facebook.com\",\n  \"utmSource\": \"facebook\",\n  \"utmMedium\": \"cpc\",\n  \"utmCampaign\": \"black-friday-2026\",\n  \"utmContent\": \"anuncio-video\",\n  \"utmTerm\": \"colchao-ortopedico\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/referral/track-click",
+              "host": ["{{base_url}}"],
+              "path": ["api", "referral", "track-click"]
+            },
+            "description": "Testa tracking completo com todos os parâmetros UTM para análise de marketing"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code é 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Click com UTM registrado com sucesso', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('success', true);",
+                  "    pm.expect(jsonData).to.have.property('clickId');",
+                  "});",
+                  "",
+                  "pm.test('Validar que dados UTM foram capturados', function () {",
+                  "    // Verificar que o click foi registrado",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.success).to.be.true;",
+                  "    ",
+                  "    // Nota: Os dados UTM são salvos no banco, mas não retornados na resposta",
+                  "    // Para validar, seria necessário consultar o banco ou criar endpoint de consulta",
                   "});"
                 ],
                 "type": "text/javascript"
