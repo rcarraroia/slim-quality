@@ -112,8 +112,8 @@ const Index = () => {
       {/* Hero Consultivo */}
       <section className="min-h-[90vh] flex items-center bg-gradient-to-b from-primary/10 via-background to-background">
         <div className="container px-4 py-16 md:py-24">
-          <div className="grid md:grid-cols-[60%_40%] md:gap-16 items-center">
-            <div className="space-y-6 md:space-y-8 md:pr-8">
+          <div className="grid md:grid-cols-[3fr_2fr] gap-6 md:gap-8 items-center">
+            <div className="space-y-6 md:space-y-8">
               <h1 className="text-4xl sm:text-5xl md:text-5xl lg:text-6xl font-bold text-gray-900 leading-tight">
                 Colchão Magnético<br />Terapêutico
               </h1>
