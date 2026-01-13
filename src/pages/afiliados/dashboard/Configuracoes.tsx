@@ -796,7 +796,7 @@ export default function AffiliateDashboardConfiguracoes() {
           <div className="bg-muted p-4 rounded-lg space-y-2">
             <p className="text-xs text-muted-foreground">Seu link ficará assim:</p>
             <p className="font-mono text-sm font-medium break-all">
-              https://slimquality.com.br/{slug || affiliate?.referralCode || 'seu-codigo'}
+              https://slimquality.com.br?ref={slug || affiliate?.referralCode || 'seu-codigo'}
             </p>
           </div>
 
