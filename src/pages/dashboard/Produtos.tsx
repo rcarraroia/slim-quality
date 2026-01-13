@@ -56,8 +56,13 @@ export default function Produtos() {
     sku: '',
     description: '',
     price: '',
-    dimensions: '',
+    width_cm: '',
+    length_cm: '',
+    height_cm: '',
     weight: '',
+    magnetic_count: '',
+    warranty_years: '',
+    therapeutic_technologies: '',
     product_type: 'mattress',
     status: 'active',
     featured: false,
@@ -97,8 +102,13 @@ export default function Produtos() {
       sku: produto.sku,
       description: produto.description || '',
       price: (produto.price_cents / 100).toString(),
-      dimensions: `${produto.width_cm}x${produto.length_cm}x${produto.height_cm}cm`,
+      width_cm: produto.width_cm.toString(),
+      length_cm: produto.length_cm.toString(),
+      height_cm: produto.height_cm.toString(),
       weight: produto.weight_kg?.toString() || '',
+      magnetic_count: (produto as any).magnetic_count?.toString() || '',
+      warranty_years: (produto as any).warranty_years?.toString() || '',
+      therapeutic_technologies: (produto as any).therapeutic_technologies?.toString() || '',
       product_type: produto.product_type || 'mattress',
       status: produto.is_active ? 'active' : 'inactive',
       featured: produto.is_featured,
@@ -117,8 +127,13 @@ export default function Produtos() {
       sku: '',
       description: '',
       price: '',
-      dimensions: '',
+      width_cm: '',
+      length_cm: '',
+      height_cm: '',
       weight: '',
+      magnetic_count: '',
+      warranty_years: '',
+      therapeutic_technologies: '',
       product_type: 'mattress',
       status: 'active',
       featured: false,
@@ -212,25 +227,18 @@ export default function Produtos() {
     try {
       setUploading(true);
 
-      // Converter dimensões do formato "138x188x28cm" para campos separados
-      let width_cm = 138, length_cm = 188, height_cm = 28;
-      
-      if (formData.dimensions && formData.dimensions.trim()) {
-        const dimensions = formData.dimensions.split('x');
-        width_cm = dimensions[0] ? parseFloat(dimensions[0]) : 138;
-        length_cm = dimensions[1] ? parseFloat(dimensions[1]) : 188;
-        height_cm = dimensions[2] ? parseFloat(dimensions[2].replace('cm', '')) : 28;
-      }
-
       const productData = {
         name: formData.name,
-        sku: formData.sku || `COL-${Date.now().toString(36).toUpperCase()}`, // Gerar SKU se não fornecido
+        sku: formData.sku || `COL-${Date.now().toString(36).toUpperCase()}`,
         description: formData.description || null,
-        price_cents: Math.round(parseFloat(formData.price) * 100), // Converter para centavos
-        width_cm,
-        length_cm,
-        height_cm,
+        price_cents: Math.round(parseFloat(formData.price) * 100),
+        width_cm: parseFloat(formData.width_cm),
+        length_cm: parseFloat(formData.length_cm),
+        height_cm: parseFloat(formData.height_cm),
         weight_kg: formData.weight ? parseFloat(formData.weight) : null,
+        magnetic_count: formData.magnetic_count ? parseInt(formData.magnetic_count) : null,
+        warranty_years: formData.warranty_years ? parseInt(formData.warranty_years) : null,
+        therapeutic_technologies: formData.therapeutic_technologies ? parseInt(formData.therapeutic_technologies) : null,
         product_type: formData.product_type,
         is_active: formData.status === 'active',
         is_featured: formData.featured,
@@ -492,14 +500,44 @@ export default function Produtos() {
 
 
             <div className="space-y-2">
-              <Label>Dimensões</Label>
-              <Input 
-                placeholder="Ex: 138x188x28cm" 
-                value={formData.dimensions}
-                onChange={(e) => setFormData({ ...formData, dimensions: e.target.value })}
-              />
+              <Label>Dimensões do Produto *</Label>
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <Label className="text-xs">Largura (cm)</Label>
+                  <Input 
+                    type="number"
+                    step="0.01"
+                    placeholder="138"
+                    value={formData.width_cm}
+                    onChange={(e) => setFormData({ ...formData, width_cm: e.target.value })}
+                    required
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs">Comprimento (cm)</Label>
+                  <Input 
+                    type="number"
+                    step="0.01"
+                    placeholder="188"
+                    value={formData.length_cm}
+                    onChange={(e) => setFormData({ ...formData, length_cm: e.target.value })}
+                    required
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs">Altura (cm)</Label>
+                  <Input 
+                    type="number"
+                    step="0.01"
+                    placeholder="28"
+                    value={formData.height_cm}
+                    onChange={(e) => setFormData({ ...formData, height_cm: e.target.value })}
+                    required
+                  />
+                </div>
+              </div>
               <p className="text-xs text-muted-foreground">
-                Formato livre - adapte conforme o tipo de produto
+                Medidas em centímetros (Largura × Comprimento × Altura)
               </p>
             </div>
 
@@ -522,6 +560,45 @@ export default function Produtos() {
                   value={formData.weight}
                   onChange={(e) => setFormData({ ...formData, weight: e.target.value })}
                 />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Especificações Técnicas (Opcionais)</Label>
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <Label className="text-xs">Ímãs Terapêuticos</Label>
+                  <Input 
+                    type="number"
+                    placeholder="240"
+                    value={formData.magnetic_count}
+                    onChange={(e) => setFormData({ ...formData, magnetic_count: e.target.value })}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Apenas para produtos magnéticos
+                  </p>
+                </div>
+                <div>
+                  <Label className="text-xs">Garantia (anos)</Label>
+                  <Input 
+                    type="number"
+                    placeholder="15"
+                    value={formData.warranty_years}
+                    onChange={(e) => setFormData({ ...formData, warranty_years: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs">Tecnologias</Label>
+                  <Input 
+                    type="number"
+                    placeholder="8"
+                    value={formData.therapeutic_technologies}
+                    onChange={(e) => setFormData({ ...formData, therapeutic_technologies: e.target.value })}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Qtd. de tecnologias terapêuticas
+                  </p>
+                </div>
               </div>
             </div>
 

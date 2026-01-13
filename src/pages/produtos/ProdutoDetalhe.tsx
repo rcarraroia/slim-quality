@@ -77,11 +77,12 @@ export default function ProdutoDetalhe() {
 
   // Features baseadas nos dados reais do produto
   const features = [
-    "8 Tecnologias Terapêuticas",
-    "15 Anos de Garantia",
-    `Dimensões: ${rawProduct.width_cm}x${rawProduct.length_cm}x${rawProduct.height_cm}cm`,
+    (rawProduct as any).therapeutic_technologies && `${(rawProduct as any).therapeutic_technologies} Tecnologias Terapêuticas`,
+    (rawProduct as any).warranty_years && `${(rawProduct as any).warranty_years} Anos de Garantia`,
+    `Dimensões: ${rawProduct.width_cm}×${rawProduct.length_cm}×${rawProduct.height_cm}cm`,
+    (rawProduct as any).magnetic_count && `${(rawProduct as any).magnetic_count} Ímãs Terapêuticos`,
     "Qualidade Premium"
-  ];
+  ].filter(Boolean);
 
   return (
     <div className="container px-4 py-24">
@@ -97,7 +98,7 @@ export default function ProdutoDetalhe() {
         
         <div className="grid md:grid-cols-2 gap-8">
           {/* Imagem do Produto */}
-          <div className="aspect-square bg-muted rounded-xl flex items-center justify-center overflow-hidden">
+          <div className="aspect-[4/3] bg-muted rounded-xl flex items-center justify-center overflow-hidden">
             {displayProduct.image ? (
               <img 
                 src={displayProduct.image} 
@@ -171,24 +172,52 @@ export default function ProdutoDetalhe() {
         {/* Especificações Técnicas */}
         <Card className="p-6">
           <h3 className="text-2xl font-bold mb-6">Especificações Técnicas</h3>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            <div className="text-center p-4 bg-muted rounded-lg">
-              <p className="text-2xl font-bold text-primary">{displayProduct.dimensions}</p>
-              <p className="text-sm text-muted-foreground">Dimensões</p>
-            </div>
-            <div className="text-center p-4 bg-muted rounded-lg">
-              <p className="text-2xl font-bold text-primary">28cm</p>
-              <p className="text-sm text-muted-foreground">Altura</p>
-            </div>
-            <div className="text-center p-4 bg-muted rounded-lg">
-              <p className="text-2xl font-bold text-primary">240</p>
-              <p className="text-sm text-muted-foreground">Ímãs Terapêuticos</p>
-            </div>
-            <div className="text-center p-4 bg-muted rounded-lg">
-              <p className="text-2xl font-bold text-primary">15 anos</p>
-              <p className="text-sm text-muted-foreground">Garantia</p>
-            </div>
-          </div>
+          {(() => {
+            const specs = [
+              {
+                value: `${rawProduct.width_cm}×${rawProduct.length_cm}×${rawProduct.height_cm}cm`,
+                label: 'Dimensões (L×C×A)',
+                show: true
+              },
+              {
+                value: (rawProduct as any).magnetic_count,
+                label: 'Ímãs Terapêuticos',
+                show: (rawProduct as any).magnetic_count != null
+              },
+              {
+                value: `${(rawProduct as any).warranty_years} anos`,
+                label: 'Garantia',
+                show: (rawProduct as any).warranty_years != null
+              },
+              {
+                value: (rawProduct as any).therapeutic_technologies,
+                label: 'Tecnologias Terapêuticas',
+                show: (rawProduct as any).therapeutic_technologies != null
+              },
+              {
+                value: `${rawProduct.weight_kg}kg`,
+                label: 'Peso',
+                show: rawProduct.weight_kg != null
+              }
+            ].filter(spec => spec.show);
+
+            // Grid responsivo baseado na quantidade de specs
+            const gridCols = specs.length === 2 ? 'sm:grid-cols-2' :
+                           specs.length === 3 ? 'sm:grid-cols-3' :
+                           specs.length === 4 ? 'sm:grid-cols-2 lg:grid-cols-4' :
+                           'sm:grid-cols-2 lg:grid-cols-3';
+
+            return (
+              <div className={`grid ${gridCols} gap-6`}>
+                {specs.map((spec, index) => (
+                  <div key={index} className="text-center p-4 bg-muted rounded-lg">
+                    <p className="text-2xl font-bold text-primary">{spec.value}</p>
+                    <p className="text-sm text-muted-foreground">{spec.label}</p>
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
         </Card>
         
         <div className="text-center pt-8">
