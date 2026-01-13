@@ -375,9 +375,9 @@ export class AffiliateFrontendService {
       // 3. Usar slug se existir, senão usa referral_code
       const identifier = data.slug || data.referral_code;
 
-      // 4. Montar link SIMPLIFICADO
+      // 4. Montar link com parâmetro ?ref=
       const baseUrl = window.location.origin;
-      const link = `${baseUrl}/${identifier}`;
+      const link = `${baseUrl}?ref=${identifier}`;
 
       // 5. Gerar QR Code
       const qrCode = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(link)}`;
