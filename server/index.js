@@ -873,6 +873,218 @@ async function logWebhookEvent(webhookData, result, processingTime) {
 // FIM WEBHOOK ASAAS
 // ============================================
 
+// ============================================
+// TRACKING DE AFILIADOS - APIs de Referral
+// ============================================
+
+/**
+ * POST /api/referral/track-click
+ * Registra clique em link de afiliado
+ */
+app.post('/api/referral/track-click', async (req, res) => {
+  try {
+    const { 
+      referralCode, 
+      url, 
+      userAgent, 
+      referer,
+      utmSource,
+      utmMedium,
+      utmCampaign,
+      utmContent,
+      utmTerm
+    } = req.body;
+
+    if (!referralCode) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'referralCode é obrigatório' 
+      });
+    }
+
+    console.log(`[ReferralTracking] 🖱️ Clique registrado: ${referralCode}`);
+
+    // Buscar affiliate_id pelo código
+    const { data: affiliate, error: affiliateError } = await supabase
+      .from('affiliates')
+      .select('id')
+      .eq('referral_code', referralCode)
+      .eq('status', 'active')
+      .is('deleted_at', null)
+      .maybeSingle();
+
+    if (affiliateError || !affiliate) {
+      console.log(`[ReferralTracking] ⚠️ Afiliado não encontrado: ${referralCode}`);
+      return res.status(404).json({ 
+        success: false, 
+        error: 'Afiliado não encontrado' 
+      });
+    }
+
+    // Obter IP do cliente
+    const clientIP = req.headers['x-forwarded-for'] || 
+                    req.headers['x-real-ip'] || 
+                    req.connection.remoteAddress || 
+                    'unknown';
+
+    // Registrar clique
+    const { data: click, error: clickError } = await supabase
+      .from('referral_clicks')
+      .insert({
+        referral_code: referralCode,
+        affiliate_id: affiliate.id,
+        ip_address: clientIP,
+        user_agent: userAgent,
+        referer: referer,
+        utm_source: utmSource,
+        utm_medium: utmMedium,
+        utm_campaign: utmCampaign,
+        utm_content: utmContent,
+        utm_term: utmTerm,
+        clicked_at: new Date().toISOString()
+      })
+      .select()
+      .single();
+
+    if (clickError) {
+      console.error(`[ReferralTracking] ❌ Erro ao salvar clique:`, clickError);
+      return res.status(500).json({ 
+        success: false, 
+        error: 'Erro ao registrar clique' 
+      });
+    }
+
+    console.log(`[ReferralTracking] ✅ Clique salvo: ${click.id}`);
+
+    res.json({
+      success: true,
+      message: 'Clique registrado com sucesso',
+      clickId: click.id
+    });
+
+  } catch (error) {
+    console.error('[ReferralTracking] ❌ Erro crítico:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Erro interno do servidor' 
+    });
+  }
+});
+
+/**
+ * POST /api/referral/track-conversion
+ * Registra conversão (venda) de afiliado
+ */
+app.post('/api/referral/track-conversion', async (req, res) => {
+  try {
+    const { 
+      referralCode, 
+      orderId, 
+      orderValueCents,
+      utmSource,
+      utmMedium,
+      utmCampaign,
+      utmContent,
+      utmTerm
+    } = req.body;
+
+    if (!referralCode || !orderId) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'referralCode e orderId são obrigatórios' 
+      });
+    }
+
+    console.log(`[ReferralTracking] 💰 Conversão registrada: ${referralCode} -> ${orderId}`);
+
+    // Buscar affiliate_id pelo código
+    const { data: affiliate, error: affiliateError } = await supabase
+      .from('affiliates')
+      .select('id')
+      .eq('referral_code', referralCode)
+      .eq('status', 'active')
+      .is('deleted_at', null)
+      .maybeSingle();
+
+    if (affiliateError || !affiliate) {
+      console.log(`[ReferralTracking] ⚠️ Afiliado não encontrado: ${referralCode}`);
+      return res.status(404).json({ 
+        success: false, 
+        error: 'Afiliado não encontrado' 
+      });
+    }
+
+    // Buscar pedido
+    const { data: order, error: orderError } = await supabase
+      .from('orders')
+      .select('customer_id, total_cents')
+      .eq('id', orderId)
+      .maybeSingle();
+
+    if (orderError || !order) {
+      console.log(`[ReferralTracking] ⚠️ Pedido não encontrado: ${orderId}`);
+      return res.status(404).json({ 
+        success: false, 
+        error: 'Pedido não encontrado' 
+      });
+    }
+
+    // Calcular comissão (15% para N1)
+    const commissionPercentage = 15;
+    const commissionValueCents = Math.round((orderValueCents || order.total_cents) * (commissionPercentage / 100));
+
+    // Registrar conversão
+    const { data: conversion, error: conversionError } = await supabase
+      .from('referral_conversions')
+      .insert({
+        referral_code: referralCode,
+        affiliate_id: affiliate.id,
+        order_id: orderId,
+        order_value_cents: orderValueCents || order.total_cents,
+        commission_percentage: commissionPercentage,
+        commission_value_cents: commissionValueCents,
+        customer_id: order.customer_id,
+        utm_source: utmSource,
+        utm_medium: utmMedium,
+        utm_campaign: utmCampaign,
+        utm_content: utmContent,
+        utm_term: utmTerm,
+        converted_at: new Date().toISOString(),
+        status: 'confirmed'
+      })
+      .select()
+      .single();
+
+    if (conversionError) {
+      console.error(`[ReferralTracking] ❌ Erro ao salvar conversão:`, conversionError);
+      return res.status(500).json({ 
+        success: false, 
+        error: 'Erro ao registrar conversão' 
+      });
+    }
+
+    console.log(`[ReferralTracking] ✅ Conversão salva: ${conversion.id}`);
+
+    res.json({
+      success: true,
+      message: 'Conversão registrada com sucesso',
+      conversionId: conversion.id,
+      commissionValueCents: commissionValueCents
+    });
+
+  } catch (error) {
+    console.error('[ReferralTracking] ❌ Erro crítico:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Erro interno do servidor' 
+    });
+  }
+});
+
+// ============================================
+// FIM TRACKING DE AFILIADOS
+// ============================================
+
 // Rota raiz
 app.get('/', (req, res) => {
   res.json({ 
