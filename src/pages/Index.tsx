@@ -233,17 +233,16 @@ const Index = () => {
             Todos os modelos incluem as mesmas 8 tecnologias terapêuticas
           </p>
         </div>
-        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-8 max-w-7xl mx-auto">
+        <div className="grid sm:grid-cols-2 gap-6 md:gap-8 max-w-5xl mx-auto">
           {productsLoading ? (
             // Loading skeleton
             Array.from({ length: 4 }).map((_, index) => (
               <Card key={index} className="overflow-hidden animate-pulse">
                 <CardContent className="p-0">
-                  <div className="aspect-[3/4] bg-muted" />
+                  <div className="aspect-[4/3] bg-muted" />
                   <div className="p-6 space-y-4">
-                    <div className="h-4 bg-muted rounded w-3/4" />
-                    <div className="h-3 bg-muted rounded w-full" />
-                    <div className="h-8 bg-muted rounded w-1/2" />
+                    <div className="h-6 bg-muted rounded w-3/4" />
+                    <div className="h-4 bg-muted rounded w-1/2" />
                     <div className="h-10 bg-muted rounded w-full" />
                   </div>
                 </CardContent>
@@ -268,7 +267,7 @@ const Index = () => {
             products.map((product) => (
               <Card key={product.id} className="transition-all duration-300 hover:shadow-xl hover:scale-[1.02] overflow-hidden">
                 <CardContent className="p-0">
-                  <div className="relative aspect-[3/4] bg-muted flex items-center justify-center">
+                  <div className="relative aspect-[4/3] bg-muted flex items-center justify-center overflow-hidden">
                     {product.image ? (
                       <img 
                         src={product.image} 
@@ -281,25 +280,11 @@ const Index = () => {
                         <p className="text-sm px-4">Imagem lifestyle do colchão</p>
                       </div>
                     )}
-                    <Badge className="absolute top-4 right-4 bg-muted text-muted-foreground border">
-                      {product.dimensions}
-                    </Badge>
-                    {product.badge && (
-                      <Badge className="absolute top-4 left-4 bg-primary text-primary-foreground">
-                        {product.badge}
-                      </Badge>
-                    )}
                   </div>
                   <div className="p-6 space-y-4">
                     <div>
-                      <h3 className="font-semibold text-xl mb-1">Slim Quality {product.name}</h3>
-                      <p className="text-sm text-muted-foreground">{product.ideal}</p>
-                    </div>
-                    <div className="space-y-1">
-                      <p className="text-4xl font-bold text-primary">
-                        R$ {product.pricePerDay}/dia
-                      </p>
-                      <p className="text-sm text-muted-foreground">{product.comparison}</p>
+                      <h3 className="font-semibold text-xl mb-2">Slim Quality {product.name}</h3>
+                      <p className="text-sm text-muted-foreground">{product.dimensions}</p>
                     </div>
                     <Link to={`/produtos/${product.slug}`}>
                       <Button className="w-full transition-all duration-300" size="lg">
