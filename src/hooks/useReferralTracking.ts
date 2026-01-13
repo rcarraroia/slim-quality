@@ -64,7 +64,8 @@ export const useReferralTracking = () => {
    * Verifica se há um referral ativo
    */
   const hasActiveReferral = (): boolean => {
-    return ReferralTracker.getReferralCode() !== null;
+    const code = ReferralTracker.getReferralCode();
+    return code !== null && code !== undefined;
   };
 
   /**
