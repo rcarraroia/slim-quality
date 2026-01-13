@@ -76,7 +76,7 @@ export class AffiliateFrontendService {
         .select('id')
         .eq('user_id', user.id)
         .is('deleted_at', null)
-        .single();
+        .maybeSingle();
 
       if (existingAffiliate) {
         throw new Error('Usuário já é afiliado');
@@ -236,9 +236,14 @@ export class AffiliateFrontendService {
         .select('*')
         .eq('user_id', user.id)
         .is('deleted_at', null)
-        .single();
+        .maybeSingle(); // Usar maybeSingle ao invés de single para evitar erro 406
 
-      if (affiliateError || !affiliateData) {
+      if (affiliateError) {
+        console.error('Erro ao buscar afiliado:', affiliateError);
+        throw new Error('Erro ao buscar dados do afiliado');
+      }
+      
+      if (!affiliateData) {
         throw new Error('Afiliado não encontrado');
       }
 
@@ -366,7 +371,7 @@ export class AffiliateFrontendService {
         .select('slug, referral_code')
         .eq('user_id', user.id)
         .is('deleted_at', null)
-        .single();
+        .maybeSingle();
 
       if (error || !data) {
         throw new Error('Afiliado não encontrado');
@@ -445,7 +450,7 @@ export class AffiliateFrontendService {
         .select('id')
         .eq('slug', slug)
         .is('deleted_at', null)
-        .single();
+        .maybeSingle();
 
       if (data) {
         return {
@@ -518,9 +523,14 @@ export class AffiliateFrontendService {
         .select('*')
         .eq('user_id', user.id)
         .is('deleted_at', null)
-        .single();
+        .maybeSingle();
 
-      if (affiliateError || !currentAffiliate) {
+      if (affiliateError) {
+        console.error('Erro ao buscar afiliado:', affiliateError);
+        throw new Error('Erro ao buscar dados do afiliado');
+      }
+      
+      if (!currentAffiliate) {
         throw new Error('Afiliado não encontrado');
       }
 
@@ -623,6 +633,51 @@ export class AffiliateFrontendService {
   }
 
   /**
+   * Constrói árvore hierárquica a partir de lista de descendentes
+   * @private
+   */
+  private buildTreeFromHierarchy(descendants: any[], rootId: string): any[] {
+    if (!descendants || descendants.length === 0) {
+      return [];
+    }
+
+    // Mapear descendentes por ID para acesso rápido
+    const descendantsMap = new Map();
+    descendants.forEach(d => {
+      descendantsMap.set(d.id, {
+        id: d.id,
+        name: d.name || 'Afiliado',
+        email: d.email || '',
+        referralCode: d.referral_code || '',
+        status: d.status || 'active',
+        level: d.referred_by === rootId ? 1 : 2, // N1 ou N2
+        totalCommissions: 0,
+        children: []
+      });
+    });
+
+    // Construir árvore: conectar filhos aos pais
+    const tree: any[] = [];
+    
+    descendants.forEach(d => {
+      const node = descendantsMap.get(d.id);
+      
+      if (d.referred_by === rootId) {
+        // É filho direto (N1)
+        tree.push(node);
+      } else {
+        // É filho indireto (N2) - adicionar ao pai
+        const parent = descendantsMap.get(d.referred_by);
+        if (parent) {
+          parent.children.push(node);
+        }
+      }
+    });
+
+    return tree;
+  }
+
+  /**
    * Alias para compatibilidade com o frontend existente
    */
   async getMyNetwork(): Promise<any> {
@@ -655,7 +710,7 @@ export class AffiliateFrontendService {
         .select('id')
         .eq('user_id', user.id)
         .is('deleted_at', null)
-        .single();
+        .maybeSingle();
 
       if (!affiliate) {
         return {
@@ -761,9 +816,14 @@ export class AffiliateFrontendService {
         .select('*')
         .eq('user_id', user.id)
         .is('deleted_at', null)
-        .single();
+        .maybeSingle();
 
-      if (error || !affiliateData) {
+      if (error) {
+        console.error('Erro ao buscar afiliado:', error);
+        return { isAffiliate: false };
+      }
+      
+      if (!affiliateData) {
         return { isAffiliate: false };
       }
 
@@ -940,7 +1000,7 @@ export class AffiliateFrontendService {
         .select('id')
         .eq('referral_code', code)
         .eq('status', 'active')
-        .single();
+        .maybeSingle();
 
       return data?.id || null;
     } catch (error) {
