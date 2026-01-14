@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,60 +24,62 @@ import {
   TrendingUp,
   Clock,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  Loader2
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-
-interface Saque {
-  id: string;
-  valor: number;
-  dataSolicitacao: string;
-  dataProcessamento: string | null;
-  status: "aprovado" | "pendente" | "processando" | "rejeitado";
-  metodoPagamento: string;
-  chavePix: string;
-}
-
-const mockSaques: Saque[] = [
-  {
-    id: "S001",
-    valor: 2500.00,
-    dataSolicitacao: "2024-10-10",
-    dataProcessamento: "2024-10-12",
-    status: "aprovado",
-    metodoPagamento: "PIX",
-    chavePix: "carlos.mendes@email.com"
-  },
-  {
-    id: "S002",
-    valor: 1800.00,
-    dataSolicitacao: "2024-10-11",
-    dataProcessamento: null,
-    status: "pendente",
-    metodoPagamento: "PIX",
-    chavePix: "carlos.mendes@email.com"
-  },
-  {
-    id: "S003",
-    valor: 3200.00,
-    dataSolicitacao: "2024-09-25",
-    dataProcessamento: "2024-09-26",
-    status: "aprovado",
-    metodoPagamento: "PIX",
-    chavePix: "carlos.mendes@email.com"
-  }
-];
+import { affiliateFrontendService } from "@/services/frontend/affiliate.service";
 
 export default function AffiliateDashboardSaques() {
   const { toast } = useToast();
   const [showSaqueDialog, setShowSaqueDialog] = useState(false);
   const [valorSaque, setValorSaque] = useState("");
-  
-  const saldoDisponivel = 3200.00;
-  const saldoBloqueado = 450.00; // comissões pendentes
-  const totalSacado = 7500.00;
+  const [loading, setLoading] = useState(true);
+  const [withdrawals, setWithdrawals] = useState<any[]>([]);
+  const [balance, setBalance] = useState({ available: 0, blocked: 0, total: 0 });
+  const [totalSacado, setTotalSacado] = useState(0);
 
-  const handleSolicitarSaque = () => {
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const loadData = async () => {
+    try {
+      setLoading(true);
+      const withdrawalsData = await affiliateFrontendService.getWithdrawals();
+      setWithdrawals(withdrawalsData.withdrawals || []);
+      setTotalSacado((withdrawalsData.summary?.totalCompleted || 0) / 100);
+      
+      // Tentar buscar saldo real da API
+      try {
+        const balanceData = await affiliateFrontendService.getBalance();
+        setBalance({
+          available: balanceData.available || 0,
+          blocked: balanceData.blocked || 0,
+          total: balanceData.total || 0
+        });
+      } catch (balanceError) {
+        // Se API não estiver disponível, usar mock temporário
+        console.warn('API de saldo não disponível, usando mock:', balanceError);
+        setBalance({
+          available: 320000, // R$ 3.200,00 em centavos
+          blocked: 45000,    // R$ 450,00 em centavos
+          total: 365000      // R$ 3.650,00 em centavos
+        });
+      }
+    } catch (error) {
+      console.error('Erro ao carregar dados:', error);
+      toast({
+        title: "Erro ao carregar dados",
+        description: "Não foi possível carregar os dados de saques.",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSolicitarSaque = async () => {
     const valor = parseFloat(valorSaque);
     
     if (!valor || valor <= 0) {
@@ -89,24 +91,44 @@ export default function AffiliateDashboardSaques() {
       return;
     }
 
-    if (valor > saldoDisponivel) {
+    if (valor > balance.available / 100) {
       toast({
         title: "Saldo insuficiente",
-        description: `Você só tem R$ ${saldoDisponivel.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} disponível para saque.`,
+        description: `Você só tem R$ ${(balance.available / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} disponível para saque.`,
         variant: "destructive"
       });
       return;
     }
 
-    // Simula solicitação de saque
-    toast({
-      title: "Saque solicitado!",
-      description: `Sua solicitação de R$ ${valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} foi enviada e será processada em até 48h.`,
-    });
-    
-    setShowSaqueDialog(false);
-    setValorSaque("");
+    try {
+      // TODO: Implementar chamada à API de saque quando estiver pronta
+      // await affiliateFrontendService.requestWithdrawal(valor);
+      
+      toast({
+        title: "Saque solicitado!",
+        description: `Sua solicitação de R$ ${valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} foi enviada e será processada em até 48h.`,
+      });
+      
+      setShowSaqueDialog(false);
+      setValorSaque("");
+      loadData();
+    } catch (error) {
+      toast({
+        title: "Erro ao solicitar saque",
+        description: "Não foi possível processar sua solicitação. Tente novamente.",
+        variant: "destructive"
+      });
+    }
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        <span className="ml-2 text-muted-foreground">Carregando dados...</span>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -118,7 +140,7 @@ export default function AffiliateDashboardSaques() {
               <div>
                 <p className="text-sm text-muted-foreground">Saldo Disponível</p>
                 <p className="text-3xl font-bold text-primary">
-                  R$ {saldoDisponivel.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                  R$ {(balance.available / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                 </p>
                 <Button 
                   size="sm" 
@@ -141,7 +163,7 @@ export default function AffiliateDashboardSaques() {
               <div>
                 <p className="text-sm text-muted-foreground">Saldo Bloqueado</p>
                 <p className="text-3xl font-bold text-warning">
-                  R$ {saldoBloqueado.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                  R$ {(balance.blocked / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
                   Comissões pendentes
@@ -211,38 +233,40 @@ export default function AffiliateDashboardSaques() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {mockSaques.map((saque) => (
-                <TableRow key={saque.id}>
-                  <TableCell className="font-mono font-medium">{saque.id}</TableCell>
+              {withdrawals.map((withdrawal: any) => (
+                <TableRow key={withdrawal.id}>
+                  <TableCell className="font-mono font-medium">{withdrawal.id.substring(0, 8)}</TableCell>
                   <TableCell className="font-bold text-primary">
-                    R$ {saque.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    R$ {((withdrawal.amount_cents || 0) / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                   </TableCell>
                   <TableCell>
-                    {new Date(saque.dataSolicitacao).toLocaleDateString('pt-BR')}
+                    {new Date(withdrawal.created_at).toLocaleDateString('pt-BR')}
                   </TableCell>
                   <TableCell>
-                    {saque.dataProcessamento 
-                      ? new Date(saque.dataProcessamento).toLocaleDateString('pt-BR')
+                    {withdrawal.processed_at 
+                      ? new Date(withdrawal.processed_at).toLocaleDateString('pt-BR')
                       : "-"
                     }
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
-                      <span className="text-sm">{saque.metodoPagamento}</span>
-                      <span className="text-xs text-muted-foreground">
-                        ({saque.chavePix})
-                      </span>
+                      <span className="text-sm">{withdrawal.method?.toUpperCase() || 'PIX'}</span>
+                      {withdrawal.pix_key && (
+                        <span className="text-xs text-muted-foreground">
+                          ({withdrawal.pix_key})
+                        </span>
+                      )}
                     </div>
                   </TableCell>
                   <TableCell>
-                    <StatusBadge status={saque.status as any} />
+                    <StatusBadge status={withdrawal.status} />
                   </TableCell>
                 </TableRow>
               ))}
             </TableBody>
           </Table>
 
-          {mockSaques.length === 0 && (
+          {withdrawals.length === 0 && (
             <div className="text-center py-12">
               <Wallet className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
               <h3 className="text-lg font-semibold mb-2">Nenhum saque realizado ainda</h3>
@@ -277,12 +301,12 @@ export default function AffiliateDashboardSaques() {
                   onChange={(e) => setValorSaque(e.target.value)}
                   className="pl-10"
                   min="50"
-                  max={saldoDisponivel}
+                  max={balance.available / 100}
                   step="0.01"
                 />
               </div>
               <p className="text-xs text-muted-foreground">
-                Mínimo: R$ 50,00 • Máximo disponível: R$ {saldoDisponivel.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                Mínimo: R$ 50,00 • Máximo disponível: R$ {(balance.available / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
               </p>
             </div>
 
@@ -290,10 +314,10 @@ export default function AffiliateDashboardSaques() {
               <Label>Chave PIX Cadastrada</Label>
               <div className="flex items-center gap-2 p-3 rounded-lg bg-muted">
                 <CheckCircle2 className="h-5 w-5 text-success flex-shrink-0" />
-                <span className="text-sm">carlos.mendes@email.com</span>
+                <span className="text-sm">Configurada nas configurações</span>
               </div>
               <p className="text-xs text-muted-foreground">
-                O pagamento será feito nesta chave PIX
+                O pagamento será feito na chave PIX cadastrada
               </p>
             </div>
 

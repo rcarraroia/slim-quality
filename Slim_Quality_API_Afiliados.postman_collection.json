@@ -33,6 +33,18 @@
       "type": "string"
     },
     {
+      "key": "withdrawal_id",
+      "value": "",
+      "type": "string",
+      "description": "ID do saque criado"
+    },
+    {
+      "key": "auth_token",
+      "value": "",
+      "type": "string",
+      "description": "Token JWT do Supabase Auth para autenticação"
+    },
+    {
       "key": "asaas_webhook_token",
       "value": "seu_token_aqui",
       "type": "string",
@@ -789,6 +801,398 @@
                   "pm.test('Endpoint está saudável', function () {",
                   "    var jsonData = pm.response.json();",
                   "    pm.expect(jsonData).to.have.property('status', 'healthy');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Saques (Withdrawals)",
+      "item": [
+        {
+          "name": "Listar Saques do Afiliado",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
+                "description": "Token JWT do afiliado autenticado"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/affiliates/withdrawals?page=1&limit=20",
+              "host": ["{{base_url}}"],
+              "path": ["api", "affiliates", "withdrawals"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Página atual"
+                },
+                {
+                  "key": "limit",
+                  "value": "20",
+                  "description": "Itens por página"
+                },
+                {
+                  "key": "status",
+                  "value": "",
+                  "description": "Filtrar por status: pending, processing, completed, rejected",
+                  "disabled": true
+                },
+                {
+                  "key": "startDate",
+                  "value": "",
+                  "description": "Data inicial (ISO 8601)",
+                  "disabled": true
+                },
+                {
+                  "key": "endDate",
+                  "value": "",
+                  "description": "Data final (ISO 8601)",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Lista histórico de saques do afiliado autenticado com paginação e filtros"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code é 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Retorna estrutura de withdrawals', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('success', true);",
+                  "    pm.expect(jsonData).to.have.property('data');",
+                  "    pm.expect(jsonData.data).to.have.property('withdrawals');",
+                  "    pm.expect(jsonData.data).to.have.property('pagination');",
+                  "    pm.expect(jsonData.data).to.have.property('summary');",
+                  "});",
+                  "",
+                  "pm.test('Paginação está correta', function () {",
+                  "    var pagination = pm.response.json().data.pagination;",
+                  "    pm.expect(pagination).to.have.property('page');",
+                  "    pm.expect(pagination).to.have.property('limit');",
+                  "    pm.expect(pagination).to.have.property('total');",
+                  "    pm.expect(pagination).to.have.property('totalPages');",
+                  "});",
+                  "",
+                  "pm.test('Summary contém totalizadores', function () {",
+                  "    var summary = pm.response.json().data.summary;",
+                  "    pm.expect(summary).to.have.property('totalCompleted');",
+                  "    pm.expect(summary).to.have.property('totalPending');",
+                  "    pm.expect(summary).to.have.property('totalRejected');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Solicitar Novo Saque",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
+                "description": "Token JWT do afiliado autenticado"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 150.00,\n  \"pixKey\": \"11999999999\",\n  \"description\": \"Saque de comissões - Janeiro 2026\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/affiliates/withdrawals",
+              "host": ["{{base_url}}"],
+              "path": ["api", "affiliates", "withdrawals"]
+            },
+            "description": "Solicita um novo saque de comissões (mínimo R$ 50)"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code é 201', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test('Saque criado com sucesso', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('success', true);",
+                  "    pm.expect(jsonData).to.have.property('data');",
+                  "    pm.expect(jsonData.data).to.have.property('withdrawalId');",
+                  "    pm.expect(jsonData.data).to.have.property('status', 'pending');",
+                  "    pm.expect(jsonData.data).to.have.property('estimatedDate');",
+                  "});",
+                  "",
+                  "pm.test('Salvar ID do saque', function () {",
+                  "    var withdrawalId = pm.response.json().data.withdrawalId;",
+                  "    pm.collectionVariables.set('withdrawal_id', withdrawalId);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Saque - Valor Abaixo do Mínimo (deve falhar)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
+                "description": "Token JWT do afiliado autenticado"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 30.00,\n  \"pixKey\": \"11999999999\",\n  \"description\": \"Tentativa de saque abaixo do mínimo\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/affiliates/withdrawals",
+              "host": ["{{base_url}}"],
+              "path": ["api", "affiliates", "withdrawals"]
+            },
+            "description": "Testa validação de valor mínimo (R$ 50)"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code é 400 (valor mínimo)', function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});",
+                  "",
+                  "pm.test('Mensagem de erro apropriada', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('success', false);",
+                  "    pm.expect(jsonData).to.have.property('error');",
+                  "    pm.expect(jsonData.error).to.include('mínimo');",
+                  "    pm.expect(jsonData.error).to.include('50');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Saque - Sem Chave PIX (deve falhar)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
+                "description": "Token JWT do afiliado autenticado"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 100.00,\n  \"description\": \"Tentativa sem chave PIX\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/affiliates/withdrawals",
+              "host": ["{{base_url}}"],
+              "path": ["api", "affiliates", "withdrawals"]
+            },
+            "description": "Testa validação de chave PIX obrigatória"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code é 400 (sem PIX)', function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});",
+                  "",
+                  "pm.test('Mensagem de erro apropriada', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('success', false);",
+                  "    pm.expect(jsonData).to.have.property('error');",
+                  "    pm.expect(jsonData.error).to.include('PIX');",
+                  "    pm.expect(jsonData.error).to.include('obrigatória');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Saque - Sem Autenticação (deve falhar)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 100.00,\n  \"pixKey\": \"11999999999\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/affiliates/withdrawals",
+              "host": ["{{base_url}}"],
+              "path": ["api", "affiliates", "withdrawals"]
+            },
+            "description": "Testa validação de autenticação obrigatória"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code é 401 (não autenticado)', function () {",
+                  "    pm.response.to.have.status(401);",
+                  "});",
+                  "",
+                  "pm.test('Mensagem de erro apropriada', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('success', false);",
+                  "    pm.expect(jsonData).to.have.property('error');",
+                  "    pm.expect(jsonData.error).to.include('autenticação');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Filtrar Saques por Status",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
+                "description": "Token JWT do afiliado autenticado"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/affiliates/withdrawals?status=completed",
+              "host": ["{{base_url}}"],
+              "path": ["api", "affiliates", "withdrawals"],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "completed",
+                  "description": "Filtrar apenas saques completados"
+                }
+              ]
+            },
+            "description": "Testa filtro por status de saque"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code é 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Retorna apenas saques completados', function () {",
+                  "    var withdrawals = pm.response.json().data.withdrawals;",
+                  "    withdrawals.forEach(function(withdrawal) {",
+                  "        pm.expect(withdrawal.status).to.equal('completed');",
+                  "    });",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Filtrar Saques por Período",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
+                "description": "Token JWT do afiliado autenticado"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/affiliates/withdrawals?startDate=2026-01-01&endDate=2026-01-31",
+              "host": ["{{base_url}}"],
+              "path": ["api", "affiliates", "withdrawals"],
+              "query": [
+                {
+                  "key": "startDate",
+                  "value": "2026-01-01",
+                  "description": "Data inicial"
+                },
+                {
+                  "key": "endDate",
+                  "value": "2026-01-31",
+                  "description": "Data final"
+                }
+              ]
+            },
+            "description": "Testa filtro por período de datas"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code é 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Retorna saques no período especificado', function () {",
+                  "    var withdrawals = pm.response.json().data.withdrawals;",
+                  "    var startDate = new Date('2026-01-01');",
+                  "    var endDate = new Date('2026-01-31');",
+                  "    ",
+                  "    withdrawals.forEach(function(withdrawal) {",
+                  "        var createdAt = new Date(withdrawal.created_at);",
+                  "        pm.expect(createdAt).to.be.at.least(startDate);",
+                  "        pm.expect(createdAt).to.be.at.most(endDate);",
+                  "    });",
                   "});"
                 ],
                 "type": "text/javascript"

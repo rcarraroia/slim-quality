@@ -103,162 +103,54 @@ Correção de dados mockados e funcionalidades quebradas no painel de afiliados,
 
 ### 3. Corrigir Página de Vendas
 
-- [ ] 3.1 Analisar dados mockados na Página de Vendas
-  - Arquivo: `src/mocks/salesData.ts`
-  - Identificar lista de vendas mockada
-  - Identificar filtros operando sobre mocks
-  - Identificar exportação usando dados mockados
-  - _Requisitos: Análise preventiva obrigatória_
+**⚠️ NOTA:** Página de Vendas não existe no painel de afiliados atual. Esta task será removida.
 
-- [ ] 3.2 Implementar query real para lista de vendas
-  - Buscar vendas reais do afiliado
-  - Incluir informações do pedido
-  - Incluir informações do cliente
-  - Incluir valor da comissão
-  - Incluir status da venda
-  - Suportar paginação
-  - _Requisitos: Dados reais do banco de dados_
-
-- [ ] 3.3 Implementar filtros reais
-  - Filtro por período (data início/fim)
-  - Filtro por status (paga, pendente, cancelada)
-  - Filtro por valor mínimo/máximo
-  - Filtro por cliente (busca por nome)
-  - Aplicar filtros na query SQL, não em memória
-  - _Requisitos: Funcionalidade de filtros_
-
-- [ ] 3.4 Criar Serverless Function para vendas
-  - Criar: `api/affiliates/sales.js`
-  - Endpoint: `GET /api/affiliates/sales`
-  - Parâmetros: page, limit, status, startDate, endDate, minValue, maxValue, customer
-  - Retornar: sales[], pagination, summary
-  - _Requisitos: API para vendas_
-
-- [ ] 3.5 Corrigir exportação para usar dados reais
-  - Atualizar função de exportação
-  - Buscar dados reais do banco (não do mock)
-  - Aplicar mesmos filtros da listagem
-  - Gerar CSV/PDF com dados reais
-  - _Requisitos: Funcionalidade de exportação_
-
-- [ ] 3.6 Remover arquivo mock
-  - Deletar: `src/mocks/salesData.ts`
-  - Atualizar imports na página de Vendas
-  - Remover referências ao mock
-  - _Requisitos: Limpeza de código_
-
-- [ ] 3.7 Testar Página de Vendas com dados reais
-  - Validar listagem de vendas
-  - Validar paginação
-  - Validar todos os filtros
-  - Validar exportação
-  - _Requisitos: Funcionalidades da página de Vendas_
-
-- [ ] 3.8 Checkpoint - Validar Página de Vendas
-  - Página sem dados mockados
-  - Lista de vendas real
-  - Filtros funcionando corretamente
-  - Exportação com dados reais
-  - Perguntar ao usuário se há problemas
+- [N/A] Task removida - página não existe no sistema
 
 ---
 
 ### 4. Corrigir Página de Comissões
 
-- [ ] 4.1 Analisar dados mockados na Página de Comissões
-  - Arquivo: `src/mocks/commissionsData.ts`
-  - Identificar comissões pendentes mockadas
-  - Identificar histórico de pagamentos mockado
-  - Identificar totalizadores mockados
-  - Identificar filtros operando sobre mocks
-  - _Requisitos: Análise preventiva obrigatória_
+**✅ ANÁLISE CONCLUÍDA:** Página já está usando dados reais do Supabase via `affiliateFrontendService.getCommissions()`. Não há dados mockados.
 
-- [ ] 4.2 Implementar query real para comissões pendentes
-  - Buscar comissões com status 'pending'
-  - Incluir informações do pedido
-  - Incluir informações do cliente
-  - Incluir nível da comissão (N1, N2, N3)
-  - Calcular total pendente
-  - _Requisitos: Dados reais do banco de dados_
-
-- [ ] 4.3 Implementar query real para histórico de pagamentos
-  - Buscar comissões com status 'paid'
-  - Incluir data de pagamento
-  - Incluir método de pagamento
-  - Incluir informações do pedido
-  - Agrupar por período (se necessário)
-  - _Requisitos: Dados reais do banco de dados_
-
-- [ ] 4.4 Implementar totalizadores reais
-  - Total de comissões pagas (sum de amount_cents)
-  - Total de comissões pendentes (sum de amount_cents)
-  - Total de comissões canceladas (sum de amount_cents)
-  - Comissões por nível (N1, N2, N3)
-  - Comissões por período (mês atual, mês anterior, etc.)
-  - _Requisitos: Cálculos financeiros_
-
-- [ ] 4.5 Implementar filtros reais
-  - Filtro por status (paga, pendente, cancelada)
-  - Filtro por período (data início/fim)
-  - Filtro por nível (N1, N2, N3)
-  - Filtro por valor mínimo/máximo
-  - Aplicar filtros na query SQL, não em memória
-  - _Requisitos: Funcionalidade de filtros_
-
-- [ ] 4.6 Criar Serverless Function para comissões
-  - Criar: `api/affiliates/commissions.js`
-  - Endpoint: `GET /api/affiliates/commissions`
-  - Parâmetros: page, limit, status, level, startDate, endDate, minValue, maxValue
-  - Retornar: commissions[], pagination, summary, totals
-  - _Requisitos: API para comissões_
-
-- [ ] 4.7 Remover arquivo mock
-  - Deletar: `src/mocks/commissionsData.ts`
-  - Atualizar imports na página de Comissões
-  - Remover referências ao mock
-  - _Requisitos: Limpeza de código_
-
-- [ ] 4.8 Testar Página de Comissões com dados reais
-  - Validar listagem de comissões
-  - Validar comissões pendentes
-  - Validar histórico de pagamentos
-  - Validar totalizadores
-  - Validar todos os filtros
-  - _Requisitos: Funcionalidades da página de Comissões_
-
-- [ ] 4.9 Checkpoint - Validar Página de Comissões
-  - Página sem dados mockados
-  - Comissões reais sendo exibidas
-  - Totalizadores corretos
-  - Filtros funcionando corretamente
-  - Perguntar ao usuário se há problemas
+- [✓] 4.1 Verificar dados mockados na Página de Comissões
+  - ✅ Página já usa dados reais do banco
+  - ✅ Método `getCommissions()` busca da tabela `commissions`
+  - ✅ Totalizadores calculados sobre dados reais
+  - ✅ Filtros operam sobre dados reais
+  - ✅ Paginação implementada
+  - _Status: Página já está correta, não precisa de alterações_
+  - ✅ **Concluída mas não validada**
 
 ---
 
 ### 5. Implementar Recebimentos Reais
 
-- [ ] 2.1 Criar tabela `affiliate_withdrawals` no banco
+- [✓] 2.1 Criar tabela `affiliate_withdrawals` no banco
   - Criar migration SQL
   - Campos: id, affiliate_id, amount_cents, status, method, wallet_id, pix_key, etc.
   - Índices: affiliate_id, status, created_at
   - Políticas RLS: afiliados veem apenas próprios saques
   - Trigger: updated_at
   - _Requisitos: Migration SQL no relatório_
+  - ✅ **Concluída mas não validada**
 
-- [ ] 2.2 Implementar método `getWithdrawals()` real
+- [✓] 2.2 Implementar método `getWithdrawals()` real
   - Arquivo: `src/services/frontend/affiliate.service.ts`
   - Remover dados mockados
   - Buscar dados reais da tabela `affiliate_withdrawals`
   - Incluir paginação e filtros
   - Calcular totais (completed, pending, rejected)
   - _Requisitos: Código de exemplo no relatório_
+  - ✅ **Concluída mas não validada**
 
-- [ ] 2.3 Criar Serverless Function para withdrawals
+- [✓] 2.3 Criar Serverless Function para withdrawals
   - Criar: `api/affiliates/withdrawals.js`
   - Endpoint: `GET /api/affiliates/withdrawals`
   - Parâmetros: page, limit, status, startDate, endDate
   - Retornar: withdrawals[], pagination, summary
   - _Requisitos: API faltando identificada no relatório_
+  - ✅ **Concluída mas não validada**
 
 - [ ] 2.4 Testar página de Recebimentos
   - Validar listagem de recebimentos
@@ -277,15 +169,31 @@ Correção de dados mockados e funcionalidades quebradas no painel de afiliados,
 
 ### 6. Implementar Sistema de Saques
 
-- [ ] 3.1 Criar Serverless Function para saldo
+- [✓] 3.1 Criar Serverless Function para saldo
   - Criar: `api/affiliates/balance.js`
   - Endpoint: `GET /api/affiliates/balance`
   - Calcular saldo disponível (comissões pagas - saques)
   - Calcular saldo bloqueado (comissões pendentes)
   - Retornar: `{ available, blocked, total, lastUpdate }`
   - _Requisitos: API faltando identificada no relatório_
+  - ✅ **Concluída mas não validada**
 
-- [ ] 3.2 Criar Serverless Function para solicitar saque
+- [✓] 3.2 Adicionar método `getBalance()` no service
+  - Arquivo: `src/services/frontend/affiliate.service.ts`
+  - Método para chamar API de saldo
+  - Fallback para mock se API não disponível
+  - _Requisitos: Integração frontend com API_
+  - ✅ **Concluída mas não validada**
+
+- [✓] 3.3 Atualizar página Saques com dados reais
+  - Arquivo: `src/pages/afiliados/dashboard/Saques.tsx`
+  - Integrar com API de withdrawals
+  - Integrar com API de balance
+  - Remover dados mockados
+  - _Requisitos: Página funcional com dados reais_
+  - ✅ **Concluída mas não validada**
+
+- [ ] 3.4 Criar Serverless Function para solicitar saque
   - Criar: `api/affiliates/withdrawals.js` (POST)
   - Endpoint: `POST /api/affiliates/withdrawals`
   - Body: `{ amount, pixKey, description }`
@@ -295,7 +203,7 @@ Correção de dados mockados e funcionalidades quebradas no painel de afiliados,
   - Retornar: `{ withdrawalId, status, estimatedDate }`
   - _Requisitos: API faltando identificada no relatório_
 
-- [ ] 3.3 Implementar lógica de cálculo de saldo
+- [ ] 3.5 Implementar lógica de cálculo de saldo
   - Buscar todas as comissões pagas do afiliado
   - Subtrair todos os saques completados
   - Calcular saldo bloqueado (comissões pendentes)

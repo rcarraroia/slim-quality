@@ -1210,88 +1210,82 @@ export class AffiliateFrontendService {
   }
 
   /**
+   * Busca saldo do afiliado
+   * Calcula saldo disponível, bloqueado e total
+   */
+  async getBalance() {
+    try {
+      const response = await fetch(`${this.baseUrl}/balance`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Erro ao buscar saldo');
+      }
+
+      const result = await response.json();
+      return result.data;
+    } catch (error) {
+      console.error('Erro ao buscar saldo:', error);
+      throw new Error('Erro ao carregar saldo');
+    }
+  }
+
+  /**
    * Busca histórico de recebimentos/withdrawals do afiliado
-   * TEMPORÁRIO: Mock data até implementar autenticação de afiliados
+   * Busca dados reais do banco de dados
    */
   async getWithdrawals(page = 1, limit = 20) {
     try {
-      console.log('🔄 Usando mock data para withdrawals de afiliados');
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Usuário não autenticado');
+
+      const { data: affiliate } = await supabase
+        .from('affiliates')
+        .select('id')
+        .eq('user_id', user.id)
+        .is('deleted_at', null)
+        .maybeSingle();
+
+      if (!affiliate) {
+        return {
+          withdrawals: [],
+          pagination: { page, limit, total: 0, totalPages: 0 },
+          summary: { totalCompleted: 0, totalPending: 0, totalRejected: 0 }
+        };
+      }
+
+      const offset = (page - 1) * limit;
       
-      // Simular delay de API
-      await new Promise(resolve => setTimeout(resolve, 400));
-      
-      // Mock com formato correto (amount_cents e created_at)
-      const mockWithdrawals = [
-        {
-          id: 'with-1',
-          amount_cents: 150000,
-          status: 'completed',
-          method: 'pix',
-          created_at: '2026-01-01T10:00:00Z',
-          processed_at: '2026-01-01T14:30:00Z',
-          wallet_id: 'cd912fa1-5fa4-4d49-92eb-b5ab4dfba961',
-          description: 'Saque de comissões - Dezembro 2025',
-          commission: {
-            level: 1,
-            order: { id: 'ord-001', customer_name: 'João Silva' }
-          }
-        },
-        {
-          id: 'with-2',
-          amount_cents: 75050,
-          status: 'processing',
-          method: 'pix',
-          created_at: '2025-12-28T16:20:00Z',
-          wallet_id: 'cd912fa1-5fa4-4d49-92eb-b5ab4dfba961',
-          description: 'Saque de comissões - Semana 52',
-          commission: {
-            level: 1,
-            order: { id: 'ord-002', customer_name: 'Maria Santos' }
-          }
-        },
-        {
-          id: 'with-3',
-          amount_cents: 225075,
-          status: 'completed',
-          method: 'pix',
-          created_at: '2025-12-15T09:15:00Z',
-          processed_at: '2025-12-15T11:45:00Z',
-          wallet_id: 'cd912fa1-5fa4-4d49-92eb-b5ab4dfba961',
-          description: 'Saque de comissões - Novembro 2025',
-          commission: {
-            level: 2,
-            order: { id: 'ord-003', customer_name: 'Pedro Oliveira' }
-          }
-        },
-        {
-          id: 'with-4',
-          amount_cents: 89025,
-          status: 'rejected',
-          method: 'pix',
-          created_at: '2025-12-10T14:30:00Z',
-          rejected_at: '2025-12-10T16:00:00Z',
-          wallet_id: 'cd912fa1-5fa4-4d49-92eb-b5ab4dfba961',
-          description: 'Saque de comissões - Semana 49',
-          rejection_reason: 'Dados bancários inválidos',
-          commission: {
-            level: 1,
-            order: { id: 'ord-004', customer_name: 'Ana Costa' }
-          }
-        }
-      ];
+      const { data: withdrawals, error, count } = await supabase
+        .from('affiliate_withdrawals')
+        .select('*', { count: 'exact' })
+        .eq('affiliate_id', affiliate.id)
+        .is('deleted_at', null)
+        .order('created_at', { ascending: false })
+        .range(offset, offset + limit - 1);
+
+      if (error) throw error;
+
+      const totalCompleted = withdrawals?.filter(w => w.status === 'completed').reduce((sum, w) => sum + (w.amount_cents || 0), 0) || 0;
+      const totalPending = withdrawals?.filter(w => w.status === 'processing').reduce((sum, w) => sum + (w.amount_cents || 0), 0) || 0;
+      const totalRejected = withdrawals?.filter(w => w.status === 'rejected').reduce((sum, w) => sum + (w.amount_cents || 0), 0) || 0;
 
       return {
-        withdrawals: mockWithdrawals,
+        withdrawals: withdrawals || [],
         pagination: {
           page,
           limit,
-          total: mockWithdrawals.length,
-          totalPages: Math.ceil(mockWithdrawals.length / limit)
+          total: count || 0,
+          totalPages: Math.ceil((count || 0) / limit)
         },
         summary: {
-          totalCompleted: mockWithdrawals.filter(w => w.status === 'completed').reduce((sum, w) => sum + w.amount_cents, 0),
-          totalPending: mockWithdrawals.filter(w => w.status === 'processing').reduce((sum, w) => sum + w.amount_cents, 0),
-          totalRejected: mockWithdrawals.filter(w => w.status === 'rejected').reduce((sum, w) => sum + w.amount_cents, 0)
+          totalCompleted,
+          totalPending,
+          totalRejected
         }
       };
     } catch (error) {
