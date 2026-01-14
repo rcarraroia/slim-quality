@@ -407,7 +407,7 @@ export class AffiliateFrontendService {
   async getReferralLink(): Promise<{ link: string; qrCode: string; referralCode: string; slug?: string }> {
     try {
       // Tentar API primeiro
-      const response = await fetch(`${this.baseUrl}/referral-link`, {
+      const response = await fetch(`${this.baseUrl}?action=referral-link`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -1215,7 +1215,7 @@ export class AffiliateFrontendService {
    */
   async getBalance() {
     try {
-      const response = await fetch(`${this.baseUrl}/balance`, {
+      const response = await fetch(`${this.baseUrl}?action=balance`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -1395,7 +1395,7 @@ export class AffiliateFrontendService {
    */
   async getNotificationPreferences() {
     try {
-      const response = await fetch(`${this.baseUrl}/notifications/preferences`, {
+      const response = await fetch(`${this.baseUrl}?action=notifications`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -1434,7 +1434,7 @@ export class AffiliateFrontendService {
     whatsapp_monthly_report?: boolean;
   }) {
     try {
-      const response = await fetch(`${this.baseUrl}/notifications/preferences`, {
+      const response = await fetch(`${this.baseUrl}?action=notifications`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -1464,7 +1464,7 @@ export class AffiliateFrontendService {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       
-      const response = await fetch(`${this.baseUrl}/export`, {
+      const response = await fetch(`${this.baseUrl}?action=export`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -1508,7 +1508,7 @@ export class AffiliateFrontendService {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       
-      const response = await fetch(`${this.baseUrl}/stats`, {
+      const response = await fetch(`${this.baseUrl}?action=stats`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
