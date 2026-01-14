@@ -247,13 +247,13 @@ export default function AffiliateDashboardInicio() {
             </label>
             <div className="flex gap-2">
               <Input 
-                value={referralLink ? `${window.location.origin}/afiliados/cadastro?ref=${referralLink.split('/').pop()}` : "Carregando..."} 
+                value={referralLink ? `https://slimquality.com.br/afiliados/cadastro?ref=${referralLink.split('?ref=')[1]}` : "Carregando..."} 
                 readOnly 
                 className="font-mono text-sm"
               />
               <Button 
                 onClick={() => {
-                  const cadastroLink = `${window.location.origin}/afiliados/cadastro?ref=${referralLink.split('/').pop()}`;
+                  const cadastroLink = `https://slimquality.com.br/afiliados/cadastro?ref=${referralLink.split('?ref=')[1]}`;
                   navigator.clipboard.writeText(cadastroLink);
                   toast({
                     title: "Link copiado!",
@@ -269,7 +269,7 @@ export default function AffiliateDashboardInicio() {
               </Button>
               <Button 
                 onClick={() => {
-                  const cadastroLink = `${window.location.origin}/afiliados/cadastro?ref=${referralLink.split('/').pop()}`;
+                  const cadastroLink = `https://slimquality.com.br/afiliados/cadastro?ref=${referralLink.split('?ref=')[1]}`;
                   if (navigator.share) {
                     navigator.share({
                       title: "Seja um Afiliado Slim Quality",

@@ -190,7 +190,7 @@ async function handleReferralLink(req, res, supabase) {
       .single();
 
     const identifier = affiliateData.slug || affiliateData.referral_code;
-    const baseUrl = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'https://slimquality.com.br';
+    const baseUrl = 'https://slimquality.com.br';
     const link = `${baseUrl}?ref=${identifier}`;
     const qrCode = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(link)}`;
 

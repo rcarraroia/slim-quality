@@ -381,7 +381,7 @@ export class AffiliateFrontendService {
       const identifier = data.slug || data.referral_code;
 
       // 4. Montar link com parâmetro ?ref=
-      const baseUrl = window.location.origin;
+      const baseUrl = 'https://slimquality.com.br';
       const link = `${baseUrl}?ref=${identifier}`;
 
       // 5. Gerar QR Code
