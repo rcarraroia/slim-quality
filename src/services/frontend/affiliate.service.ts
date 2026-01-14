@@ -1235,6 +1235,102 @@ export class AffiliateFrontendService {
   }
 
   /**
+   * Busca vendas do afiliado que geraram comissões
+   * Busca dados reais do banco de dados
+   */
+  async getSales(page = 1, limit = 20) {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        throw new Error('Usuário não autenticado');
+      }
+
+      const { data: affiliate } = await supabase
+        .from('affiliates')
+        .select('id')
+        .eq('user_id', user.id)
+        .is('deleted_at', null)
+        .maybeSingle();
+
+      if (!affiliate) {
+        return {
+          sales: [],
+          pagination: { page, limit, total: 0, totalPages: 0 },
+          summary: { totalSales: 0, totalValue: 0, totalCommissions: 0 }
+        };
+      }
+
+      const offset = (page - 1) * limit;
+      
+      // Buscar comissões com informações do pedido
+      const { data: commissions, error, count } = await supabase
+        .from('commissions')
+        .select(`
+          id,
+          commission_value_cents,
+          level,
+          status,
+          created_at,
+          order_id,
+          orders (
+            id,
+            total_cents,
+            status,
+            created_at,
+            customers (name)
+          )
+        `, { count: 'exact' })
+        .eq('affiliate_id', affiliate.id)
+        .order('created_at', { ascending: false })
+        .range(offset, offset + limit - 1);
+
+      if (error) {
+        console.error('Erro ao buscar vendas:', error);
+      }
+
+      // Mapear vendas
+      const mappedSales = (commissions || []).map((c: any) => ({
+        id: c.id,
+        orderId: c.orders?.id || c.order_id,
+        createdAt: c.orders?.created_at || c.created_at,
+        customerName: c.orders?.customers?.name || 'Cliente não informado',
+        productName: 'Slim Quality', // TODO: Buscar nome real do produto
+        totalValue: (c.orders?.total_cents || 0) / 100,
+        commissionValue: (c.commission_value_cents || 0) / 100,
+        level: `N${c.level || 1}`,
+        status: c.orders?.status || c.status
+      }));
+
+      // Calcular totais
+      const totalValue = mappedSales.reduce((sum, s) => sum + s.totalValue, 0);
+      const totalCommissions = mappedSales.reduce((sum, s) => sum + s.commissionValue, 0);
+
+      return {
+        sales: mappedSales,
+        pagination: {
+          page,
+          limit,
+          total: count || 0,
+          totalPages: Math.ceil((count || 0) / limit)
+        },
+        summary: {
+          totalSales: count || 0,
+          totalValue,
+          totalCommissions
+        }
+      };
+    } catch (error) {
+      console.error('Erro ao buscar vendas:', error);
+      return {
+        sales: [],
+        pagination: { page, limit, total: 0, totalPages: 0 },
+        summary: { totalSales: 0, totalValue: 0, totalCommissions: 0 }
+      };
+    }
+  }
+
+  /**
    * Busca histórico de recebimentos/withdrawals do afiliado
    * Busca dados reais do banco de dados
    */
