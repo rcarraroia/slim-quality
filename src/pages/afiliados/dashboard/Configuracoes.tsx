@@ -43,6 +43,15 @@ export default function AffiliateDashboardConfiguracoes() {
   const [checkingSlug, setCheckingSlug] = useState(false);
   const [slugStatus, setSlugStatus] = useState<{ available: boolean; message: string } | null>(null);
 
+  // Estados para notificações
+  const [notificationPreferences, setNotificationPreferences] = useState({
+    email_commissions: true,
+    email_monthly_report: true,
+    email_new_affiliates: true,
+    email_promotions: false
+  });
+  const [savingNotifications, setSavingNotifications] = useState(false);
+
   // Carregar dados do afiliado ao montar componente
   useEffect(() => {
     loadAffiliateData();
@@ -89,6 +98,19 @@ export default function AffiliateDashboardConfiguracoes() {
 
       if (customerData) {
         setCustomer(customerData);
+      }
+
+      // Buscar preferências de notificações
+      try {
+        const preferences = await affiliateFrontendService.getNotificationPreferences();
+        setNotificationPreferences({
+          email_commissions: preferences.email_commissions,
+          email_monthly_report: preferences.email_monthly_report,
+          email_new_affiliates: preferences.email_new_affiliates,
+          email_promotions: preferences.email_promotions
+        });
+      } catch (error) {
+        console.error('Erro ao carregar preferências:', error);
       }
 
     } catch (error) {
@@ -367,8 +389,26 @@ export default function AffiliateDashboardConfiguracoes() {
     }
   };
 
-  const handleSaveNotifications = () => {
-    toast({ title: "Preferências de notificações salvas!" });
+  const handleSaveNotifications = async () => {
+    try {
+      setSavingNotifications(true);
+      
+      await affiliateFrontendService.saveNotificationPreferences(notificationPreferences);
+      
+      toast({ 
+        title: "Preferências salvas!",
+        description: "Suas preferências de notificações foram atualizadas com sucesso."
+      });
+    } catch (error) {
+      console.error('Erro ao salvar preferências:', error);
+      toast({
+        title: "Erro ao salvar",
+        description: "Não foi possível salvar suas preferências. Tente novamente.",
+        variant: "destructive"
+      });
+    } finally {
+      setSavingNotifications(false);
+    }
   };
 
   // Funções para Slug
@@ -701,7 +741,13 @@ export default function AffiliateDashboardConfiguracoes() {
               <Label htmlFor="notif-comissao" className="cursor-pointer">Novas comissões</Label>
               <p className="text-sm text-muted-foreground">Receber email quando houver nova comissão</p>
             </div>
-            <Checkbox id="notif-comissao" defaultChecked />
+            <Checkbox 
+              id="notif-comissao" 
+              checked={notificationPreferences.email_commissions}
+              onCheckedChange={(checked) => 
+                setNotificationPreferences(prev => ({ ...prev, email_commissions: checked as boolean }))
+              }
+            />
           </div>
 
           <div className="flex items-center justify-between">
@@ -709,7 +755,13 @@ export default function AffiliateDashboardConfiguracoes() {
               <Label htmlFor="notif-mensal" className="cursor-pointer">Resumo mensal</Label>
               <p className="text-sm text-muted-foreground">Receber email no resumo mensal</p>
             </div>
-            <Checkbox id="notif-mensal" defaultChecked />
+            <Checkbox 
+              id="notif-mensal" 
+              checked={notificationPreferences.email_monthly_report}
+              onCheckedChange={(checked) => 
+                setNotificationPreferences(prev => ({ ...prev, email_monthly_report: checked as boolean }))
+              }
+            />
           </div>
 
           <div className="flex items-center justify-between">
@@ -717,18 +769,39 @@ export default function AffiliateDashboardConfiguracoes() {
               <Label htmlFor="notif-afiliados" className="cursor-pointer">Novos afiliados</Label>
               <p className="text-sm text-muted-foreground">Notificar sobre novos afiliados na rede</p>
             </div>
-            <Checkbox id="notif-afiliados" defaultChecked />
+            <Checkbox 
+              id="notif-afiliados" 
+              checked={notificationPreferences.email_new_affiliates}
+              onCheckedChange={(checked) => 
+                setNotificationPreferences(prev => ({ ...prev, email_new_affiliates: checked as boolean }))
+              }
+            />
           </div>
 
           <div className="flex items-center justify-between">
             <div className="space-y-0.5">
-              <Label htmlFor="notif-bonus" className="cursor-pointer">Promoções e bônus</Label>
-              <p className="text-sm text-muted-foreground">Avisos de promoções e bônus</p>
+              <Label htmlFor="notif-promocoes" className="cursor-pointer">Promoções</Label>
+              <p className="text-sm text-muted-foreground">Receber emails sobre promoções e novidades</p>
             </div>
-            <Checkbox id="notif-bonus" />
+            <Checkbox 
+              id="notif-promocoes" 
+              checked={notificationPreferences.email_promotions}
+              onCheckedChange={(checked) => 
+                setNotificationPreferences(prev => ({ ...prev, email_promotions: checked as boolean }))
+              }
+            />
           </div>
 
-          <Button onClick={handleSaveNotifications}>Salvar Preferências</Button>
+          <Button onClick={handleSaveNotifications} disabled={savingNotifications}>
+            {savingNotifications ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Salvando...
+              </>
+            ) : (
+              'Salvar Preferências'
+            )}
+          </Button>
         </CardContent>
       </Card>
 

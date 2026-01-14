@@ -195,11 +195,12 @@ Correção de dados mockados e funcionalidades quebradas no painel de afiliados,
   - Formato: Pedido, Data, Cliente, Produto, Valor, Comissão, Status
   - _Tempo estimado: 15 minutos_
 
-- [ ] 7.9 Adicionar rota no menu
-  - Adicionar "Vendas" no menu lateral
-  - Ícone: ShoppingCart
-  - Rota: `/afiliados/dashboard/vendas`
-  - _Tempo estimado: 5 minutos_
+- [✓] 7.9 Adicionar rota no menu
+  - ✅ Rota adicionada no App.tsx
+  - ✅ Import do componente criado
+  - ✅ Item "Vendas" já estava no menu do layout
+  - ✅ Build passou sem erros
+  - ✅ **Concluída mas não validada** (Commit 0beb9bd)
 
 - [ ] 7.10 Testar página completa
   - Validar carregamento de dados
@@ -214,18 +215,18 @@ Correção de dados mockados e funcionalidades quebradas no painel de afiliados,
 
 ### 8. Completar Configurações
 
-- [ ] 8.1 Implementar salvamento de preferências de notificações
-  - Criar tabela `affiliate_notification_preferences` (se não existir)
-  - Atualizar método de salvamento em `affiliate.service.ts`
-  - Remover simulação de salvamento
-  - _Requisitos: Funcionalidade da página Configurações_
+- [✓] 8.1 Implementar salvamento de preferências de notificações
+  - ✅ Tabela `affiliate_notification_preferences` criada
+  - ✅ Migration aplicada com sucesso
+  - ✅ Método `saveNotificationPreferences()` implementado
+  - ✅ Checkboxes usando estado controlado
+  - ✅ **Concluída mas não validada**
 
-- [ ] 8.2 Criar Serverless Function para preferências
-  - Criar: `api/affiliates/notifications/preferences.js`
-  - Endpoint: `POST /api/affiliates/notifications/preferences`
-  - Body: `{ emailCommissions, emailMonthly, emailNewAffiliates, emailPromotions }`
-  - Salvar no banco de dados
-  - _Requisitos: API faltando identificada no relatório_
+- [✓] 8.2 Criar Serverless Function para preferências
+  - ✅ API `api/affiliates/notifications/preferences.js` criada (GET e POST)
+  - ✅ Integrada ao banco de dados
+  - ✅ Métodos `getNotificationPreferences()` e `saveNotificationPreferences()` no service
+  - ✅ **Concluída mas não validada**
 
 - [ ] 8.3 Implementar alteração de senha
   - Usar Supabase Auth para alterar senha

@@ -1390,6 +1390,70 @@ export class AffiliateFrontendService {
     }
   }
 
+  /**
+   * Busca preferências de notificações do afiliado
+   */
+  async getNotificationPreferences() {
+    try {
+      const response = await fetch(`${this.baseUrl}/notifications/preferences`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Erro ao buscar preferências');
+      }
+
+      const result = await response.json();
+      return result.data;
+    } catch (error) {
+      console.error('Erro ao buscar preferências:', error);
+      // Retornar valores padrão em caso de erro
+      return {
+        email_commissions: true,
+        email_monthly_report: true,
+        email_new_affiliates: true,
+        email_promotions: false,
+        whatsapp_commissions: false,
+        whatsapp_monthly_report: false
+      };
+    }
+  }
+
+  /**
+   * Salva preferências de notificações do afiliado
+   */
+  async saveNotificationPreferences(preferences: {
+    email_commissions: boolean;
+    email_monthly_report: boolean;
+    email_new_affiliates: boolean;
+    email_promotions: boolean;
+    whatsapp_commissions?: boolean;
+    whatsapp_monthly_report?: boolean;
+  }) {
+    try {
+      const response = await fetch(`${this.baseUrl}/notifications/preferences`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(preferences)
+      });
+
+      if (!response.ok) {
+        throw new Error('Erro ao salvar preferências');
+      }
+
+      const result = await response.json();
+      return result;
+    } catch (error) {
+      console.error('Erro ao salvar preferências:', error);
+      throw new Error('Erro ao salvar preferências de notificações');
+    }
+  }
+
 }
 
 // Instância singleton
