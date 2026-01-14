@@ -371,7 +371,10 @@ async function handleWithdrawals(req, res, supabase) {
         .order('created_at', { ascending: false })
         .range(offset, offset + parseInt(limit) - 1);
 
-      if (error) throw error;
+      if (error) {
+        console.error('[Withdrawals] Erro ao buscar dados:', error);
+        throw error;
+      }
 
       const totalCompleted = withdrawals?.filter(w => w.status === 'completed').reduce((sum, w) => sum + w.amount_cents, 0) || 0;
       const totalPending = withdrawals?.filter(w => w.status === 'processing').reduce((sum, w) => sum + w.amount_cents, 0) || 0;
@@ -425,7 +428,11 @@ async function handleWithdrawals(req, res, supabase) {
     return res.status(405).json({ success: false, error: 'Método não permitido' });
   } catch (error) {
     console.error('[Withdrawals] Erro:', error);
-    return res.status(500).json({ success: false, error: 'Erro ao processar saque' });
+    return res.status(500).json({ 
+      success: false, 
+      error: 'Erro ao processar saque',
+      details: error.message 
+    });
   }
 }
 
@@ -517,26 +524,43 @@ async function handleNotifications(req, res, supabase) {
 // HELPER: AUTHENTICATE AFFILIATE
 // ============================================
 async function authenticateAffiliate(req, supabase) {
-  const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    throw new Error('Token de autenticação não fornecido');
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      console.error('[Auth] Token não fornecido');
+      throw new Error('Token de autenticação não fornecido');
+    }
+
+    const token = authHeader.replace('Bearer ', '');
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    
+    if (authError) {
+      console.error('[Auth] Erro ao validar token:', authError);
+      throw new Error('Token inválido');
+    }
+    
+    if (!user) {
+      console.error('[Auth] Usuário não encontrado');
+      throw new Error('Usuário não autenticado');
+    }
+
+    const { data: affiliate, error: affiliateError } = await supabase
+      .from('affiliates')
+      .select('id')
+      .eq('user_id', user.id)
+      .is('deleted_at', null)
+      .maybeSingle();
+
+    if (affiliateError) {
+      console.error('[Auth] Erro ao buscar afiliado:', affiliateError);
+      throw new Error('Erro ao buscar dados do afiliado');
+    }
+
+    return { user, affiliate };
+  } catch (error) {
+    console.error('[Auth] Erro na autenticação:', error.message);
+    throw error;
   }
-
-  const token = authHeader.replace('Bearer ', '');
-  const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-  
-  if (authError || !user) {
-    throw new Error('Usuário não autenticado');
-  }
-
-  const { data: affiliate, error: affiliateError } = await supabase
-    .from('affiliates')
-    .select('id')
-    .eq('user_id', user.id)
-    .is('deleted_at', null)
-    .maybeSingle();
-
-  return { user, affiliate };
 }
 
 // ============================================

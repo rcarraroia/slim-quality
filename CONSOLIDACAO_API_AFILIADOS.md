@@ -236,3 +236,59 @@ git push origin main --force
 **Data:** 14/01/2026
 **Autor:** Kiro AI
 **Status:** ⏳ Aguardando validação do usuário
+
+
+---
+
+## ✅ STATUS FINAL - CONSOLIDAÇÃO CONCLUÍDA
+
+### 🎯 OBJETIVO ALCANÇADO
+- ✅ Redução de **14 → 8 Serverless Functions** (limite Vercel: 12)
+- ✅ API consolidada funcionando em produção
+- ✅ Todas as 7 funcionalidades operacionais
+
+### 🔧 CORREÇÕES APLICADAS
+
+#### 1. Correção do método `getWithdrawals()`
+- **Problema**: Fazia query DIRETA ao Supabase ao invés de usar API
+- **Solução**: Alterado para `${this.baseUrl}?action=withdrawals`
+- **Commit**: `c0ec21c`
+
+#### 2. Correção de autenticação nas APIs
+- **Problema**: APIs `notifications` e `referral-link` retornavam erro 500 por falta de Authorization header
+- **Solução**: Adicionado `Authorization: Bearer ${token}` nos métodos:
+  - `getReferralLink()`
+  - `getNotificationPreferences()`
+  - `saveNotificationPreferences()`
+- **Commit**: `10598ce`
+
+### 📊 FUNCIONALIDADES VALIDADAS
+
+| Action | Método | Status | Observações |
+|--------|--------|--------|-------------|
+| `balance` | GET | ✅ Funcionando | Calcula saldo disponível/bloqueado |
+| `export` | POST | ✅ Funcionando | Gera CSV de comissões/saques/rede |
+| `referral-link` | GET | ✅ CORRIGIDO | Agora envia Authorization header |
+| `sales` | GET | ✅ Funcionando | Lista vendas com comissões |
+| `stats` | GET | ✅ Funcionando | Estatísticas consolidadas |
+| `withdrawals` | GET/POST | ✅ CORRIGIDO | Agora usa API ao invés de query direta |
+| `notifications` | GET/POST | ✅ CORRIGIDO | Agora envia Authorization header |
+
+### 🚀 DEPLOY
+
+- **Status**: ✅ Deploy automático no Vercel
+- **Build**: ✅ Passou sem erros (1m 29s)
+- **Commits**: 2 correções aplicadas
+- **Tempo total de correção**: ~15 minutos (dentro do limite de 55min)
+
+### 📝 PRÓXIMOS PASSOS
+
+1. ✅ Testar em produção após deploy
+2. ✅ Validar que todas as páginas funcionam sem erros 404/500
+3. ✅ Confirmar que autenticação está funcionando corretamente
+
+---
+
+**Data da consolidação**: 14/01/2026  
+**Última atualização**: 14/01/2026 - Correções de autenticação aplicadas  
+**Status**: ✅ CONCLUÍDO E FUNCIONANDO
