@@ -37,16 +37,16 @@ try:
         from .sicc import router as sicc_router
         from .affiliates import router as affiliates_router
         from .webhooks_asaas import router as asaas_webhook_router
-        from .referral import router as referral_router
+        # from .referral import router as referral_router  # TODO: Criar módulo referral
         
         app.include_router(agent_router)
         app.include_router(mcp_router)
         app.include_router(sicc_router)
         app.include_router(affiliates_router)
         app.include_router(asaas_webhook_router)
-        app.include_router(referral_router)
+        # app.include_router(referral_router)  # TODO: Criar módulo referral
         
-        print("✅ Routers do dashboard registrados (incluindo affiliates e referral)", flush=True)
+        print("✅ Routers do dashboard registrados", flush=True)
     except Exception as router_error:
         print(f"⚠️ Erro ao registrar routers do dashboard: {router_error}", flush=True)
         # Continuar execução mesmo se routers falharem
