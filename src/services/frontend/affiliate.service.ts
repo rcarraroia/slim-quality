@@ -1500,6 +1500,34 @@ export class AffiliateFrontendService {
     }
   }
 
+  /**
+   * Busca estatísticas consolidadas do afiliado
+   * Retorna overview, performance, funil de conversão e crescimento da rede
+   */
+  async getStats() {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      const response = await fetch(`${this.baseUrl}/stats`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session?.access_token || ''}`
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Erro ao buscar estatísticas');
+      }
+
+      const result = await response.json();
+      return result.data;
+    } catch (error) {
+      console.error('Erro ao buscar estatísticas:', error);
+      throw new Error('Erro ao carregar estatísticas');
+    }
+  }
+
 }
 
 // Instância singleton

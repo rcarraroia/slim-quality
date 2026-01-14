@@ -12,7 +12,8 @@ import {
   Home,
   TreeDeciduous,
   Loader2,
-  ShoppingCart
+  ShoppingCart,
+  BarChart3
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -79,6 +80,7 @@ export function AffiliateDashboardLayout() {
     { icon: ShoppingCart, label: "Vendas", path: "/afiliados/dashboard/vendas" },
     { icon: DollarSign, label: "Comissões", path: "/afiliados/dashboard/comissoes" },
     { icon: CreditCard, label: "Recebimentos", path: "/afiliados/dashboard/recebimentos" },
+    { icon: BarChart3, label: "Estatísticas", path: "/afiliados/dashboard/estatisticas" },
     { icon: Settings, label: "Configurações", path: "/afiliados/dashboard/configuracoes" },
   ];
 
