@@ -24,6 +24,7 @@ import {
   BarChart3
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { affiliateFrontendService } from "@/services/frontend/affiliate.service";
 
 export default function AffiliateDashboardEstatisticas() {
   const [loading, setLoading] = useState(true);
@@ -38,19 +39,8 @@ export default function AffiliateDashboardEstatisticas() {
     try {
       setLoading(true);
       
-      const response = await fetch('/api/affiliates/stats', {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error('Erro ao carregar estatísticas');
-      }
-
-      const result = await response.json();
-      setStats(result.data);
+      const data = await affiliateFrontendService.getStats();
+      setStats(data);
       
     } catch (error) {
       console.error('Erro ao carregar estatísticas:', error);
