@@ -577,6 +577,7 @@ Seja empática, educativa e focada em ajudar o cliente com problemas de saúde e
             # Usar variáveis de ambiente
             evolution_url = os.getenv("EVOLUTION_URL", "https://slimquality-evolution-api.wpjtfd.easypanel.host")
             evolution_instance = os.getenv("EVOLUTION_INSTANCE", "SlimQualit")
+            evolution_api_key = os.getenv("EVOLUTION_API_KEY")
             
             # URL correta para enviar mensagem - CORRIGIDA
             url = f"{evolution_url}/message/sendText/{evolution_instance}"
@@ -588,9 +589,12 @@ Seja empática, educativa e focada em ajudar o cliente com problemas de saúde e
             
             # Headers com autenticação - CORRIGIDOS
             headers = {
-                "Content-Type": "application/json",
-                "apikey": "9A390AED6A45-4610-93B2-245591E39FDE"  # API Key fixa
+                "Content-Type": "application/json"
             }
+            
+            # Adicionar API key se disponível
+            if evolution_api_key:
+                headers["apikey"] = evolution_api_key
             
             print(f"🚀 Enviando mensagem para {phone}", flush=True)
             print(f"URL: {url}", flush=True)

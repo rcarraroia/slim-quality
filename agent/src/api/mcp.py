@@ -38,10 +38,19 @@ async def get_mcp_status():
         # 1. Verificar Evolution API
         try:
             evolution_url = os.getenv("EVOLUTION_URL", "https://slimquality-evolution-api.wpjtfd.easypanel.host")
+            evolution_api_key = os.getenv("EVOLUTION_API_KEY")
+            
+            # Preparar headers com autenticação
+            headers = {}
+            if evolution_api_key:
+                headers["apikey"] = evolution_api_key
             
             async with httpx.AsyncClient(timeout=5.0) as client:
                 start_time = datetime.now()
-                response = await client.get(f"{evolution_url}/instance/fetchInstances")
+                response = await client.get(
+                    f"{evolution_url}/instance/fetchInstances",
+                    headers=headers
+                )
                 response_time = (datetime.now() - start_time).total_seconds() * 1000
                 
                 if response.status_code == 200:
@@ -142,11 +151,11 @@ async def get_mcp_status():
                 error_message=str(e)
             ))
         
-        # 4. Verificar Redis (opcional)
+        # 4. Verificar Redis
         try:
             redis_url = os.getenv("REDIS_URL")
-            if redis_url and redis_url != "redis://localhost:6379":
-                # Só testar se Redis estiver configurado
+            if redis_url:
+                # Testar Redis se estiver configurado
                 import redis.asyncio as redis
                 
                 start_time = datetime.now()
@@ -222,10 +231,19 @@ async def test_mcp_integration(integration_id: str = Path(..., description="ID d
             # Teste específico da Evolution API
             try:
                 evolution_url = os.getenv("EVOLUTION_URL", "https://slimquality-evolution-api.wpjtfd.easypanel.host")
+                evolution_api_key = os.getenv("EVOLUTION_API_KEY")
+                
+                # Preparar headers com autenticação
+                headers = {}
+                if evolution_api_key:
+                    headers["apikey"] = evolution_api_key
                 
                 async with httpx.AsyncClient(timeout=10.0) as client:
                     # Teste mais detalhado: buscar instâncias
-                    response = await client.get(f"{evolution_url}/instance/fetchInstances")
+                    response = await client.get(
+                        f"{evolution_url}/instance/fetchInstances",
+                        headers=headers
+                    )
                     response_time = (datetime.now() - start_time).total_seconds() * 1000
                     
                     if response.status_code == 200:
@@ -337,7 +355,7 @@ async def test_mcp_integration(integration_id: str = Path(..., description="ID d
             # Teste específico do Redis
             try:
                 redis_url = os.getenv("REDIS_URL")
-                if not redis_url or redis_url == "redis://localhost:6379":
+                if not redis_url:
                     return MCPTestResponse(
                         integration_id=integration_id,
                         success=False,
