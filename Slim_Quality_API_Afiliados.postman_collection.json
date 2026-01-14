@@ -1203,6 +1203,259 @@
       ]
     },
     {
+      "name": "API Consolidada (Nova)",
+      "item": [
+        {
+          "name": "Balance - Buscar Saldo",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
+                "description": "Token JWT do afiliado autenticado"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/affiliates?action=balance",
+              "host": ["{{base_url}}"],
+              "path": ["api", "affiliates"],
+              "query": [
+                {
+                  "key": "action",
+                  "value": "balance"
+                }
+              ]
+            },
+            "description": "Busca saldo disponível do afiliado via API consolidada"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code é 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Retorna estrutura de saldo', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('success', true);",
+                  "    pm.expect(jsonData).to.have.property('data');",
+                  "    pm.expect(jsonData.data).to.have.property('available');",
+                  "    pm.expect(jsonData.data).to.have.property('pending');",
+                  "    pm.expect(jsonData.data).to.have.property('total');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Withdrawals - Listar Saques (GET)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
+                "description": "Token JWT do afiliado autenticado"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/affiliates?action=withdrawals&page=1&limit=20",
+              "host": ["{{base_url}}"],
+              "path": ["api", "affiliates"],
+              "query": [
+                {
+                  "key": "action",
+                  "value": "withdrawals"
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                }
+              ]
+            },
+            "description": "Lista histórico de saques via API consolidada"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code é 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Retorna estrutura de withdrawals', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('success', true);",
+                  "    pm.expect(jsonData).to.have.property('data');",
+                  "    pm.expect(jsonData.data).to.have.property('withdrawals');",
+                  "    pm.expect(jsonData.data).to.have.property('pagination');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Referral Link - Gerar Link",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
+                "description": "Token JWT do afiliado autenticado"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/affiliates?action=referral-link",
+              "host": ["{{base_url}}"],
+              "path": ["api", "affiliates"],
+              "query": [
+                {
+                  "key": "action",
+                  "value": "referral-link"
+                }
+              ]
+            },
+            "description": "Gera link de indicação do afiliado via API consolidada"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code é 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Retorna link de indicação', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('success', true);",
+                  "    pm.expect(jsonData).to.have.property('data');",
+                  "    pm.expect(jsonData.data).to.have.property('link');",
+                  "    pm.expect(jsonData.data).to.have.property('referralCode');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Stats - Buscar Estatísticas",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
+                "description": "Token JWT do afiliado autenticado"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/affiliates?action=stats",
+              "host": ["{{base_url}}"],
+              "path": ["api", "affiliates"],
+              "query": [
+                {
+                  "key": "action",
+                  "value": "stats"
+                }
+              ]
+            },
+            "description": "Busca estatísticas completas do afiliado via API consolidada"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code é 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Retorna estatísticas completas', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('success', true);",
+                  "    pm.expect(jsonData).to.have.property('data');",
+                  "    pm.expect(jsonData.data).to.have.property('overview');",
+                  "    pm.expect(jsonData.data).to.have.property('performance');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Export - Exportar Relatório",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
+                "description": "Token JWT do afiliado autenticado"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"commissions\",\n  \"startDate\": \"2026-01-01\",\n  \"endDate\": \"2026-01-31\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/affiliates?action=export",
+              "host": ["{{base_url}}"],
+              "path": ["api", "affiliates"],
+              "query": [
+                {
+                  "key": "action",
+                  "value": "export"
+                }
+              ]
+            },
+            "description": "Exporta relatório em CSV via API consolidada"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code é 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Retorna CSV', function () {",
+                  "    pm.expect(pm.response.headers.get('Content-Type')).to.include('text/csv');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "Pedidos",
       "item": [
         {

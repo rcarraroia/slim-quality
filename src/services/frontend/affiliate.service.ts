@@ -1332,58 +1332,26 @@ export class AffiliateFrontendService {
 
   /**
    * Busca histórico de recebimentos/withdrawals do afiliado
-   * Busca dados reais do banco de dados
+   * Busca dados reais do banco de dados via API consolidada
    */
   async getWithdrawals(page = 1, limit = 20) {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Usuário não autenticado');
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      const response = await fetch(`${this.baseUrl}?action=withdrawals&page=${page}&limit=${limit}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session?.access_token || ''}`
+        }
+      });
 
-      const { data: affiliate } = await supabase
-        .from('affiliates')
-        .select('id')
-        .eq('user_id', user.id)
-        .is('deleted_at', null)
-        .maybeSingle();
-
-      if (!affiliate) {
-        return {
-          withdrawals: [],
-          pagination: { page, limit, total: 0, totalPages: 0 },
-          summary: { totalCompleted: 0, totalPending: 0, totalRejected: 0 }
-        };
+      if (!response.ok) {
+        throw new Error('Erro ao buscar saques');
       }
 
-      const offset = (page - 1) * limit;
-      
-      const { data: withdrawals, error, count } = await supabase
-        .from('affiliate_withdrawals')
-        .select('*', { count: 'exact' })
-        .eq('affiliate_id', affiliate.id)
-        .is('deleted_at', null)
-        .order('created_at', { ascending: false })
-        .range(offset, offset + limit - 1);
-
-      if (error) throw error;
-
-      const totalCompleted = withdrawals?.filter(w => w.status === 'completed').reduce((sum, w) => sum + (w.amount_cents || 0), 0) || 0;
-      const totalPending = withdrawals?.filter(w => w.status === 'processing').reduce((sum, w) => sum + (w.amount_cents || 0), 0) || 0;
-      const totalRejected = withdrawals?.filter(w => w.status === 'rejected').reduce((sum, w) => sum + (w.amount_cents || 0), 0) || 0;
-
-      return {
-        withdrawals: withdrawals || [],
-        pagination: {
-          page,
-          limit,
-          total: count || 0,
-          totalPages: Math.ceil((count || 0) / limit)
-        },
-        summary: {
-          totalCompleted,
-          totalPending,
-          totalRejected
-        }
-      };
+      const result = await response.json();
+      return result.data;
     } catch (error) {
       console.error('Erro ao buscar withdrawals:', error);
       throw new Error('Erro ao carregar histórico de saques');
