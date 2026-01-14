@@ -177,21 +177,18 @@ export default function AffiliateDashboardInicio() {
           icon={DollarSign}
           label="Total em Comissões"
           value={`R$ ${(stats.totalCommissions || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
-          trend={{ value: "+15% este mês", positive: true }}
           iconColor="text-primary"
         />
         <StatCard
           icon={Users}
           label="Indicados Ativos"
           value={(network.length || 0).toString()}
-          trend={{ value: "+3 esta semana", positive: true }}
           iconColor="text-secondary"
         />
         <StatCard
           icon={TrendingUp}
           label="Vendas Geradas"
           value={(stats.totalConversions || 0).toString()}
-          trend={{ value: "+8 este mês", positive: true }}
           iconColor="text-success"
         />
         <StatCard
@@ -451,58 +448,6 @@ export default function AffiliateDashboardInicio() {
           </CardContent>
         </Card>
       </div>
-
-      {/* Metas e Desafios */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Metas do Mês</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-6">
-            <div>
-              <div className="flex justify-between mb-2">
-                <span className="text-sm font-medium">Vendas Diretas (N1)</span>
-                <span className="text-sm text-muted-foreground">
-                  {stats.totalConversions || 0} / 15
-                </span>
-              </div>
-              <div className="h-2 bg-muted rounded-full overflow-hidden">
-                <div 
-                  className="h-full bg-primary rounded-full transition-all duration-500" 
-                  style={{ width: `${Math.min(((stats.totalConversions || 0) / 15) * 100, 100)}%` }} 
-                />
-              </div>
-              <p className="text-xs text-muted-foreground mt-1">
-                {(stats.totalConversions || 0) >= 15 
-                  ? "🎉 Meta atingida! Parabéns!" 
-                  : `Faltam ${15 - (stats.totalConversions || 0)} vendas para bater a meta e ganhar bônus de R$ 500`
-                }
-              </p>
-            </div>
-
-            <div>
-              <div className="flex justify-between mb-2">
-                <span className="text-sm font-medium">Novos Indicados</span>
-                <span className="text-sm text-muted-foreground">
-                  {network.length || 0} / 5
-                </span>
-              </div>
-              <div className="h-2 bg-muted rounded-full overflow-hidden">
-                <div 
-                  className="h-full bg-secondary rounded-full transition-all duration-500" 
-                  style={{ width: `${Math.min(((network.length || 0) / 5) * 100, 100)}%` }} 
-                />
-              </div>
-              <p className="text-xs text-muted-foreground mt-1">
-                {(network.length || 0) >= 5 
-                  ? "🎉 Meta atingida! Acesso ao curso liberado!" 
-                  : `Indique mais ${5 - (network.length || 0)} pessoas e ganhe acesso ao curso de vendas`
-                }
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
     </div>
   );
 }

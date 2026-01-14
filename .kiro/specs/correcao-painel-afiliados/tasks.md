@@ -1,0 +1,522 @@
+# Tasks: Correção do Painel de Afiliados
+
+## Visão Geral
+
+Correção de dados mockados e funcionalidades quebradas no painel de afiliados, baseado no relatório de análise completa realizado em 13/01/2026.
+
+**Foco:** Qualidade, responsabilidade e profissionalismo. Sem pressão de tempo.
+
+---
+
+## FASE 1: CORREÇÕES CRÍTICAS
+
+### 1. Corrigir Página MinhaRede
+
+- [✓] 1.1 Corrigir erro "Cannot read properties of undefined (reading 'indexOf')"
+  - Arquivo: `src/services/frontend/affiliate.service.ts`
+  - Método: `getNetwork()` (linha ~615)
+  - Remover filtro por `path` que não existe
+  - Usar apenas `referred_by` para filtrar N1 e N2
+  - _Requisitos: Análise do relatório, seção MinhaRede_
+  - ✅ **Concluída mas não validada**
+
+- [✓] 1.2 Criar Serverless Function para link de indicação
+  - Criar: `api/affiliates/referral-link.js`
+  - Endpoint: `GET /api/affiliates/referral-link`
+  - Retornar: `{ link, qrCode, referralCode, slug }`
+  - Integrar com banco de dados (tabela `affiliates`)
+  - _Requisitos: API faltando identificada no relatório_
+  - ✅ **Concluída mas não validada**
+
+- [ ] 1.3 Testar visualização da rede
+  - Validar que árvore genealógica aparece
+  - Validar filtros por nível (N1, N2, N3)
+  - Validar busca de afiliados
+  - Validar estatísticas da rede
+  - _Requisitos: Funcionalidades da página MinhaRede_
+
+- [ ] 1.4 Checkpoint - Validar correções
+  - Página MinhaRede sem erros no console
+  - Rede de afiliados visível
+  - Link de indicação funcionando
+  - Perguntar ao usuário se há problemas
+
+---
+
+### 2. Corrigir Dashboard Principal (Página Inicial)
+
+- [ ] 2.1 Analisar dados mockados no Dashboard
+  - Arquivo: `src/mocks/affiliateDashboardData.ts`
+  - Identificar todas as estatísticas mockadas
+  - Identificar gráfico de conversão mockado
+  - Identificar "últimas vendas" mockadas
+  - _Requisitos: Análise preventiva obrigatória_
+
+- [ ] 2.2 Implementar queries reais para estatísticas
+  - Buscar dados reais de comissões totais
+  - Buscar dados reais de cliques totais
+  - Buscar dados reais de conversões totais
+  - Calcular taxa de conversão real
+  - Calcular trends reais (comparação com período anterior)
+  - _Requisitos: Dados reais do banco de dados_
+
+- [ ] 2.3 Implementar query real para gráfico de conversão
+  - Buscar dados de conversão por período
+  - Agrupar por dia/semana/mês
+  - Retornar dados formatados para gráfico
+  - _Requisitos: Visualização de dados_
+
+- [ ] 2.4 Implementar query real para últimas vendas
+  - Buscar últimas 5 vendas do afiliado
+  - Incluir informações do cliente
+  - Incluir valor da comissão
+  - Incluir status da venda
+  - _Requisitos: Dados reais do banco de dados_
+
+- [ ] 2.5 Criar Serverless Function para dashboard
+  - Criar: `api/affiliates/dashboard.js`
+  - Endpoint: `GET /api/affiliates/dashboard`
+  - Retornar: estatísticas, gráfico, últimas vendas
+  - Consolidar todas as queries em uma única chamada
+  - _Requisitos: API para dashboard_
+
+- [ ] 2.6 Remover arquivo mock
+  - Deletar: `src/mocks/affiliateDashboardData.ts`
+  - Atualizar imports no Dashboard
+  - Remover referências ao mock
+  - _Requisitos: Limpeza de código_
+
+- [ ] 2.7 Testar Dashboard com dados reais
+  - Validar estatísticas corretas
+  - Validar gráfico de conversão
+  - Validar últimas vendas
+  - Validar trends e comparações
+  - _Requisitos: Funcionalidades do Dashboard_
+
+- [ ] 2.8 Checkpoint - Validar Dashboard
+  - Dashboard sem dados mockados
+  - Todas as estatísticas reais
+  - Gráficos com dados reais
+  - Perguntar ao usuário se há problemas
+
+---
+
+### 3. Corrigir Página de Vendas
+
+- [ ] 3.1 Analisar dados mockados na Página de Vendas
+  - Arquivo: `src/mocks/salesData.ts`
+  - Identificar lista de vendas mockada
+  - Identificar filtros operando sobre mocks
+  - Identificar exportação usando dados mockados
+  - _Requisitos: Análise preventiva obrigatória_
+
+- [ ] 3.2 Implementar query real para lista de vendas
+  - Buscar vendas reais do afiliado
+  - Incluir informações do pedido
+  - Incluir informações do cliente
+  - Incluir valor da comissão
+  - Incluir status da venda
+  - Suportar paginação
+  - _Requisitos: Dados reais do banco de dados_
+
+- [ ] 3.3 Implementar filtros reais
+  - Filtro por período (data início/fim)
+  - Filtro por status (paga, pendente, cancelada)
+  - Filtro por valor mínimo/máximo
+  - Filtro por cliente (busca por nome)
+  - Aplicar filtros na query SQL, não em memória
+  - _Requisitos: Funcionalidade de filtros_
+
+- [ ] 3.4 Criar Serverless Function para vendas
+  - Criar: `api/affiliates/sales.js`
+  - Endpoint: `GET /api/affiliates/sales`
+  - Parâmetros: page, limit, status, startDate, endDate, minValue, maxValue, customer
+  - Retornar: sales[], pagination, summary
+  - _Requisitos: API para vendas_
+
+- [ ] 3.5 Corrigir exportação para usar dados reais
+  - Atualizar função de exportação
+  - Buscar dados reais do banco (não do mock)
+  - Aplicar mesmos filtros da listagem
+  - Gerar CSV/PDF com dados reais
+  - _Requisitos: Funcionalidade de exportação_
+
+- [ ] 3.6 Remover arquivo mock
+  - Deletar: `src/mocks/salesData.ts`
+  - Atualizar imports na página de Vendas
+  - Remover referências ao mock
+  - _Requisitos: Limpeza de código_
+
+- [ ] 3.7 Testar Página de Vendas com dados reais
+  - Validar listagem de vendas
+  - Validar paginação
+  - Validar todos os filtros
+  - Validar exportação
+  - _Requisitos: Funcionalidades da página de Vendas_
+
+- [ ] 3.8 Checkpoint - Validar Página de Vendas
+  - Página sem dados mockados
+  - Lista de vendas real
+  - Filtros funcionando corretamente
+  - Exportação com dados reais
+  - Perguntar ao usuário se há problemas
+
+---
+
+### 4. Corrigir Página de Comissões
+
+- [ ] 4.1 Analisar dados mockados na Página de Comissões
+  - Arquivo: `src/mocks/commissionsData.ts`
+  - Identificar comissões pendentes mockadas
+  - Identificar histórico de pagamentos mockado
+  - Identificar totalizadores mockados
+  - Identificar filtros operando sobre mocks
+  - _Requisitos: Análise preventiva obrigatória_
+
+- [ ] 4.2 Implementar query real para comissões pendentes
+  - Buscar comissões com status 'pending'
+  - Incluir informações do pedido
+  - Incluir informações do cliente
+  - Incluir nível da comissão (N1, N2, N3)
+  - Calcular total pendente
+  - _Requisitos: Dados reais do banco de dados_
+
+- [ ] 4.3 Implementar query real para histórico de pagamentos
+  - Buscar comissões com status 'paid'
+  - Incluir data de pagamento
+  - Incluir método de pagamento
+  - Incluir informações do pedido
+  - Agrupar por período (se necessário)
+  - _Requisitos: Dados reais do banco de dados_
+
+- [ ] 4.4 Implementar totalizadores reais
+  - Total de comissões pagas (sum de amount_cents)
+  - Total de comissões pendentes (sum de amount_cents)
+  - Total de comissões canceladas (sum de amount_cents)
+  - Comissões por nível (N1, N2, N3)
+  - Comissões por período (mês atual, mês anterior, etc.)
+  - _Requisitos: Cálculos financeiros_
+
+- [ ] 4.5 Implementar filtros reais
+  - Filtro por status (paga, pendente, cancelada)
+  - Filtro por período (data início/fim)
+  - Filtro por nível (N1, N2, N3)
+  - Filtro por valor mínimo/máximo
+  - Aplicar filtros na query SQL, não em memória
+  - _Requisitos: Funcionalidade de filtros_
+
+- [ ] 4.6 Criar Serverless Function para comissões
+  - Criar: `api/affiliates/commissions.js`
+  - Endpoint: `GET /api/affiliates/commissions`
+  - Parâmetros: page, limit, status, level, startDate, endDate, minValue, maxValue
+  - Retornar: commissions[], pagination, summary, totals
+  - _Requisitos: API para comissões_
+
+- [ ] 4.7 Remover arquivo mock
+  - Deletar: `src/mocks/commissionsData.ts`
+  - Atualizar imports na página de Comissões
+  - Remover referências ao mock
+  - _Requisitos: Limpeza de código_
+
+- [ ] 4.8 Testar Página de Comissões com dados reais
+  - Validar listagem de comissões
+  - Validar comissões pendentes
+  - Validar histórico de pagamentos
+  - Validar totalizadores
+  - Validar todos os filtros
+  - _Requisitos: Funcionalidades da página de Comissões_
+
+- [ ] 4.9 Checkpoint - Validar Página de Comissões
+  - Página sem dados mockados
+  - Comissões reais sendo exibidas
+  - Totalizadores corretos
+  - Filtros funcionando corretamente
+  - Perguntar ao usuário se há problemas
+
+---
+
+### 5. Implementar Recebimentos Reais
+
+- [ ] 2.1 Criar tabela `affiliate_withdrawals` no banco
+  - Criar migration SQL
+  - Campos: id, affiliate_id, amount_cents, status, method, wallet_id, pix_key, etc.
+  - Índices: affiliate_id, status, created_at
+  - Políticas RLS: afiliados veem apenas próprios saques
+  - Trigger: updated_at
+  - _Requisitos: Migration SQL no relatório_
+
+- [ ] 2.2 Implementar método `getWithdrawals()` real
+  - Arquivo: `src/services/frontend/affiliate.service.ts`
+  - Remover dados mockados
+  - Buscar dados reais da tabela `affiliate_withdrawals`
+  - Incluir paginação e filtros
+  - Calcular totais (completed, pending, rejected)
+  - _Requisitos: Código de exemplo no relatório_
+
+- [ ] 2.3 Criar Serverless Function para withdrawals
+  - Criar: `api/affiliates/withdrawals.js`
+  - Endpoint: `GET /api/affiliates/withdrawals`
+  - Parâmetros: page, limit, status, startDate, endDate
+  - Retornar: withdrawals[], pagination, summary
+  - _Requisitos: API faltando identificada no relatório_
+
+- [ ] 2.4 Testar página de Recebimentos
+  - Validar listagem de recebimentos
+  - Validar filtros por período
+  - Validar gráfico de evolução
+  - Validar exportação de extrato
+  - _Requisitos: Funcionalidades da página Recebimentos_
+
+- [ ] 2.5 Checkpoint - Validar recebimentos
+  - Página Recebimentos sem dados mockados
+  - Histórico real de recebimentos
+  - Gráficos com dados reais
+  - Perguntar ao usuário se há problemas
+
+---
+
+### 6. Implementar Sistema de Saques
+
+- [ ] 3.1 Criar Serverless Function para saldo
+  - Criar: `api/affiliates/balance.js`
+  - Endpoint: `GET /api/affiliates/balance`
+  - Calcular saldo disponível (comissões pagas - saques)
+  - Calcular saldo bloqueado (comissões pendentes)
+  - Retornar: `{ available, blocked, total, lastUpdate }`
+  - _Requisitos: API faltando identificada no relatório_
+
+- [ ] 3.2 Criar Serverless Function para solicitar saque
+  - Criar: `api/affiliates/withdrawals.js` (POST)
+  - Endpoint: `POST /api/affiliates/withdrawals`
+  - Body: `{ amount, pixKey, description }`
+  - Validar saldo disponível
+  - Validar valor mínimo (R$ 50)
+  - Criar registro na tabela `affiliate_withdrawals`
+  - Retornar: `{ withdrawalId, status, estimatedDate }`
+  - _Requisitos: API faltando identificada no relatório_
+
+- [ ] 3.3 Implementar lógica de cálculo de saldo
+  - Buscar todas as comissões pagas do afiliado
+  - Subtrair todos os saques completados
+  - Calcular saldo bloqueado (comissões pendentes)
+  - Atualizar página Saques com dados reais
+  - _Requisitos: Lógica de negócio do sistema_
+
+- [ ] 3.4 Implementar validação de saque mínimo
+  - Validar valor mínimo de R$ 50
+  - Validar que afiliado tem saldo suficiente
+  - Validar que Wallet ID está configurada
+  - Exibir mensagens de erro apropriadas
+  - _Requisitos: Regras de negócio_
+
+- [ ] 3.5 Integrar com Asaas para processar saques
+  - Pesquisar API do Asaas para transferências
+  - Implementar chamada à API do Asaas
+  - Atualizar status do saque após processamento
+  - Registrar logs de transação
+  - _Requisitos: Integração com gateway de pagamento_
+
+- [ ] 3.6 Testar fluxo completo de saque
+  - Validar exibição de saldo correto
+  - Validar solicitação de saque
+  - Validar validações de valor mínimo
+  - Validar histórico de saques
+  - _Requisitos: Funcionalidades da página Saques_
+
+- [ ] 3.7 Checkpoint - Validar sistema de saques
+  - Página Saques sem dados mockados
+  - Saldo real calculado corretamente
+  - Solicitação de saque funcionando
+  - Histórico real de saques
+  - Perguntar ao usuário se há problemas
+
+---
+
+## FASE 2: MELHORIAS MÉDIAS
+
+### 7. Completar Configurações
+
+- [ ] 4.1 Implementar salvamento de preferências de notificações
+  - Criar tabela `affiliate_notification_preferences` (se não existir)
+  - Atualizar método de salvamento em `affiliate.service.ts`
+  - Remover simulação de salvamento
+  - _Requisitos: Funcionalidade da página Configurações_
+
+- [ ] 4.2 Criar Serverless Function para preferências
+  - Criar: `api/affiliates/notifications/preferences.js`
+  - Endpoint: `POST /api/affiliates/notifications/preferences`
+  - Body: `{ emailCommissions, emailMonthly, emailNewAffiliates, emailPromotions }`
+  - Salvar no banco de dados
+  - _Requisitos: API faltando identificada no relatório_
+
+- [ ] 4.3 Implementar alteração de senha
+  - Usar Supabase Auth para alterar senha
+  - Validar senha atual
+  - Validar força da nova senha
+  - Exibir feedback de sucesso/erro
+  - _Requisitos: Funcionalidade de segurança_
+
+- [ ] 4.4 Testar configurações
+  - Validar salvamento de preferências
+  - Validar alteração de senha
+  - Validar feedback ao usuário
+  - _Requisitos: Funcionalidades da página Configurações_
+
+- [ ] 4.5 Checkpoint - Validar configurações
+  - Preferências salvando corretamente
+  - Alteração de senha funcionando
+  - Perguntar ao usuário se há problemas
+
+---
+
+### 8. Implementar Exportação de Relatórios
+
+- [ ] 5.1 Criar Serverless Function para exportação
+  - Criar: `api/affiliates/export.js`
+  - Endpoint: `POST /api/affiliates/export`
+  - Body: `{ type, format, startDate, endDate }`
+  - Suportar tipos: comissões, recebimentos, rede
+  - _Requisitos: API faltando identificada no relatório_
+
+- [ ] 5.2 Implementar geração de CSV
+  - Gerar CSV com dados de comissões
+  - Gerar CSV com dados de recebimentos
+  - Gerar CSV com dados da rede
+  - Retornar arquivo para download
+  - _Requisitos: Funcionalidade de exportação_
+
+- [ ] 5.3 Implementar geração de PDF
+  - Gerar PDF com dados de comissões
+  - Gerar PDF com dados de recebimentos
+  - Incluir gráficos e estatísticas
+  - Retornar arquivo para download
+  - _Requisitos: Funcionalidade de exportação_
+
+- [ ] 5.4 Testar downloads
+  - Validar geração de CSV
+  - Validar geração de PDF
+  - Validar conteúdo dos arquivos
+  - _Requisitos: Funcionalidades de exportação_
+
+- [ ] 5.5 Checkpoint - Validar exportação
+  - Exportação de CSV funcionando
+  - Exportação de PDF funcionando
+  - Perguntar ao usuário se há problemas
+
+---
+
+## FASE 3: FUNCIONALIDADES NOVAS
+
+### 9. Página de Estatísticas
+
+- [ ] 6.1 Criar Serverless Function para estatísticas gerais
+  - Criar: `api/affiliates/stats/overview.js`
+  - Endpoint: `GET /api/affiliates/stats/overview`
+  - Retornar: métricas gerais de performance
+  - _Requisitos: API faltando identificada no relatório_
+
+- [ ] 6.2 Criar Serverless Function para performance
+  - Criar: `api/affiliates/stats/performance.js`
+  - Endpoint: `GET /api/affiliates/stats/performance`
+  - Retornar: dados de performance ao longo do tempo
+  - _Requisitos: API faltando identificada no relatório_
+
+- [ ] 6.3 Criar Serverless Function para conversão
+  - Criar: `api/affiliates/stats/conversion.js`
+  - Endpoint: `GET /api/affiliates/stats/conversion`
+  - Retornar: taxa de conversão e funil
+  - _Requisitos: API faltando identificada no relatório_
+
+- [ ] 6.4 Criar Serverless Function para crescimento da rede
+  - Criar: `api/affiliates/stats/network-growth.js`
+  - Endpoint: `GET /api/affiliates/stats/network-growth`
+  - Retornar: crescimento da rede ao longo do tempo
+  - _Requisitos: API faltando identificada no relatório_
+
+- [ ] 6.5 Implementar gráficos de performance
+  - Gráfico de comissões ao longo do tempo
+  - Gráfico de conversões ao longo do tempo
+  - Gráfico de cliques ao longo do tempo
+  - _Requisitos: Visualização de dados_
+
+- [ ] 6.6 Implementar gráficos de conversão
+  - Funil de conversão (cliques → conversões)
+  - Taxa de conversão por período
+  - Comparação com média da plataforma
+  - _Requisitos: Visualização de dados_
+
+- [ ] 6.7 Implementar gráficos de crescimento da rede
+  - Crescimento de N1, N2, N3 ao longo do tempo
+  - Novos afiliados por mês
+  - Afiliados ativos vs inativos
+  - _Requisitos: Visualização de dados_
+
+- [ ] 6.8 Testar página de Estatísticas
+  - Validar carregamento de dados
+  - Validar exibição de gráficos
+  - Validar filtros por período
+  - _Requisitos: Funcionalidades da página Estatísticas_
+
+- [ ] 6.9 Checkpoint - Validar estatísticas
+  - Página Estatísticas implementada
+  - Gráficos funcionando
+  - Dados reais sendo exibidos
+  - Perguntar ao usuário se há problemas
+
+---
+
+## OBSERVAÇÕES IMPORTANTES
+
+### Sobre Recebimentos Automáticos via Asaas
+
+O sistema usa **split automático do Asaas**:
+- Comissões são depositadas AUTOMATICAMENTE na Wallet ID do afiliado
+- NÃO há necessidade de solicitar saques para comissões
+- A página "Recebimentos" deve mostrar o HISTÓRICO de depósitos automáticos
+- A página "Saques" é para sacar SALDO ACUMULADO (se houver)
+
+**Importante:** Verificar se o Asaas fornece webhook ou API para consultar histórico de splits depositados.
+
+### Sobre Wallet ID
+
+- Wallet ID é configurada na página de Configurações
+- Validação é feita via Edge Function `validate-asaas-wallet`
+- Sem Wallet ID configurada, afiliado NÃO recebe comissões
+- Sistema já valida e salva corretamente
+
+### Sobre Slug Personalizado
+
+- Funcionalidade 100% implementada e funcional
+- Afiliado pode usar slug personalizado ou referral_code
+- Link gerado: `slimquality.com.br?ref=SLUG_OU_CODE`
+- Sistema já valida disponibilidade e salva corretamente
+
+### Sobre Card "Comissões Recentes" na Página Inicial
+
+- ✅ **CONFIRMADO:** Card já está puxando dados reais do banco
+- Exibe comissões geradas em testes reais
+- Não precisa de correção
+
+---
+
+## RESUMO DE PRIORIDADES
+
+| Fase | Descrição | Prioridade |
+|------|-----------|------------|
+| **Fase 1** | Correções Críticas | 🔴 Crítica |
+| **Fase 2** | Melhorias Médias | 🟡 Média |
+| **Fase 3** | Funcionalidades Novas | 🟢 Baixa |
+
+**Foco:** Qualidade e responsabilidade, não velocidade.
+
+---
+
+## PRÓXIMOS PASSOS
+
+1. Revisar este arquivo de tasks com o usuário
+2. Obter autorização para implementar
+3. Começar pela Fase 1 (correções críticas)
+4. Fazer checkpoints após cada sprint
+5. Validar com usuário antes de prosseguir
+
+**Não implementar nada sem autorização explícita do usuário.**
