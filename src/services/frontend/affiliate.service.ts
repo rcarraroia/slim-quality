@@ -407,10 +407,13 @@ export class AffiliateFrontendService {
   async getReferralLink(): Promise<{ link: string; qrCode: string; referralCode: string; slug?: string }> {
     try {
       // Tentar API primeiro
+      const { data: { session } } = await supabase.auth.getSession();
+      
       const response = await fetch(`${this.baseUrl}?action=referral-link`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session?.access_token || ''}`
         },
       });
 
@@ -1363,10 +1366,13 @@ export class AffiliateFrontendService {
    */
   async getNotificationPreferences() {
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      
       const response = await fetch(`${this.baseUrl}?action=notifications`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session?.access_token || ''}`
         },
       });
 
@@ -1402,10 +1408,13 @@ export class AffiliateFrontendService {
     whatsapp_monthly_report?: boolean;
   }) {
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      
       const response = await fetch(`${this.baseUrl}?action=notifications`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session?.access_token || ''}`
         },
         body: JSON.stringify(preferences)
       });
