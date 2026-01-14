@@ -8,130 +8,86 @@ Correção de dados mockados e funcionalidades quebradas no painel de afiliados,
 
 ---
 
-## FASE 1: CORREÇÕES CRÍTICAS ✅ CONCLUÍDA
+## FASE 1: CORREÇÕES CRÍTICAS ✅ CONCLUÍDA E VALIDADA
 
-### 1. Corrigir Página MinhaRede ✅
+### 1. Corrigir Página MinhaRede ✅ VALIDADO
 
-- [✓] 1.1 Corrigir erro "Cannot read properties of undefined (reading 'indexOf')"
-  - Arquivo: `src/services/frontend/affiliate.service.ts`
-  - Método: `getNetwork()` (linha ~615)
-  - Remover filtro por `path` que não existe
-  - Usar apenas `referred_by` para filtrar N1 e N2
-  - _Requisitos: Análise do relatório, seção MinhaRede_
-  - ✅ **Concluída e commitada**
+- [x] 1.1 Corrigir erro "Cannot read properties of undefined (reading 'indexOf')"
+  - ✅ **VALIDADO pelo usuário**
+  - Método `getNetwork()` corrigido para usar queries diretas via `referred_by`
+  - Erro de indexOf eliminado
 
-- [✓] 1.2 Criar Serverless Function para link de indicação
-  - Criar: `api/affiliates/referral-link.js`
-  - Endpoint: `GET /api/affiliates/referral-link`
-  - Retornar: `{ link, qrCode, referralCode, slug }`
-  - Integrar com banco de dados (tabela `affiliates`)
-  - _Requisitos: API faltando identificada no relatório_
-  - ✅ **Concluída e commitada**
+- [x] 1.2 Criar Serverless Function para link de indicação
+  - ✅ **VALIDADO pelo usuário**
+  - API `api/affiliates/referral-link.js` criada
+  - Integrada ao banco para gerar links dinâmicos usando slug ou referral_code
 
-- [✓] 1.3 Testar visualização da rede
-  - Validar que árvore genealógica aparece
-  - Validar filtros por nível (N1, N2, N3)
-  - Validar busca de afiliados
-  - Validar estatísticas da rede
-  - _Requisitos: Funcionalidades da página MinhaRede_
-  - ✅ **Aguardando validação do usuário**
+- [x] 1.3 Testar visualização da rede
+  - ✅ **VALIDADO pelo usuário**
 
-- [✓] 1.4 Checkpoint - Validar correções
-  - Página MinhaRede sem erros no console
-  - Rede de afiliados visível
-  - Link de indicação funcionando
-  - ✅ **Aguardando validação do usuário**
+- [x] 1.4 Checkpoint - Validar correções
+  - ✅ **VALIDADO pelo usuário**
 
 ---
 
-### 2. Corrigir Dashboard Principal (Página Inicial) ✅
+### 2. Corrigir Dashboard Principal (Página Inicial) ✅ VALIDADO
 
-- [✓] 2.1 Remover dados mockados de trends
-  - Arquivo: `src/pages/afiliados/dashboard/Inicio.tsx`
-  - Remover trends mockados
-  - Manter apenas dados reais do banco
-  - _Requisitos: Dados reais do banco de dados_
-  - ✅ **Concluída e commitada**
+- [x] 2.1 Remover dados mockados de trends
+  - ✅ **VALIDADO pelo usuário**
+  - Arquivo `src/pages/afiliados/dashboard/Inicio.tsx` corrigido
+  - Trends removidos, usando apenas dados reais
 
 ---
 
 ### 3. Corrigir Página de Vendas
 
-**⚠️ NOTA:** Página de Vendas não existe no painel de afiliados atual. Esta task será removida.
-
-- [N/A] Task removida - página não existe no sistema
+**⚠️ NOTA:** Página de Vendas não existe no sistema atual. Será criada na Fase 2.
 
 ---
 
-### 4. Corrigir Página de Comissões
+### 4. Corrigir Página de Comissões ✅ VALIDADO
 
-**✅ ANÁLISE CONCLUÍDA:** Página já está usando dados reais do Supabase via `affiliateFrontendService.getCommissions()`. Não há dados mockados.
-
-- [✓] 4.1 Verificar dados mockados na Página de Comissões
-  - ✅ Página já usa dados reais do banco
-  - ✅ Método `getCommissions()` busca da tabela `commissions`
-  - ✅ Totalizadores calculados sobre dados reais
-  - ✅ Filtros operam sobre dados reais
-  - ✅ Paginação implementada
-  - _Status: Página já está correta, não precisa de alterações_
-  - ✅ **Concluída mas não validada**
+- [x] 4.1 Corrigir bug de exibição de valores
+  - ✅ **BUG CRÍTICO CORRIGIDO**
+  - Problema: usava `amount_cents` (undefined) ao invés de `amount`
+  - Solução: usar campos corretos retornados pelo service
+  - **Agora exibe TODOS os valores, incluindo centavos**
+  - Commit: af2640d
 
 ---
 
-### 5. Implementar Recebimentos Reais ✅
+### 5. Implementar Recebimentos Reais ✅ VALIDADO
 
-- [✓] 2.1 Criar tabela `affiliate_withdrawals` no banco
-  - Migration SQL criada: `supabase/migrations/20260113000000_create_affiliate_withdrawals.sql`
-  - Campos: id, affiliate_id, amount_cents, status, method, wallet_id, pix_key, etc.
-  - Índices: affiliate_id, status, created_at
-  - Políticas RLS: afiliados veem apenas próprios saques
-  - Trigger: updated_at
-  - ✅ **Concluída e commitada**
+- [x] 5.1 Criar tabela `affiliate_withdrawals` no banco
+  - ✅ **VALIDADO pelo usuário**
+  - Migration criada: `supabase/migrations/20260113000000_create_affiliate_withdrawals.sql`
 
-- [✓] 2.2 Implementar método `getWithdrawals()` real
-  - Arquivo: `src/services/frontend/affiliate.service.ts`
+- [x] 5.2 Implementar método `getWithdrawals()` real
+  - ✅ **VALIDADO pelo usuário**
   - Busca dados reais da tabela `affiliate_withdrawals`
-  - Incluir paginação e filtros
-  - Calcular totais (completed, pending, rejected)
-  - ✅ **Concluída e commitada**
 
-- [✓] 2.3 Criar Serverless Function para withdrawals
-  - Criado: `api/affiliates/withdrawals.js`
-  - Endpoint: `GET /api/affiliates/withdrawals`
-  - Parâmetros: page, limit, status, startDate, endDate
-  - Retornar: withdrawals[], pagination, summary
-  - ✅ **Concluída e commitada**
-
-- [✓] 2.4 Testar página de Recebimentos
-  - ✅ **Aguardando validação do usuário**
-
-- [✓] 2.5 Checkpoint - Validar recebimentos
-  - ✅ **Aguardando validação do usuário**
+- [x] 5.3 Criar Serverless Function para withdrawals
+  - ✅ **VALIDADO pelo usuário**
+  - API `api/affiliates/withdrawals.js` criada (GET)
 
 ---
 
-### 6. Implementar Sistema de Saques ✅
+### 6. Implementar Sistema de Saques ✅ VALIDADO
 
-- [✓] 3.1 Criar Serverless Function para saldo
-  - Criado: `api/affiliates/balance.js`
-  - Endpoint: `GET /api/affiliates/balance`
-  - Calcular saldo disponível (comissões pagas - saques)
-  - Calcular saldo bloqueado (comissões pendentes)
-  - Retornar: `{ available, blocked, total, lastUpdate }`
-  - ✅ **Concluída e commitada**
+- [x] 6.1 Criar Serverless Function para saldo
+  - ✅ **VALIDADO - API já estava implementada corretamente**
+  - API `api/affiliates/balance.js` calcula saldo real
+  - Fórmula: (comissões pagas) - (saques completados)
 
-- [✓] 3.2 Adicionar método `getBalance()` no service
-  - Arquivo: `src/services/frontend/affiliate.service.ts`
-  - Método para chamar API de saldo
-  - Fallback para mock se API não disponível
-  - ✅ **Concluída e commitada**
+- [x] 6.2 Adicionar método `getBalance()` no service
+  - ✅ **VALIDADO pelo usuário**
+  - Método implementado em `affiliate.service.ts`
 
-- [✓] 3.3 Atualizar página Saques com dados reais
-  - Arquivo: `src/pages/afiliados/dashboard/Saques.tsx`
-  - Integrar com API de withdrawals
-  - Integrar com API de balance
-  - Remover dados mockados
-  - ✅ **Concluída e commitada**
+- [x] 6.3 Atualizar página Saques com dados reais
+  - ✅ **VALIDADO - Fallback para mock REMOVIDO**
+  - Página usa apenas dados reais
+  - Exibe erro se API falhar (transparência)
+  - Commit: af2640d
 
 - [ ] 3.4 Criar Serverless Function para solicitar saque
   - Criar: `api/affiliates/withdrawals.js` (POST)
@@ -182,44 +138,118 @@ Correção de dados mockados e funcionalidades quebradas no painel de afiliados,
 
 ## FASE 2: MELHORIAS MÉDIAS
 
-### 7. Completar Configurações
+### 7. Criar Página de Vendas (NOVA) 🆕
 
-- [ ] 4.1 Implementar salvamento de preferências de notificações
+**Objetivo:** Mostrar vendas que geraram comissões para o afiliado, com transparência total.
+
+- [ ] 7.1 Criar estrutura da página
+  - Criar: `src/pages/afiliados/dashboard/Vendas.tsx`
+  - Seguir padrão UX/UI das outras páginas do painel
+  - Layout: Cards de resumo + Tabela de vendas
+  - _Tempo estimado: 30 minutos_
+
+- [ ] 7.2 Implementar cards de resumo
+  - Total de vendas (quantidade)
+  - Valor total vendido
+  - Comissões geradas
+  - Taxa de conversão
+  - _Tempo estimado: 20 minutos_
+
+- [ ] 7.3 Implementar tabela de vendas
+  - Colunas: Pedido, Data, Cliente, Produto, Valor, Comissão, Status
+  - Paginação (20 itens por página)
+  - Ordenação por data (mais recente primeiro)
+  - _Tempo estimado: 30 minutos_
+
+- [ ] 7.4 Implementar filtros
+  - Filtro por período (data início/fim)
+  - Filtro por status (pago, pendente, cancelado)
+  - Filtro por nível (N1, N2, N3)
+  - Busca por cliente ou pedido
+  - _Tempo estimado: 25 minutos_
+
+- [ ] 7.5 Criar Serverless Function para vendas
+  - Criar: `api/affiliates/sales.js`
+  - Endpoint: `GET /api/affiliates/sales`
+  - Query: Buscar orders que geraram comissões para o afiliado
+  - Incluir: order, customer, commission, status
+  - Parâmetros: page, limit, status, level, startDate, endDate, search
+  - _Tempo estimado: 40 minutos_
+
+- [ ] 7.6 Implementar método no service
+  - Adicionar `getSales()` em `affiliate.service.ts`
+  - Chamar API de vendas
+  - Mapear dados para formato do componente
+  - _Tempo estimado: 15 minutos_
+
+- [ ] 7.7 Implementar modal de detalhes
+  - Exibir detalhes completos da venda ao clicar
+  - Informações do pedido
+  - Informações do cliente
+  - Comissão gerada (valor, nível, status)
+  - _Tempo estimado: 20 minutos_
+
+- [ ] 7.8 Implementar exportação
+  - Botão de exportar para CSV
+  - Incluir todas as vendas filtradas
+  - Formato: Pedido, Data, Cliente, Produto, Valor, Comissão, Status
+  - _Tempo estimado: 15 minutos_
+
+- [ ] 7.9 Adicionar rota no menu
+  - Adicionar "Vendas" no menu lateral
+  - Ícone: ShoppingCart
+  - Rota: `/afiliados/dashboard/vendas`
+  - _Tempo estimado: 5 minutos_
+
+- [ ] 7.10 Testar página completa
+  - Validar carregamento de dados
+  - Validar filtros
+  - Validar paginação
+  - Validar exportação
+  - _Tempo estimado: 15 minutos_
+
+**Tempo total estimado: ~3h 35min**
+
+---
+
+### 8. Completar Configurações
+
+- [ ] 8.1 Implementar salvamento de preferências de notificações
   - Criar tabela `affiliate_notification_preferences` (se não existir)
   - Atualizar método de salvamento em `affiliate.service.ts`
   - Remover simulação de salvamento
   - _Requisitos: Funcionalidade da página Configurações_
 
-- [ ] 4.2 Criar Serverless Function para preferências
+- [ ] 8.2 Criar Serverless Function para preferências
   - Criar: `api/affiliates/notifications/preferences.js`
   - Endpoint: `POST /api/affiliates/notifications/preferences`
   - Body: `{ emailCommissions, emailMonthly, emailNewAffiliates, emailPromotions }`
   - Salvar no banco de dados
   - _Requisitos: API faltando identificada no relatório_
 
-- [ ] 4.3 Implementar alteração de senha
+- [ ] 8.3 Implementar alteração de senha
   - Usar Supabase Auth para alterar senha
   - Validar senha atual
   - Validar força da nova senha
   - Exibir feedback de sucesso/erro
   - _Requisitos: Funcionalidade de segurança_
 
-- [ ] 4.4 Testar configurações
+- [ ] 8.4 Testar configurações
   - Validar salvamento de preferências
   - Validar alteração de senha
   - Validar feedback ao usuário
   - _Requisitos: Funcionalidades da página Configurações_
 
-- [ ] 4.5 Checkpoint - Validar configurações
+- [ ] 8.5 Checkpoint - Validar configurações
   - Preferências salvando corretamente
   - Alteração de senha funcionando
   - Perguntar ao usuário se há problemas
 
 ---
 
-### 8. Implementar Exportação de Relatórios
+### 9. Implementar Exportação de Relatórios
 
-- [ ] 5.1 Criar Serverless Function para exportação
+- [ ] 9.1 Criar Serverless Function para exportação
   - Criar: `api/affiliates/export.js`
   - Endpoint: `POST /api/affiliates/export`
   - Body: `{ type, format, startDate, endDate }`
