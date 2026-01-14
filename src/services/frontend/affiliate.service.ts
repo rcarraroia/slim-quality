@@ -545,7 +545,7 @@ export class AffiliateFrontendService {
         // Buscar N1 (diretos)
         const { data: n1List } = await supabase
           .from('affiliates')
-          .select('id, user_id, referral_code, referred_by')
+          .select('id, name, email, user_id, referral_code, referred_by, status, total_commissions_cents, total_conversions')
           .eq('referred_by', currentAffiliate.id)
           .eq('status', 'active')
           .is('deleted_at', null);
@@ -557,7 +557,7 @@ export class AffiliateFrontendService {
           for (const n1 of n1List) {
             const { data: n2List } = await supabase
               .from('affiliates')
-              .select('id, user_id, referral_code, referred_by')
+              .select('id, name, email, user_id, referral_code, referred_by, status, total_commissions_cents, total_conversions')
               .eq('referred_by', n1.id)
               .eq('status', 'active')
               .is('deleted_at', null);
@@ -652,7 +652,8 @@ export class AffiliateFrontendService {
         referralCode: d.referral_code || '',
         status: d.status || 'active',
         level: d.referred_by === rootId ? 1 : 2, // N1 ou N2
-        totalCommissions: 0,
+        totalCommissions: (d.total_commissions_cents || 0) / 100,
+        salesCount: d.total_conversions || 0,
         children: []
       });
     });
