@@ -86,12 +86,12 @@ export default function AffiliateDashboardComissoes() {
       // Converter dados da API para o formato esperado pelo componente
       const comissoesData = result.commissions.map((item: any) => ({
         id: item.id,
-        tipo: `N${item.level || 1}` as "N1" | "N2" | "N3",
-        valor: (item.amount_cents || 0) / 100, // Converter centavos para reais
+        tipo: item.type as "N1" | "N2" | "N3", // Service já retorna formatado como "N1", "N2", "N3"
+        valor: item.amount || 0, // Service já converte centavos para reais
         venda: item.order?.id ? `#${item.order.id.slice(0, 8)}` : '#N/A',
         cliente: item.order?.customer_name || 'Cliente não informado',
         produto: 'Slim Quality', // Produto padrão por enquanto
-        data: item.created_at,
+        data: item.createdAt, // Service retorna createdAt
         status: mapCommissionStatus(item.status)
       }));
       

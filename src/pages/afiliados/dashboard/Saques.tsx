@@ -46,33 +46,33 @@ export default function AffiliateDashboardSaques() {
   const loadData = async () => {
     try {
       setLoading(true);
+      
+      // Buscar withdrawals
       const withdrawalsData = await affiliateFrontendService.getWithdrawals();
       setWithdrawals(withdrawalsData.withdrawals || []);
       setTotalSacado((withdrawalsData.summary?.totalCompleted || 0) / 100);
       
-      // Tentar buscar saldo real da API
-      try {
-        const balanceData = await affiliateFrontendService.getBalance();
-        setBalance({
-          available: balanceData.available || 0,
-          blocked: balanceData.blocked || 0,
-          total: balanceData.total || 0
-        });
-      } catch (balanceError) {
-        // Se API não estiver disponível, usar mock temporário
-        console.warn('API de saldo não disponível, usando mock:', balanceError);
-        setBalance({
-          available: 320000, // R$ 3.200,00 em centavos
-          blocked: 45000,    // R$ 450,00 em centavos
-          total: 365000      // R$ 3.650,00 em centavos
-        });
-      }
+      // Buscar saldo real da API
+      const balanceData = await affiliateFrontendService.getBalance();
+      setBalance({
+        available: balanceData.available || 0,
+        blocked: balanceData.blocked || 0,
+        total: balanceData.total || 0
+      });
+      
     } catch (error) {
       console.error('Erro ao carregar dados:', error);
       toast({
         title: "Erro ao carregar dados",
-        description: "Não foi possível carregar os dados de saques.",
+        description: "Não foi possível carregar os dados de saques. Tente novamente.",
         variant: "destructive"
+      });
+      
+      // Zerar saldos em caso de erro (não usar mock)
+      setBalance({
+        available: 0,
+        blocked: 0,
+        total: 0
       });
     } finally {
       setLoading(false);
