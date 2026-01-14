@@ -52,6 +52,13 @@ export default function AffiliateDashboardConfiguracoes() {
   });
   const [savingNotifications, setSavingNotifications] = useState(false);
 
+  // Estados para alteração de senha
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [changingPassword, setChangingPassword] = useState(false);
+
   // Carregar dados do afiliado ao montar componente
   useEffect(() => {
     loadAffiliateData();
@@ -408,6 +415,89 @@ export default function AffiliateDashboardConfiguracoes() {
       });
     } finally {
       setSavingNotifications(false);
+    }
+  };
+
+  const handleChangePassword = async () => {
+    try {
+      // Validações
+      if (!currentPassword || !newPassword || !confirmPassword) {
+        toast({
+          title: "Campos obrigatórios",
+          description: "Preencha todos os campos",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      if (newPassword.length < 8) {
+        toast({
+          title: "Senha fraca",
+          description: "A nova senha deve ter no mínimo 8 caracteres",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      if (newPassword !== confirmPassword) {
+        toast({
+          title: "Senhas não conferem",
+          description: "A nova senha e a confirmação devem ser iguais",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      if (currentPassword === newPassword) {
+        toast({
+          title: "Senha inválida",
+          description: "A nova senha deve ser diferente da senha atual",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      setChangingPassword(true);
+
+      // Tentar alterar senha usando Supabase Auth
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      // Sucesso
+      toast({
+        title: "✅ Senha alterada!",
+        description: "Sua senha foi alterada com sucesso."
+      });
+
+      // Limpar campos e fechar modal
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+      setShowPasswordModal(false);
+
+    } catch (error: any) {
+      console.error('Erro ao alterar senha:', error);
+      
+      let errorMessage = "Não foi possível alterar a senha. Tente novamente.";
+      
+      if (error.message?.includes('same')) {
+        errorMessage = "A nova senha deve ser diferente da senha atual";
+      } else if (error.message?.includes('weak')) {
+        errorMessage = "A senha é muito fraca. Use uma senha mais forte.";
+      }
+      
+      toast({
+        title: "Erro ao alterar senha",
+        description: errorMessage,
+        variant: "destructive"
+      });
+    } finally {
+      setChangingPassword(false);
     }
   };
 
@@ -890,7 +980,12 @@ export default function AffiliateDashboardConfiguracoes() {
         <CardContent className="space-y-4">
           <div className="space-y-2">
             <Label>Senha</Label>
-            <Button variant="outline">Alterar Senha</Button>
+            <Button 
+              variant="outline" 
+              onClick={() => setShowPasswordModal(true)}
+            >
+              Alterar Senha
+            </Button>
           </div>
 
           <div className="space-y-2">
@@ -902,6 +997,107 @@ export default function AffiliateDashboardConfiguracoes() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Modal de Alteração de Senha */}
+      <Dialog open={showPasswordModal} onOpenChange={setShowPasswordModal}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Alterar Senha</DialogTitle>
+            <DialogDescription>
+              Digite sua senha atual e escolha uma nova senha segura
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="currentPassword">Senha Atual</Label>
+              <Input 
+                id="currentPassword"
+                type="password"
+                placeholder="Digite sua senha atual"
+                value={currentPassword}
+                onChange={(e) => setCurrentPassword(e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="newPassword">Nova Senha</Label>
+              <Input 
+                id="newPassword"
+                type="password"
+                placeholder="Digite a nova senha (mín. 8 caracteres)"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+              />
+              {newPassword && newPassword.length < 8 && (
+                <p className="text-xs text-destructive">
+                  A senha deve ter no mínimo 8 caracteres
+                </p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="confirmPassword">Confirmar Nova Senha</Label>
+              <Input 
+                id="confirmPassword"
+                type="password"
+                placeholder="Digite a nova senha novamente"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+              />
+              {confirmPassword && newPassword !== confirmPassword && (
+                <p className="text-xs text-destructive">
+                  As senhas não conferem
+                </p>
+              )}
+            </div>
+
+            <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
+              <div className="flex items-start gap-2">
+                <Info className="h-4 w-4 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
+                <div className="text-xs text-blue-800 dark:text-blue-200">
+                  <p className="font-semibold mb-1">Dicas para uma senha segura:</p>
+                  <ul className="space-y-0.5 list-disc list-inside">
+                    <li>Use no mínimo 8 caracteres</li>
+                    <li>Combine letras maiúsculas e minúsculas</li>
+                    <li>Inclua números e símbolos</li>
+                    <li>Evite informações pessoais</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-2">
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  setShowPasswordModal(false);
+                  setCurrentPassword("");
+                  setNewPassword("");
+                  setConfirmPassword("");
+                }}
+                className="flex-1"
+                disabled={changingPassword}
+              >
+                Cancelar
+              </Button>
+              <Button 
+                onClick={handleChangePassword}
+                disabled={changingPassword || !currentPassword || !newPassword || !confirmPassword}
+                className="flex-1"
+              >
+                {changingPassword ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    Alterando...
+                  </>
+                ) : (
+                  'Alterar Senha'
+                )}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Modal "Já tem Asaas?" */}
       <Dialog open={showAsaasModal} onOpenChange={setShowAsaasModal}>

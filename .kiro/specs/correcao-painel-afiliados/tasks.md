@@ -228,12 +228,13 @@ Correção de dados mockados e funcionalidades quebradas no painel de afiliados,
   - ✅ Métodos `getNotificationPreferences()` e `saveNotificationPreferences()` no service
   - ✅ **Concluída mas não validada**
 
-- [ ] 8.3 Implementar alteração de senha
-  - Usar Supabase Auth para alterar senha
-  - Validar senha atual
-  - Validar força da nova senha
-  - Exibir feedback de sucesso/erro
-  - _Requisitos: Funcionalidade de segurança_
+- [✓] 8.3 Implementar alteração de senha
+  - ✅ Modal de alteração de senha criado
+  - ✅ Validações implementadas (mín. 8 caracteres, senhas conferem, senha diferente da atual)
+  - ✅ Integração com Supabase Auth (`updateUser()`)
+  - ✅ Feedback visual (loading, sucesso, erro)
+  - ✅ Dicas de senha segura no modal
+  - ✅ **Concluída mas não validada**
 
 - [ ] 8.4 Testar configurações
   - Validar salvamento de preferências
