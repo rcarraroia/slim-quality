@@ -97,7 +97,7 @@ async function handleBalance(req, res, supabase) {
     const totalPending = pendingCommissions?.reduce((sum, c) => sum + (c.commission_value_cents || 0), 0) || 0;
 
     const { data: completedWithdrawals } = await supabase
-      .from('affiliate_withdrawals')
+      .from('withdrawals')
       .select('amount_cents')
       .eq('affiliate_id', affiliate.id)
       .eq('status', 'completed')
@@ -358,7 +358,7 @@ async function handleWithdrawals(req, res, supabase) {
       const offset = (parseInt(page) - 1) * parseInt(limit);
 
       let query = supabase
-        .from('affiliate_withdrawals')
+        .from('withdrawals')
         .select('*', { count: 'exact' })
         .eq('affiliate_id', affiliate.id)
         .is('deleted_at', null);
@@ -400,7 +400,7 @@ async function handleWithdrawals(req, res, supabase) {
       }
 
       const { data: withdrawal, error } = await supabase
-        .from('affiliate_withdrawals')
+        .from('withdrawals')
         .insert({
           affiliate_id: affiliate.id,
           amount_cents: Math.round(amount * 100),
@@ -681,7 +681,7 @@ async function generateCommissionsCSV(supabase, affiliateId, startDate, endDate)
 // ============================================
 async function generateWithdrawalsCSV(supabase, affiliateId, startDate, endDate) {
   let query = supabase
-    .from('affiliate_withdrawals')
+    .from('withdrawals')
     .select('*')
     .eq('affiliate_id', affiliateId)
     .is('deleted_at', null)
