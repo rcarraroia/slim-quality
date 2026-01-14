@@ -578,18 +578,16 @@ export class AffiliateFrontendService {
       // Construir árvore hierárquica a partir dos descendentes
       const networkTree = this.buildTreeFromHierarchy(filteredDescendants, currentAffiliate.id);
 
-      // ✅ CORRIGIDO: Calcular estatísticas apenas de N1 e N2
+      // ✅ CORRIGIDO: Calcular estatísticas baseado em referred_by (não em path)
+      // N1 = afiliados que têm referred_by = currentAffiliate.id
+      // N2 = afiliados que têm referred_by = algum N1
+      const n1Ids = filteredDescendants
+        .filter(n => n.referred_by === currentAffiliate.id)
+        .map(n => n.id);
+      
       const stats = {
-        totalN1: filteredDescendants.filter(n => {
-          const affiliateIndex = n.path.indexOf(currentAffiliate.id);
-          const depth = n.path.length - affiliateIndex - 1;
-          return depth === 1;
-        }).length,
-        totalN2: filteredDescendants.filter(n => {
-          const affiliateIndex = n.path.indexOf(currentAffiliate.id);
-          const depth = n.path.length - affiliateIndex - 1;
-          return depth === 2;
-        }).length,
+        totalN1: n1Ids.length,
+        totalN2: filteredDescendants.filter(n => n1Ids.includes(n.referred_by)).length,
         totalN3: 0, // Não exibimos N3
         totalCommissions: (currentAffiliate.total_commissions_cents || 0) / 100,
         totalReferrals: filteredDescendants.length,
