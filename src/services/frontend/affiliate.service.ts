@@ -1454,6 +1454,52 @@ export class AffiliateFrontendService {
     }
   }
 
+  /**
+   * Exporta relatório em CSV
+   * @param type - Tipo do relatório: 'commissions', 'withdrawals', 'network'
+   * @param startDate - Data inicial (opcional)
+   * @param endDate - Data final (opcional)
+   */
+  async exportReport(type: 'commissions' | 'withdrawals' | 'network', startDate?: string, endDate?: string) {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      const response = await fetch(`${this.baseUrl}/export`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session?.access_token || ''}`
+        },
+        body: JSON.stringify({ type, startDate, endDate })
+      });
+
+      if (!response.ok) {
+        throw new Error('Erro ao gerar relatório');
+      }
+
+      // Obter nome do arquivo do header
+      const contentDisposition = response.headers.get('Content-Disposition');
+      const filenameMatch = contentDisposition?.match(/filename="(.+)"/);
+      const filename = filenameMatch ? filenameMatch[1] : `relatorio_${type}_${new Date().toISOString().split('T')[0]}.csv`;
+
+      // Baixar arquivo
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+
+      return { success: true };
+    } catch (error) {
+      console.error('Erro ao exportar relatório:', error);
+      throw new Error('Erro ao exportar relatório');
+    }
+  }
+
 }
 
 // Instância singleton

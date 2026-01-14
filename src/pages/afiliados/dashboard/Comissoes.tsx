@@ -202,13 +202,32 @@ export default function AffiliateDashboardComissoes() {
                 className="flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm"
               >
                 <option value="todos">Todos Níveis</option>
-                <option value="N1">Nível 1</option>
-                <option value="N2">Nível 2</option>
-                <option value="N3">Nível 3</option>
+                <option value="N1">N1</option>
+                <option value="N2">N2</option>
+                <option value="N3">N3</option>
               </select>
 
-              <Button variant="outline" size="icon">
-                <Download className="h-4 w-4" />
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={async () => {
+                  try {
+                    await affiliateFrontendService.exportReport('commissions');
+                    toast({ 
+                      title: "Relatório exportado!",
+                      description: "O arquivo CSV foi baixado com sucesso."
+                    });
+                  } catch (error) {
+                    toast({
+                      title: "Erro ao exportar",
+                      description: "Não foi possível gerar o relatório. Tente novamente.",
+                      variant: "destructive"
+                    });
+                  }
+                }}
+              >
+                <Download className="h-4 w-4 mr-2" />
+                Exportar CSV
               </Button>
             </div>
           </div>

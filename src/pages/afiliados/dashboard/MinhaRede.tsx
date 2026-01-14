@@ -10,7 +10,8 @@ import {
   DollarSign,
   TrendingUp,
   Loader2,
-  AlertCircle
+  AlertCircle,
+  Download
 } from "lucide-react";
 import { affiliateFrontendService } from "@/services/frontend/affiliate.service";
 import { useToast } from "@/hooks/use-toast";
@@ -355,6 +356,28 @@ export default function AffiliateDashboardMinhaRede() {
               </Button>
               <Button variant="outline" onClick={collapseAll} disabled={network.length === 0}>
                 Recolher Todos
+              </Button>
+              <Button 
+                variant="outline"
+                onClick={async () => {
+                  try {
+                    await affiliateFrontendService.exportReport('network');
+                    toast({ 
+                      title: "Relatório exportado!",
+                      description: "O arquivo CSV foi baixado com sucesso."
+                    });
+                  } catch (error) {
+                    toast({
+                      title: "Erro ao exportar",
+                      description: "Não foi possível gerar o relatório. Tente novamente.",
+                      variant: "destructive"
+                    });
+                  }
+                }}
+                disabled={network.length === 0}
+              >
+                <Download className="h-4 w-4 mr-2" />
+                Exportar CSV
               </Button>
             </div>
           </div>

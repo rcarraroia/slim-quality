@@ -25,7 +25,8 @@ import {
   Clock,
   CheckCircle2,
   AlertCircle,
-  Loader2
+  Loader2,
+  Download
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { affiliateFrontendService } from "@/services/frontend/affiliate.service";
@@ -218,7 +219,31 @@ export default function AffiliateDashboardSaques() {
       {/* Histórico de Saques */}
       <Card>
         <CardHeader>
-          <CardTitle>Histórico de Saques</CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle>Histórico de Saques</CardTitle>
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={async () => {
+                try {
+                  await affiliateFrontendService.exportReport('withdrawals');
+                  toast({ 
+                    title: "Relatório exportado!",
+                    description: "O arquivo CSV foi baixado com sucesso."
+                  });
+                } catch (error) {
+                  toast({
+                    title: "Erro ao exportar",
+                    description: "Não foi possível gerar o relatório. Tente novamente.",
+                    variant: "destructive"
+                  });
+                }
+              }}
+            >
+              <Download className="h-4 w-4 mr-2" />
+              Exportar CSV
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           <Table>
