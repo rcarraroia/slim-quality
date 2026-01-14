@@ -136,12 +136,20 @@ export default function AffiliateDashboardVendas() {
   const comissoesGeradas = filteredVendas.reduce((sum, v) => sum + v.comissao, 0);
   const taxaConversao = totalVendas > 0 ? ((filteredVendas.filter(v => v.status === 'pago').length / totalVendas) * 100).toFixed(1) : '0.0';
 
-  const handleExport = () => {
-    // TODO: Implementar exportação CSV
-    toast({
-      title: "Exportação em desenvolvimento",
-      description: "A funcionalidade de exportação será implementada em breve.",
-    });
+  const handleExport = async () => {
+    try {
+      await affiliateFrontendService.exportReport('commissions');
+      toast({
+        title: "Relatório exportado!",
+        description: "O arquivo CSV foi baixado com sucesso."
+      });
+    } catch (error) {
+      toast({
+        title: "Erro ao exportar",
+        description: "Não foi possível gerar o relatório. Tente novamente.",
+        variant: "destructive"
+      });
+    }
   };
 
   return (

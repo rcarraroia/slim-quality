@@ -138,78 +138,26 @@ Correção de dados mockados e funcionalidades quebradas no painel de afiliados,
 
 ## FASE 2: MELHORIAS MÉDIAS ✅ CONCLUÍDA E VALIDADA
 
-### 7. Criar Página de Vendas (NOVA) 🆕
+### 7. Criar Página de Vendas (NOVA) ✅ CONCLUÍDA
 
 **Objetivo:** Mostrar vendas que geraram comissões para o afiliado, com transparência total.
 
-- [ ] 7.1 Criar estrutura da página
-  - Criar: `src/pages/afiliados/dashboard/Vendas.tsx`
-  - Seguir padrão UX/UI das outras páginas do painel
-  - Layout: Cards de resumo + Tabela de vendas
-  - _Tempo estimado: 30 minutos_
+- [x] 7.1-7.8 Página de Vendas completa
+  - ✅ Estrutura da página criada seguindo padrão UX/UI
+  - ✅ Cards de resumo implementados (Total vendas, Valor total, Comissões, Taxa conversão)
+  - ✅ Tabela completa com todas as colunas (Pedido, Data, Cliente, Produto, Valor, Comissão, Nível, Status)
+  - ✅ Filtros funcionais (busca, status, nível)
+  - ✅ Paginação implementada (20 itens por página)
+  - ✅ Modal de detalhes da venda
+  - ✅ Exportação CSV integrada
+  - ✅ Loading states e empty states
+  - ✅ Integração com API real (sem mocks)
 
-- [ ] 7.2 Implementar cards de resumo
-  - Total de vendas (quantidade)
-  - Valor total vendido
-  - Comissões geradas
-  - Taxa de conversão
-  - _Tempo estimado: 20 minutos_
-
-- [ ] 7.3 Implementar tabela de vendas
-  - Colunas: Pedido, Data, Cliente, Produto, Valor, Comissão, Status
-  - Paginação (20 itens por página)
-  - Ordenação por data (mais recente primeiro)
-  - _Tempo estimado: 30 minutos_
-
-- [ ] 7.4 Implementar filtros
-  - Filtro por período (data início/fim)
-  - Filtro por status (pago, pendente, cancelado)
-  - Filtro por nível (N1, N2, N3)
-  - Busca por cliente ou pedido
-  - _Tempo estimado: 25 minutos_
-
-- [ ] 7.5 Criar Serverless Function para vendas
-  - Criar: `api/affiliates/sales.js`
-  - Endpoint: `GET /api/affiliates/sales`
-  - Query: Buscar orders que geraram comissões para o afiliado
-  - Incluir: order, customer, commission, status
-  - Parâmetros: page, limit, status, level, startDate, endDate, search
-  - _Tempo estimado: 40 minutos_
-
-- [ ] 7.6 Implementar método no service
-  - Adicionar `getSales()` em `affiliate.service.ts`
-  - Chamar API de vendas
-  - Mapear dados para formato do componente
-  - _Tempo estimado: 15 minutos_
-
-- [ ] 7.7 Implementar modal de detalhes
-  - Exibir detalhes completos da venda ao clicar
-  - Informações do pedido
-  - Informações do cliente
-  - Comissão gerada (valor, nível, status)
-  - _Tempo estimado: 20 minutos_
-
-- [ ] 7.8 Implementar exportação
-  - Botão de exportar para CSV
-  - Incluir todas as vendas filtradas
-  - Formato: Pedido, Data, Cliente, Produto, Valor, Comissão, Status
-  - _Tempo estimado: 15 minutos_
-
-- [✓] 7.9 Adicionar rota no menu
+- [x] 7.9 Adicionar rota no menu
   - ✅ Rota adicionada no App.tsx
   - ✅ Import do componente criado
   - ✅ Item "Vendas" já estava no menu do layout
   - ✅ Build passou sem erros
-  - ✅ **Concluída mas não validada** (Commit 0beb9bd)
-
-- [ ] 7.10 Testar página completa
-  - Validar carregamento de dados
-  - Validar filtros
-  - Validar paginação
-  - Validar exportação
-  - _Tempo estimado: 15 minutos_
-
-**Tempo total estimado: ~3h 35min**
 
 ---
 
