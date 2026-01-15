@@ -838,13 +838,19 @@ ABORDAGEM:
                 # Executar de forma síncrona (prompt building deve ser rápido)
                 loop = asyncio.get_event_loop()
                 if loop.is_running():
-                    # Se já estamos em um loop, usar task
-                    task = asyncio.create_task(pricing_service.get_current_prices())
-                    # Não aguardar aqui, usar fallback
-                    prices = None
+                    # Se já estamos em um loop, usar asyncio.ensure_future e aguardar
+                    future = asyncio.ensure_future(pricing_service.get_current_prices())
+                    # Aguardar de forma síncrona com timeout
+                    import concurrent.futures
+                    with concurrent.futures.ThreadPoolExecutor() as executor:
+                        try:
+                            prices = executor.submit(lambda: asyncio.run(pricing_service.get_current_prices())).result(timeout=3)
+                        except:
+                            prices = None
                 else:
                     prices = loop.run_until_complete(pricing_service.get_current_prices())
-            except:
+            except Exception as e:
+                logger.warning("Erro ao executar busca de preços", error=str(e))
                 prices = None
             
             if prices:
