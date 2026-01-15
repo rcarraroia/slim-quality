@@ -30,10 +30,10 @@ _price_cache: Dict[str, Any] = {
 
 # Fallback cache local (usado quando tudo falhar)
 _fallback_prices = {
-    "solteiro": 319000,  # R$ 3.190,00 em centavos
-    "padrao": 329000,    # R$ 3.290,00 em centavos  
-    "queen": 349000,     # R$ 3.490,00 em centavos
-    "king": 489000       # R$ 4.890,00 em centavos
+    "solteiro": 425900,  # R$ 4.259,00 em centavos
+    "padrao": 440000,    # R$ 4.400,00 em centavos  
+    "queen": 489000,     # R$ 4.890,00 em centavos
+    "king": 589900       # R$ 5.899,00 em centavos
 }
 
 
