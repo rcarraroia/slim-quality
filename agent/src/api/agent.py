@@ -472,3 +472,215 @@ async def get_agent_metrics():
     except Exception as e:
         logger.error("Erro ao obter métricas", error=str(e))
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# ===================================
+# ENDPOINTS DE SUB-AGENTES
+# ===================================
+
+@router.get("/sub-agents", response_model=List[Dict[str, Any]])
+async def get_sub_agents():
+    """
+    Lista todos os sub-agentes configurados
+    
+    Returns:
+        Lista de sub-agentes com suas configurações
+    """
+    try:
+        logger.info("Listando sub-agentes")
+        
+        from ..services.supabase_client import get_supabase_client
+        supabase = get_supabase_client()
+        
+        # Buscar todos os sub-agentes ativos
+        result = supabase.table('sub_agents').select('*').eq('is_active', True).is_('deleted_at', 'null').order('domain').execute()
+        
+        if result.data:
+            logger.info(f"Sub-agentes encontrados: {len(result.data)}")
+            return result.data
+        else:
+            logger.warning("Nenhum sub-agente encontrado")
+            return []
+            
+    except Exception as e:
+        logger.error("Erro ao listar sub-agentes", error=str(e))
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/sub-agents/{agent_id}")
+async def get_sub_agent(agent_id: str):
+    """
+    Busca um sub-agente específico por ID
+    
+    Args:
+        agent_id: UUID do sub-agente
+        
+    Returns:
+        Dados do sub-agente
+    """
+    try:
+        logger.info("Buscando sub-agente", agent_id=agent_id)
+        
+        from ..services.supabase_client import get_supabase_client
+        supabase = get_supabase_client()
+        
+        # Buscar sub-agente
+        result = supabase.table('sub_agents').select('*').eq('id', agent_id).eq('is_active', True).is_('deleted_at', 'null').execute()
+        
+        if result.data and len(result.data) > 0:
+            logger.info("Sub-agente encontrado", agent_id=agent_id)
+            return result.data[0]
+        else:
+            logger.warning("Sub-agente não encontrado", agent_id=agent_id)
+            raise HTTPException(status_code=404, detail="Sub-agente não encontrado")
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Erro ao buscar sub-agente", agent_id=agent_id, error=str(e))
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.put("/sub-agents/{agent_id}")
+async def update_sub_agent(agent_id: str, request: Request):
+    """
+    Atualiza configuração de um sub-agente
+    
+    Args:
+        agent_id: UUID do sub-agente
+        request: Dados para atualização (system_prompt, model, temperature, max_tokens)
+        
+    Returns:
+        Sub-agente atualizado
+    """
+    try:
+        body = await request.json()
+        logger.info("Atualizando sub-agente", agent_id=agent_id, fields=list(body.keys()))
+        
+        # Validar campos permitidos
+        allowed_fields = ['system_prompt', 'model', 'temperature', 'max_tokens', 'learning_threshold', 'max_patterns']
+        update_data = {k: v for k, v in body.items() if k in allowed_fields}
+        
+        if not update_data:
+            raise HTTPException(status_code=400, detail="Nenhum campo válido para atualizar")
+        
+        # Validações
+        if 'temperature' in update_data:
+            temp = float(update_data['temperature'])
+            if temp < 0 or temp > 2:
+                raise HTTPException(status_code=400, detail="Temperature deve estar entre 0 e 2")
+            update_data['temperature'] = temp
+        
+        if 'max_tokens' in update_data:
+            tokens = int(update_data['max_tokens'])
+            if tokens < 100 or tokens > 4000:
+                raise HTTPException(status_code=400, detail="Max tokens deve estar entre 100 e 4000")
+            update_data['max_tokens'] = tokens
+        
+        # Atualizar no banco
+        from ..services.supabase_client import get_supabase_client
+        supabase = get_supabase_client()
+        
+        update_data['updated_at'] = 'now()'
+        
+        result = supabase.table('sub_agents').update(update_data).eq('id', agent_id).execute()
+        
+        if result.data and len(result.data) > 0:
+            # Invalidar cache
+            from ..services.config_cache import get_config_cache
+            cache = get_config_cache()
+            
+            # Buscar domain do agente para invalidar cache correto
+            agent_data = result.data[0]
+            await cache.invalidate(agent_data['domain'])
+            
+            logger.info("Sub-agente atualizado e cache invalidado", agent_id=agent_id, domain=agent_data['domain'])
+            return result.data[0]
+        else:
+            raise HTTPException(status_code=404, detail="Sub-agente não encontrado")
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Erro ao atualizar sub-agente", agent_id=agent_id, error=str(e))
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/sub-agents/{agent_id}/reset")
+async def reset_sub_agent(agent_id: str):
+    """
+    Restaura configuração padrão de um sub-agente
+    
+    Args:
+        agent_id: UUID do sub-agente
+        
+    Returns:
+        Sub-agente com configuração restaurada
+    """
+    try:
+        logger.info("Restaurando configuração padrão", agent_id=agent_id)
+        
+        from ..services.supabase_client import get_supabase_client
+        supabase = get_supabase_client()
+        
+        # Buscar agente para saber o domain
+        agent_result = supabase.table('sub_agents').select('domain').eq('id', agent_id).execute()
+        
+        if not agent_result.data or len(agent_result.data) == 0:
+            raise HTTPException(status_code=404, detail="Sub-agente não encontrado")
+        
+        domain = agent_result.data[0]['domain']
+        
+        # Configurações padrão por domain
+        default_configs = {
+            'router': {
+                'system_prompt': 'Você é um classificador de intenções para vendas de colchões da Slim Quality. Classifique a mensagem do usuário em UMA das seguintes categorias: discovery (lead novo, perguntas gerais), sales (interesse em comprar, negociação), support (dúvidas sobre garantia, frete, troca). Retorne APENAS uma palavra: discovery, sales ou support.',
+                'model': 'gpt-4o',
+                'temperature': 0.3,
+                'max_tokens': 500
+            },
+            'discovery': {
+                'system_prompt': 'Você é a BIA, assistente virtual da Slim Quality. Seu objetivo é qualificar leads, entender problemas de saúde e sono do cliente, e educar sobre os benefícios dos colchões magnéticos terapêuticos. Seja empática, faça perguntas abertas e identifique necessidades específicas.',
+                'model': 'gpt-4o',
+                'temperature': 0.7,
+                'max_tokens': 2000
+            },
+            'sales': {
+                'system_prompt': 'Você é a BIA, consultora de vendas da Slim Quality. Seu objetivo é recomendar o colchão ideal baseado nas necessidades do cliente, negociar condições de pagamento e fechar vendas de forma consultiva (não transacional). Use memórias de conversas anteriores para personalizar recomendações.',
+                'model': 'gpt-4o',
+                'temperature': 0.7,
+                'max_tokens': 2000
+            },
+            'support': {
+                'system_prompt': 'Você é a BIA, suporte pós-venda da Slim Quality. Seu objetivo é resolver dúvidas sobre garantia (10 anos), frete (grátis), política de troca (30 dias) e problemas com pedidos. Seja prestativa e resolva problemas rapidamente.',
+                'model': 'gpt-4o',
+                'temperature': 0.5,
+                'max_tokens': 2000
+            }
+        }
+        
+        if domain not in default_configs:
+            raise HTTPException(status_code=400, detail=f"Domain inválido: {domain}")
+        
+        # Restaurar configuração padrão
+        default_config = default_configs[domain]
+        default_config['updated_at'] = 'now()'
+        
+        result = supabase.table('sub_agents').update(default_config).eq('id', agent_id).execute()
+        
+        if result.data and len(result.data) > 0:
+            # Invalidar cache
+            from ..services.config_cache import get_config_cache
+            cache = get_config_cache()
+            await cache.invalidate(domain)
+            
+            logger.info("Configuração padrão restaurada e cache invalidado", agent_id=agent_id, domain=domain)
+            return result.data[0]
+        else:
+            raise HTTPException(status_code=404, detail="Erro ao restaurar configuração")
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Erro ao restaurar configuração", agent_id=agent_id, error=str(e))
+        raise HTTPException(status_code=500, detail=str(e))
