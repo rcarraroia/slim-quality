@@ -52,7 +52,17 @@ class AutomationService {
    * Busca todas as regras de automação
    */
   async getRules(): Promise<ApiResponse<AutomationRule[]>> {
-    return await apiService.get<AutomationRule[]>(`${this.baseUrl}/rules`);
+    const response = await apiService.get<{ rules: AutomationRule[] }>(`${this.baseUrl}/rules`);
+    
+    // Extrair array de rules do objeto de resposta
+    if (response.success && response.data) {
+      return {
+        success: true,
+        data: response.data.rules || []
+      };
+    }
+    
+    return response as ApiResponse<AutomationRule[]>;
   }
 
   /**
