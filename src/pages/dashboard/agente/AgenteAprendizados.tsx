@@ -24,11 +24,12 @@ import { apiClient } from '@/lib/api.ts';
 
 interface Learning {
   id: string;
-  pattern: string;
+  pattern_type: string;
+  description: string;
   confidence: number;
-  source_count: number;
+  sample_conversation: string;
   suggested_response: string;
-  identified_at: string;
+  created_at: string;
   status: 'pending' | 'approved' | 'rejected';
   approved_at?: string;
   usage_count?: number;
@@ -78,12 +79,18 @@ export default function AgenteAprendizados() {
   // Filtrar aprendizados
   const filteredLearnings = learnings.filter(learning => {
     const matchesTab = activeTab === 'fila' ? learning.status === 'pending' : learning.status === 'approved';
-    const matchesSearch = learning.pattern.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         learning.suggested_response.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    // Proteção contra valores undefined
+    const pattern = learning.description || learning.pattern_type || '';
+    const response = learning.suggested_response || '';
+    
+    const matchesSearch = pattern.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         response.toLowerCase().includes(searchTerm.toLowerCase());
+    
     const matchesConfidence = confidenceFilter === 'all' || 
-                             (confidenceFilter === 'high' && learning.confidence >= 80) ||
-                             (confidenceFilter === 'medium' && learning.confidence >= 60 && learning.confidence < 80) ||
-                             (confidenceFilter === 'low' && learning.confidence < 60);
+                             (confidenceFilter === 'high' && learning.confidence >= 0.8) ||
+                             (confidenceFilter === 'medium' && learning.confidence >= 0.6 && learning.confidence < 0.8) ||
+                             (confidenceFilter === 'low' && learning.confidence < 0.6);
     
     return matchesTab && matchesSearch && matchesConfidence;
   });
@@ -222,13 +229,21 @@ export default function AgenteAprendizados() {
   };
 
   const getConfidenceBadge = (confidence: number) => {
-    if (confidence >= 80) return <Badge variant="default">Alta ({confidence}%)</Badge>;
-    if (confidence >= 60) return <Badge variant="secondary">Média ({confidence}%)</Badge>;
-    return <Badge variant="outline">Baixa ({confidence}%)</Badge>;
+    // Converter de decimal para percentual se necessário
+    const confidencePercent = confidence <= 1 ? Math.round(confidence * 100) : confidence;
+    
+    if (confidencePercent >= 80) return <Badge variant="default">Alta ({confidencePercent}%)</Badge>;
+    if (confidencePercent >= 60) return <Badge variant="secondary">Média ({confidencePercent}%)</Badge>;
+    return <Badge variant="outline">Baixa ({confidencePercent}%)</Badge>;
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleString('pt-BR');
+    if (!dateString) return 'Data não disponível';
+    try {
+      return new Date(dateString).toLocaleString('pt-BR');
+    } catch (error) {
+      return 'Data inválida';
+    }
   };
 
   if (isLoading) {
@@ -333,7 +348,7 @@ export default function AgenteAprendizados() {
                         Aprendizado #{learning.id}
                       </CardTitle>
                       <CardDescription>
-                        Identificado em {formatDate(learning.identified_at)} • {learning.source_count} conversas similares
+                        Identificado em {formatDate(learning.created_at)} • Padrão: {learning.pattern_type}
                       </CardDescription>
                     </div>
                     {getConfidenceBadge(learning.confidence)}
@@ -342,7 +357,7 @@ export default function AgenteAprendizados() {
                 <CardContent className="space-y-4">
                   <div>
                     <h4 className="font-semibold mb-2">Padrão Identificado:</h4>
-                    <p className="text-sm bg-muted p-3 rounded-lg">"{learning.pattern}"</p>
+                    <p className="text-sm bg-muted p-3 rounded-lg">"{learning.description || learning.pattern_type}"</p>
                   </div>
                   
                   <div>
@@ -429,9 +444,9 @@ export default function AgenteAprendizados() {
                     <div key={learning.id} className="border rounded-lg p-4">
                       <div className="flex items-start justify-between mb-2">
                         <div className="flex-1">
-                          <h4 className="font-semibold">{learning.pattern}</h4>
+                          <h4 className="font-semibold">{learning.description || learning.pattern_type}</h4>
                           <p className="text-sm text-muted-foreground mt-1">
-                            {learning.suggested_response}
+                            {learning.suggested_response || 'Nenhuma resposta sugerida'}
                           </p>
                         </div>
                         <div className="flex items-center gap-2 ml-4">
