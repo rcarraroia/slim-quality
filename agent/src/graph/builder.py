@@ -5,7 +5,7 @@ import structlog
 from langgraph.graph import StateGraph, END
 
 from .state import AgentState
-from .nodes import router_node, discovery_node, sales_node, support_node
+from .nodes import discovery_node, sales_node, support_node
 from .edges import route_intent
 from .checkpointer import SupabaseCheckpointer
 
@@ -16,13 +16,15 @@ def build_graph() -> StateGraph:
     """
     Monta StateGraph completo com todos os nodes e edges, incluindo SICC.
     
-    Estrutura com SICC integrado:
-        START → sicc_lookup → router → [discovery | sales | support] → sicc_learn → supervisor_approve → END
+    Estrutura com SICC integrado (SEM Router redundante):
+        START → sicc_lookup → [discovery | sales | support] → sicc_learn → supervisor_approve → END
+    
+    O roteamento é feito diretamente pelo sicc_lookup_node baseado no contexto.
     
     Returns:
         StateGraph compilado com checkpointer
     """
-    logger.info("build_graph: Montando StateGraph com SICC integrado")
+    logger.info("build_graph: Montando StateGraph com SICC integrado (sem Router)")
     
     # Criar workflow
     workflow = StateGraph(AgentState)
@@ -37,22 +39,18 @@ def build_graph() -> StateGraph:
     workflow.add_node("sicc_learn", sicc_learn_node)
     workflow.add_node("supervisor_approve", supervisor_approve_node)
     
-    # Adicionar nodes principais
-    workflow.add_node("router", router_node)
+    # Adicionar nodes especializados (sem router)
     workflow.add_node("discovery", discovery_node)
     workflow.add_node("sales", sales_node)
     workflow.add_node("support", support_node)
     
-    # NOVO FLUXO COM SICC:
-    # Entry point: SICC Lookup (busca contexto primeiro)
+    # FLUXO OTIMIZADO SEM ROUTER:
+    # Entry point: SICC Lookup (busca contexto E faz roteamento)
     workflow.set_entry_point("sicc_lookup")
     
-    # SICC Lookup → Router
-    workflow.add_edge("sicc_lookup", "router")
-    
-    # Router → Sub-agentes (conditional edges)
+    # SICC Lookup → Sub-agentes (conditional edges baseado em intent)
     workflow.add_conditional_edges(
-        "router",
+        "sicc_lookup",
         route_intent,
         {
             "discovery": "discovery",
@@ -76,6 +74,6 @@ def build_graph() -> StateGraph:
     checkpointer = SupabaseCheckpointer()
     graph = workflow.compile(checkpointer=checkpointer)
     
-    logger.info("build_graph: StateGraph compilado com sucesso (SICC integrado)")
+    logger.info("build_graph: StateGraph compilado com sucesso (SICC integrado, sem Router)")
     
     return graph
