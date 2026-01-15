@@ -1,5 +1,5 @@
 # Slim Quality Agent - Dependências Python
-# Última atualização: 2024-12-28
+# Última atualização: 2026-01-15 (aiohttp adicionado)
 # Stack: LangGraph + FastAPI + Supabase + SICC
 # Versões: Dezembro 2024 (testadas e validadas)
 
