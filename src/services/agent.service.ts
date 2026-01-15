@@ -41,49 +41,49 @@ class AgentService {
    * Buscar configuração geral do agente
    */
   async getConfig(): Promise<ApiResponse<AgentConfig>> {
-    return apiService.get<AgentConfig>('/agent/config');
+    return apiService.get<AgentConfig>('/api/agent/config');
   }
 
   /**
    * Atualizar configuração geral do agente
    */
   async updateConfig(config: AgentConfig): Promise<ApiResponse<AgentConfig>> {
-    return apiService.post<AgentConfig>('/agent/config', config);
+    return apiService.post<AgentConfig>('/api/agent/config', config);
   }
 
   /**
    * Testar prompt com configurações específicas
    */
   async testPrompt(request: TestPromptRequest): Promise<ApiResponse<TestPromptResponse>> {
-    return apiService.post<TestPromptResponse>('/agent/test-prompt', request);
+    return apiService.post<TestPromptResponse>('/api/agent/test-prompt', request);
   }
 
   /**
    * Listar todos os sub-agentes
    */
   async getSubAgents(): Promise<ApiResponse<SubAgent[]>> {
-    return apiService.get<SubAgent[]>('/agent/sub-agents');
+    return apiService.get<SubAgent[]>('/api/agent/sub-agents');
   }
 
   /**
    * Buscar um sub-agente específico
    */
   async getSubAgent(id: string): Promise<ApiResponse<SubAgent>> {
-    return apiService.get<SubAgent>(`/agent/sub-agents/${id}`);
+    return apiService.get<SubAgent>(`/api/agent/sub-agents/${id}`);
   }
 
   /**
    * Atualizar configuração de um sub-agente
    */
   async updateSubAgent(id: string, data: Partial<SubAgent>): Promise<ApiResponse<SubAgent>> {
-    return apiService.put<SubAgent>(`/agent/sub-agents/${id}`, data);
+    return apiService.put<SubAgent>(`/api/agent/sub-agents/${id}`, data);
   }
 
   /**
    * Restaurar configuração padrão de um sub-agente
    */
   async resetSubAgent(id: string): Promise<ApiResponse<SubAgent>> {
-    return apiService.post<SubAgent>(`/agent/sub-agents/${id}/reset`, {});
+    return apiService.post<SubAgent>(`/api/agent/sub-agents/${id}/reset`, {});
   }
 }
 
