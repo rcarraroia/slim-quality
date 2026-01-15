@@ -1,6 +1,7 @@
 /**
  * Serviço para Automações
  * Conecta frontend às APIs de automação do backend
+ * Última atualização: 2026-01-15 21:35 - Cache bust
  */
 
 import { apiService, ApiResponse } from './api.service';
