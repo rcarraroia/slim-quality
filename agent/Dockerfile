@@ -3,7 +3,7 @@
 # Base: Python 3.11 slim para menor tamanho
 
 # ============================================
-# STAGE 1: Builder - Instalar dependências
+# STAGE 1: Builder - Instalar dependências (REBUILD FORÇADO)
 # ============================================
 FROM python:3.11-slim as builder
 
@@ -17,7 +17,7 @@ RUN apt-get update && apt-get install -y \
 # Criar diretório de trabalho
 WORKDIR /app
 
-# Copiar requirements e instalar dependências
+# Copiar requirements e instalar dependências (SEM CACHE)
 COPY requirements.txt .
 RUN pip install --no-cache-dir --user -r requirements.txt
 
