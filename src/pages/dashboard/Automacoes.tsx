@@ -391,16 +391,16 @@ export default function Automacoes() {
 
       {/* Modal de Criação/Edição */}
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editingAutomation ? `Editar Automação: ${editingAutomation.nome}` : 'Nova Automação'}</DialogTitle>
           </DialogHeader>
           
-          <form onSubmit={handleSubmit} className="space-y-6 py-4">
-            <h3 className="font-semibold text-lg border-b pb-2">Configuração Básica</h3>
+          <form onSubmit={handleSubmit} className="space-y-4 py-2">
+            <h3 className="font-semibold text-sm border-b pb-2">Configuração Básica</h3>
             
-            <div className="space-y-2">
-              <Label htmlFor="nome">Nome da Automação *</Label>
+            <div className="space-y-1.5">
+              <Label htmlFor="nome" className="text-sm">Nome da Automação *</Label>
               <Input 
                 id="nome"
                 placeholder="Ex: Boas-vindas Novo Cliente" 
@@ -408,23 +408,24 @@ export default function Automacoes() {
                 onChange={(e) => setFormData(prev => ({ ...prev, nome: e.target.value }))}
                 className={formErrors.nome ? 'border-destructive' : ''}
               />
-              {formErrors.nome && <p className="text-sm text-destructive">{formErrors.nome}</p>}
+              {formErrors.nome && <p className="text-xs text-destructive">{formErrors.nome}</p>}
             </div>
             
-            <div className="space-y-2">
-              <Label htmlFor="descricao">Descrição</Label>
+            <div className="space-y-1.5">
+              <Label htmlFor="descricao" className="text-sm">Descrição</Label>
               <Textarea 
                 id="descricao"
                 placeholder="Opcional" 
                 rows={2}
                 value={formData.descricao}
                 onChange={(e) => setFormData(prev => ({ ...prev, descricao: e.target.value }))}
+                className="text-sm"
               />
             </div>
 
-            <h3 className="font-semibold text-lg border-b pb-2">Gatilho (Quando ativar?) *</h3>
-            <div className="space-y-2">
-              <Label htmlFor="gatilho">Tipo de Gatilho</Label>
+            <h3 className="font-semibold text-sm border-b pb-2 pt-2">Gatilho (Quando ativar?) *</h3>
+            <div className="space-y-1.5">
+              <Label htmlFor="gatilho" className="text-sm">Tipo de Gatilho</Label>
               <Select 
                 value={formData.gatilho} 
                 onValueChange={(value) => setFormData(prev => ({ ...prev, gatilho: value }))}
@@ -440,12 +441,12 @@ export default function Automacoes() {
                   <SelectItem value="Data específica">Data específica</SelectItem>
                 </SelectContent>
               </Select>
-              {formErrors.gatilho && <p className="text-sm text-destructive">{formErrors.gatilho}</p>}
+              {formErrors.gatilho && <p className="text-xs text-destructive">{formErrors.gatilho}</p>}
             </div>
 
-            <h3 className="font-semibold text-lg border-b pb-2">Ação (O que fazer?) *</h3>
-            <div className="space-y-2">
-              <Label htmlFor="acao">Tipo de Ação</Label>
+            <h3 className="font-semibold text-sm border-b pb-2 pt-2">Ação (O que fazer?) *</h3>
+            <div className="space-y-1.5">
+              <Label htmlFor="acao" className="text-sm">Tipo de Ação</Label>
               <Select 
                 value={formData.acao} 
                 onValueChange={(value) => setFormData(prev => ({ ...prev, acao: value }))}
@@ -460,11 +461,11 @@ export default function Automacoes() {
                   <SelectItem value="Notificar equipe">Notificar equipe</SelectItem>
                 </SelectContent>
               </Select>
-              {formErrors.acao && <p className="text-sm text-destructive">{formErrors.acao}</p>}
+              {formErrors.acao && <p className="text-xs text-destructive">{formErrors.acao}</p>}
             </div>
             
-            <h3 className="font-semibold text-lg border-b pb-2">Agendamento</h3>
-            <div className="flex items-center space-x-2">
+            <h3 className="font-semibold text-sm border-b pb-2 pt-2">Agendamento</h3>
+            <div className="flex items-center gap-2 flex-wrap">
               <Toggle 
                 pressed={formData.agendamento.aguardar}
                 onPressedChange={(pressed) => 
@@ -474,13 +475,14 @@ export default function Automacoes() {
                   }))
                 }
                 aria-label="Toggle agendamento"
+                size="sm"
               >
                 Aguardar
               </Toggle>
               <Input 
                 type="number" 
                 placeholder="1" 
-                className="w-20"
+                className="w-16 h-9"
                 min="1"
                 value={formData.agendamento.tempo}
                 onChange={(e) => 
@@ -501,7 +503,7 @@ export default function Automacoes() {
                 }
                 disabled={!formData.agendamento.aguardar}
               >
-                <SelectTrigger className="w-32">
+                <SelectTrigger className="w-24 h-9">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -509,15 +511,16 @@ export default function Automacoes() {
                   <SelectItem value="dias">dias</SelectItem>
                 </SelectContent>
               </Select>
-              <span className="text-sm text-muted-foreground">após o gatilho.</span>
+              <span className="text-xs text-muted-foreground">após o gatilho.</span>
             </div>
 
-            <div className="flex justify-end gap-2 pt-4 border-t">
+            <div className="flex justify-end gap-2 pt-3 border-t">
               <Button 
                 type="button" 
                 variant="outline" 
                 onClick={() => setIsModalOpen(false)}
                 disabled={formLoading}
+                size="sm"
               >
                 Cancelar
               </Button>
@@ -525,6 +528,7 @@ export default function Automacoes() {
                 type="submit" 
                 className="gap-2"
                 disabled={formLoading}
+                size="sm"
               >
                 {formLoading ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
