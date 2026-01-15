@@ -6,7 +6,7 @@ from langchain_anthropic import ChatAnthropic
 from langchain_core.messages import SystemMessage, AIMessage
 
 from ..state import AgentState
-from ...config import get_settings
+from ...services.config_cache import get_sub_agent_config
 from ...services.supabase_client import get_products
 
 logger = structlog.get_logger(__name__)
@@ -102,14 +102,18 @@ CONTEXTO SICC:
     
     logger.info(f"sales_node: {len(top_products)} produtos selecionados para recomendação")
     
-    # Obter configurações
-    settings = get_settings()
+    # Carregar configuração do banco (com cache)
+    try:
+        config = await get_sub_agent_config('sales')
+        logger.info("sales_node: Config carregada", model=config.model, temperature=config.temperature)
+    except Exception as e:
+        logger.error("sales_node: Erro ao carregar config, usando fallback", error=str(e))
+        config = await get_sub_agent_config('sales')
     
-    # Inicializar Claude
+    # Inicializar Claude com config do banco
     llm = ChatAnthropic(
-        model=settings.claude_model,
-        api_key=settings.claude_api_key,
-        temperature=0.7
+        model=config.model,
+        temperature=config.temperature
     )
     
     # Construir prompt de vendas com contexto SICC
@@ -142,7 +146,7 @@ CONTEXTO SICC:
             if pattern_desc:
                 patterns_text += f"\n- {pattern_desc}"
     
-    system_prompt = f"""Você é BIA, vendedora especialista em colchões da Slim Quality.
+    system_prompt = f"""{config.system_prompt}
 
 {personalization}
 
@@ -153,22 +157,6 @@ PRODUTOS DISPONÍVEIS:
 {format_products(top_products)}
 {memories_text}
 {patterns_text}
-
-SUA MISSÃO:
-1. Recomendar o MELHOR produto para o problema do cliente
-2. Explicar POR QUE esse produto é ideal (tecnologias, firmeza, etc)
-3. Mencionar condições de pagamento: até 12x sem juros
-4. Destacar diferenciais: garantia 10 anos, frete grátis, 100 noites teste
-5. Criar senso de urgência (estoque limitado, promoção)
-6. USE o contexto do cliente e memórias para personalizar a abordagem
-
-ESTILO DE COMUNICAÇÃO:
-- Consultiva, não agressiva
-- Use emojis moderadamente
-- Seja específica sobre benefícios
-- Responda dúvidas com confiança
-- Não force a venda, eduque o cliente
-- Se cliente é retornando, reconheça isso na conversa
 
 IMPORTANTE:
 - Se o cliente perguntar sobre preço, seja transparente

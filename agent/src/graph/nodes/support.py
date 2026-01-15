@@ -6,7 +6,7 @@ from langchain_anthropic import ChatAnthropic
 from langchain_core.messages import SystemMessage, AIMessage
 
 from ..state import AgentState
-from ...config import get_settings
+from ...services.config_cache import get_sub_agent_config
 
 logger = structlog.get_logger(__name__)
 
@@ -63,14 +63,18 @@ async def support_node(state: AgentState) -> AgentState:
     customer_context = state.get("customer_context", {})
     sicc_patterns = state.get("sicc_patterns", [])
     
-    # Obter configurações
-    settings = get_settings()
+    # Carregar configuração do banco (com cache)
+    try:
+        config = await get_sub_agent_config('support')
+        logger.info("support_node: Config carregada", model=config.model, temperature=config.temperature)
+    except Exception as e:
+        logger.error("support_node: Erro ao carregar config, usando fallback", error=str(e))
+        config = await get_sub_agent_config('support')
     
-    # Inicializar Claude
+    # Inicializar Claude com config do banco
     llm = ChatAnthropic(
-        model=settings.claude_model,
-        api_key=settings.claude_api_key,
-        temperature=0.5  # Temperatura baixa para respostas precisas
+        model=config.model,
+        temperature=config.temperature
     )
     
     # Obter nome do lead se disponível
@@ -110,7 +114,7 @@ CONTEXTO SICC:
                 patterns_text += f"\n- {pattern_desc}"
     
     # Prompt de suporte com contexto SICC
-    system_prompt = f"""Você é BIA, assistente de suporte da Slim Quality.
+    system_prompt = f"""{config.system_prompt}
 
 {personalization}
 

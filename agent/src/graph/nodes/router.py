@@ -6,7 +6,7 @@ from langchain_anthropic import ChatAnthropic
 from langchain_core.messages import SystemMessage, HumanMessage
 
 from ..state import AgentState
-from ...config import get_settings
+from ...services.config_cache import get_sub_agent_config
 
 logger = structlog.get_logger(__name__)
 
@@ -33,14 +33,19 @@ async def router_node(state: AgentState) -> AgentState:
     """
     logger.info("router_node: Analisando intenção da mensagem com contexto SICC")
     
-    # Obter configurações
-    settings = get_settings()
+    # Carregar configuração do banco (com cache)
+    try:
+        config = await get_sub_agent_config('router')
+        logger.info("router_node: Config carregada", model=config.model, temperature=config.temperature)
+    except Exception as e:
+        logger.error("router_node: Erro ao carregar config, usando fallback", error=str(e))
+        # Fallback já está implementado em get_sub_agent_config
+        config = await get_sub_agent_config('router')
     
-    # Inicializar Claude
+    # Inicializar Claude com config do banco
     llm = ChatAnthropic(
-        model=settings.claude_model,
-        api_key=settings.claude_api_key,
-        temperature=0.3
+        model=config.model,
+        temperature=config.temperature
     )
     
     # Obter contexto SICC
@@ -59,29 +64,10 @@ CONTEXTO SICC:
 - Padrões aplicáveis: {sicc_context.get('patterns_found', 0)}
 """
     
-    system_prompt = f"""Você é um classificador de intenções para vendas de colchões da Slim Quality.
+    # Usar system_prompt do banco
+    system_prompt = f"""{config.system_prompt}
 
 {context_info}
-
-Classifique a mensagem do usuário em UMA das seguintes categorias:
-
-1. **discovery**: 
-   - Lead novo fazendo primeiro contato
-   - Perguntas gerais sobre produtos
-   - Qualificação inicial
-   - Exemplos: "Olá", "Quero saber sobre colchões", "Tenho dor nas costas"
-
-2. **sales**: 
-   - Interesse claro em comprar
-   - Negociação de preço ou condições
-   - Comparação de produtos
-   - Exemplos: "Quanto custa?", "Qual o melhor colchão para mim?", "Aceita parcelamento?"
-
-3. **support**: 
-   - Dúvidas sobre garantia, frete, troca
-   - Suporte pós-venda
-   - Problemas com pedido
-   - Exemplos: "Como funciona a garantia?", "Onde está meu pedido?", "Posso trocar?"
 
 Use o contexto do cliente para classificar melhor. Se é cliente retornando com compra, provavelmente é support.
 

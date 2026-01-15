@@ -7,7 +7,7 @@ from langchain_anthropic import ChatAnthropic
 from langchain_core.messages import SystemMessage, AIMessage
 
 from ..state import AgentState
-from ...config import get_settings
+from ...services.config_cache import get_sub_agent_config
 
 logger = structlog.get_logger(__name__)
 
@@ -97,6 +97,14 @@ async def discovery_node(state: AgentState) -> AgentState:
     """
     logger.info("discovery_node: Qualificando lead com contexto SICC")
     
+    # Carregar configuração do banco (com cache)
+    try:
+        config = await get_sub_agent_config('discovery')
+        logger.info("discovery_node: Config carregada", model=config.model, temperature=config.temperature)
+    except Exception as e:
+        logger.error("discovery_node: Erro ao carregar config, usando fallback", error=str(e))
+        config = await get_sub_agent_config('discovery')
+    
     # Obter contexto SICC
     sicc_context = state.get("sicc_context", {})
     customer_context = state.get("customer_context", {})
@@ -111,14 +119,10 @@ async def discovery_node(state: AgentState) -> AgentState:
     
     logger.info(f"discovery_node: Dados capturados: {list(updated_lead_data.keys())}")
     
-    # Obter configurações
-    settings = get_settings()
-    
-    # Inicializar Claude
+    # Inicializar Claude com config do banco
     llm = ChatAnthropic(
-        model=settings.claude_model,
-        api_key=settings.claude_api_key,
-        temperature=0.7  # Temperatura média para conversação natural
+        model=config.model,
+        temperature=config.temperature
     )
     
     # Construir prompt baseado em dados faltantes
@@ -163,15 +167,9 @@ CONTEXTO SICC:
             if pattern_desc:
                 patterns_text += f"\n- {pattern_desc}"
     
-    system_prompt = f"""Você é BIA, assistente de vendas da Slim Quality, especializada em colchões ortopédicos.
+    system_prompt = f"""{config.system_prompt}
 
 {personalization}
-
-Seu objetivo: qualificar o lead capturando as seguintes informações:
-- Nome completo
-- Email
-- Telefone
-- Problema de saúde (dor nas costas, insônia, etc)
 
 Dados já capturados: {', '.join(updated_lead_data.keys()) if updated_lead_data else 'nenhum'}
 Dados faltantes: {', '.join(missing_fields) if missing_fields else 'nenhum'}
@@ -186,12 +184,6 @@ REGRAS IMPORTANTES:
 5. Use emojis moderadamente para ser mais humana
 6. Se cliente é retornando, reconheça isso na conversa
 7. USE as memórias relevantes para criar conexão com conversas anteriores
-
-Exemplo de abordagem:
-- "Olá! Sou a BIA 😊 Como posso te chamar?"
-- "Ótimo, [Nome]! Para te ajudar melhor, qual seu email?"
-- "Perfeito! E qual problema você está enfrentando? Dor nas costas, insônia...?"
-- Se cliente retornando: "Que bom te ver novamente! Como posso ajudar hoje?"
 """
     
     try:
