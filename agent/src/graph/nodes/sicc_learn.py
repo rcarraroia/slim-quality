@@ -96,7 +96,15 @@ async def sicc_learn_node(state: AgentState) -> AgentState:
         
         logger.info(f"sicc_learn_node: Análise concluída - {len(patterns)} padrões detectados, {len(response_templates)} templates extraídos")
         
-        return _add_learning_context(state, learning_context)
+        # Atualizar estado com learnings
+        return {
+            **state,
+            "sicc_learnings": pattern_scores,  # Adicionar ao campo sicc_learnings
+            "context": {
+                **state.get("context", {}),
+                "sicc_learning": learning_context
+            }
+        }
         
     except Exception as e:
         logger.error(f"sicc_learn_node: Erro na análise de padrões: {e}")
@@ -109,7 +117,14 @@ async def sicc_learn_node(state: AgentState) -> AgentState:
             "learning_opportunities": 0
         }
         
-        return _add_learning_context(state, error_context)
+        return {
+            **state,
+            "sicc_learnings": [],
+            "context": {
+                **state.get("context", {}),
+                "sicc_learning": error_context
+            }
+        }
 
 
 def _prepare_conversation_data(state: AgentState) -> Dict[str, Any]:

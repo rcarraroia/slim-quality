@@ -13,12 +13,17 @@ logger = structlog.get_logger(__name__)
 
 async def router_node(state: AgentState) -> AgentState:
     """
-    Analisa última mensagem e detecta intenção.
+    Analisa última mensagem e detecta intenção usando contexto SICC.
     
     Classifica a mensagem em uma das categorias:
     - discovery: Lead novo, qualificação inicial
     - sales: Interesse em comprar, negociação
     - support: Dúvidas, suporte pós-venda
+    
+    Usa contexto SICC para classificação mais precisa:
+    - Histórico do cliente
+    - Memórias relevantes
+    - Padrões aplicáveis
     
     Args:
         state: Estado atual da conversação
@@ -26,17 +31,37 @@ async def router_node(state: AgentState) -> AgentState:
     Returns:
         Estado atualizado com current_intent e next_action
     """
-    logger.info("router_node: Analisando intenção da mensagem")
+    logger.info("router_node: Analisando intenção da mensagem com contexto SICC")
+    
+    # Obter configurações
+    settings = get_settings()
     
     # Inicializar Claude
     llm = ChatAnthropic(
         model=settings.claude_model,
         api_key=settings.claude_api_key,
-        temperature=0.3  # Baixa temperatura para classificação consistente
+        temperature=0.3
     )
     
-    # Prompt de classificação
-    system_prompt = """Você é um classificador de intenções para vendas de colchões da Slim Quality.
+    # Obter contexto SICC
+    sicc_context = state.get("sicc_context", {})
+    customer_context = state.get("customer_context", {})
+    
+    # Construir prompt com contexto SICC
+    context_info = f"""
+CONTEXTO DO CLIENTE:
+- Cliente retornando: {customer_context.get('is_returning_customer', False)}
+- Nome: {customer_context.get('customer_name', 'Desconhecido')}
+- Histórico de compras: {customer_context.get('has_purchase_history', False)}
+
+CONTEXTO SICC:
+- Memórias relevantes encontradas: {sicc_context.get('memories_found', 0)}
+- Padrões aplicáveis: {sicc_context.get('patterns_found', 0)}
+"""
+    
+    system_prompt = f"""Você é um classificador de intenções para vendas de colchões da Slim Quality.
+
+{context_info}
 
 Classifique a mensagem do usuário em UMA das seguintes categorias:
 
@@ -58,8 +83,10 @@ Classifique a mensagem do usuário em UMA das seguintes categorias:
    - Problemas com pedido
    - Exemplos: "Como funciona a garantia?", "Onde está meu pedido?", "Posso trocar?"
 
-Retorne APENAS uma palavra: discovery, sales ou support"""
+Use o contexto do cliente para classificar melhor. Se é cliente retornando com compra, provavelmente é support.
 
+Retorne APENAS uma palavra: discovery, sales ou support"""
+    
     # Última mensagem do usuário
     last_message = state["messages"][-1]
     
@@ -78,7 +105,7 @@ Retorne APENAS uma palavra: discovery, sales ou support"""
             logger.warning(f"Intent inválido retornado: {intent}, usando 'discovery' como fallback")
             intent = "discovery"
         
-        logger.info(f"router_node: Intent detectado: {intent}")
+        logger.info(f"router_node: Intent detectado: {intent} (com contexto SICC)")
         
         # Atualizar estado
         return {
@@ -95,3 +122,4 @@ Retorne APENAS uma palavra: discovery, sales ou support"""
             "current_intent": "discovery",
             "next_action": "discovery_node"
         }
+

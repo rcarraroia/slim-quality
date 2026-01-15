@@ -81,12 +81,13 @@ def extract_lead_data(messages: list) -> dict:
 
 async def discovery_node(state: AgentState) -> AgentState:
     """
-    Qualifica lead e captura dados essenciais.
+    Qualifica lead e captura dados essenciais usando contexto SICC.
     
     Responsabilidades:
     - Capturar nome, email, telefone
     - Identificar problema de saúde
     - Manter conversação natural (uma pergunta por vez)
+    - Usar contexto SICC para personalização
     
     Args:
         state: Estado atual da conversação
@@ -94,7 +95,12 @@ async def discovery_node(state: AgentState) -> AgentState:
     Returns:
         Estado atualizado com lead_data e nova mensagem
     """
-    logger.info("discovery_node: Qualificando lead")
+    logger.info("discovery_node: Qualificando lead com contexto SICC")
+    
+    # Obter contexto SICC
+    sicc_context = state.get("sicc_context", {})
+    customer_context = state.get("customer_context", {})
+    sicc_patterns = state.get("sicc_patterns", [])
     
     # Extrair dados das mensagens
     extracted_data = extract_lead_data(state["messages"])
@@ -104,6 +110,9 @@ async def discovery_node(state: AgentState) -> AgentState:
     updated_lead_data = {**current_lead_data, **extracted_data}
     
     logger.info(f"discovery_node: Dados capturados: {list(updated_lead_data.keys())}")
+    
+    # Obter configurações
+    settings = get_settings()
     
     # Inicializar Claude
     llm = ChatAnthropic(
@@ -123,7 +132,40 @@ async def discovery_node(state: AgentState) -> AgentState:
     if 'problema_saude' not in updated_lead_data:
         missing_fields.append('problema de saúde')
     
+    # Construir contexto personalizado
+    personalization = f"""
+CONTEXTO DO CLIENTE:
+- Cliente retornando: {customer_context.get('is_returning_customer', False)}
+- Histórico de compras: {customer_context.get('has_purchase_history', False)}
+
+CONTEXTO SICC:
+- Memórias relevantes: {sicc_context.get('memories_found', 0)}
+- Padrões aplicáveis: {len(sicc_patterns)}
+"""
+    
+    # Formatar memórias relevantes do SICC
+    memories_text = ""
+    if sicc_context.get('memories'):
+        memories_list = sicc_context['memories'][:3]  # Top 3 memórias
+        if memories_list:
+            memories_text = "\n\nMEMÓRIAS RELEVANTES (conversas anteriores):\n"
+            for i, mem in enumerate(memories_list, 1):
+                content = mem.get('content', '')[:150]
+                memories_text += f"{i}. {content}...\n"
+            memories_text += "\nUSE essas memórias para criar conexão e personalizar a abordagem!\n"
+    
+    # Formatar padrões aplicáveis
+    patterns_text = ""
+    if sicc_patterns:
+        patterns_text = f"\n\nPADRÕES DETECTADOS: {len(sicc_patterns)} padrões aplicáveis"
+        for pattern in sicc_patterns[:2]:  # Top 2 padrões
+            pattern_desc = pattern.get('description', '')
+            if pattern_desc:
+                patterns_text += f"\n- {pattern_desc}"
+    
     system_prompt = f"""Você é BIA, assistente de vendas da Slim Quality, especializada em colchões ortopédicos.
+
+{personalization}
 
 Seu objetivo: qualificar o lead capturando as seguintes informações:
 - Nome completo
@@ -133,6 +175,8 @@ Seu objetivo: qualificar o lead capturando as seguintes informações:
 
 Dados já capturados: {', '.join(updated_lead_data.keys()) if updated_lead_data else 'nenhum'}
 Dados faltantes: {', '.join(missing_fields) if missing_fields else 'nenhum'}
+{memories_text}
+{patterns_text}
 
 REGRAS IMPORTANTES:
 1. Seja amigável, empática e natural
@@ -140,11 +184,14 @@ REGRAS IMPORTANTES:
 3. Se todos os dados já foram capturados, agradeça e pergunte como pode ajudar
 4. Não force o lead a dar todas as informações de uma vez
 5. Use emojis moderadamente para ser mais humana
+6. Se cliente é retornando, reconheça isso na conversa
+7. USE as memórias relevantes para criar conexão com conversas anteriores
 
 Exemplo de abordagem:
 - "Olá! Sou a BIA 😊 Como posso te chamar?"
 - "Ótimo, [Nome]! Para te ajudar melhor, qual seu email?"
 - "Perfeito! E qual problema você está enfrentando? Dor nas costas, insônia...?"
+- Se cliente retornando: "Que bom te ver novamente! Como posso ajudar hoje?"
 """
     
     try:

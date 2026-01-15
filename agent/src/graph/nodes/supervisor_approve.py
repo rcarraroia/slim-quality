@@ -147,7 +147,14 @@ async def supervisor_approve_node(state: AgentState) -> AgentState:
         
         logger.info(f"supervisor_approve_node: Validação concluída - {len(approvals)} aprovados, {len(rejections)} rejeitados")
         
-        return _add_supervision_context(state, supervision_context)
+        return {
+            **state,
+            "sicc_approved": len(approvals) > 0,  # Adicionar ao campo sicc_approved
+            "context": {
+                **state.get("context", {}),
+                "sicc_supervision": supervision_context
+            }
+        }
         
     except Exception as e:
         logger.error(f"supervisor_approve_node: Erro na validação de aprendizados: {e}")

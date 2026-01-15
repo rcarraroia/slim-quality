@@ -41,12 +41,13 @@ def detect_human_transfer(message_content: str) -> bool:
 
 async def support_node(state: AgentState) -> AgentState:
     """
-    Responde dúvidas e fornece suporte.
+    Responde dúvidas e fornece suporte usando contexto SICC.
     
     Responsabilidades:
     - Responder dúvidas sobre garantia, frete, troca, pagamento
     - Fornecer informações sobre políticas da empresa
     - Detectar necessidade de transferência para humano
+    - Usar contexto SICC para personalização
     - Notificar via MCP quando necessário
     
     Args:
@@ -55,7 +56,15 @@ async def support_node(state: AgentState) -> AgentState:
     Returns:
         Estado atualizado com nova mensagem
     """
-    logger.info("support_node: Fornecendo suporte")
+    logger.info("support_node: Fornecendo suporte com contexto SICC")
+    
+    # Obter contexto SICC
+    sicc_context = state.get("sicc_context", {})
+    customer_context = state.get("customer_context", {})
+    sicc_patterns = state.get("sicc_patterns", [])
+    
+    # Obter configurações
+    settings = get_settings()
     
     # Inicializar Claude
     llm = ChatAnthropic(
@@ -68,10 +77,46 @@ async def support_node(state: AgentState) -> AgentState:
     lead_data = state.get("lead_data", {})
     nome = lead_data.get("nome", "")
     
-    # Prompt de suporte
+    # Construir contexto personalizado
+    personalization = f"""
+CONTEXTO DO CLIENTE:
+- Nome: {customer_context.get('customer_name', nome if nome else 'Cliente')}
+- Cliente retornando: {customer_context.get('is_returning_customer', False)}
+- Histórico de compras: {customer_context.get('has_purchase_history', False)}
+
+CONTEXTO SICC:
+- Memórias relevantes: {sicc_context.get('memories_found', 0)}
+- Padrões aplicáveis: {len(sicc_patterns)}
+"""
+    
+    # Formatar memórias relevantes do SICC
+    memories_text = ""
+    if sicc_context.get('memories'):
+        memories_list = sicc_context['memories'][:3]  # Top 3 memórias
+        if memories_list:
+            memories_text = "\n\nMEMÓRIAS RELEVANTES (conversas anteriores):\n"
+            for i, mem in enumerate(memories_list, 1):
+                content = mem.get('content', '')[:150]
+                memories_text += f"{i}. {content}...\n"
+            memories_text += "\nUSE essas memórias para entender o histórico do cliente e personalizar o suporte!\n"
+    
+    # Formatar padrões aplicáveis
+    patterns_text = ""
+    if sicc_patterns:
+        patterns_text = f"\n\nPADRÕES DETECTADOS: {len(sicc_patterns)} padrões aplicáveis"
+        for pattern in sicc_patterns[:2]:  # Top 2 padrões
+            pattern_desc = pattern.get('description', '')
+            if pattern_desc:
+                patterns_text += f"\n- {pattern_desc}"
+    
+    # Prompt de suporte com contexto SICC
     system_prompt = f"""Você é BIA, assistente de suporte da Slim Quality.
 
+{personalization}
+
 Cliente: {nome if nome else 'Cliente'}
+{memories_text}
+{patterns_text}
 
 INFORMAÇÕES DA EMPRESA:
 
@@ -107,6 +152,8 @@ SUA MISSÃO:
 2. Ser empática e resolver problemas
 3. Se não souber, seja honesta e ofereça transferir para humano
 4. Tranquilizar o cliente sobre políticas generosas
+5. Se cliente é retornando, reconheça isso e use histórico
+6. USE as memórias relevantes para entender contexto e problemas anteriores
 
 QUANDO TRANSFERIR PARA HUMANO:
 - Reclamações graves ou complexas
@@ -119,6 +166,7 @@ ESTILO:
 - Use emojis moderadamente
 - Seja clara e objetiva
 - Demonstre empatia
+- Se cliente tem histórico, mostre que você lembra dele
 """
     
     try:

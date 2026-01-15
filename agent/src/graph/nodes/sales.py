@@ -49,10 +49,11 @@ def format_products(products: list) -> str:
 
 async def sales_node(state: AgentState) -> AgentState:
     """
-    Recomenda produtos e negocia vendas.
+    Recomenda produtos e negocia vendas usando contexto SICC.
     
     Responsabilidades:
     - Consultar produtos no Supabase baseado no perfil do lead
+    - Usar contexto SICC para personalização
     - Recomendar top 3 produtos
     - Negociar condições de pagamento
     - Responder dúvidas sobre produtos
@@ -63,11 +64,28 @@ async def sales_node(state: AgentState) -> AgentState:
     Returns:
         Estado atualizado com products_recommended e nova mensagem
     """
-    logger.info("sales_node: Iniciando recomendação de produtos")
+    logger.info("sales_node: Iniciando recomendação de produtos com contexto SICC")
+    
+    # Obter contexto SICC
+    sicc_context = state.get("sicc_context", {})
+    customer_context = state.get("customer_context", {})
+    sicc_patterns = state.get("sicc_patterns", [])
     
     # Obter dados do lead
     lead_data = state.get("lead_data", {})
     problema_saude = lead_data.get("problema_saude")
+    
+    # Construir contexto personalizado
+    personalization = f"""
+CONTEXTO DO CLIENTE:
+- Nome: {customer_context.get('customer_name', 'Cliente')}
+- Cliente retornando: {customer_context.get('is_returning_customer', False)}
+- Histórico de compras: {customer_context.get('has_purchase_history', False)}
+
+CONTEXTO SICC:
+- Memórias relevantes: {sicc_context.get('memories_found', 0)}
+- Padrões aplicáveis: {len(sicc_patterns)}
+"""
     
     # Consultar produtos
     filters = {}
@@ -75,7 +93,6 @@ async def sales_node(state: AgentState) -> AgentState:
         filters["problem"] = problema_saude
         logger.info(f"sales_node: Filtrando por problema: {problema_saude}")
     else:
-        # Sem filtro específico, pegar produtos médios
         filters["price_range"] = "medium"
     
     products = await get_products(filters)
@@ -85,6 +102,9 @@ async def sales_node(state: AgentState) -> AgentState:
     
     logger.info(f"sales_node: {len(top_products)} produtos selecionados para recomendação")
     
+    # Obter configurações
+    settings = get_settings()
+    
     # Inicializar Claude
     llm = ChatAnthropic(
         model=settings.claude_model,
@@ -92,7 +112,7 @@ async def sales_node(state: AgentState) -> AgentState:
         temperature=0.7
     )
     
-    # Construir prompt de vendas
+    # Construir prompt de vendas com contexto SICC
     nome = lead_data.get("nome", "")
     problem_description = {
         "dor_costas": "dor nas costas",
@@ -103,13 +123,36 @@ async def sales_node(state: AgentState) -> AgentState:
         "ma_postura": "má postura",
     }.get(problema_saude, "melhor qualidade de sono")
     
+    # Formatar memórias relevantes do SICC
+    memories_text = ""
+    if sicc_context.get('memories'):
+        memories_list = sicc_context['memories'][:3]  # Top 3 memórias
+        if memories_list:
+            memories_text = "\n\nMEMÓRIAS RELEVANTES (conversas anteriores):\n"
+            for i, mem in enumerate(memories_list, 1):
+                content = mem.get('content', '')[:150]
+                memories_text += f"{i}. {content}...\n"
+    
+    # Formatar padrões aplicáveis
+    patterns_text = ""
+    if sicc_patterns:
+        patterns_text = f"\n\nPADRÕES DETECTADOS: {len(sicc_patterns)} padrões aplicáveis identificados"
+        for pattern in sicc_patterns[:2]:  # Top 2 padrões
+            pattern_desc = pattern.get('description', '')
+            if pattern_desc:
+                patterns_text += f"\n- {pattern_desc}"
+    
     system_prompt = f"""Você é BIA, vendedora especialista em colchões da Slim Quality.
+
+{personalization}
 
 Cliente: {nome if nome else 'Cliente'}
 Problema identificado: {problem_description}
 
 PRODUTOS DISPONÍVEIS:
 {format_products(top_products)}
+{memories_text}
+{patterns_text}
 
 SUA MISSÃO:
 1. Recomendar o MELHOR produto para o problema do cliente
@@ -117,6 +160,7 @@ SUA MISSÃO:
 3. Mencionar condições de pagamento: até 12x sem juros
 4. Destacar diferenciais: garantia 10 anos, frete grátis, 100 noites teste
 5. Criar senso de urgência (estoque limitado, promoção)
+6. USE o contexto do cliente e memórias para personalizar a abordagem
 
 ESTILO DE COMUNICAÇÃO:
 - Consultiva, não agressiva
@@ -124,11 +168,13 @@ ESTILO DE COMUNICAÇÃO:
 - Seja específica sobre benefícios
 - Responda dúvidas com confiança
 - Não force a venda, eduque o cliente
+- Se cliente é retornando, reconheça isso na conversa
 
 IMPORTANTE:
 - Se o cliente perguntar sobre preço, seja transparente
 - Se comparar produtos, destaque diferenças técnicas
 - Se negociar, ofereça parcelamento, não desconto
+- Use as memórias relevantes para criar conexão com conversas anteriores
 """
     
     try:

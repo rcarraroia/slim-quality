@@ -17,13 +17,15 @@ async def sicc_lookup_node(state: AgentState) -> AgentState:
     Utiliza o Memory Service para:
     1. Buscar memórias similares baseadas na última mensagem
     2. Recuperar contexto relevante de conversas anteriores
-    3. Adicionar contexto ao estado para uso pelos próximos nodes
+    3. Buscar histórico do cliente (compras, interações)
+    4. Buscar padrões aplicáveis
+    5. Adicionar contexto ao estado para uso pelos próximos nodes
     
     Args:
         state: Estado atual da conversação
         
     Returns:
-        Estado atualizado com contexto relevante em state["context"]["sicc_memories"]
+        Estado atualizado com contexto SICC completo
     """
     logger.info("sicc_lookup_node: Iniciando busca de contexto relevante")
     
@@ -38,66 +40,92 @@ async def sicc_lookup_node(state: AgentState) -> AgentState:
         
         last_message = state["messages"][-1]
         query_text = last_message.content
+        customer_id = state.get("lead_id")
         
         logger.info(f"sicc_lookup_node: Buscando contexto para: '{query_text[:50]}...'")
         
-        # Buscar memórias similares
-        # Usar lead_id se disponível, senão busca geral
-        customer_id = state.get("lead_id")
-        
+        # 1. Buscar memórias similares
         similar_memories = await memory_service.search_similar(
             query_text=query_text,
-            limit=5,  # Máximo 5 memórias relevantes
-            similarity_threshold=0.7,  # Apenas memórias bem similares
-            filters={
-                "customer_id": customer_id
-            } if customer_id else {}
+            limit=5,
+            similarity_threshold=0.7,
+            filters={"customer_id": customer_id} if customer_id else {}
         )
         
-        # Buscar contexto relevante de conversas anteriores
+        # 2. Buscar contexto relevante de conversas anteriores
         relevant_context = await memory_service.get_relevant_context(
             conversation_id=state.get("lead_id", "unknown"),
             query=query_text,
             max_memories=3
         )
         
-        # Preparar contexto para adicionar ao estado
+        # 3. Buscar histórico do cliente
+        customer_context = {}
+        if customer_id:
+            try:
+                from ...services.customer_history_service import get_customer_history_service
+                customer_service = get_customer_history_service()
+                customer_context = await customer_service.get_customer_context(customer_id)
+                logger.info(f"sicc_lookup_node: Contexto do cliente obtido - Retornando: {customer_context.get('is_returning_customer', False)}")
+            except Exception as e:
+                logger.warning(f"sicc_lookup_node: Erro ao buscar contexto do cliente: {e}")
+                customer_context = {
+                    "is_returning_customer": False,
+                    "customer_name": None,
+                    "has_purchase_history": False
+                }
+        
+        # 4. Buscar padrões aplicáveis
+        patterns = []
+        try:
+            from ...services.sicc.behavior_service import get_behavior_service
+            behavior_service = get_behavior_service()
+            patterns = await behavior_service.find_applicable_patterns(
+                message=query_text,
+                context={"user_id": customer_id, "intent": state.get("current_intent")}
+            )
+            logger.info(f"sicc_lookup_node: {len(patterns)} padrões aplicáveis encontrados")
+        except Exception as e:
+            logger.warning(f"sicc_lookup_node: Erro ao buscar padrões: {e}")
+        
+        # Preparar contexto SICC completo
         sicc_context = {
-            "similar_memories": similar_memories,
+            "memories": similar_memories,
             "relevant_context": relevant_context,
+            "patterns": patterns,
             "lookup_query": query_text,
             "memories_found": len(similar_memories),
-            "context_found": len(relevant_context)
+            "context_found": len(relevant_context),
+            "patterns_found": len(patterns)
         }
         
+        logger.info(f"sicc_lookup_node: Contexto completo - {len(similar_memories)} memórias, {len(patterns)} padrões, cliente retornando: {customer_context.get('is_returning_customer', False)}")
+        
         # Atualizar estado com contexto SICC
-        updated_context = state.get("context", {})
-        updated_context["sicc_memories"] = sicc_context
-        
-        logger.info(f"sicc_lookup_node: Contexto adicionado - {len(similar_memories)} memórias similares, {len(relevant_context)} contextos relevantes")
-        
         return {
             **state,
-            "context": updated_context
+            "sicc_context": sicc_context,
+            "sicc_patterns": patterns,
+            "customer_context": customer_context
         }
         
     except Exception as e:
         logger.error(f"sicc_lookup_node: Erro ao buscar contexto: {e}")
         
         # Em caso de erro, continuar sem contexto SICC
-        # Não bloquear o fluxo da conversação
-        updated_context = state.get("context", {})
-        updated_context["sicc_memories"] = {
-            "error": str(e),
-            "similar_memories": [],
-            "relevant_context": [],
-            "memories_found": 0,
-            "context_found": 0
-        }
-        
         return {
             **state,
-            "context": updated_context
+            "sicc_context": {
+                "error": str(e),
+                "memories": [],
+                "relevant_context": [],
+                "patterns": [],
+                "memories_found": 0,
+                "context_found": 0,
+                "patterns_found": 0
+            },
+            "sicc_patterns": [],
+            "customer_context": {}
         }
 
 

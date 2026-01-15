@@ -141,6 +141,91 @@ class SupervisorService:
             recommendations=recommendations
         )
     
+    async def evaluate_learning(
+        self,
+        pattern_data: Dict[str, Any],
+        confidence_threshold: float = 0.7
+    ) -> Dict[str, Any]:
+        """
+        Avalia se um aprendizado deve ser aprovado automaticamente
+        
+        Args:
+            pattern_data: Dados do padrão detectado
+            confidence_threshold: Threshold mínimo para aprovação
+            
+        Returns:
+            Dict com resultado da avaliação:
+                - approved (bool): Se foi aprovado
+                - reason (str): Motivo da decisão
+                - confidence (float): Confiança do padrão
+                - conflicts (list): Lista de conflitos detectados
+        """
+        try:
+            confidence = pattern_data.get("confidence", 0.0)
+            
+            # 1. Verificar threshold de confiança
+            meets_threshold = await self.auto_approve(confidence, confidence_threshold)
+            
+            if not meets_threshold:
+                logger.info(f"Aprendizado rejeitado: confiança {confidence:.2f} < threshold {confidence_threshold}")
+                return {
+                    "approved": False,
+                    "reason": f"Confiança {confidence:.2f} abaixo do threshold {confidence_threshold}",
+                    "confidence": confidence,
+                    "conflicts": []
+                }
+            
+            # 2. Verificar conflitos com padrões existentes
+            # TODO: Buscar padrões existentes do banco quando integrado
+            existing_patterns = []
+            
+            conflict_analysis = await self.validate_pattern_conflicts(
+                new_pattern=pattern_data,
+                existing_patterns=existing_patterns
+            )
+            
+            # 3. Decidir baseado em conflitos
+            if conflict_analysis.has_conflicts and conflict_analysis.severity_score > 0.8:
+                logger.warning(f"Aprendizado rejeitado: conflitos críticos (severity={conflict_analysis.severity_score:.2f})")
+                return {
+                    "approved": False,
+                    "reason": "Conflitos críticos detectados",
+                    "confidence": confidence,
+                    "conflicts": [
+                        {
+                            "type": c.type,
+                            "severity": c.severity,
+                            "description": c.description
+                        }
+                        for c in conflict_analysis.conflict_details
+                    ]
+                }
+            
+            # 4. Aprovar
+            logger.info(f"Aprendizado aprovado: confiança {confidence:.2f}, conflitos menores: {len(conflict_analysis.conflict_details)}")
+            return {
+                "approved": True,
+                "reason": "Aprovado automaticamente",
+                "confidence": confidence,
+                "conflicts": [
+                    {
+                        "type": c.type,
+                        "severity": c.severity,
+                        "description": c.description
+                    }
+                    for c in conflict_analysis.conflict_details
+                ] if conflict_analysis.has_conflicts else []
+            }
+            
+        except Exception as e:
+            logger.error(f"Erro ao avaliar aprendizado: {e}")
+            return {
+                "approved": False,
+                "reason": f"Erro na avaliação: {str(e)}",
+                "confidence": 0.0,
+                "conflicts": []
+            }
+    
     def _calculate_similarity(self, text1: str, text2: str) -> float:
         """Calcula similaridade simples entre textos"""
         if not text1 or not text2:

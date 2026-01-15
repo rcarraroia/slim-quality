@@ -37,14 +37,12 @@ try:
         from .sicc import router as sicc_router
         from .affiliates import router as affiliates_router
         from .webhooks_asaas import router as asaas_webhook_router
-        # from .referral import router as referral_router  # TODO: Criar módulo referral
         
         app.include_router(agent_router)
         app.include_router(mcp_router)
         app.include_router(sicc_router)
         app.include_router(affiliates_router)
         app.include_router(asaas_webhook_router)
-        # app.include_router(referral_router)  # TODO: Criar módulo referral
         
         print("✅ Routers do dashboard registrados", flush=True)
     except Exception as router_error:
@@ -124,13 +122,72 @@ try:
             print(f"Erro no webhook teste: {e}", flush=True)
             return {"error": str(e)}
     
-    # Função para processar mensagem com SICC
+    # Função para processar mensagem com SICC (com fallback para Graph)
     async def process_with_sicc(message: str, phone: str):
+        """
+        Processa mensagem usando LangGraph (com fallback para SICCService)
+        
+        Estratégia:
+        1. Tentar LangGraph primeiro (novo - integrado)
+        2. Se falhar, usar SICCService (antigo - fallback)
+        3. Se ambos falharem, mensagem de erro genérica
+        """
+        import os
+        
+        # Feature flag para controlar uso do graph
+        USE_GRAPH = os.getenv("USE_SICC_GRAPH", "false").lower() == "true"
+        
+        # TENTATIVA 1: LangGraph (se feature flag ativada)
+        if USE_GRAPH:
+            try:
+                print(f"🚀 Tentando processar via LangGraph (feature flag ativada)...", flush=True)
+                
+                from src.graph.builder import build_graph
+                from langchain_core.messages import HumanMessage
+                
+                graph = build_graph()
+                
+                # Executar graph
+                result = await graph.ainvoke({
+                    "messages": [HumanMessage(content=message)],
+                    "lead_id": phone,
+                    "context": {},
+                    "current_intent": "",
+                    "next_action": "",
+                    "lead_data": {},
+                    "products_recommended": [],
+                    "sicc_context": None,
+                    "sicc_patterns": None,
+                    "sicc_learnings": None,
+                    "sicc_approved": None,
+                    "customer_context": None
+                })
+                
+                # Extrair resposta
+                response_text = result["messages"][-1].content
+                
+                print(f"✅ Processado via LangGraph com sucesso", flush=True)
+                print(f"   - SICC Context: {result.get('sicc_context', {}).get('memories_found', 0)} memórias", flush=True)
+                print(f"   - Patterns: {len(result.get('sicc_patterns', []))} padrões", flush=True)
+                print(f"   - Learnings: {len(result.get('sicc_learnings', []))} aprendizados", flush=True)
+                print(f"   - Approved: {result.get('sicc_approved', False)}", flush=True)
+                
+                return response_text
+                
+            except Exception as graph_error:
+                print(f"⚠️ LangGraph falhou: {graph_error}", flush=True)
+                print(f"   Usando fallback para SICCService...", flush=True)
+                import traceback
+                print(f"   Traceback: {traceback.format_exc()}", flush=True)
+                # Continuar para fallback
+        else:
+            print(f"📦 Feature flag desativada, usando SICCService diretamente", flush=True)
+        
+        # TENTATIVA 2: SICCService (fallback ou padrão)
         try:
-            print(f"Processando mensagem: {message} de {phone}", flush=True)
+            print(f"Processando mensagem via SICCService: {message} de {phone}", flush=True)
             
             # Verificar variáveis de ambiente críticas
-            import os
             openai_key = os.getenv("OPENAI_API_KEY")
             supabase_url = os.getenv("SUPABASE_URL")
             
