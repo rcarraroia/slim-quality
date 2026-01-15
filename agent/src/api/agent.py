@@ -1,7 +1,7 @@
 """
 Agent API - Endpoints para gerenciamento do agente
 """
-from fastapi import APIRouter, HTTPException, BackgroundTasks
+from fastapi import APIRouter, HTTPException, BackgroundTasks, Request
 from typing import List, Dict, Any
 import structlog
 from datetime import datetime
