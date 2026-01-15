@@ -17,7 +17,7 @@ from datetime import datetime
 from pathlib import Path
 
 from .metrics_service import get_metrics_service
-from .dynamic_pricing_service import get_dynamic_pricing_service
+from .dynamic_pricing_service import get_pricing_service
 from .customer_history_service import get_customer_history_service
 from .tts_service import get_tts_service
 from .whisper_service import get_whisper_service
@@ -119,7 +119,7 @@ class SystemHealthService:
     async def _check_pricing_service(self) -> Dict[str, Any]:
         """Verifica serviço de preços dinâmicos"""
         try:
-            pricing_service = get_dynamic_pricing_service()
+            pricing_service = get_pricing_service()
             
             # Testar busca de preços
             start_time = time.time()

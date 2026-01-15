@@ -829,7 +829,7 @@ ABORDAGEM:
         
         # Buscar preços dinâmicos
         try:
-            from .dynamic_pricing_service import get_pricing_service
+            from ..dynamic_pricing_service import get_pricing_service
             pricing_service = get_pricing_service()
             
             # Buscar preços atuais (com timeout interno de 2s)
