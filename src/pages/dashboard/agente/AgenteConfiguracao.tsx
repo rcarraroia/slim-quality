@@ -17,8 +17,8 @@ import {
   Bot
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { apiClient } from '@/lib/api.ts';
 import SubAgentCard from '@/components/SubAgentCard';
+import agentService from '@/services/agent.service';
 
 interface AgentConfig {
   model: string;
@@ -81,9 +81,13 @@ export default function AgenteConfiguracao() {
   // Carregar configuração atual
   const loadConfig = async () => {
     try {
-      const response = await apiClient.get<AgentConfig>('/api/agent/config');
-      setConfig(response.data);
-      console.log('✅ Configuração carregada:', response.data);
+      const response = await agentService.getConfig();
+      if (response.success && response.data) {
+        setConfig(response.data);
+        console.log('✅ Configuração carregada:', response.data);
+      } else {
+        throw new Error(response.error || 'Erro ao carregar configuração');
+      }
     } catch (error) {
       console.error('❌ Erro ao carregar configuração:', error);
       toast({
@@ -99,9 +103,13 @@ export default function AgenteConfiguracao() {
   // Carregar sub-agentes
   const loadSubAgents = async () => {
     try {
-      const response = await apiClient.get<SubAgent[]>('/api/agent/sub-agents');
-      setSubAgents(response.data);
-      console.log('✅ Sub-agentes carregados:', response.data.length);
+      const response = await agentService.getSubAgents();
+      if (response.success && response.data) {
+        setSubAgents(response.data);
+        console.log('✅ Sub-agentes carregados:', response.data.length);
+      } else {
+        throw new Error(response.error || 'Erro ao carregar sub-agentes');
+      }
     } catch (error) {
       console.error('❌ Erro ao carregar sub-agentes:', error);
       toast({
@@ -118,17 +126,21 @@ export default function AgenteConfiguracao() {
   const handleSaveSubAgent = async (id: string, data: Partial<SubAgent>) => {
     setIsSavingSubAgent(true);
     try {
-      await apiClient.put(`/api/agent/sub-agents/${id}`, data);
+      const response = await agentService.updateSubAgent(id, data);
       
-      // Atualizar lista local
-      setSubAgents(prev => prev.map(agent => 
-        agent.id === id ? { ...agent, ...data } : agent
-      ));
-      
-      toast({
-        title: "Sub-agente atualizado",
-        description: "As configurações foram salvas com sucesso.",
-      });
+      if (response.success && response.data) {
+        // Atualizar lista local
+        setSubAgents(prev => prev.map(agent => 
+          agent.id === id ? response.data! : agent
+        ));
+        
+        toast({
+          title: "Sub-agente atualizado",
+          description: "As configurações foram salvas com sucesso.",
+        });
+      } else {
+        throw new Error(response.error || 'Erro ao salvar');
+      }
     } catch (error) {
       console.error('❌ Erro ao salvar sub-agente:', error);
       toast({
@@ -146,17 +158,21 @@ export default function AgenteConfiguracao() {
   const handleResetSubAgent = async (id: string) => {
     setIsSavingSubAgent(true);
     try {
-      const response = await apiClient.post<SubAgent>(`/api/agent/sub-agents/${id}/reset`, {});
+      const response = await agentService.resetSubAgent(id);
       
-      // Atualizar lista local
-      setSubAgents(prev => prev.map(agent => 
-        agent.id === id ? response.data : agent
-      ));
-      
-      toast({
-        title: "Configuração restaurada",
-        description: "As configurações padrão foram restauradas com sucesso.",
-      });
+      if (response.success && response.data) {
+        // Atualizar lista local
+        setSubAgents(prev => prev.map(agent => 
+          agent.id === id ? response.data! : agent
+        ));
+        
+        toast({
+          title: "Configuração restaurada",
+          description: "As configurações padrão foram restauradas com sucesso.",
+        });
+      } else {
+        throw new Error(response.error || 'Erro ao restaurar');
+      }
     } catch (error) {
       console.error('❌ Erro ao restaurar configuração:', error);
       toast({
@@ -178,12 +194,16 @@ export default function AgenteConfiguracao() {
   const handleSaveConfig = async () => {
     setIsSaving(true);
     try {
-      await apiClient.post('/api/agent/config', config);
+      const response = await agentService.updateConfig(config);
       
-      toast({
-        title: "Configuração salva",
-        description: "As configurações do agente foram atualizadas com sucesso.",
-      });
+      if (response.success) {
+        toast({
+          title: "Configuração salva",
+          description: "As configurações do agente foram atualizadas com sucesso.",
+        });
+      } else {
+        throw new Error(response.error || 'Erro ao salvar');
+      }
     } catch (error) {
       console.error('❌ Erro ao salvar configuração:', error);
       toast({
@@ -208,20 +228,23 @@ export default function AgenteConfiguracao() {
       setTestMessage('');
 
       // Testar com API real
-      const response = await apiClient.post<TestPromptResponse>('/api/agent/test-prompt', {
+      const response = await agentService.testPrompt({
         prompt: testMessage,
         temperature: config.temperature,
         max_tokens: Math.min(config.max_tokens, 300)
       });
 
-      // Adicionar resposta do agente
-      setChatMessages(prev => [...prev, { 
-        role: 'assistant' as const, 
-        content: response.data.response,
-        tokens: response.data.tokens_used,
-        time: response.data.response_time_ms
-      }]);
-
+      if (response.success && response.data) {
+        // Adicionar resposta do agente
+        setChatMessages(prev => [...prev, { 
+          role: 'assistant' as const, 
+          content: response.data!.response,
+          tokens: response.data!.tokens_used,
+          time: response.data!.response_time_ms
+        }]);
+      } else {
+        throw new Error(response.error || 'Erro ao processar');
+      }
     } catch (error) {
       console.error('❌ Erro no teste de prompt:', error);
       setChatMessages(prev => [...prev, { 
