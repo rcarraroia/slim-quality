@@ -45,7 +45,7 @@ export interface AutomationLog {
 }
 
 class AutomationService {
-  private baseUrl = '/automations';
+  private baseUrl = '/api/automations';
 
   /**
    * Busca todas as regras de automação
