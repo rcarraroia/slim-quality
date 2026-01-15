@@ -324,43 +324,48 @@ async def get_sicc_learnings(status: str = "pending"):
     try:
         logger.info("Obtendo aprendizados do SICC", status=status)
         
-        # Integrar com SICC LearningService
+        # Buscar aprendizados reais da tabela learning_logs
         try:
-            from ..services.sicc.sicc_service import get_sicc_service
-            sicc_service = get_sicc_service()
+            from ..services.supabase_client import get_supabase_client
+            supabase = get_supabase_client()
             
-            if not sicc_service.is_initialized:
-                return []
+            # Buscar learning logs com filtro por status
+            query = supabase.table('learning_logs').select('*')
             
-            # Buscar aprendizados via Learning Service
-            learning_service = sicc_service.learning_service
+            # Aplicar filtro de status se especificado
+            if status and status != "all":
+                query = query.eq('status', status)
             
-            # Como não temos método específico, simular com dados do sistema
+            # Ordenar por data de criação (mais recentes primeiro)
+            result = query.order('created_at', desc=True).execute()
+            
             learnings = []
             
-            # Gerar aprendizados de exemplo baseados no status do sistema
-            system_status = await sicc_service.get_system_status()
-            intelligence_report = system_status.get('intelligence_report', {})
+            if result.data:
+                for row in result.data:
+                    # Extrair dados do campo pattern_data (JSONB)
+                    pattern_data = row.get('pattern_data', {})
+                    
+                    # Mapear dados do banco para modelo SICCLearning
+                    learning = SICCLearning(
+                        id=row.get('id', ''),
+                        pattern_type=pattern_data.get('pattern_type', 'unknown'),
+                        description=pattern_data.get('description', ''),
+                        confidence=float(row.get('confidence_score', 0.0)),
+                        status=row.get('status', 'pending'),
+                        created_at=datetime.fromisoformat(row['created_at'].replace('Z', '+00:00')) if row.get('created_at') else datetime.now(),
+                        sample_conversation=pattern_data.get('evidence', [{}])[0].get('content', '') if pattern_data.get('evidence') and len(pattern_data.get('evidence', [])) > 0 else '',
+                        suggested_response=pattern_data.get('suggested_response', '')
+                    )
+                    learnings.append(learning)
             
-            patterns_pending = intelligence_report.get('patterns_pending_approval', 0)
-            
-            # Simular aprendizados pendentes
-            for i in range(min(5, patterns_pending)):
-                learnings.append(SICCLearning(
-                    id=f"learning_{i+1}",
-                    pattern_type="conversation_flow",
-                    description=f"Padrão de conversa #{i+1} detectado",
-                    confidence=0.75 + (i * 0.05),
-                    status=status,
-                    created_at=datetime.now(),
-                    sample_conversation="Cliente perguntou sobre colchão...",
-                    suggested_response="Vou te ajudar com informações sobre nossos colchões..."
-                ))
-            
+            logger.info(f"Encontrados {len(learnings)} aprendizados com status '{status}'")
             return learnings
             
-        except Exception as sicc_error:
-            logger.warning("Erro ao obter aprendizados SICC", error=str(sicc_error))
+        except Exception as db_error:
+            logger.error("Erro ao buscar aprendizados no banco", error=str(db_error))
+            
+            # Fallback: retornar lista vazia em caso de erro
             return []
         
     except Exception as e:

@@ -311,13 +311,11 @@ class LearningService:
         """Busca memórias de uma conversa específica"""
         cutoff_date = datetime.utcnow() - timedelta(days=days)
         
-        # Usar MemoryService para buscar memórias
-        # Como não temos um método direto, vamos simular
         try:
-            # Importar Memory dinamicamente
-            from .memory_service import Memory
+            logger.info(f"Buscando mensagens da conversa {conversation_id} (últimos {days} dias)")
             
-            result = self.supabase.table("memory_chunks").select("*").eq(
+            # Buscar mensagens da tabela messages (ao invés de memory_chunks)
+            result = self.supabase.table("messages").select("*").eq(
                 "conversation_id", conversation_id
             ).gte("created_at", cutoff_date.isoformat()).order(
                 "created_at", desc=True
@@ -326,21 +324,34 @@ class LearningService:
             memories = []
             if result.data:
                 for row in result.data:
-                    memory = Memory(
-                        id=row["id"],
-                        conversation_id=row["conversation_id"],
-                        content=row["content"],
-                        embedding=row.get("embedding", []),
-                        metadata=row.get("metadata", {}),
-                        relevance_score=row.get("relevance_score", 0.0),
-                        created_at=datetime.fromisoformat(row["created_at"].replace("Z", "+00:00"))
-                    )
+                    # Adaptar estrutura de Message para Memory
+                    # Criar objeto compatível com a interface esperada
+                    class MessageAsMemory:
+                        def __init__(self, message_data):
+                            self.id = message_data["id"]
+                            self.conversation_id = message_data["conversation_id"]
+                            self.content = message_data["content"]
+                            self.embedding = []  # Messages não têm embedding
+                            self.metadata = message_data.get("metadata", {})
+                            # Adicionar informações do sender na metadata
+                            self.metadata.update({
+                                "sender_type": message_data.get("sender_type", "unknown"),
+                                "sender_id": message_data.get("sender_id"),
+                                "message_type": message_data.get("message_type", "text")
+                            })
+                            self.relevance_score = 1.0  # Score padrão para messages
+                            self.created_at = datetime.fromisoformat(
+                                message_data["created_at"].replace("Z", "+00:00")
+                            ) if message_data.get("created_at") else datetime.utcnow()
+                    
+                    memory = MessageAsMemory(row)
                     memories.append(memory)
             
+            logger.info(f"Encontradas {len(memories)} mensagens para análise")
             return memories
             
         except Exception as e:
-            logger.error(f"Erro ao buscar memórias da conversa: {e}")
+            logger.error(f"Erro ao buscar mensagens da conversa: {e}")
             return []
     
     async def _get_global_memories(self, days: int) -> List[Any]:
@@ -348,31 +359,43 @@ class LearningService:
         cutoff_date = datetime.utcnow() - timedelta(days=days)
         
         try:
-            # Importar Memory dinamicamente
-            from .memory_service import Memory
+            logger.info(f"Buscando mensagens globais (últimos {days} dias)")
             
-            result = self.supabase.table("memory_chunks").select("*").gte(
+            # Buscar mensagens da tabela messages (ao invés de memory_chunks)
+            result = self.supabase.table("messages").select("*").gte(
                 "created_at", cutoff_date.isoformat()
             ).order("created_at", desc=True).limit(1000).execute()  # Limitar para performance
             
             memories = []
             if result.data:
                 for row in result.data:
-                    memory = Memory(
-                        id=row["id"],
-                        conversation_id=row["conversation_id"],
-                        content=row["content"],
-                        embedding=row.get("embedding", []),
-                        metadata=row.get("metadata", {}),
-                        relevance_score=row.get("relevance_score", 0.0),
-                        created_at=datetime.fromisoformat(row["created_at"].replace("Z", "+00:00"))
-                    )
+                    # Usar mesma classe MessageAsMemory
+                    class MessageAsMemory:
+                        def __init__(self, message_data):
+                            self.id = message_data["id"]
+                            self.conversation_id = message_data["conversation_id"]
+                            self.content = message_data["content"]
+                            self.embedding = []  # Messages não têm embedding
+                            self.metadata = message_data.get("metadata", {})
+                            # Adicionar informações do sender na metadata
+                            self.metadata.update({
+                                "sender_type": message_data.get("sender_type", "unknown"),
+                                "sender_id": message_data.get("sender_id"),
+                                "message_type": message_data.get("message_type", "text")
+                            })
+                            self.relevance_score = 1.0  # Score padrão para messages
+                            self.created_at = datetime.fromisoformat(
+                                message_data["created_at"].replace("Z", "+00:00")
+                            ) if message_data.get("created_at") else datetime.utcnow()
+                    
+                    memory = MessageAsMemory(row)
                     memories.append(memory)
             
+            logger.info(f"Encontradas {len(memories)} mensagens globais para análise")
             return memories
             
         except Exception as e:
-            logger.error(f"Erro ao buscar memórias globais: {e}")
+            logger.error(f"Erro ao buscar mensagens globais: {e}")
             return []
     
     def _group_memories_by_conversation(self, memories: List[Any]) -> Dict[str, List[Any]]:
@@ -1056,7 +1079,23 @@ class LearningService:
     async def _save_learning_log(self, learning_log: LearningLog):
         """Salva learning log no banco de dados"""
         try:
-            data = learning_log.to_dict()
+            # Adaptar para estrutura real da tabela learning_logs
+            pattern_data = {
+                "pattern_type": learning_log.learning_type,
+                "description": learning_log.description,
+                "evidence": learning_log.evidence,
+                "suggested_response": learning_log.proposed_changes.get('suggested_response', '') if learning_log.proposed_changes else '',
+                "pattern_id": learning_log.pattern_id,
+                "learning_type": learning_log.learning_type
+            }
+            
+            data = {
+                "pattern_data": pattern_data,
+                "confidence_score": learning_log.confidence_score,
+                "status": learning_log.status,
+                "created_at": learning_log.created_at.isoformat()
+            }
+            
             result = self.supabase.table("learning_logs").insert(data).execute()
             if result.data:
                 logger.info(f"Learning log salvo: {learning_log.id}")
