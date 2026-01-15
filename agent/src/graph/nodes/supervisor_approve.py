@@ -118,14 +118,29 @@ async def supervisor_approve_node(state: AgentState) -> AgentState:
                 continue
             
             # 3. Aprovação automática
-            approvals.append({
+            approval_data = {
                 "pattern_id": pattern_id,
                 "confidence": confidence_score,
                 "pattern_type": pattern_type,
                 "approved_at": "now",
                 "approval_reason": "automatic_threshold_and_no_conflicts",
                 "conflicts_checked": len(existing_patterns)
-            })
+            }
+            approvals.append(approval_data)
+            
+            # 4. PERSISTIR NO BANCO DE DADOS
+            try:
+                await _save_approved_pattern_to_database(
+                    pattern_id=pattern_id,
+                    pattern_summary=pattern_summary,
+                    confidence=confidence_score,
+                    pattern_type=pattern_type,
+                    user_id=state.get("user_id", "unknown")
+                )
+                logger.info(f"supervisor_approve_node: Padrão {pattern_id} salvo no banco com sucesso")
+            except Exception as save_error:
+                logger.error(f"supervisor_approve_node: Erro ao salvar padrão no banco: {save_error}")
+                # Continuar mesmo se falhar ao salvar (não bloquear fluxo)
             
             logger.debug(f"supervisor_approve_node: Padrão {pattern_id} aprovado automaticamente (confidence: {confidence_score:.3f})")
         
@@ -189,6 +204,69 @@ def _add_supervision_context(state: AgentState, supervision_data: Dict[str, Any]
         **state,
         "context": updated_context
     }
+
+
+async def _save_approved_pattern_to_database(
+    pattern_id: str,
+    pattern_summary: Dict[str, Any],
+    confidence: float,
+    pattern_type: str,
+    user_id: str
+) -> None:
+    """
+    Salva padrão aprovado na tabela behavior_patterns do Supabase.
+    
+    Args:
+        pattern_id: ID único do padrão
+        pattern_summary: Resumo do padrão detectado
+        confidence: Score de confiança
+        pattern_type: Tipo do padrão
+        user_id: ID do usuário que gerou o padrão
+        
+    Raises:
+        Exception: Se erro ao salvar no banco
+    """
+    try:
+        from ...services.supabase_client import get_supabase_client
+        from datetime import datetime
+        
+        supabase = get_supabase_client()
+        
+        # Preparar dados para inserção
+        pattern_data = {
+            "id": pattern_id,
+            "pattern_type": pattern_type,
+            "trigger_condition": pattern_summary.get("trigger", f"trigger_for_{pattern_type}"),
+            "response_template": pattern_summary.get("response", f"response_for_{pattern_type}"),
+            "confidence": confidence,
+            "status": "approved",  # Já aprovado automaticamente
+            "usage_count": 0,  # Iniciar com 0, será incrementado ao usar
+            "contexts": [pattern_type],
+            "metadata": {
+                "auto_approved": True,
+                "approved_by": "supervisor_service",
+                "approved_at": datetime.utcnow().isoformat(),
+                "user_id": user_id,
+                "pattern_summary": pattern_summary
+            },
+            "created_at": datetime.utcnow().isoformat(),
+            "updated_at": datetime.utcnow().isoformat()
+        }
+        
+        # Inserir no banco (upsert para evitar duplicatas)
+        result = supabase.table("behavior_patterns").upsert(
+            pattern_data,
+            on_conflict="id"
+        ).execute()
+        
+        if not result.data:
+            raise Exception("Falha ao inserir padrão no banco")
+        
+        logger.info(f"Padrão {pattern_id} salvo com sucesso na tabela behavior_patterns")
+        
+    except Exception as e:
+        logger.error(f"Erro ao salvar padrão no banco: {e}")
+        raise
 
 
 async def sicc_batch_approve_patterns(patterns: List[Dict[str, Any]], threshold: float = 0.7) -> Dict[str, Any]:
