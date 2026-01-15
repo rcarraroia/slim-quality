@@ -168,8 +168,8 @@ class DynamicPricingService:
         try:
             client = get_supabase_client()
             
-            # Query direta na tabela products
-            response = client.table("products").select("product_type,price_cents").eq("is_active", True).execute()
+            # Query direta na tabela products - incluir name e width_cm para inferência
+            response = client.table("products").select("product_type,price_cents,name,width_cm").eq("is_active", True).execute()
             
             if response.data:
                 return self._parse_products_to_prices(response.data)
