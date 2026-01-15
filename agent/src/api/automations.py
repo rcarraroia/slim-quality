@@ -81,7 +81,7 @@ def handle_automation_error(e: Exception) -> HTTPException:
 # TASK 4.1: AUTOMATION CONTROLLER (CRUD)
 # ============================================
 
-@router.get("/api/automations/rules", response_model=AutomationRulesResponse)
+@router.get("/rules", response_model=AutomationRulesResponse)
 async def get_rules(
     active_only: bool = Query(False, description="Filtrar apenas regras ativas"),
     limit: int = Query(100, ge=1, le=1000, description="Limite de resultados"),
@@ -127,7 +127,7 @@ async def get_rules(
         raise handle_automation_error(e)
 
 
-@router.post("/api/automations/rules")
+@router.post("/rules")
 async def create_rule(
     rule_data: AutomationRuleCreate,
     user_id: str = Depends(get_current_user_id),
@@ -164,7 +164,7 @@ async def create_rule(
         raise handle_automation_error(e)
 
 
-@router.put("/api/automations/rules/{rule_id}")
+@router.put("/rules/{rule_id}")
 async def update_rule(
     rule_id: str = Path(..., description="ID da regra"),
     rule_data: AutomationRuleUpdate = ...,
@@ -203,7 +203,7 @@ async def update_rule(
         raise handle_automation_error(e)
 
 
-@router.delete("/api/automations/rules/{rule_id}")
+@router.delete("/rules/{rule_id}")
 async def delete_rule(
     rule_id: str = Path(..., description="ID da regra"),
     user_id: str = Depends(get_current_user_id),
@@ -238,7 +238,7 @@ async def delete_rule(
         raise handle_automation_error(e)
 
 
-@router.post("/api/automations/rules/{rule_id}/toggle")
+@router.post("/rules/{rule_id}/toggle")
 async def toggle_rule_status(
     rule_id: str = Path(..., description="ID da regra"),
     user_id: str = Depends(get_current_user_id),
@@ -279,7 +279,7 @@ async def toggle_rule_status(
 # TASK 4.2: LOGS CONTROLLER
 # ============================================
 
-@router.get("/api/automations/logs")
+@router.get("/logs")
 async def get_execution_logs(
     rule_id: Optional[str] = Query(None, description="Filtrar por ID da regra"),
     status: Optional[str] = Query(None, description="Filtrar por status (success, failed, partial)"),
@@ -346,7 +346,7 @@ async def get_execution_logs(
 # TASK 4.3: STATS CONTROLLER
 # ============================================
 
-@router.get("/api/automations/stats", response_model=AutomationStats)
+@router.get("/stats", response_model=AutomationStats)
 async def get_automation_stats(
     user_id: str = Depends(get_current_user_id),
     automation_service: AutomationService = Depends(get_automation_service)
