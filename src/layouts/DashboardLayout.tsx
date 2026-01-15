@@ -106,9 +106,12 @@ export function DashboardLayout() {
     <>
       {/* Logo */}
       <div className="p-6 border-b">
-        <Link to="/dashboard" className="flex items-center space-x-2">
-          <div className="h-8 w-8 rounded-full bg-primary" />
-          <span className="text-xl font-bold">Slim Quality</span>
+        <Link to="/dashboard" className="flex items-center justify-center">
+          <img 
+            src="/logo.png" 
+            alt="Slim Quality" 
+            className="h-10 w-auto" 
+          />
         </Link>
       </div>
 

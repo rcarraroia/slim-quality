@@ -173,9 +173,11 @@ export default function CustomerLogin() {
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-1 text-center">
           <div className="flex justify-center mb-4">
-            <div className="h-12 w-12 rounded-full bg-green-600 flex items-center justify-center">
-              <User className="h-6 w-6 text-white" />
-            </div>
+            <img 
+              src="/logo.png" 
+              alt="Slim Quality" 
+              className="h-16 w-auto" 
+            />
           </div>
           <CardTitle className="text-2xl">
             {mode === 'login' && 'Entrar'}

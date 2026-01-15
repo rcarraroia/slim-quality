@@ -116,12 +116,13 @@ export function AffiliateDashboardLayout() {
         <div className="flex h-full flex-col">
           {/* Logo */}
           <div className="border-b p-6">
-            <Link to="/" className="flex items-center gap-2">
-              <div className="h-8 w-8 rounded-lg bg-primary" />
-              <div>
-                <p className="font-bold text-lg">Slim Quality</p>
-                <p className="text-xs text-muted-foreground">Programa de Afiliados</p>
-              </div>
+            <Link to="/" className="flex flex-col items-center gap-2">
+              <img 
+                src="/logo.png" 
+                alt="Slim Quality" 
+                className="h-12 w-auto" 
+              />
+              <p className="text-xs text-muted-foreground text-center">Programa de Afiliados</p>
             </Link>
           </div>
 

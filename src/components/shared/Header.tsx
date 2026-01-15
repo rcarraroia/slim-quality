@@ -15,8 +15,11 @@ export function Header() {
         <nav className="container flex h-16 items-center justify-between px-4">
           {/* Logo */}
           <Link to="/" className="flex items-center space-x-2">
-            <div className="h-8 w-8 rounded-full bg-primary transition-colors" />
-            <span className="text-xl font-bold">Slim Quality</span>
+            <img 
+              src="/logo.png" 
+              alt="Slim Quality" 
+              className="h-10 w-auto transition-opacity hover:opacity-90" 
+            />
           </Link>
 
           {/* Desktop Menu */}
