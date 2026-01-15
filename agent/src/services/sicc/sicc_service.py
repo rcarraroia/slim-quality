@@ -827,34 +827,16 @@ ABORDAGEM:
 
 """
         
-        # Buscar preços dinâmicos
+        # Buscar preços dinâmicos do CACHE (já foi atualizado antes)
         try:
-            from ..dynamic_pricing_service import get_pricing_service
+            from ..dynamic_pricing_service import get_pricing_service, _price_cache
             pricing_service = get_pricing_service()
             
-            # Buscar preços atuais (com timeout interno de 2s)
-            import asyncio
-            try:
-                # Executar de forma síncrona (prompt building deve ser rápido)
-                loop = asyncio.get_event_loop()
-                if loop.is_running():
-                    # Se já estamos em um loop, usar asyncio.ensure_future e aguardar
-                    future = asyncio.ensure_future(pricing_service.get_current_prices())
-                    # Aguardar de forma síncrona com timeout
-                    import concurrent.futures
-                    with concurrent.futures.ThreadPoolExecutor() as executor:
-                        try:
-                            prices = executor.submit(lambda: asyncio.run(pricing_service.get_current_prices())).result(timeout=3)
-                        except:
-                            prices = None
-                else:
-                    prices = loop.run_until_complete(pricing_service.get_current_prices())
-            except Exception as e:
-                logger.warning("Erro ao executar busca de preços", error=str(e))
-                prices = None
+            # USAR CACHE DIRETAMENTE (já foi atualizado de forma assíncrona antes)
+            prices = _price_cache.get("data", {})
             
-            if prices:
-                # Formatar preços dinâmicos
+            if prices and len(prices) > 0:
+                # Formatar preços dinâmicos do cache
                 price_lines = []
                 type_names = {
                     "solteiro": "Solteiro (88x188x28cm)",
@@ -872,15 +854,18 @@ ABORDAGEM:
                 
                 if price_lines:
                     dynamic_prices = "\n".join(price_lines)
+                    logger.info("Preços dinâmicos do cache usados no prompt", count=len(price_lines))
                 else:
                     # Fallback se não conseguiu formatar
+                    logger.warning("Cache vazio, usando fallback")
                     dynamic_prices = self._get_fallback_prices()
             else:
-                # Fallback se serviço falhou
+                # Fallback se cache está vazio
+                logger.warning("Cache de preços vazio, usando fallback")
                 dynamic_prices = self._get_fallback_prices()
                 
         except Exception as e:
-            logger.warning("Erro ao buscar preços dinâmicos, usando fallback", error=str(e))
+            logger.warning("Erro ao buscar preços do cache, usando fallback", error=str(e))
             dynamic_prices = self._get_fallback_prices()
         
         # Substituir placeholder pelos preços
@@ -911,15 +896,15 @@ ABORDAGEM:
     
     def _get_fallback_prices(self) -> str:
         """
-        Retorna preços hardcoded como fallback
+        Retorna preços ATUALIZADOS como fallback
         
         Returns:
-            String formatada com preços de fallback
+            String formatada com preços de fallback ATUALIZADOS
         """
-        return """- Solteiro (88x188x28cm): R$ 3.190,00
-- Padrão (138x188x28cm): R$ 3.290,00 (MAIS VENDIDO)
-- Queen (158x198x30cm): R$ 3.490,00
-- King (193x203x30cm): R$ 4.890,00"""
+        return """- Solteiro (88x188x28cm): R$ 4.259,00
+- Padrão (138x188x28cm): R$ 4.400,00 (MAIS VENDIDO)
+- Queen (158x198x30cm): R$ 4.890,00
+- King (193x203x30cm): R$ 5.899,00"""
     
     def _detect_product_request(self, message: str) -> Optional[str]:
         """
