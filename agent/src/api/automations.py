@@ -10,14 +10,14 @@ from fastapi import APIRouter, HTTPException, Query, Path, Depends
 from typing import List, Dict, Any, Optional
 from datetime import datetime
 
-from services.automation import (
+from ..services.automation import (
     get_automation_service,
     AutomationService,
     AutomationServiceError,
     RuleNotFoundError,
     ValidationError
 )
-from services.automation.schemas import (
+from ..services.automation.schemas import (
     AutomationRuleCreate,
     AutomationRuleUpdate,
     AutomationRulesResponse,
@@ -378,41 +378,8 @@ async def get_automation_stats(
 # ============================================
 # TASK 4.4: VALIDAÇÃO E TRATAMENTO DE ERROS
 # ============================================
-
-@router.exception_handler(ValidationError)
-async def validation_exception_handler(request, exc: ValidationError):
-    """Handler para erros de validação"""
-    return HTTPException(
-        status_code=400,
-        detail={
-            "error": "Dados inválidos",
-            "message": str(exc),
-            "type": "validation_error"
-        }
-    )
-
-
-@router.exception_handler(RuleNotFoundError)
-async def rule_not_found_exception_handler(request, exc: RuleNotFoundError):
-    """Handler para regra não encontrada"""
-    return HTTPException(
-        status_code=404,
-        detail={
-            "error": "Regra não encontrada",
-            "message": str(exc),
-            "type": "not_found_error"
-        }
-    )
-
-
-@router.exception_handler(AutomationServiceError)
-async def automation_service_exception_handler(request, exc: AutomationServiceError):
-    """Handler para erros do serviço de automação"""
-    return HTTPException(
-        status_code=500,
-        detail={
-            "error": "Erro interno do sistema",
-            "message": str(exc),
-            "type": "service_error"
-        }
-    )
+# 
+# Nota: Exception handlers devem ser registrados no app principal,
+# não no router. O tratamento de erros é feito via try/catch
+# nos endpoints individuais usando a função handle_automation_error()
+#
