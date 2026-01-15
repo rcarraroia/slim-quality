@@ -26,7 +26,7 @@ from ..services.automation.schemas import (
 )
 
 logger = structlog.get_logger(__name__)
-router = APIRouter()
+router = APIRouter(prefix="/api/automations", tags=["automations"])
 
 
 # ============================================
