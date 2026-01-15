@@ -7,21 +7,35 @@ import { Slider } from '@/components/ui/slider';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   Settings, 
   Save, 
   TestTube, 
   Send,
-  RefreshCw
+  RefreshCw,
+  Bot
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { apiClient } from '@/lib/api.ts';
+import SubAgentCard from '@/components/SubAgentCard';
 
 interface AgentConfig {
   model: string;
   temperature: number;
   max_tokens: number;
   system_prompt: string;
+}
+
+interface SubAgent {
+  id: string;
+  agent_name: string;
+  domain: string;
+  system_prompt: string;
+  model: string;
+  temperature: number;
+  max_tokens: number;
+  is_active: boolean;
 }
 
 interface TestPromptResponse {
@@ -48,6 +62,11 @@ export default function AgenteConfiguracao() {
     max_tokens: 2000,
     system_prompt: ''
   });
+
+  // Estado dos sub-agentes
+  const [subAgents, setSubAgents] = useState<SubAgent[]>([]);
+  const [isLoadingSubAgents, setIsLoadingSubAgents] = useState(true);
+  const [isSavingSubAgent, setIsSavingSubAgent] = useState(false);
 
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -77,8 +96,83 @@ export default function AgenteConfiguracao() {
     }
   };
 
+  // Carregar sub-agentes
+  const loadSubAgents = async () => {
+    try {
+      const response = await apiClient.get<SubAgent[]>('/api/agent/sub-agents');
+      setSubAgents(response.data);
+      console.log('✅ Sub-agentes carregados:', response.data.length);
+    } catch (error) {
+      console.error('❌ Erro ao carregar sub-agentes:', error);
+      toast({
+        title: "Erro ao carregar sub-agentes",
+        description: "Não foi possível carregar as configurações dos sub-agentes.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoadingSubAgents(false);
+    }
+  };
+
+  // Salvar sub-agente
+  const handleSaveSubAgent = async (id: string, data: Partial<SubAgent>) => {
+    setIsSavingSubAgent(true);
+    try {
+      await apiClient.put(`/api/agent/sub-agents/${id}`, data);
+      
+      // Atualizar lista local
+      setSubAgents(prev => prev.map(agent => 
+        agent.id === id ? { ...agent, ...data } : agent
+      ));
+      
+      toast({
+        title: "Sub-agente atualizado",
+        description: "As configurações foram salvas com sucesso.",
+      });
+    } catch (error) {
+      console.error('❌ Erro ao salvar sub-agente:', error);
+      toast({
+        title: "Erro ao salvar",
+        description: "Não foi possível salvar as configurações. Tente novamente.",
+        variant: "destructive",
+      });
+      throw error;
+    } finally {
+      setIsSavingSubAgent(false);
+    }
+  };
+
+  // Restaurar padrões do sub-agente
+  const handleResetSubAgent = async (id: string) => {
+    setIsSavingSubAgent(true);
+    try {
+      const response = await apiClient.post<SubAgent>(`/api/agent/sub-agents/${id}/reset`, {});
+      
+      // Atualizar lista local
+      setSubAgents(prev => prev.map(agent => 
+        agent.id === id ? response.data : agent
+      ));
+      
+      toast({
+        title: "Configuração restaurada",
+        description: "As configurações padrão foram restauradas com sucesso.",
+      });
+    } catch (error) {
+      console.error('❌ Erro ao restaurar configuração:', error);
+      toast({
+        title: "Erro ao restaurar",
+        description: "Não foi possível restaurar as configurações. Tente novamente.",
+        variant: "destructive",
+      });
+      throw error;
+    } finally {
+      setIsSavingSubAgent(false);
+    }
+  };
+
   useEffect(() => {
     loadConfig();
+    loadSubAgents();
   }, []);
 
   const handleSaveConfig = async () => {
@@ -146,11 +240,11 @@ export default function AgenteConfiguracao() {
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Configuração do Agente</h1>
           <p className="text-muted-foreground">
-            Configure os parâmetros do modelo de IA e teste prompts
+            Configure os parâmetros do modelo de IA e sub-agentes especializados
           </p>
         </div>
-        <Button onClick={loadConfig} disabled={isLoading}>
-          <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+        <Button onClick={() => { loadConfig(); loadSubAgents(); }} disabled={isLoading || isLoadingSubAgents}>
+          <RefreshCw className={`h-4 w-4 mr-2 ${(isLoading || isLoadingSubAgents) ? 'animate-spin' : ''}`} />
           Recarregar
         </Button>
       </div>
@@ -158,7 +252,21 @@ export default function AgenteConfiguracao() {
       {isLoading ? (
         <div className="text-center py-8">Carregando configuração...</div>
       ) : (
-        <div className="grid gap-6 lg:grid-cols-2">
+        <Tabs defaultValue="geral" className="w-full">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="geral">
+              <Settings className="h-4 w-4 mr-2" />
+              Configuração Geral
+            </TabsTrigger>
+            <TabsTrigger value="sub-agentes">
+              <Bot className="h-4 w-4 mr-2" />
+              Sub-Agentes ({subAgents.length})
+            </TabsTrigger>
+          </TabsList>
+
+          {/* Tab: Configuração Geral */}
+          <TabsContent value="geral">
+            <div className="grid gap-6 lg:grid-cols-2">
           {/* Configurações */}
           <div className="space-y-6">
             <Card>
@@ -302,6 +410,27 @@ export default function AgenteConfiguracao() {
             </CardContent>
           </Card>
         </div>
+          </TabsContent>
+
+          {/* Tab: Sub-Agentes */}
+          <TabsContent value="sub-agentes">
+            {isLoadingSubAgents ? (
+              <div className="text-center py-8">Carregando sub-agentes...</div>
+            ) : (
+              <div className="grid gap-6 md:grid-cols-2">
+                {subAgents.map((agent) => (
+                  <SubAgentCard
+                    key={agent.id}
+                    agent={agent}
+                    onSave={handleSaveSubAgent}
+                    onReset={handleResetSubAgent}
+                    isSaving={isSavingSubAgent}
+                  />
+                ))}
+              </div>
+            )}
+          </TabsContent>
+        </Tabs>
       )}
     </div>
   );
