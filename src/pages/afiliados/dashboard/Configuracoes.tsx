@@ -18,12 +18,12 @@ const estados = [
 
 export default function AffiliateDashboardConfiguracoes() {
   const { toast } = useToast();
-  
+
   // Estados para dados do afiliado
   const [affiliate, setAffiliate] = useState<any>(null);
   const [customer, setCustomer] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  
+
   // Estados para Wallet ID
   const [walletId, setWalletId] = useState("");
   const [showWalletHelp, setShowWalletHelp] = useState(false);
@@ -67,22 +67,22 @@ export default function AffiliateDashboardConfiguracoes() {
   const loadAffiliateData = async () => {
     try {
       setLoading(true);
-      
+
       // Buscar usuário autenticado
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Usuário não autenticado');
 
       // Buscar dados do afiliado
       const { isAffiliate, affiliate: affiliateData } = await affiliateFrontendService.checkAffiliateStatus();
-      
+
       if (isAffiliate && affiliateData) {
         setAffiliate(affiliateData);
-        
+
         // Configurar slug
         if (affiliateData.slug) {
           setSlug(affiliateData.slug);
         }
-        
+
         // Configurar status da Wallet ID
         if (affiliateData.walletId) {
           setWalletId(affiliateData.walletId);
@@ -167,11 +167,12 @@ export default function AffiliateDashboardConfiguracoes() {
       }
 
       // 1. Atualizar dados na tabela affiliates (incluindo city, state, cep, birth_date)
+      // NOTA: Email não é atualizado aqui para manter consistência com auth.users
       const { error: affiliateError } = await supabase
         .from('affiliates')
         .update({
           name: formData.name,
-          email: formData.email,
+          // email: formData.email,  // ← Removido para prevenir inconsistência com auth.users
           phone: formData.phone,
           city: formData.city,
           state: formData.state,
@@ -185,10 +186,12 @@ export default function AffiliateDashboardConfiguracoes() {
       if (affiliateError) throw affiliateError;
 
       // 2. Atualizar dados na tabela profiles (sincronizar)
+      // NOTA: Email não é atualizado para manter consistência com auth.users
       const { error: profileError } = await supabase
         .from('profiles')
         .update({
           full_name: formData.name,
+          // email não é atualizado aqui
           phone: formData.phone,
           is_affiliate: true,
           affiliate_status: 'active',
@@ -201,12 +204,13 @@ export default function AffiliateDashboardConfiguracoes() {
       }
 
       // 3. Atualizar dados de endereço na tabela customers
+      // NOTA: Email não é atualizado para manter consistência com auth.users
       if (customer?.id) {
         const { error: customerError } = await supabase
           .from('customers')
           .update({
             name: formData.name,
-            email: formData.email,
+            // email: formData.email,  // ← Removido para prevenir inconsistência
             phone: formData.phone,
             city: formData.city,
             state: formData.state,
@@ -222,7 +226,7 @@ export default function AffiliateDashboardConfiguracoes() {
       }
 
       toast({ title: "✅ Dados salvos com sucesso!" });
-      
+
       // Recarregar dados
       await loadAffiliateData();
     } catch (error) {
@@ -248,15 +252,15 @@ export default function AffiliateDashboardConfiguracoes() {
     setTestingWallet(true);
     try {
       const validation = await affiliateFrontendService.validateWallet(walletId);
-      
+
       if (validation.isValid && validation.isActive) {
         setWalletStatus({
           configured: walletStatus.configured,
           valid: true,
           lastTested: new Date().toISOString()
         });
-        
-        toast({ 
+
+        toast({
           title: "✅ Wallet ID válida!",
           description: `Conexão com Asaas confirmada${validation.name ? ` - ${validation.name}` : ''}`
         });
@@ -267,7 +271,7 @@ export default function AffiliateDashboardConfiguracoes() {
           lastTested: new Date().toISOString(),
           error: validation.error || 'Wallet ID inválida'
         });
-        
+
         toast({
           title: "❌ Wallet ID inválida",
           description: validation.error || "Não foi possível validar a Wallet ID",
@@ -281,7 +285,7 @@ export default function AffiliateDashboardConfiguracoes() {
         lastTested: new Date().toISOString(),
         error: 'Erro na validação'
       });
-      
+
       toast({
         title: "Erro na validação",
         description: "Não foi possível testar a Wallet ID. Tente novamente.",
@@ -316,7 +320,7 @@ export default function AffiliateDashboardConfiguracoes() {
     try {
       // 1. Validar Wallet ID
       const validation = await affiliateFrontendService.validateWallet(walletId);
-      
+
       if (!validation.isValid || !validation.isActive) {
         setWalletStatus({
           configured: walletStatus.configured,
@@ -324,7 +328,7 @@ export default function AffiliateDashboardConfiguracoes() {
           lastTested: new Date().toISOString(),
           error: validation.error || 'Wallet ID inválida'
         });
-        
+
         toast({
           title: "Wallet ID inválida",
           description: validation.error || "A Wallet ID não é válida ou não está ativa",
@@ -371,21 +375,21 @@ export default function AffiliateDashboardConfiguracoes() {
         });
       }
 
-      toast({ 
+      toast({
         title: "✅ Wallet ID configurada!",
         description: `Suas comissões serão depositadas automaticamente${validation.name ? ` para ${validation.name}` : ''}`
       });
-      
+
     } catch (error) {
       console.error('Erro ao configurar Wallet ID:', error);
-      
+
       setWalletStatus({
         configured: walletStatus.configured,
         valid: false,
         lastTested: new Date().toISOString(),
         error: 'Erro ao salvar'
       });
-      
+
       toast({
         title: "Erro ao configurar",
         description: error instanceof Error ? error.message : "Não foi possível salvar a Wallet ID. Tente novamente.",
@@ -399,10 +403,10 @@ export default function AffiliateDashboardConfiguracoes() {
   const handleSaveNotifications = async () => {
     try {
       setSavingNotifications(true);
-      
+
       await affiliateFrontendService.saveNotificationPreferences(notificationPreferences);
-      
-      toast({ 
+
+      toast({
         title: "Preferências salvas!",
         description: "Suas preferências de notificações foram atualizadas com sucesso."
       });
@@ -482,15 +486,15 @@ export default function AffiliateDashboardConfiguracoes() {
 
     } catch (error: any) {
       console.error('Erro ao alterar senha:', error);
-      
+
       let errorMessage = "Não foi possível alterar a senha. Tente novamente.";
-      
+
       if (error.message?.includes('same')) {
         errorMessage = "A nova senha deve ser diferente da senha atual";
       } else if (error.message?.includes('weak')) {
         errorMessage = "A senha é muito fraca. Use uma senha mais forte.";
       }
-      
+
       toast({
         title: "Erro ao alterar senha",
         description: errorMessage,
@@ -558,7 +562,7 @@ export default function AffiliateDashboardConfiguracoes() {
 
       toast({
         title: "Slug atualizado!",
-        description: slugToSave 
+        description: slugToSave
           ? `Seu link agora é: slimquality.com.br/${slugToSave}`
           : `Seu link agora usa seu código: slimquality.com.br/${affiliate?.referralCode}`
       });
@@ -610,7 +614,16 @@ export default function AffiliateDashboardConfiguracoes() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
-              <Input id="email" type="email" defaultValue={affiliate?.email || ""} />
+              <Input
+                id="email"
+                type="email"
+                defaultValue={affiliate?.email || ""}
+                disabled
+                className="bg-muted"
+              />
+              <p className="text-xs text-muted-foreground">
+                O email não pode ser alterado. Para alterar, entre em contato com o suporte.
+              </p>
             </div>
           </div>
 
@@ -628,9 +641,9 @@ export default function AffiliateDashboardConfiguracoes() {
           <div className="grid gap-4 md:grid-cols-3">
             <div className="space-y-2">
               <Label htmlFor="cidade">Cidade</Label>
-              <Input 
-                id="cidade" 
-                placeholder="Sua cidade" 
+              <Input
+                id="cidade"
+                placeholder="Sua cidade"
                 defaultValue={customer?.city || ""}
               />
             </div>
@@ -649,9 +662,9 @@ export default function AffiliateDashboardConfiguracoes() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="cep">CEP</Label>
-              <Input 
-                id="cep" 
-                placeholder="00000-000" 
+              <Input
+                id="cep"
+                placeholder="00000-000"
                 defaultValue={customer?.postal_code || ""}
               />
             </div>
@@ -659,9 +672,9 @@ export default function AffiliateDashboardConfiguracoes() {
 
           <div className="space-y-2">
             <Label htmlFor="birthDate">Data de Nascimento</Label>
-            <Input 
-              id="birthDate" 
-              type="date" 
+            <Input
+              id="birthDate"
+              type="date"
               defaultValue={customer?.birth_date || ""}
             />
             <p className="text-xs text-muted-foreground">
@@ -685,11 +698,10 @@ export default function AffiliateDashboardConfiguracoes() {
           {/* Status da Wallet ID */}
           {walletStatus.configured ? (
             // Wallet ID Configurada
-            <div className={`border rounded-lg p-4 space-y-2 ${
-              walletStatus.valid 
-                ? 'bg-success/10 border-success/20' 
+            <div className={`border rounded-lg p-4 space-y-2 ${walletStatus.valid
+                ? 'bg-success/10 border-success/20'
                 : 'bg-destructive/10 border-destructive/20'
-            }`}>
+              }`}>
               <div className="flex items-center justify-between">
                 <div>
                   <div className="flex items-center gap-2">
@@ -706,19 +718,18 @@ export default function AffiliateDashboardConfiguracoes() {
                     Wallet ID atual: <span className="font-mono">{affiliate?.walletId}</span>
                   </p>
                   {walletStatus.lastTested && (
-                    <p className={`text-xs mt-1 ${
-                      walletStatus.valid ? 'text-success' : 'text-destructive'
-                    }`}>
+                    <p className={`text-xs mt-1 ${walletStatus.valid ? 'text-success' : 'text-destructive'
+                      }`}>
                       Último teste: {new Date(walletStatus.lastTested).toLocaleString('pt-BR')} - {
                         walletStatus.valid ? '✅ Sucesso' : `❌ ${walletStatus.error}`
                       }
                     </p>
                   )}
                 </div>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={handleTestWallet} 
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleTestWallet}
                   disabled={testingWallet}
                 >
                   {testingWallet ? (
@@ -745,7 +756,7 @@ export default function AffiliateDashboardConfiguracoes() {
                 Para receber suas comissões, você precisa configurar sua Wallet ID do Asaas.
               </p>
               <div className="flex gap-2">
-                <Button 
+                <Button
                   onClick={() => {
                     setAsaasFlow('question');
                     setShowAsaasModal(true);
@@ -754,7 +765,7 @@ export default function AffiliateDashboardConfiguracoes() {
                 >
                   Configurar Agora
                 </Button>
-                <Button 
+                <Button
                   onClick={() => setShowWalletHelp(true)}
                   variant="outline"
                   size="sm"
@@ -772,13 +783,13 @@ export default function AffiliateDashboardConfiguracoes() {
                 {walletStatus.configured ? 'Nova Wallet ID' : 'Wallet ID do Asaas'}
               </Label>
               <div className="flex gap-2">
-                <Input 
-                  id="walletId" 
-                  placeholder="00000000-0000-0000-0000-000000000000" 
+                <Input
+                  id="walletId"
+                  placeholder="00000000-0000-0000-0000-000000000000"
                   value={walletId}
                   onChange={(e) => setWalletId(e.target.value)}
                 />
-                <Button 
+                <Button
                   onClick={handleUpdateWallet}
                   disabled={validatingWallet}
                 >
@@ -807,7 +818,7 @@ export default function AffiliateDashboardConfiguracoes() {
                 <div className="text-sm">
                   <p className="font-semibold text-orange-900 dark:text-orange-200">Atenção:</p>
                   <p className="text-muted-foreground mt-1">
-                    Ao alterar a Wallet ID, as próximas comissões serão depositadas na nova conta. 
+                    Ao alterar a Wallet ID, as próximas comissões serão depositadas na nova conta.
                     Certifique-se de que a Wallet ID está correta.
                   </p>
                 </div>
@@ -831,10 +842,10 @@ export default function AffiliateDashboardConfiguracoes() {
               <Label htmlFor="notif-comissao" className="cursor-pointer">Novas comissões</Label>
               <p className="text-sm text-muted-foreground">Receber email quando houver nova comissão</p>
             </div>
-            <Checkbox 
-              id="notif-comissao" 
+            <Checkbox
+              id="notif-comissao"
               checked={notificationPreferences.email_commissions}
-              onCheckedChange={(checked) => 
+              onCheckedChange={(checked) =>
                 setNotificationPreferences(prev => ({ ...prev, email_commissions: checked as boolean }))
               }
             />
@@ -845,10 +856,10 @@ export default function AffiliateDashboardConfiguracoes() {
               <Label htmlFor="notif-mensal" className="cursor-pointer">Resumo mensal</Label>
               <p className="text-sm text-muted-foreground">Receber email no resumo mensal</p>
             </div>
-            <Checkbox 
-              id="notif-mensal" 
+            <Checkbox
+              id="notif-mensal"
               checked={notificationPreferences.email_monthly_report}
-              onCheckedChange={(checked) => 
+              onCheckedChange={(checked) =>
                 setNotificationPreferences(prev => ({ ...prev, email_monthly_report: checked as boolean }))
               }
             />
@@ -859,10 +870,10 @@ export default function AffiliateDashboardConfiguracoes() {
               <Label htmlFor="notif-afiliados" className="cursor-pointer">Novos afiliados</Label>
               <p className="text-sm text-muted-foreground">Notificar sobre novos afiliados na rede</p>
             </div>
-            <Checkbox 
-              id="notif-afiliados" 
+            <Checkbox
+              id="notif-afiliados"
               checked={notificationPreferences.email_new_affiliates}
-              onCheckedChange={(checked) => 
+              onCheckedChange={(checked) =>
                 setNotificationPreferences(prev => ({ ...prev, email_new_affiliates: checked as boolean }))
               }
             />
@@ -873,10 +884,10 @@ export default function AffiliateDashboardConfiguracoes() {
               <Label htmlFor="notif-promocoes" className="cursor-pointer">Promoções</Label>
               <p className="text-sm text-muted-foreground">Receber emails sobre promoções e novidades</p>
             </div>
-            <Checkbox 
-              id="notif-promocoes" 
+            <Checkbox
+              id="notif-promocoes"
               checked={notificationPreferences.email_promotions}
-              onCheckedChange={(checked) => 
+              onCheckedChange={(checked) =>
                 setNotificationPreferences(prev => ({ ...prev, email_promotions: checked as boolean }))
               }
             />
@@ -913,8 +924,8 @@ export default function AffiliateDashboardConfiguracoes() {
                 <span className="text-sm text-muted-foreground whitespace-nowrap">
                   slimquality.com.br/
                 </span>
-                <Input 
-                  id="slug" 
+                <Input
+                  id="slug"
                   placeholder="seu-nome"
                   value={slug}
                   onChange={(e) => {
@@ -925,8 +936,8 @@ export default function AffiliateDashboardConfiguracoes() {
                   className="border-0 shadow-none focus-visible:ring-0 px-0"
                 />
               </div>
-              <Button 
-                onClick={handleCheckSlug} 
+              <Button
+                onClick={handleCheckSlug}
                 variant="outline"
                 disabled={checkingSlug || !slug.trim()}
               >
@@ -980,8 +991,8 @@ export default function AffiliateDashboardConfiguracoes() {
         <CardContent className="space-y-4">
           <div className="space-y-2">
             <Label>Senha</Label>
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               onClick={() => setShowPasswordModal(true)}
             >
               Alterar Senha
@@ -1010,7 +1021,7 @@ export default function AffiliateDashboardConfiguracoes() {
           <div className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="currentPassword">Senha Atual</Label>
-              <Input 
+              <Input
                 id="currentPassword"
                 type="password"
                 placeholder="Digite sua senha atual"
@@ -1021,7 +1032,7 @@ export default function AffiliateDashboardConfiguracoes() {
 
             <div className="space-y-2">
               <Label htmlFor="newPassword">Nova Senha</Label>
-              <Input 
+              <Input
                 id="newPassword"
                 type="password"
                 placeholder="Digite a nova senha (mín. 8 caracteres)"
@@ -1037,7 +1048,7 @@ export default function AffiliateDashboardConfiguracoes() {
 
             <div className="space-y-2">
               <Label htmlFor="confirmPassword">Confirmar Nova Senha</Label>
-              <Input 
+              <Input
                 id="confirmPassword"
                 type="password"
                 placeholder="Digite a nova senha novamente"
@@ -1067,8 +1078,8 @@ export default function AffiliateDashboardConfiguracoes() {
             </div>
 
             <div className="flex gap-2">
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 onClick={() => {
                   setShowPasswordModal(false);
                   setCurrentPassword("");
@@ -1080,7 +1091,7 @@ export default function AffiliateDashboardConfiguracoes() {
               >
                 Cancelar
               </Button>
-              <Button 
+              <Button
                 onClick={handleChangePassword}
                 disabled={changingPassword || !currentPassword || !newPassword || !confirmPassword}
                 className="flex-1"
@@ -1116,13 +1127,13 @@ export default function AffiliateDashboardConfiguracoes() {
                 <>
                   <p className="text-center">Você já tem uma conta no Asaas?</p>
                   <div className="flex gap-3">
-                    <Button 
+                    <Button
                       onClick={() => setAsaasFlow('has-asaas')}
                       className="flex-1"
                     >
                       ✅ Sim, já tenho
                     </Button>
-                    <Button 
+                    <Button
                       onClick={() => setAsaasFlow('no-asaas')}
                       variant="outline"
                       className="flex-1"
@@ -1140,10 +1151,10 @@ export default function AffiliateDashboardConfiguracoes() {
                     <p className="text-sm text-muted-foreground">
                       Ótimo! Digite sua Wallet ID do Asaas para configurar o recebimento automático das comissões.
                     </p>
-                    
+
                     <div className="space-y-2">
                       <Label htmlFor="modalWalletId">Wallet ID</Label>
-                      <Input 
+                      <Input
                         id="modalWalletId"
                         placeholder="00000000-0000-0000-0000-000000000000"
                         value={walletId}
@@ -1164,14 +1175,14 @@ export default function AffiliateDashboardConfiguracoes() {
                   </div>
 
                   <div className="flex gap-2">
-                    <Button 
-                      variant="outline" 
+                    <Button
+                      variant="outline"
                       onClick={() => setAsaasFlow('question')}
                       className="flex-1"
                     >
                       Voltar
                     </Button>
-                    <Button 
+                    <Button
                       onClick={async () => {
                         await handleUpdateWallet();
                         if (walletStatus.valid) {
@@ -1202,7 +1213,7 @@ export default function AffiliateDashboardConfiguracoes() {
                     <p className="text-sm text-muted-foreground">
                       Sem problemas! Você precisa criar uma conta gratuita no Asaas para receber suas comissões.
                     </p>
-                    
+
                     <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
                       <h4 className="font-semibold text-blue-900 dark:text-blue-100 mb-2">
                         Por que o Asaas?
@@ -1227,15 +1238,15 @@ export default function AffiliateDashboardConfiguracoes() {
                   </div>
 
                   <div className="flex gap-2">
-                    <Button 
-                      variant="outline" 
+                    <Button
+                      variant="outline"
                       onClick={() => setAsaasFlow('question')}
                       className="flex-1"
                     >
                       Voltar
                     </Button>
-                    <a 
-                      href="https://www.asaas.com" 
+                    <a
+                      href="https://www.asaas.com"
                       target="_blank"
                       rel="noopener noreferrer"
                       className="flex-1"
@@ -1269,7 +1280,7 @@ export default function AffiliateDashboardConfiguracoes() {
                   É o identificador único da sua carteira no Asaas, necessário para receber suas comissões automaticamente.
                 </p>
               </div>
-              
+
               <div className="space-y-3">
                 <h4 className="font-semibold">Passo a passo:</h4>
                 <ol className="space-y-2 list-decimal list-inside text-sm">
@@ -1292,10 +1303,10 @@ export default function AffiliateDashboardConfiguracoes() {
                   </div>
                 </div>
               </div>
-              
+
               <div className="flex gap-2">
-                <a 
-                  href="https://www.asaas.com" 
+                <a
+                  href="https://www.asaas.com"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex-1"
