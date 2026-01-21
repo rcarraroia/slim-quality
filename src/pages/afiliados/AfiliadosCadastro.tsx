@@ -11,6 +11,7 @@ import { CheckCircle2, Loader2, UserCheck } from "lucide-react";
 import { useCustomerAuth } from "@/hooks/useCustomerAuth";
 import { supabase } from "@/config/supabase";
 import { STORAGE_KEYS } from "@/constants/storage-keys";
+import { PasswordInput } from "@/components/ui/password-input";
 
 export default function AfiliadosCadastro() {
   const navigate = useNavigate();
@@ -20,11 +21,11 @@ export default function AfiliadosCadastro() {
   const [showSuccess, setShowSuccess] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [loading, setLoading] = useState(false);
-  
+
   // Estado para indicação
   const [referrerName, setReferrerName] = useState<string | null>(null);
   const [referralCode, setReferralCode] = useState<string | null>(null);
-  
+
   // Form data - Campos essenciais + senha
   const [formData, setFormData] = useState({
     name: "",
@@ -47,10 +48,10 @@ export default function AfiliadosCadastro() {
     const loadReferrer = async () => {
       // 1. Verificar parâmetro ref na URL
       const refParam = searchParams.get('ref');
-      
+
       // 2. Se não tem na URL, verificar localStorage
       const savedRef = refParam || localStorage.getItem(STORAGE_KEYS.REFERRAL_CODE);
-      
+
       if (!savedRef) return;
 
       try {
@@ -67,7 +68,7 @@ export default function AfiliadosCadastro() {
         if (data) {
           setReferrerName(data.name);
           setReferralCode(data.referral_code);
-          
+
           // Salvar no localStorage se veio da URL
           if (refParam) {
             localStorage.setItem(STORAGE_KEYS.REFERRAL_CODE, data.referral_code);
@@ -83,7 +84,7 @@ export default function AfiliadosCadastro() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!acceptedTerms) {
       toast({
         title: "Atenção",
@@ -132,7 +133,7 @@ export default function AfiliadosCadastro() {
         password: formData.password,
         referralCode: referralCode || undefined
       });
-      
+
       if (result.success) {
         setShowSuccess(true);
       } else {
@@ -189,18 +190,18 @@ export default function AfiliadosCadastro() {
               {/* Seção Única: Dados Essenciais */}
               <div className="space-y-4">
                 <h3 className="font-semibold text-lg border-b pb-2">Dados para Cadastro</h3>
-                
+
                 {/* Nome Completo - Largura Total */}
                 <div className="space-y-2">
                   <Label htmlFor="nome">
                     Nome Completo <span className="text-destructive">*</span>
                   </Label>
-                  <Input 
-                    id="nome" 
-                    placeholder="Ex: Carlos Mendes" 
+                  <Input
+                    id="nome"
+                    placeholder="Ex: Carlos Mendes"
                     value={formData.name}
                     onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                    required 
+                    required
                   />
                 </div>
 
@@ -209,12 +210,12 @@ export default function AfiliadosCadastro() {
                   <Label htmlFor="cpf">
                     CPF <span className="text-destructive">*</span>
                   </Label>
-                  <Input 
-                    id="cpf" 
-                    placeholder="000.000.000-00" 
+                  <Input
+                    id="cpf"
+                    placeholder="000.000.000-00"
                     value={formData.cpf}
                     onChange={(e) => setFormData(prev => ({ ...prev, cpf: e.target.value }))}
-                    required 
+                    required
                   />
                 </div>
 
@@ -223,13 +224,13 @@ export default function AfiliadosCadastro() {
                   <Label htmlFor="email">
                     Email <span className="text-destructive">*</span>
                   </Label>
-                  <Input 
-                    id="email" 
-                    type="email" 
-                    placeholder="seu@email.com" 
+                  <Input
+                    id="email"
+                    type="email"
+                    placeholder="seu@email.com"
                     value={formData.email}
                     onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
-                    required 
+                    required
                   />
                 </div>
 
@@ -238,12 +239,12 @@ export default function AfiliadosCadastro() {
                   <Label htmlFor="telefone">
                     Telefone/WhatsApp <span className="text-destructive">*</span>
                   </Label>
-                  <Input 
-                    id="telefone" 
-                    placeholder="(00) 00000-0000" 
+                  <Input
+                    id="telefone"
+                    placeholder="(00) 00000-0000"
                     value={formData.phone}
                     onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
-                    required 
+                    required
                   />
                 </div>
 
@@ -252,13 +253,12 @@ export default function AfiliadosCadastro() {
                   <Label htmlFor="password">
                     Senha <span className="text-destructive">*</span>
                   </Label>
-                  <Input 
-                    id="password" 
-                    type="password"
-                    placeholder="Mínimo 6 caracteres" 
+                  <PasswordInput
+                    id="password"
+                    placeholder="Mínimo 6 caracteres"
                     value={formData.password}
                     onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
-                    required 
+                    required
                   />
                 </div>
 
@@ -267,13 +267,12 @@ export default function AfiliadosCadastro() {
                   <Label htmlFor="confirmPassword">
                     Confirmar Senha <span className="text-destructive">*</span>
                   </Label>
-                  <Input 
-                    id="confirmPassword" 
-                    type="password"
-                    placeholder="Repita a senha" 
+                  <PasswordInput
+                    id="confirmPassword"
+                    placeholder="Repita a senha"
                     value={formData.confirmPassword}
                     onChange={(e) => setFormData(prev => ({ ...prev, confirmPassword: e.target.value }))}
-                    required 
+                    required
                   />
                 </div>
               </div>
@@ -288,15 +287,15 @@ export default function AfiliadosCadastro() {
               {/* Seção 3: Termos */}
               <div className="space-y-4">
                 <div className="flex items-start space-x-2">
-                  <Checkbox 
-                    id="terms" 
+                  <Checkbox
+                    id="terms"
                     checked={acceptedTerms}
                     onCheckedChange={(checked) => setAcceptedTerms(checked as boolean)}
                   />
                   <Label htmlFor="terms" className="font-normal cursor-pointer leading-tight">
                     Li e aceito os{" "}
-                    <a 
-                      href="/termos-afiliados" 
+                    <a
+                      href="/termos-afiliados"
                       target="_blank"
                       className="text-primary hover:underline"
                     >
@@ -308,8 +307,8 @@ export default function AfiliadosCadastro() {
 
               {/* Botões */}
               <div className="flex justify-between pt-4">
-                <Button 
-                  type="button" 
+                <Button
+                  type="button"
                   variant="outline"
                   onClick={() => navigate("/afiliados")}
                 >
@@ -342,7 +341,7 @@ export default function AfiliadosCadastro() {
             <DialogDescription asChild>
               <div className="space-y-4 text-center">
                 <p>Sua conta foi criada com sucesso. Configure sua Wallet ID nas configurações para começar a receber comissões.</p>
-                
+
                 <div className="bg-primary/10 border border-primary/20 rounded-lg p-4 space-y-2 text-left">
                   <div className="flex items-center gap-2 text-primary">
                     <CheckCircle2 className="h-4 w-4" />

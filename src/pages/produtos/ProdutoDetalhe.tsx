@@ -7,14 +7,19 @@ import { ChatWidget } from "@/components/chat/ChatWidget";
 import { useProducts } from "@/hooks/useProducts";
 import { AffiliateAwareCheckout } from "@/components/checkout/AffiliateAwareCheckout";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 export default function ProdutoDetalhe() {
   const { slug } = useParams<{ slug: string }>();
   const { products, rawProducts, loading, error } = useProducts();
   const [showCheckout, setShowCheckout] = useState(false);
   const [showChatWidget, setShowChatWidget] = useState(false);
-  
+
+  // Erro 1: Scroll Automático - Garantir que a página abra no topo
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [slug]);
+
   // Encontrar produto pelo slug (usar dados formatados para exibição)
   const displayProduct = products.find(p => p.slug === slug);
   // Encontrar produto real pelo slug (usar dados reais para checkout)
@@ -55,9 +60,9 @@ export default function ProdutoDetalhe() {
   }
 
   // Calcular preço formatado
-  const priceFormatted = (rawProduct.price_cents / 100).toLocaleString('pt-BR', { 
+  const priceFormatted = (rawProduct.price_cents / 100).toLocaleString('pt-BR', {
     minimumFractionDigits: 2,
-    maximumFractionDigits: 2 
+    maximumFractionDigits: 2
   });
 
   // Preparar dados do produto para checkout
@@ -95,13 +100,13 @@ export default function ProdutoDetalhe() {
             </Badge>
           )}
         </div>
-        
+
         <div className="grid md:grid-cols-2 gap-8">
           {/* Imagem do Produto */}
           <div className="aspect-[4/3] bg-muted rounded-xl flex items-center justify-center overflow-hidden">
             {displayProduct.image ? (
-              <img 
-                src={displayProduct.image} 
+              <img
+                src={displayProduct.image}
                 alt={`Slim Quality ${displayProduct.name}`}
                 className="w-full h-full object-cover"
               />
@@ -112,7 +117,7 @@ export default function ProdutoDetalhe() {
               </div>
             )}
           </div>
-          
+
           {/* Informações do Produto */}
           <Card className="p-6 space-y-6">
             <div className="space-y-2">
@@ -120,10 +125,10 @@ export default function ProdutoDetalhe() {
                 R$ {priceFormatted}
               </p>
               <p className="text-sm text-muted-foreground">
-                Parcelamento disponível em até 12x
+                Parcelamento disponível em até 12x <strong className="text-primary font-bold">Sem Juros</strong>
               </p>
             </div>
-            
+
             <div className="space-y-3">
               {features.map((feature, index) => (
                 <div key={index} className="flex items-center gap-3">
@@ -139,10 +144,10 @@ export default function ProdutoDetalhe() {
                 Pessoas que buscam alívio de dores, melhora do sono e bem-estar geral
               </p>
             </div>
-            
+
             {/* Botões de Ação */}
             <div className="space-y-3">
-              <Button 
+              <Button
                 onClick={() => setShowCheckout(true)}
                 className="w-full"
                 size="lg"
@@ -150,18 +155,18 @@ export default function ProdutoDetalhe() {
                 <ShoppingCart className="mr-2 h-5 w-5" />
                 Comprar Agora
               </Button>
-              
-              <Button 
+
+              <Button
                 onClick={() => setShowChatWidget(true)}
                 variant="outline"
-                className="w-full"
+                className="w-full bg-[#FFD700] hover:bg-[#FFD700] hover:brightness-95 text-black border-none transition-all duration-300 hover:scale-[1.02] shadow-sm font-bold"
                 size="lg"
               >
                 <MessageCircle className="mr-2 h-5 w-5" />
                 Falar com BIA sobre este produto
               </Button>
             </div>
-            
+
 
           </Card>
         </div>
@@ -200,9 +205,9 @@ export default function ProdutoDetalhe() {
 
             // Grid responsivo baseado na quantidade de specs
             const gridCols = specs.length === 2 ? 'sm:grid-cols-2' :
-                           specs.length === 3 ? 'sm:grid-cols-3' :
-                           specs.length === 4 ? 'sm:grid-cols-2 lg:grid-cols-4' :
-                           'sm:grid-cols-2 lg:grid-cols-3';
+              specs.length === 3 ? 'sm:grid-cols-3' :
+                specs.length === 4 ? 'sm:grid-cols-2 lg:grid-cols-4' :
+                  'sm:grid-cols-2 lg:grid-cols-3';
 
             return (
               <div className={`grid ${gridCols} gap-6`}>
@@ -216,9 +221,9 @@ export default function ProdutoDetalhe() {
             );
           })()}
         </Card>
-        
+
         <div className="text-center pt-8">
-          <Link 
+          <Link
             to="/tecnologias"
             className="inline-flex items-center text-primary hover:underline font-semibold text-lg"
           >
@@ -243,9 +248,9 @@ export default function ProdutoDetalhe() {
 
       {/* Chat Widget */}
       {showChatWidget && (
-        <ChatWidget 
+        <ChatWidget
           autoOpen={true}
-          onClose={() => setShowChatWidget(false)} 
+          onClose={() => setShowChatWidget(false)}
         />
       )}
     </div>
