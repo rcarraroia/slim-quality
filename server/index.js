@@ -277,98 +277,9 @@ app.post('/api/chat', async (req, res) => {
   }
 });
 
-// ============================================
-// CONTATO - Envio de Mensagens
-// ============================================
 
-app.post('/api/contact', async (req, res) => {
-  try {
-    const { name, email, subject, message } = req.body;
 
-    // Validação básica
-    if (!name || !email || !message) {
-      return res.status(400).json({
-        success: false,
-        error: 'Campos obrigatórios: name, email, message'
-      });
-    }
 
-    console.log(`[Contact] 📩 Nova mensagem de: ${name} (${email})`);
-
-    const adminEmails = [
-      'colchoesslimquality@gmail.com',
-      'jbassis@hotmail.com'
-    ];
-
-    const RESEND_API_KEY = process.env.RESEND_API_KEY;
-    const N8N_CONTACT_WEBHOOK = process.env.N8N_CONTACT_WEBHOOK;
-
-    if (RESEND_API_KEY) {
-      console.log('[Contact] Enviando via Resend...');
-      const response = await fetch('https://api.resend.com/emails', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${RESEND_API_KEY}`
-        },
-        body: JSON.stringify({
-          from: 'Slim Quality <contato@slimquality.com.br>',
-          to: adminEmails,
-          subject: subject || `Novo contato: ${name}`,
-          html: `
-            <h3>Nova mensagem do site</h3>
-            <p><strong>Nome:</strong> ${name}</p>
-            <p><strong>Email:</strong> ${email}</p>
-            <p><strong>Assunto:</strong> ${subject || 'Sem assunto'}</p>
-            <hr />
-            <p><strong>Mensagem:</strong></p>
-            <p>${message.replace(/\n/g, '<br>')}</p>
-          `
-        })
-      });
-
-      if (!response.ok) {
-        let errorData = {};
-        try {
-          errorData = await response.json();
-        } catch (e) {
-          errorData = { status: response.status, statusText: response.statusText };
-        }
-        console.error('[Contact] Erro Resend:', errorData);
-        throw new Error('Falha ao enviar email via Resend: ' + JSON.stringify(errorData));
-      }
-
-      const data = await response.json();
-      console.log('[Contact] Email enviado com sucesso via Resend', data);
-
-    } else if (N8N_CONTACT_WEBHOOK) {
-      try {
-        await fetch(N8N_CONTACT_WEBHOOK, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name, email, subject, message, type: 'contact_form' })
-        });
-        console.log('[Contact] Webhook disparado com sucesso');
-      } catch (webhookError) {
-        console.error('[Contact] Erro ao disparar webhook:', webhookError);
-      }
-    } else {
-      console.warn('[Contact] ⚠️ Nenhuma integração de email/webhook configurada.');
-    }
-
-    return res.status(200).json({
-      success: true,
-      message: 'Mensagem enviada com sucesso!'
-    });
-
-  } catch (error) {
-    console.error('[Contact] ❌ Erro:', error);
-    return res.status(500).json({
-      success: false,
-      error: 'Erro interno do servidor: ' + error.message
-    });
-  }
-});
 
 // Health check
 app.get('/api/health', (req, res) => {

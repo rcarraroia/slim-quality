@@ -16,7 +16,7 @@ import {
     FormItem,
     FormMessage,
 } from "@/components/ui/form";
-import { apiService } from "@/services/api.service";
+
 
 const formSchema = z.object({
     name: z.string().min(2, {
@@ -47,20 +47,26 @@ export function ContactForm() {
     async function onSubmit(values: z.infer<typeof formSchema>) {
         setIsSubmitting(true);
         try {
-            // Usando o endpoint criado em api/contact.js
-            // O endpoint está em /api/contact tanto no Vercel quanto no Express local.
-            // E o apiService usa VITE_API_URL como base.
-            // Portanto, devemos especificar o caminho correto: /api/contact.
+            // CORREÇÃO: Usar fetch diretamente para garantir rota relativa ('/api/contact')
+            // Isso força o uso da Vercel Serverless Function
 
-            const response = await apiService.post("/api/contact", values);
+            const response = await fetch('/api/contact', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(values)
+            });
 
-            if (response.success) {
+            const data = await response.json();
+
+            if (response.ok && data.success) {
                 toast.success("Mensagem enviada com sucesso!", {
                     description: "Entraremos em contato em breve.",
                 });
                 form.reset();
             } else {
-                throw new Error(response.error || "Erro ao enviar mensagem");
+                throw new Error(data.error || "Erro ao enviar mensagem");
             }
         } catch (error) {
             console.error("Erro no envio:", error);
