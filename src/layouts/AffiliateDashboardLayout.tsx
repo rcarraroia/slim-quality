@@ -1,9 +1,9 @@
 import { Outlet, useNavigate, useLocation, Link } from "react-router-dom";
 import { useState, useEffect } from "react";
-import { 
-  LayoutDashboard, 
-  Users, 
-  DollarSign, 
+import {
+  LayoutDashboard,
+  Users,
+  DollarSign,
   Settings,
   LogOut,
   Bell,
@@ -11,9 +11,10 @@ import {
   CreditCard,
   Home,
   TreeDeciduous,
-  Loader2,
   ShoppingCart,
-  BarChart3
+  BarChart3,
+  Bot, // Icone para IA
+  Loader2
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -26,21 +27,37 @@ import { supabase } from "@/config/supabase";
 export function AffiliateDashboardLayout() {
   const navigate = useNavigate();
   const location = useLocation();
-  
+
   // Estados para dados do afiliado
   const [affiliate, setAffiliate] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [showIAMenu, setShowIAMenu] = useState(false); // Novo estado
 
-  // Carregar dados do afiliado ao montar
+  // Carregar dados do afiliado e verificar produto IA ao montar
   useEffect(() => {
     loadAffiliateData();
+    checkIAAvailability();
   }, []);
+
+  const checkIAAvailability = async () => {
+    try {
+      const { count } = await supabase
+        .from('products')
+        .select('*', { count: 'exact', head: true })
+        .eq('category', 'ferramenta_ia')
+        .eq('is_active', true);
+
+      setShowIAMenu(!!count && count > 0);
+    } catch (error) {
+      console.error('Erro ao verificar disponibilidade IA:', error);
+    }
+  };
 
   const loadAffiliateData = async () => {
     try {
       setLoading(true);
       const { isAffiliate, affiliate: affiliateData } = await affiliateFrontendService.checkAffiliateStatus();
-      
+
       if (isAffiliate && affiliateData) {
         setAffiliate(affiliateData);
       }
@@ -76,6 +93,8 @@ export function AffiliateDashboardLayout() {
 
   const menuItems = [
     { icon: Home, label: "Início", path: "/afiliados/dashboard" },
+    // Item condicional
+    ...(showIAMenu ? [{ icon: Bot, label: "Ferramentas IA", path: "/afiliados/dashboard/ferramentas-ia" }] : []),
     { icon: TreeDeciduous, label: "Minha Rede", path: "/afiliados/dashboard/rede" },
     { icon: ShoppingCart, label: "Vendas", path: "/afiliados/dashboard/vendas" },
     { icon: DollarSign, label: "Comissões", path: "/afiliados/dashboard/comissoes" },
@@ -93,13 +112,13 @@ export function AffiliateDashboardLayout() {
     try {
       // Fazer logout no Supabase
       await supabase.auth.signOut();
-      
+
       // Limpar dados do localStorage
       localStorage.removeItem('customer_token');
       localStorage.removeItem('customer_refresh_token');
       localStorage.removeItem('customer_user');
       localStorage.removeItem('customer_token_expires');
-      
+
       // Redirecionar para login
       navigate("/entrar");
     } catch (error) {
@@ -117,10 +136,10 @@ export function AffiliateDashboardLayout() {
           {/* Logo */}
           <div className="border-b p-6">
             <Link to="/" className="flex flex-col items-center gap-2">
-              <img 
-                src="/logo.png" 
-                alt="Slim Quality" 
-                className="h-12 w-auto" 
+              <img
+                src="/logo.png"
+                alt="Slim Quality"
+                className="h-12 w-auto"
               />
               <p className="text-xs text-muted-foreground text-center">Programa de Afiliados</p>
             </Link>
@@ -150,8 +169,8 @@ export function AffiliateDashboardLayout() {
                   <p className={cn(
                     "text-xs font-semibold",
                     affiliate?.status === 'active' ? 'text-success' :
-                    affiliate?.status === 'pending' ? 'text-orange-500' :
-                    'text-muted-foreground'
+                      affiliate?.status === 'pending' ? 'text-orange-500' :
+                        'text-muted-foreground'
                   )}>
                     {getStatusLabel(affiliate?.status || 'pending')}
                   </p>
@@ -165,16 +184,15 @@ export function AffiliateDashboardLayout() {
             {menuItems.map((item) => {
               const Icon = item.icon;
               const isActive = location.pathname === item.path;
-              
+
               return (
                 <button
                   key={item.path}
                   onClick={() => navigate(item.path)}
-                  className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors ${
-                    isActive
-                      ? "bg-primary text-primary-foreground"
-                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                  }`}
+                  className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors ${isActive
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                    }`}
                 >
                   <Icon className="h-4 w-4" />
                   <span>{item.label}</span>
@@ -203,7 +221,7 @@ export function AffiliateDashboardLayout() {
         {/* TopBar */}
         <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b bg-card px-6 shadow-sm">
           <h1 className="text-xl font-semibold">{getPageTitle()}</h1>
-          
+
           <div className="ml-auto flex items-center gap-4">
             {/* Search */}
             <div className="relative w-64">

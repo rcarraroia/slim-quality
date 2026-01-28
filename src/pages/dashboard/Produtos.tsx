@@ -35,6 +35,7 @@ interface Product {
   height_cm: number;
   weight_kg: number | null;
   product_type: string;
+  category: string; // Adicionado
   is_active: boolean;
   is_featured: boolean;
   display_order: number;
@@ -64,10 +65,14 @@ export default function Produtos() {
     warranty_years: '',
     therapeutic_technologies: '',
     product_type: 'mattress',
+    category: 'mattress', // Default
     status: 'active',
     featured: false,
     display_order: '0'
   });
+
+  // Derivado para facilitar lógica na UI
+  const isDigital = formData.category === 'ferramenta_ia';
 
   useEffect(() => {
     loadProdutos();
@@ -110,6 +115,7 @@ export default function Produtos() {
       warranty_years: (produto as any).warranty_years?.toString() || '',
       therapeutic_technologies: (produto as any).therapeutic_technologies?.toString() || '',
       product_type: produto.product_type || 'mattress',
+      category: produto.category || 'mattress',
       status: produto.is_active ? 'active' : 'inactive',
       featured: produto.is_featured,
       display_order: produto.display_order.toString()
@@ -134,7 +140,9 @@ export default function Produtos() {
       magnetic_count: '',
       warranty_years: '',
       therapeutic_technologies: '',
+      therapeutic_technologies: '',
       product_type: 'mattress',
+      category: 'mattress',
       status: 'active',
       featured: false,
       display_order: '0'
@@ -232,14 +240,19 @@ export default function Produtos() {
         sku: formData.sku || `COL-${Date.now().toString(36).toUpperCase()}`,
         description: formData.description || null,
         price_cents: Math.round(parseFloat(formData.price) * 100),
-        width_cm: parseFloat(formData.width_cm),
-        length_cm: parseFloat(formData.length_cm),
-        height_cm: parseFloat(formData.height_cm),
-        weight_kg: formData.weight ? parseFloat(formData.weight) : null,
-        magnetic_count: formData.magnetic_count ? parseInt(formData.magnetic_count) : null,
-        warranty_years: formData.warranty_years ? parseInt(formData.warranty_years) : null,
-        therapeutic_technologies: formData.therapeutic_technologies ? parseInt(formData.therapeutic_technologies) : null,
-        product_type: formData.product_type,
+        // Se for digital, força valores nulos para físicos e tipo service
+        width_cm: isDigital ? null : parseFloat(formData.width_cm),
+        length_cm: isDigital ? null : parseFloat(formData.length_cm),
+        height_cm: isDigital ? null : parseFloat(formData.height_cm),
+        weight_kg: isDigital ? null : (formData.weight ? parseFloat(formData.weight) : null),
+        product_type: isDigital ? 'service' : formData.product_type,
+        category: formData.category,
+
+        // Campos opcionais de colchão zerados se for digital
+        magnetic_count: isDigital ? null : (formData.magnetic_count ? parseInt(formData.magnetic_count) : null),
+        warranty_years: isDigital ? null : (formData.warranty_years ? parseInt(formData.warranty_years) : null),
+        therapeutic_technologies: isDigital ? null : (formData.therapeutic_technologies ? parseInt(formData.therapeutic_technologies) : null),
+
         is_active: formData.status === 'active',
         is_featured: formData.featured,
         display_order: parseInt(formData.display_order) || 0
@@ -280,7 +293,7 @@ export default function Produtos() {
 
       setIsModalOpen(false);
       loadProdutos();
-      
+
       // Disparar evento para atualizar outras páginas
       window.dispatchEvent(new CustomEvent('productsUpdated'));
     } catch (error) {
@@ -359,8 +372,8 @@ export default function Produtos() {
               <CardHeader className="pb-4">
                 <div className="aspect-video bg-muted rounded-lg flex items-center justify-center mb-4 overflow-hidden">
                   {produto.product_images && produto.product_images.length > 0 ? (
-                    <img 
-                      src={produto.product_images[0].image_url} 
+                    <img
+                      src={produto.product_images[0].image_url}
                       alt={produto.name}
                       className="w-full h-full object-cover"
                     />
@@ -397,7 +410,7 @@ export default function Produtos() {
                 <p className="text-3xl font-bold text-primary">
                   R$ {(produto.price_cents / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                 </p>
-                
+
                 <div className="space-y-2 text-sm">
                   <div className="flex items-center justify-between">
                     <span className="text-muted-foreground">📏 Dimensões:</span>
@@ -422,18 +435,18 @@ export default function Produtos() {
                 </div>
 
                 <div className="flex gap-2 pt-2">
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
+                  <Button
+                    variant="outline"
+                    size="sm"
                     className="flex-1 gap-2"
                     onClick={() => handleEdit(produto)}
                   >
                     <Edit className="h-4 w-4" />
                     Editar
                   </Button>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
+                  <Button
+                    variant="outline"
+                    size="sm"
                     className="flex-1 gap-2 text-destructive hover:text-destructive"
                     onClick={() => handleDelete(produto.id)}
                   >
@@ -455,12 +468,12 @@ export default function Produtos() {
               {editingProduto ? 'Editar Produto' : 'Novo Produto'}
             </DialogTitle>
           </DialogHeader>
-          
+
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <Label>Nome do Produto *</Label>
-              <Input 
-                placeholder="Ex: Slim Quality Casal" 
+              <Input
+                placeholder="Ex: Slim Quality Casal"
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               />
@@ -469,8 +482,8 @@ export default function Produtos() {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>SKU (Código do Produto)</Label>
-                <Input 
-                  placeholder="Ex: COL-CASAL-001" 
+                <Input
+                  placeholder="Ex: COL-CASAL-001"
                   value={formData.sku}
                   onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
                 />
@@ -479,10 +492,15 @@ export default function Produtos() {
                 </p>
               </div>
               <div className="space-y-2">
-                <Label>Tipo de Produto *</Label>
-                <Select 
-                  value={formData.product_type}
-                  onValueChange={(value) => setFormData({ ...formData, product_type: value })}
+                <Label>Categoria do Produto *</Label>
+                <Select
+                  value={formData.category}
+                  onValueChange={(value) => setFormData({
+                    ...formData,
+                    category: value,
+                    // Se mudar para IA, já ajusta o tipo para service
+                    product_type: value === 'ferramenta_ia' ? 'service' : 'mattress'
+                  })}
                 >
                   <SelectTrigger>
                     <SelectValue />
@@ -491,120 +509,116 @@ export default function Produtos() {
                     <SelectItem value="mattress">Colchão</SelectItem>
                     <SelectItem value="pillow">Travesseiro</SelectItem>
                     <SelectItem value="accessory">Acessório</SelectItem>
-                    <SelectItem value="other">Outro</SelectItem>
+                    <SelectItem value="ferramenta_ia">Agente IA (Digital)</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
             </div>
 
-
-
             <div className="space-y-2">
-              <Label>Dimensões do Produto *</Label>
-              <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <Label className="text-xs">Largura (cm)</Label>
-                  <Input 
-                    type="number"
-                    step="0.01"
-                    placeholder="138"
-                    value={formData.width_cm}
-                    onChange={(e) => setFormData({ ...formData, width_cm: e.target.value })}
-                    required
-                  />
-                </div>
-                <div>
-                  <Label className="text-xs">Comprimento (cm)</Label>
-                  <Input 
-                    type="number"
-                    step="0.01"
-                    placeholder="188"
-                    value={formData.length_cm}
-                    onChange={(e) => setFormData({ ...formData, length_cm: e.target.value })}
-                    required
-                  />
-                </div>
-                <div>
-                  <Label className="text-xs">Altura (cm)</Label>
-                  <Input 
-                    type="number"
-                    step="0.01"
-                    placeholder="28"
-                    value={formData.height_cm}
-                    onChange={(e) => setFormData({ ...formData, height_cm: e.target.value })}
-                    required
-                  />
-                </div>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Medidas em centímetros (Largura × Comprimento × Altura)
-              </p>
+              <Label>Preço (R$) *</Label>
+              <Input
+                type="number"
+                placeholder="3690"
+                value={formData.price}
+                onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+              />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Preço (R$) *</Label>
-                <Input 
-                  type="number" 
-                  placeholder="3690" 
-                  value={formData.price}
-                  onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Peso (kg)</Label>
-                <Input 
-                  type="number" 
-                  step="0.1"
-                  placeholder="25.5" 
-                  value={formData.weight}
-                  onChange={(e) => setFormData({ ...formData, weight: e.target.value })}
-                />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Especificações Técnicas (Opcionais)</Label>
-              <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <Label className="text-xs">Ímãs Terapêuticos</Label>
-                  <Input 
-                    type="number"
-                    placeholder="240"
-                    value={formData.magnetic_count}
-                    onChange={(e) => setFormData({ ...formData, magnetic_count: e.target.value })}
-                  />
+            {/* Campos Físicos - Apenas se não for Digital */}
+            {!isDigital && (
+              <div className="space-y-4 border-l-2 border-muted pl-4">
+                <div className="space-y-2">
+                  <Label>Dimensões do Produto *</Label>
+                  <div className="grid grid-cols-3 gap-4">
+                    <div>
+                      <Label className="text-xs">Largura (cm)</Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        placeholder="138"
+                        value={formData.width_cm}
+                        onChange={(e) => setFormData({ ...formData, width_cm: e.target.value })}
+                        required={!isDigital}
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Comprimento (cm)</Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        placeholder="188"
+                        value={formData.length_cm}
+                        onChange={(e) => setFormData({ ...formData, length_cm: e.target.value })}
+                        required={!isDigital}
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Altura (cm)</Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        placeholder="28"
+                        value={formData.height_cm}
+                        onChange={(e) => setFormData({ ...formData, height_cm: e.target.value })}
+                        required={!isDigital}
+                      />
+                    </div>
+                  </div>
                   <p className="text-xs text-muted-foreground">
-                    Apenas para produtos magnéticos
+                    Medidas em centímetros (Largura × Comprimento × Altura)
                   </p>
                 </div>
-                <div>
-                  <Label className="text-xs">Garantia (anos)</Label>
-                  <Input 
+
+                <div className="space-y-2">
+                  <Label>Peso (kg)</Label>
+                  <Input
                     type="number"
-                    placeholder="15"
-                    value={formData.warranty_years}
-                    onChange={(e) => setFormData({ ...formData, warranty_years: e.target.value })}
+                    step="0.1"
+                    placeholder="25.5"
+                    value={formData.weight}
+                    onChange={(e) => setFormData({ ...formData, weight: e.target.value })}
                   />
                 </div>
-                <div>
-                  <Label className="text-xs">Tecnologias</Label>
-                  <Input 
-                    type="number"
-                    placeholder="8"
-                    value={formData.therapeutic_technologies}
-                    onChange={(e) => setFormData({ ...formData, therapeutic_technologies: e.target.value })}
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Qtd. de tecnologias terapêuticas
-                  </p>
+
+                <div className="space-y-2">
+                  <Label>Especificações Técnicas (Opcionais)</Label>
+                  <div className="grid grid-cols-3 gap-4">
+                    <div>
+                      <Label className="text-xs">Ímãs Terapêuticos</Label>
+                      <Input
+                        type="number"
+                        placeholder="240"
+                        value={formData.magnetic_count}
+                        onChange={(e) => setFormData({ ...formData, magnetic_count: e.target.value })}
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Garantia (anos)</Label>
+                      <Input
+                        type="number"
+                        placeholder="15"
+                        value={formData.warranty_years}
+                        onChange={(e) => setFormData({ ...formData, warranty_years: e.target.value })}
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Tecnologias</Label>
+                      <Input
+                        type="number"
+                        placeholder="8"
+                        value={formData.therapeutic_technologies}
+                        onChange={(e) => setFormData({ ...formData, therapeutic_technologies: e.target.value })}
+                      />
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
 
             <div className="space-y-2">
               <Label>Descrição</Label>
-              <Textarea 
+              <Textarea
                 placeholder="Descrição do produto..."
                 rows={3}
                 value={formData.description}
@@ -615,7 +629,7 @@ export default function Produtos() {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Status</Label>
-                <Select 
+                <Select
                   value={formData.status}
                   onValueChange={(value) => setFormData({ ...formData, status: value })}
                 >
@@ -630,9 +644,9 @@ export default function Produtos() {
               </div>
               <div className="space-y-2">
                 <Label>Ordem de Exibição</Label>
-                <Input 
-                  type="number" 
-                  placeholder="0" 
+                <Input
+                  type="number"
+                  placeholder="0"
                   value={formData.display_order}
                   onChange={(e) => setFormData({ ...formData, display_order: e.target.value })}
                 />
@@ -665,7 +679,7 @@ export default function Produtos() {
                   className="hidden"
                   id="image-upload"
                 />
-                <label 
+                <label
                   htmlFor="image-upload"
                   className="flex flex-col items-center justify-center cursor-pointer"
                 >
@@ -684,8 +698,8 @@ export default function Produtos() {
                 <div className="grid grid-cols-4 gap-2 mt-4">
                   {imagePreviews.map((preview, index) => (
                     <div key={index} className="relative group">
-                      <img 
-                        src={preview} 
+                      <img
+                        src={preview}
                         alt={`Preview ${index + 1}`}
                         className="w-full h-24 object-cover rounded-lg"
                       />
@@ -703,16 +717,16 @@ export default function Produtos() {
           </div>
 
           <DialogFooter>
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               onClick={() => setIsModalOpen(false)}
               disabled={uploading}
             >
               Cancelar
             </Button>
-            <Button 
+            <Button
               onClick={handleSave}
-              disabled={uploading || !formData.name || !formData.price}
+              disabled={uploading || !formData.name || !formData.price || (!isDigital && (!formData.width_cm || !formData.length_cm || !formData.height_cm))}
             >
               {uploading ? 'Salvando...' : 'Salvar'}
             </Button>
