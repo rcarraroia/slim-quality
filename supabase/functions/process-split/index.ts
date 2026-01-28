@@ -151,10 +151,10 @@ serve(async (req) => {
     const validationResult = await validateAllWallets(splits);
     if (!validationResult.success) {
       console.error('Wallet validation failed:', validationResult.error);
-      
+
       // Marcar split como falha
       await updateSplitStatus(splitId, 'failed', validationResult.error);
-      
+
       return new Response(JSON.stringify({
         error: validationResult.error,
         code: 'WALLET_VALIDATION_FAILED',
@@ -168,10 +168,10 @@ serve(async (req) => {
     const splitResult = await executeSplitInAsaas(asaasPaymentId, splits);
     if (!splitResult.success) {
       console.error('Asaas split execution failed:', splitResult.error);
-      
+
       // Marcar split como falha
       await updateSplitStatus(splitId, 'failed', splitResult.error, splitResult.response);
-      
+
       return new Response(JSON.stringify({
         error: splitResult.error,
         code: 'ASAAS_SPLIT_FAILED',
@@ -183,17 +183,22 @@ serve(async (req) => {
 
     // 8. Atualizar status do split como enviado
     await updateSplitStatus(
-      splitId, 
-      'sent', 
-      null, 
-      splitResult.response, 
+      splitId,
+      'sent',
+      null,
+      splitResult.response,
       splitResult.response?.id
     );
 
     // 9. Atualizar status das comissões individuais
     await updateCommissionStatuses(orderId, 'pending');
 
-    // 10. Registrar log de auditoria
+    // 10. Ativar serviço se for ferramenta IA
+    if (commissionSplit.main_receiver_wallet_id === walletRenum) {
+      await activateAffiliateService(order.affiliate_n1_id, 'agente_ia');
+    }
+
+    // 11. Registrar log de auditoria
     await logSplitOperation(orderId, splitResult.response, splits);
 
     console.log('Split processed successfully', {
@@ -214,7 +219,7 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('Error in process-split function:', error);
-    
+
     return new Response(JSON.stringify({
       error: 'Internal server error',
       code: 'INTERNAL_ERROR',
@@ -232,11 +237,14 @@ serve(async (req) => {
 async function prepareSplitsForAsaas(commissionSplit: any): Promise<SplitItem[]> {
   const splits: SplitItem[] = [];
 
-  // Fábrica (70%)
+  // Recebedor Principal (70% - Fábrica ou Renum)
+  const mainWallet = commissionSplit.main_receiver_wallet_id || walletFabrica;
+  const isRenum = mainWallet === walletRenum;
+
   splits.push({
-    walletId: walletFabrica,
+    walletId: mainWallet,
     fixedValue: commissionSplit.factory_value_cents / 100, // Converter para reais
-    description: 'Fábrica - 70%',
+    description: isRenum ? 'Renum - 70% (IA Service)' : 'Fábrica - 70%',
   });
 
   // N1 (15% se houver)
@@ -361,7 +369,7 @@ async function validateAllWallets(splits: SplitItem[]): Promise<{ success: boole
  * Executa split no Asaas
  */
 async function executeSplitInAsaas(
-  paymentId: string, 
+  paymentId: string,
   splits: SplitItem[]
 ): Promise<{ success: boolean; error?: string; response?: any }> {
   try {
@@ -456,6 +464,44 @@ async function updateCommissionStatuses(orderId: string, status: string): Promis
 
   } catch (error) {
     console.error('Error updating commission statuses:', error);
+  }
+}
+
+/**
+ * Ativa o serviço para o afiliado
+ */
+async function activateAffiliateService(userId: string, serviceType: string): Promise<void> {
+  try {
+    // Buscar o ID do afiliado a partir do User ID
+    const { data: affiliate } = await supabase
+      .from('affiliates')
+      .select('id')
+      .eq('user_id', userId)
+      .single();
+
+    if (!affiliate) return;
+
+    // Ativar ou renovar por 30 dias
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 30);
+
+    const { error } = await supabase
+      .from('affiliate_services')
+      .upsert({
+        affiliate_id: affiliate.id,
+        service_type: serviceType,
+        status: 'active',
+        expires_at: expiresAt.toISOString(),
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'affiliate_id,service_type' });
+
+    if (error) {
+      console.error('Error activating service:', error);
+    } else {
+      console.log('Service activated successfully', { userId, serviceType });
+    }
+  } catch (error) {
+    console.error('Error in activateAffiliateService:', error);
   }
 }
 

@@ -13,6 +13,7 @@ export interface Product {
   height_cm: number;
   weight_kg: number | null;
   product_type: string;
+  category: 'colchao' | 'ferramenta_ia';
   is_active: boolean;
   is_featured: boolean;
   display_order: number;
@@ -37,6 +38,7 @@ export const useProducts = () => {
           product_images(image_url)
         `)
         .eq('is_active', true)
+        .eq('category', 'colchao')
         .is('deleted_at', null)
         .order('display_order', { ascending: true });
 
@@ -64,7 +66,7 @@ export const useProducts = () => {
     };
 
     window.addEventListener('productsUpdated', handleProductsUpdated);
-    
+
     return () => {
       window.removeEventListener('productsUpdated', handleProductsUpdated);
     };
@@ -73,7 +75,7 @@ export const useProducts = () => {
   // Função para formatar produto para exibição na home
   const formatProductForHome = (product: Product) => {
     const priceInReais = product.price_cents / 100;
-    
+
     return {
       id: product.id,
       name: product.name,

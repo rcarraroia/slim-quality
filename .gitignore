@@ -74,3 +74,22 @@ coverage.xml
 *.temp
 .tmp/
 .temp/
+
+# RENUM - IA & Internal Docs
+.agent
+.context
+.github
+.hypothesis
+.kiro
+.spec
+docs
+BUGS_SISTEMA_AFILIADOS
+backups
+scripts
+agent.zip
+AGENTS.md
+CLAUDE.md
+bun.lockb
+easypanel-github-deploy.md
+easypanel-service-config.md
+mcp-config-updated.json

@@ -1,0 +1,65 @@
+# Project Rules and Guidelines
+
+> Auto-generated from .context/docs on 2026-01-20T03:31:26.343Z
+
+## README
+
+# Documentation Index
+
+Welcome to the repository knowledge base. Start with the project overview, then dive into specific guides as needed.
+
+## Core Guides
+- [Project Overview](./project-overview.md)
+- [Architecture Notes](./architecture.md)
+- [Development Workflow](./development-workflow.md)
+- [Testing Strategy](./testing-strategy.md)
+- [Glossary & Domain Concepts](./glossary.md)
+- [Data Flow & Integrations](./data-flow.md)
+- [Security & Compliance Notes](./security.md)
+- [Tooling & Productivity Guide](./tooling.md)
+
+## Repository Snapshot
+- `agent/`
+- `agent.zip/`
+- `api/`
+- `backups/`
+- `BUGS_SISTEMA_AFILIADOS/`
+- `bun.lockb/`
+- `components.json/`
+- `docs/` — Living documentation produced by this tool.
+- `easypanel-github-deploy.md/`
+- `easypanel-service-config.md/`
+- `eslint.config.js/`
+- `index.html/`
+- `mcp-config-updated.json/`
+- `package-lock.json/`
+- `package.json/`
+- `pages/`
+- `postcss.config.js/`
+- `public/`
+- `README.md/`
+- `scripts/`
+- `server/`
+- `Slim_Quality_API_Afiliados.postman_collection.json/`
+- `src/` — TypeScript source files and CLI entrypoints.
+- `supabase/`
+- `tailwind.config.ts/`
+- `tests/` — Automated tests and fixtures.
+- `tsconfig.app.json/`
+- `tsconfig.json/`
+- `tsconfig.node.json/`
+- `vercel.json/`
+- `vite.config.ts/`
+
+## Document Map
+| Guide | File | Primary Inputs |
+| --- | --- | --- |
+| Project Overview | `project-overview.md` | Roadmap, README, stakeholder notes |
+| Architecture Notes | `architecture.md` | ADRs, service boundaries, dependency graphs |
+| Development Workflow | `development-workflow.md` | Branching rules, CI config, contributing guide |
+| Testing Strategy | `testing-strategy.md` | Test configs, CI gates, known flaky suites |
+| Glossary & Domain Concepts | `glossary.md` | Business terminology, user personas, domain rules |
+| Data Flow & Integrations | `data-flow.md` | System diagrams, integration specs, queue topics |
+| Security & Compliance Notes | `security.md` | Auth model, secrets management, compliance requirements |
+| Tooling & Productivity Guide | `tooling.md` | CLI scripts, IDE configs, automation workflows |
+

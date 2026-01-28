@@ -43,3 +43,20 @@ tmp/
 
 # Ignorar arquivos do Supabase CLI
 supabase/.temp/
+
+# RENUM - IA & Internal Docs
+.agent
+.context
+.github
+.hypothesis
+.kiro
+.spec
+BUGS_SISTEMA_AFILIADOS
+backups
+agent.zip
+AGENTS.md
+CLAUDE.md
+bun.lockb
+easypanel-github-deploy.md
+easypanel-service-config.md
+mcp-config-updated.json

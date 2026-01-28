@@ -8,10 +8,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { 
-  Settings, 
-  Save, 
-  TestTube, 
+import {
+  Settings,
+  Save,
+  TestTube,
   Send,
   RefreshCw,
   Bot
@@ -19,6 +19,8 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import SubAgentCard from '@/components/SubAgentCard';
 import agentService from '@/services/agent.service';
+import { CreditCard, Lock } from 'lucide-react';
+import { supabase } from '@/config/supabase';
 
 interface AgentConfig {
   model: string;
@@ -52,9 +54,14 @@ interface ChatMessage {
   time?: number;
 }
 
+interface AffiliateService {
+  status: 'active' | 'inactive' | 'trial' | 'pending';
+  expires_at: string | null;
+}
+
 export default function AgenteConfiguracao() {
   const { toast } = useToast();
-  
+
   // Estado da configuração
   const [config, setConfig] = useState<AgentConfig>({
     model: 'gpt-4o',
@@ -77,6 +84,10 @@ export default function AgenteConfiguracao() {
   ]);
   const [testMessage, setTestMessage] = useState('');
   const [isTestingPrompt, setIsTestingPrompt] = useState(false);
+
+  // Estado da Assinatura
+  const [subscription, setSubscription] = useState<AffiliateService | null>(null);
+  const [isLoadingSubscription, setIsLoadingSubscription] = useState(true);
 
   // Carregar configuração atual
   const loadConfig = async () => {
@@ -127,13 +138,13 @@ export default function AgenteConfiguracao() {
     setIsSavingSubAgent(true);
     try {
       const response = await agentService.updateSubAgent(id, data);
-      
+
       if (response.success && response.data) {
         // Atualizar lista local
-        setSubAgents(prev => prev.map(agent => 
+        setSubAgents(prev => prev.map(agent =>
           agent.id === id ? response.data! : agent
         ));
-        
+
         toast({
           title: "Sub-agente atualizado",
           description: "As configurações foram salvas com sucesso.",
@@ -159,13 +170,13 @@ export default function AgenteConfiguracao() {
     setIsSavingSubAgent(true);
     try {
       const response = await agentService.resetSubAgent(id);
-      
+
       if (response.success && response.data) {
         // Atualizar lista local
-        setSubAgents(prev => prev.map(agent => 
+        setSubAgents(prev => prev.map(agent =>
           agent.id === id ? response.data! : agent
         ));
-        
+
         toast({
           title: "Configuração restaurada",
           description: "As configurações padrão foram restauradas com sucesso.",
@@ -189,13 +200,14 @@ export default function AgenteConfiguracao() {
   useEffect(() => {
     loadConfig();
     loadSubAgents();
+    loadSubscription();
   }, []);
 
   const handleSaveConfig = async () => {
     setIsSaving(true);
     try {
       const response = await agentService.updateConfig(config);
-      
+
       if (response.success) {
         toast({
           title: "Configuração salva",
@@ -220,7 +232,7 @@ export default function AgenteConfiguracao() {
     if (!testMessage.trim()) return;
 
     setIsTestingPrompt(true);
-    
+
     try {
       // Adicionar mensagem do usuário
       const newMessages = [...chatMessages, { role: 'user' as const, content: testMessage }];
@@ -236,8 +248,8 @@ export default function AgenteConfiguracao() {
 
       if (response.success && response.data) {
         // Adicionar resposta do agente
-        setChatMessages(prev => [...prev, { 
-          role: 'assistant' as const, 
+        setChatMessages(prev => [...prev, {
+          role: 'assistant' as const,
           content: response.data!.response,
           tokens: response.data!.tokens_used,
           time: response.data!.response_time_ms
@@ -247,8 +259,8 @@ export default function AgenteConfiguracao() {
       }
     } catch (error) {
       console.error('❌ Erro no teste de prompt:', error);
-      setChatMessages(prev => [...prev, { 
-        role: 'assistant' as const, 
+      setChatMessages(prev => [...prev, {
+        role: 'assistant' as const,
         content: 'Erro ao processar mensagem. Verifique se o backend está funcionando.'
       }]);
     } finally {
@@ -276,7 +288,7 @@ export default function AgenteConfiguracao() {
         <div className="text-center py-8">Carregando configuração...</div>
       ) : (
         <Tabs defaultValue="geral" className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="geral">
               <Settings className="h-4 w-4 mr-2" />
               Configuração Geral
@@ -285,173 +297,238 @@ export default function AgenteConfiguracao() {
               <Bot className="h-4 w-4 mr-2" />
               Sub-Agentes ({subAgents.length})
             </TabsTrigger>
+            <TabsTrigger value="assinatura">
+              <CreditCard className="h-4 w-4 mr-2" />
+              Assinatura
+            </TabsTrigger>
           </TabsList>
 
-          {/* Tab: Configuração Geral */}
-          <TabsContent value="geral">
-            <div className="grid gap-6 lg:grid-cols-2">
-          {/* Configurações */}
-          <div className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Settings className="h-5 w-5" />
-                  Configurações do Modelo
-                </CardTitle>
-                <CardDescription>
-                  Ajuste os parâmetros do modelo de linguagem
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                {/* Modelo LLM */}
-                <div className="space-y-2">
-                  <Label htmlFor="modelo">Modelo LLM</Label>
-                  <Select value={config.model} onValueChange={(value) => setConfig(prev => ({ ...prev, model: value }))}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione o modelo" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="gpt-4o">GPT-4o</SelectItem>
-                      <SelectItem value="gpt-4o-mini">GPT-4o Mini</SelectItem>
-                      <SelectItem value="claude-sonnet">Claude Sonnet</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {/* Temperatura */}
-                <div className="space-y-2">
-                  <Label>Temperatura: {config.temperature}</Label>
-                  <Slider
-                    value={[config.temperature]}
-                    onValueChange={(value) => setConfig(prev => ({ ...prev, temperature: value[0] }))}
-                    max={2}
-                    min={0}
-                    step={0.1}
-                    className="w-full"
-                  />
-                  <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>Mais conservador</span>
-                    <span>Mais criativo</span>
+          {/* Bloqueio de Acesso */}
+          {subscription?.status !== 'active' && (
+            <div className="mt-6">
+              <Card className="border-dashed border-2">
+                <CardContent className="flex flex-col items-center justify-center py-12 text-center">
+                  <div className="h-12 w-12 rounded-full bg-orange-100 flex items-center justify-center mb-4">
+                    <Lock className="h-6 w-6 text-orange-600" />
                   </div>
-                </div>
+                  <CardTitle className="mb-2">Acesso Restrito ao Agente IA</CardTitle>
+                  <CardDescription className="max-w-md">
+                    Para configurar e utilizar as ferramentas de Inteligência Artificial, é necessário possuir uma assinatura ativa do Agente IA.
+                  </CardDescription>
+                  <Button className="mt-6 bg-orange-600 hover:bg-orange-700" onClick={() => (window as any).location.href = '/checkout/agente-ia-assinatura'}>
+                    <CreditCard className="h-4 w-4 mr-2" />
+                    Ativar Assinatura Agora
+                  </Button>
+                </CardContent>
+              </Card>
+            </div>
+          )}
 
-                {/* Max Tokens */}
-                <div className="space-y-2">
-                  <Label htmlFor="maxTokens">Máximo de Tokens</Label>
-                  <Input
-                    id="maxTokens"
-                    type="number"
-                    value={config.max_tokens}
-                    onChange={(e) => setConfig(prev => ({ ...prev, max_tokens: parseInt(e.target.value) }))}
-                    min={100}
-                    max={4000}
-                  />
-                </div>
+          <div className={subscription?.status === 'active' ? '' : 'hidden'}>
 
-                <Button onClick={handleSaveConfig} disabled={isSaving} className="w-full">
-                  <Save className="h-4 w-4 mr-2" />
-                  {isSaving ? 'Salvando...' : 'Salvar Configuração'}
-                </Button>
-              </CardContent>
-            </Card>
-
-            {/* System Prompt */}
-            <Card>
-              <CardHeader>
-                <CardTitle>System Prompt</CardTitle>
-                <CardDescription>
-                  Defina a personalidade e comportamento do agente
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Textarea
-                  value={config.system_prompt}
-                  onChange={(e) => setConfig(prev => ({ ...prev, system_prompt: e.target.value }))}
-                  rows={12}
-                  placeholder="Digite o prompt do sistema..."
-                />
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Chat de Teste */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <TestTube className="h-5 w-5" />
-                Teste de Prompt
-              </CardTitle>
-              <CardDescription>
-                Teste o comportamento do agente com suas configurações
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {/* Mensagens */}
-                <div className="h-96 overflow-y-auto border rounded-lg p-4 space-y-3">
-                  {chatMessages.map((message, index) => (
-                    <div key={index} className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                      <div className={`max-w-[80%] p-3 rounded-lg ${
-                        message.role === 'user' 
-                          ? 'bg-blue-500 text-white' 
-                          : 'bg-gray-100 text-gray-900'
-                      }`}>
-                        <p className="text-sm">{message.content}</p>
-                        {message.tokens && (
-                          <p className="text-xs opacity-70 mt-1">
-                            {message.tokens} tokens • {message.time?.toFixed(0)}ms
-                          </p>
-                        )}
+            {/* Tab: Configuração Geral */}
+            <TabsContent value="geral">
+              <div className="grid gap-6 lg:grid-cols-2">
+                {/* Configurações */}
+                <div className="space-y-6">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <Settings className="h-5 w-5" />
+                        Configurações do Modelo
+                      </CardTitle>
+                      <CardDescription>
+                        Ajuste os parâmetros do modelo de linguagem
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                      {/* Modelo LLM */}
+                      <div className="space-y-2">
+                        <Label htmlFor="modelo">Modelo LLM</Label>
+                        <Select value={config.model} onValueChange={(value) => setConfig(prev => ({ ...prev, model: value }))}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecione o modelo" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="gpt-4o">GPT-4o</SelectItem>
+                            <SelectItem value="gpt-4o-mini">GPT-4o Mini</SelectItem>
+                            <SelectItem value="claude-sonnet">Claude Sonnet</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </div>
-                    </div>
-                  ))}
-                  {isTestingPrompt && (
-                    <div className="flex justify-start">
-                      <div className="bg-gray-100 p-3 rounded-lg">
-                        <div className="flex items-center space-x-2">
-                          <div className="animate-spin h-4 w-4 border-2 border-gray-400 border-t-transparent rounded-full"></div>
-                          <span className="text-sm text-gray-600">Processando...</span>
+
+                      {/* Temperatura */}
+                      <div className="space-y-2">
+                        <Label>Temperatura: {config.temperature}</Label>
+                        <Slider
+                          value={[config.temperature]}
+                          onValueChange={(value) => setConfig(prev => ({ ...prev, temperature: value[0] }))}
+                          max={2}
+                          min={0}
+                          step={0.1}
+                          className="w-full"
+                        />
+                        <div className="flex justify-between text-xs text-muted-foreground">
+                          <span>Mais conservador</span>
+                          <span>Mais criativo</span>
                         </div>
                       </div>
+
+                      {/* Max Tokens */}
+                      <div className="space-y-2">
+                        <Label htmlFor="maxTokens">Máximo de Tokens</Label>
+                        <Input
+                          id="maxTokens"
+                          type="number"
+                          value={config.max_tokens}
+                          onChange={(e) => setConfig(prev => ({ ...prev, max_tokens: parseInt(e.target.value) }))}
+                          min={100}
+                          max={4000}
+                        />
+                      </div>
+
+                      <Button onClick={handleSaveConfig} disabled={isSaving} className="w-full">
+                        <Save className="h-4 w-4 mr-2" />
+                        {isSaving ? 'Salvando...' : 'Salvar Configuração'}
+                      </Button>
+                    </CardContent>
+                  </Card>
+
+                  {/* System Prompt */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>System Prompt</CardTitle>
+                      <CardDescription>
+                        Defina a personalidade e comportamento do agente
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <Textarea
+                        value={config.system_prompt}
+                        onChange={(e) => setConfig(prev => ({ ...prev, system_prompt: e.target.value }))}
+                        rows={12}
+                        placeholder="Digite o prompt do sistema..."
+                      />
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {/* Chat de Teste */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <TestTube className="h-5 w-5" />
+                      Teste de Prompt
+                    </CardTitle>
+                    <CardDescription>
+                      Teste o comportamento do agente com suas configurações
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      {/* Mensagens */}
+                      <div className="h-96 overflow-y-auto border rounded-lg p-4 space-y-3">
+                        {chatMessages.map((message, index) => (
+                          <div key={index} className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                            <div className={`max-w-[80%] p-3 rounded-lg ${message.role === 'user'
+                                ? 'bg-blue-500 text-white'
+                                : 'bg-gray-100 text-gray-900'
+                              }`}>
+                              <p className="text-sm">{message.content}</p>
+                              {message.tokens && (
+                                <p className="text-xs opacity-70 mt-1">
+                                  {message.tokens} tokens • {message.time?.toFixed(0)}ms
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                        {isTestingPrompt && (
+                          <div className="flex justify-start">
+                            <div className="bg-gray-100 p-3 rounded-lg">
+                              <div className="flex items-center space-x-2">
+                                <div className="animate-spin h-4 w-4 border-2 border-gray-400 border-t-transparent rounded-full"></div>
+                                <span className="text-sm text-gray-600">Processando...</span>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Input de teste */}
+                      <div className="flex space-x-2">
+                        <Input
+                          value={testMessage}
+                          onChange={(e) => setTestMessage(e.target.value)}
+                          placeholder="Digite uma mensagem para testar..."
+                          onKeyDown={(e) => e.key === 'Enter' && handleTestPrompt()}
+                        />
+                        <Button onClick={handleTestPrompt} disabled={isTestingPrompt || !testMessage.trim()}>
+                          <Send className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </TabsContent>
+
+            {/* Tab: Sub-Agentes */}
+            <TabsContent value="sub-agentes">
+              {isLoadingSubAgents ? (
+                <div className="text-center py-8">Carregando sub-agentes...</div>
+              ) : (
+                <div className="grid gap-6 md:grid-cols-2">
+                  {subAgents.map((agent) => (
+                    <SubAgentCard
+                      key={agent.id}
+                      agent={agent}
+                      onSave={handleSaveSubAgent}
+                      onReset={handleResetSubAgent}
+                      isSaving={isSavingSubAgent}
+                    />
+                  ))}
+                </div>
+              )}
+            </TabsContent>
+          </div>
+
+          {/* Tab: Assinatura */}
+          <TabsContent value="assinatura">
+            <Card>
+              <CardHeader>
+                <CardTitle>Gestão da Assinatura</CardTitle>
+                <CardDescription>Consulte o status do seu serviço de Inteligência Artificial</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="flex items-center justify-between p-4 bg-muted rounded-lg">
+                  <div>
+                    <p className="font-medium">Status do Serviço</p>
+                    <Badge variant={subscription?.status === 'active' ? 'default' : 'secondary'} className={subscription?.status === 'active' ? 'bg-green-600' : ''}>
+                      {subscription?.status === 'active' ? 'Ativo' : 'Inativo / Pendente'}
+                    </Badge>
+                  </div>
+                  {subscription?.expires_at && (
+                    <div className="text-right">
+                      <p className="text-sm text-muted-foreground">Próxima renovação</p>
+                      <p className="font-mono">{new Date(subscription.expires_at).toLocaleDateString()}</p>
                     </div>
                   )}
                 </div>
 
-                {/* Input de teste */}
-                <div className="flex space-x-2">
-                  <Input
-                    value={testMessage}
-                    onChange={(e) => setTestMessage(e.target.value)}
-                    placeholder="Digite uma mensagem para testar..."
-                    onKeyDown={(e) => e.key === 'Enter' && handleTestPrompt()}
-                  />
-                  <Button onClick={handleTestPrompt} disabled={isTestingPrompt || !testMessage.trim()}>
-                    <Send className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-          </TabsContent>
+                {subscription?.status !== 'active' && (
+                  <div className="p-4 border border-orange-200 bg-orange-50 rounded-lg">
+                    <p className="text-sm text-orange-800">
+                      <strong>Atenção:</strong> Sua assinatura não está ativa. Ative hoje e ganhe acesso vitalício ao pool de 30% de comissões sobre sua rede.
+                    </p>
+                  </div>
+                )}
 
-          {/* Tab: Sub-Agentes */}
-          <TabsContent value="sub-agentes">
-            {isLoadingSubAgents ? (
-              <div className="text-center py-8">Carregando sub-agentes...</div>
-            ) : (
-              <div className="grid gap-6 md:grid-cols-2">
-                {subAgents.map((agent) => (
-                  <SubAgentCard
-                    key={agent.id}
-                    agent={agent}
-                    onSave={handleSaveSubAgent}
-                    onReset={handleResetSubAgent}
-                    isSaving={isSavingSubAgent}
-                  />
-                ))}
-              </div>
-            )}
+                <Button className="w-full" disabled={subscription?.status === 'active'}>
+                  {subscription?.status === 'active' ? 'Assinatura Ativa ✅' : 'Contratar Agente IA'}
+                </Button>
+              </CardContent>
+            </Card>
           </TabsContent>
         </Tabs>
       )}
