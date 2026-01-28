@@ -37,16 +37,16 @@ function checkRateLimit(ip) {
   const maxRequests = 10; // 10 requests por minuto
 
   const current = rateLimitMap.get(ip);
-  
+
   if (!current || now > current.resetTime) {
     rateLimitMap.set(ip, { count: 1, resetTime: now + windowMs });
     return true;
   }
-  
+
   if (current.count >= maxRequests) {
     return false;
   }
-  
+
   current.count++;
   return true;
 }
@@ -57,8 +57,8 @@ app.post('/server/api/save-conversation', async (req, res) => {
     const { sessionId, userMessage, agentResponse, channel } = req.body;
 
     if (!sessionId || !userMessage || !agentResponse) {
-      return res.status(400).json({ 
-        error: 'sessionId, userMessage e agentResponse são obrigatórios' 
+      return res.status(400).json({
+        error: 'sessionId, userMessage e agentResponse são obrigatórios'
       });
     }
 
@@ -123,7 +123,7 @@ app.post('/server/api/save-conversation', async (req, res) => {
     // Atualizar timestamp da conversa
     await supabase
       .from('conversations')
-      .update({ 
+      .update({
         last_message_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       })
@@ -149,20 +149,20 @@ app.post('/api/chat', async (req, res) => {
 
     // Validação básica
     if (!message || !sessionId) {
-      return res.status(400).json({ 
-        error: 'Mensagem e sessionId são obrigatórios' 
+      return res.status(400).json({
+        error: 'Mensagem e sessionId são obrigatórios'
       });
     }
 
     // Rate limiting
-    const clientIP = req.headers['x-forwarded-for'] || 
-                    req.headers['x-real-ip'] || 
-                    req.connection.remoteAddress || 
-                    'unknown';
+    const clientIP = req.headers['x-forwarded-for'] ||
+      req.headers['x-real-ip'] ||
+      req.connection.remoteAddress ||
+      'unknown';
 
     if (!checkRateLimit(clientIP)) {
-      return res.status(429).json({ 
-        error: 'Muitas requisições. Tente novamente em alguns instantes.' 
+      return res.status(429).json({
+        error: 'Muitas requisições. Tente novamente em alguns instantes.'
       });
     }
 
@@ -223,7 +223,7 @@ app.post('/api/chat', async (req, res) => {
     // Atualizar timestamp da conversa
     await supabase
       .from('conversations')
-      .update({ 
+      .update({
         last_message_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       })
@@ -231,10 +231,10 @@ app.post('/api/chat', async (req, res) => {
 
     // Gerar resposta inteligente baseada na mensagem
     let agentResponse = "Obrigado pela sua mensagem! Sou a BIA, consultora da Slim Quality. Como posso te ajudar hoje?";
-    
+
     // Respostas contextuais baseadas na mensagem
     const messageLower = message.toLowerCase();
-    
+
     if (messageLower.includes('dor') || messageLower.includes('coluna') || messageLower.includes('costas') || messageLower.includes('lombar')) {
       agentResponse = "Entendo que você tem dores nas costas! 😔 Nossos colchões magnéticos são especialmente desenvolvidos para alívio de dores e melhora da postura. A magnetoterapia ajuda a relaxar os músculos e melhorar a circulação. Gostaria de saber mais sobre como pode te ajudar?";
     } else if (messageLower.includes('sono') || messageLower.includes('dormir') || messageLower.includes('insônia') || messageLower.includes('acordar')) {
@@ -277,10 +277,103 @@ app.post('/api/chat', async (req, res) => {
   }
 });
 
+// ============================================
+// CONTATO - Envio de Mensagens
+// ============================================
+
+app.post('/api/contact', async (req, res) => {
+  try {
+    const { name, email, subject, message } = req.body;
+
+    // Validação básica
+    if (!name || !email || !message) {
+      return res.status(400).json({
+        success: false,
+        error: 'Campos obrigatórios: name, email, message'
+      });
+    }
+
+    console.log(`[Contact] 📩 Nova mensagem de: ${name} (${email})`);
+
+    const adminEmails = [
+      'colchoesslimquality@gmail.com',
+      'jbassis@hotmail.com'
+    ];
+
+    const RESEND_API_KEY = process.env.RESEND_API_KEY;
+    const N8N_CONTACT_WEBHOOK = process.env.N8N_CONTACT_WEBHOOK;
+
+    if (RESEND_API_KEY) {
+      console.log('[Contact] Enviando via Resend...');
+      const response = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${RESEND_API_KEY}`
+        },
+        body: JSON.stringify({
+          from: 'Slim Quality <contato@slimquality.com.br>',
+          to: adminEmails,
+          subject: subject || `Novo contato: ${name}`,
+          html: `
+            <h3>Nova mensagem do site</h3>
+            <p><strong>Nome:</strong> ${name}</p>
+            <p><strong>Email:</strong> ${email}</p>
+            <p><strong>Assunto:</strong> ${subject || 'Sem assunto'}</p>
+            <hr />
+            <p><strong>Mensagem:</strong></p>
+            <p>${message.replace(/\n/g, '<br>')}</p>
+          `
+        })
+      });
+
+      if (!response.ok) {
+        let errorData = {};
+        try {
+          errorData = await response.json();
+        } catch (e) {
+          errorData = { status: response.status, statusText: response.statusText };
+        }
+        console.error('[Contact] Erro Resend:', errorData);
+        throw new Error('Falha ao enviar email via Resend: ' + JSON.stringify(errorData));
+      }
+
+      const data = await response.json();
+      console.log('[Contact] Email enviado com sucesso via Resend', data);
+
+    } else if (N8N_CONTACT_WEBHOOK) {
+      try {
+        await fetch(N8N_CONTACT_WEBHOOK, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, email, subject, message, type: 'contact_form' })
+        });
+        console.log('[Contact] Webhook disparado com sucesso');
+      } catch (webhookError) {
+        console.error('[Contact] Erro ao disparar webhook:', webhookError);
+      }
+    } else {
+      console.warn('[Contact] ⚠️ Nenhuma integração de email/webhook configurada.');
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: 'Mensagem enviada com sucesso!'
+    });
+
+  } catch (error) {
+    console.error('[Contact] ❌ Erro:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Erro interno do servidor: ' + error.message
+    });
+  }
+});
+
 // Health check
 app.get('/api/health', (req, res) => {
-  res.json({ 
-    status: 'ok', 
+  res.json({
+    status: 'ok',
     timestamp: new Date().toISOString(),
     uptime: process.uptime()
   });
@@ -308,18 +401,18 @@ app.post('/api/checkout', async (req, res) => {
 
     // Validar dados obrigatórios
     if (!customer || !orderId || !amount || !billingType) {
-      return res.status(400).json({ 
-        success: false, 
-        error: 'Dados obrigatórios: customer, orderId, amount, billingType' 
+      return res.status(400).json({
+        success: false,
+        error: 'Dados obrigatórios: customer, orderId, amount, billingType'
       });
     }
 
     // Verificar se API key está configurada
     if (!ASAAS_API_KEY) {
       console.error('[Checkout] ❌ ASAAS_API_KEY não configurada');
-      return res.status(500).json({ 
-        success: false, 
-        error: 'Gateway de pagamento não configurado' 
+      return res.status(500).json({
+        success: false,
+        error: 'Gateway de pagamento não configurado'
       });
     }
 
@@ -392,9 +485,9 @@ app.post('/api/checkout', async (req, res) => {
 
   } catch (error) {
     console.error('[Checkout] ❌ Erro:', error);
-    res.status(500).json({ 
-      success: false, 
-      error: error.message || 'Erro ao processar pagamento' 
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Erro ao processar pagamento'
     });
   }
 });
@@ -580,7 +673,7 @@ async function createAsaasPayment({ customerId, amount, description, externalRef
 // Eventos suportados pelo webhook
 const SUPPORTED_WEBHOOK_EVENTS = [
   'PAYMENT_RECEIVED',
-  'PAYMENT_CONFIRMED', 
+  'PAYMENT_CONFIRMED',
   'PAYMENT_SPLIT_CANCELLED',
   'PAYMENT_SPLIT_DIVERGENCE_BLOCK',
   'PAYMENT_OVERDUE',
@@ -593,12 +686,12 @@ const SUPPORTED_WEBHOOK_EVENTS = [
  */
 app.post('/api/webhooks/asaas', async (req, res) => {
   const startTime = Date.now();
-  
+
   try {
     const webhookData = req.body;
     const event = webhookData.event;
     const payment = webhookData.payment;
-    
+
     console.log(`[AsaasWebhook] 📥 Recebido: ${event} | Payment: ${payment?.id}`);
 
     // Verificar se é um evento suportado
@@ -609,7 +702,7 @@ app.post('/api/webhooks/asaas', async (req, res) => {
 
     // Processar evento
     let result = { success: false };
-    
+
     switch (event) {
       case 'PAYMENT_RECEIVED':
         result = await handlePaymentReceived(payment);
@@ -654,8 +747,8 @@ app.post('/api/webhooks/asaas', async (req, res) => {
  * Health check do webhook
  */
 app.get('/api/webhooks/asaas/health', (req, res) => {
-  res.json({ 
-    status: 'ok', 
+  res.json({
+    status: 'ok',
     timestamp: new Date().toISOString(),
     supportedEvents: SUPPORTED_WEBHOOK_EVENTS
   });
@@ -664,12 +757,12 @@ app.get('/api/webhooks/asaas/health', (req, res) => {
 // Handler: PAYMENT_RECEIVED
 async function handlePaymentReceived(payment) {
   console.log(`[AsaasWebhook] 💰 Pagamento recebido: ${payment.id}`);
-  
+
   const orderId = await findOrderByAsaasPaymentId(payment.id, payment.externalReference);
   if (!orderId) {
     return { success: false, error: `Pedido não encontrado para payment: ${payment.id}` };
   }
-  
+
   await updateOrderStatus(orderId, 'processing');
   return { success: true, orderId };
 }
@@ -677,17 +770,17 @@ async function handlePaymentReceived(payment) {
 // Handler: PAYMENT_CONFIRMED
 async function handlePaymentConfirmed(payment) {
   console.log(`[AsaasWebhook] ✅ Pagamento confirmado: ${payment.id}`);
-  
+
   const orderId = await findOrderByAsaasPaymentId(payment.id, payment.externalReference);
   if (!orderId) {
     return { success: false, error: `Pedido não encontrado para payment: ${payment.id}` };
   }
-  
+
   await updateOrderStatus(orderId, 'paid');
-  
+
   // Processar comissões
   const commissionResult = await processOrderCommissions(orderId, payment.value);
-  
+
   return {
     success: true,
     orderId,
@@ -699,9 +792,9 @@ async function handlePaymentConfirmed(payment) {
 // Handler: SPLIT_ERROR
 async function handleSplitError(payment, event) {
   console.error(`[AsaasWebhook] ⚠️ Erro de split: ${event} | Payment: ${payment.id}`);
-  
+
   const orderId = await findOrderByAsaasPaymentId(payment.id, payment.externalReference);
-  
+
   await supabase.from('commission_logs').insert({
     order_id: orderId,
     action: 'SPLIT_ERROR',
@@ -712,32 +805,32 @@ async function handleSplitError(payment, event) {
       error_at: new Date().toISOString()
     })
   });
-  
+
   return { success: false, orderId, error: `Split error: ${event}` };
 }
 
 // Handler: PAYMENT_OVERDUE
 async function handlePaymentOverdue(payment) {
   console.log(`[AsaasWebhook] ⏰ Pagamento vencido: ${payment.id}`);
-  
+
   const orderId = await findOrderByAsaasPaymentId(payment.id, payment.externalReference);
   if (orderId) {
     await updateOrderStatus(orderId, 'overdue');
   }
-  
+
   return { success: true, orderId };
 }
 
 // Handler: PAYMENT_REFUNDED
 async function handlePaymentRefunded(payment) {
   console.log(`[AsaasWebhook] 💸 Pagamento estornado: ${payment.id}`);
-  
+
   const orderId = await findOrderByAsaasPaymentId(payment.id, payment.externalReference);
   if (orderId) {
     await updateOrderStatus(orderId, 'refunded');
     await cancelOrderCommissions(orderId);
   }
-  
+
   return { success: true, orderId };
 }
 
@@ -751,7 +844,7 @@ async function findOrderByAsaasPaymentId(asaasPaymentId, externalReference) {
         .select('id')
         .eq('id', externalReference)
         .single();
-      
+
       if (orderByRef) return orderByRef.id;
     }
 
@@ -875,11 +968,11 @@ async function logWebhookEvent(webhookData, result, processingTime) {
 
 // Rota raiz
 app.get('/', (req, res) => {
-  res.json({ 
+  res.json({
     message: 'Slim Quality Chat API',
     version: '1.0.0',
     endpoints: [
-      '/api/chat', 
+      '/api/chat',
       '/api/health',
       '/api/webhooks/asaas',
       '/api/webhooks/asaas/health'

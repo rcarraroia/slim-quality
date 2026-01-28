@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 export default function PagamentoErro() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  
+
   const orderId = searchParams.get('order_id');
   const errorType = searchParams.get('error');
   const message = searchParams.get('message');
@@ -26,11 +26,11 @@ export default function PagamentoErro() {
         <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
           <AlertCircle className="w-10 h-10 text-red-600" />
         </div>
-        
+
         <h1 className="text-2xl font-bold text-gray-900 mb-2">
           Ops! Algo deu errado
         </h1>
-        
+
         <p className="text-gray-600 mb-6">
           Não foi possível processar seu pagamento. Mas não se preocupe, seu pedido foi salvo e você pode tentar novamente.
         </p>
@@ -49,24 +49,24 @@ export default function PagamentoErro() {
         )}
 
         <div className="space-y-3">
-          <Button 
+          <Button
             onClick={handleRetry}
             className="w-full bg-primary hover:bg-primary/90"
           >
             <RefreshCw className="w-4 h-4 mr-2" />
             Tentar Novamente
           </Button>
-          
-          <Button 
-            onClick={handleContact}
+
+          <Button
+            onClick={() => window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' })}
             variant="outline"
             className="w-full"
           >
             <Phone className="w-4 h-4 mr-2" />
-            Falar com Atendimento
+            Falar Conosco
           </Button>
-          
-          <Button 
+
+          <Button
             onClick={() => navigate('/')}
             variant="ghost"
             className="w-full"
@@ -76,9 +76,7 @@ export default function PagamentoErro() {
           </Button>
         </div>
 
-        <p className="text-xs text-gray-400 mt-6">
-          Se o problema persistir, entre em contato pelo WhatsApp: (33) 99838-4177
-        </p>
+        {/* Telefone removido para proteção dos afiliados */}
       </div>
     </div>
   );

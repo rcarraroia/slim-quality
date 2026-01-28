@@ -49,7 +49,6 @@ export function SchemaOrg({ type, data }: SchemaOrgProps) {
           ],
           "contactPoint": {
             "@type": "ContactPoint",
-            "telephone": "+55-33-99838-4177",
             "contactType": "Customer Service",
             "availableLanguage": "Portuguese"
           },

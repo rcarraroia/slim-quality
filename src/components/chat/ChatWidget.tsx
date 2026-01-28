@@ -90,7 +90,7 @@ export function ChatWidget({
     try {
       // CONECTAR COM AGENTE REAL - Tentar múltiplas estratégias
       let agentResponse = null;
-      
+
       // 1. Tentar proxy Vercel (mais confiável para CORS)
       try {
         console.log('🔄 Tentando proxy Vercel...');
@@ -128,7 +128,7 @@ export function ChatWidget({
       for (const agentUrl of agentUrls) {
         try {
           console.log(`🤖 Tentando agente real: ${agentUrl}`);
-          
+
           const response = await fetch(agentUrl, {
             method: 'POST',
             headers: {
@@ -161,7 +161,7 @@ export function ChatWidget({
         try {
           console.log('🔄 Tentando webhook direto...');
           const webhookUrl = 'https://api.slimquality.com.br/webhooks/evolution';  // URL CORRETA
-          
+
           // Simular evento de mensagem como se fosse do WhatsApp
           const webhookPayload = {
             event: 'messages.upsert',
@@ -237,14 +237,14 @@ export function ChatWidget({
       };
       setMessages(prev => [...prev, agentMessage]);
       setIsLoading(false);
-      
+
       // Salvar conversa no dashboard via webhook - SEMPRE CHAMAR
       await saveSiteConversationToWebhook(currentMessage, agentResponse);
       return;
-      
+
     } catch (error) {
       console.error('❌ Erro ao conectar com agente:', error);
-      
+
       // SEMPRE salvar conversa mesmo em caso de erro
       try {
         console.log('🔄 Salvando conversa do site mesmo com erro...');
@@ -252,11 +252,11 @@ export function ChatWidget({
       } catch (saveError) {
         console.error('❌ Erro ao salvar conversa:', saveError);
       }
-      
+
       // Fallback: Mensagem de erro amigável direcionando para WhatsApp
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
-        content: "Desculpe, estou com dificuldades técnicas no momento. 😔 Para um atendimento imediato, entre em contato pelo WhatsApp: (33) 99838-4177. Nossa equipe está pronta para te ajudar!",
+        content: "Desculpe, estou com dificuldades técnicas no momento. 😔 Para um atendimento imediato, utilize nosso formulário Fale Conosco no rodapé da página. Nossa equipe está pronta para te ajudar!",
         sender: 'agent',
         timestamp: new Date()
       };
@@ -269,9 +269,9 @@ export function ChatWidget({
   const saveSiteConversationToWebhook = async (userMessage: string, agentResponse: string) => {
     try {
       console.log('🔄 Iniciando salvamento da conversa do site...', { userMessage: userMessage.substring(0, 50), agentResponse: agentResponse.substring(0, 50) });
-      
+
       const webhookUrl = 'https://api.slimquality.com.br/webhooks/evolution';  // URL CORRETA
-      
+
       // Salvar mensagem do usuário
       const userPayload = {
         event: 'messages.upsert',
@@ -294,13 +294,13 @@ export function ChatWidget({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(userPayload),
       });
-      
+
       console.log('📥 Resposta webhook usuário:', userResponse.status, userResponse.ok);
 
       // Salvar resposta do agente
       const agentPayload = {
         event: 'send.message',
-        instance: 'SlimQualit', 
+        instance: 'SlimQualit',
         data: {
           key: {
             remoteJid: `site_${sessionId}@s.whatsapp.net`,
@@ -348,9 +348,8 @@ export function ChatWidget({
     <div className={`fixed ${positionClasses[position]} z-50`}>
       {/* Chat Window */}
       {isOpen && (
-        <Card className={`w-80 h-96 mb-4 shadow-2xl transition-all duration-300 ${
-          isMinimized ? 'h-14' : 'h-96'
-        }`}>
+        <Card className={`w-80 h-96 mb-4 shadow-2xl transition-all duration-300 ${isMinimized ? 'h-14' : 'h-96'
+          }`}>
           <CardHeader className="p-3 border-b" style={{ backgroundColor: primaryColor }}>
             <div className="flex items-center justify-between text-white">
               <div className="flex items-center gap-2">
@@ -398,11 +397,10 @@ export function ChatWidget({
                       className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
                     >
                       <div
-                        className={`max-w-[80%] p-2 rounded-lg text-sm ${
-                          message.sender === 'user'
+                        className={`max-w-[80%] p-2 rounded-lg text-sm ${message.sender === 'user'
                             ? 'bg-blue-500 text-white'
                             : 'bg-gray-100 text-gray-800'
-                        }`}
+                          }`}
                       >
                         {message.content}
                       </div>

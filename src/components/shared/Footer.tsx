@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { MessageCircle, Mail, MapPin, Facebook, Instagram } from "lucide-react";
+import { ContactForm } from "./ContactForm";
 
 export function Footer() {
   return (
@@ -44,31 +45,18 @@ export function Footer() {
             </ul>
           </div>
 
-          {/* Col 3: Contato */}
+          {/* Col 3: Fale Conosco */}
           <div>
-            <h3 className="font-semibold mb-4">Contato</h3>
-            <ul className="space-y-3 text-sm">
-              <li className="flex items-center gap-2">
-                <MessageCircle className="h-4 w-4 text-primary" />
-                <span>(33) 99838-4177</span>
-              </li>
-              <li className="flex items-center gap-2">
-                <Mail className="h-4 w-4 text-primary" />
-                <span>contato@slimquality.com</span>
-              </li>
-              <li className="flex items-center gap-2">
-                <MapPin className="h-4 w-4 text-primary" />
-                <span>Timóteo, MG - Brasil</span>
-              </li>
-            </ul>
+            <h3 className="font-semibold mb-4">Fale Conosco</h3>
+            <ContactForm />
           </div>
 
           {/* Col 4: Redes Sociais */}
           <div>
             <h3 className="font-semibold mb-4">Siga-nos</h3>
             <div className="flex gap-4">
-              <a 
-                href="https://facebook.com" 
+              <a
+                href="https://facebook.com"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="hover:text-primary transition-colors"
@@ -76,8 +64,8 @@ export function Footer() {
               >
                 <Facebook className="h-5 w-5" />
               </a>
-              <a 
-                href="https://instagram.com" 
+              <a
+                href="https://instagram.com"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="hover:text-primary transition-colors"

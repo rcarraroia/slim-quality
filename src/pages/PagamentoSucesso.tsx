@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 export default function PagamentoSucesso() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  
+
   const orderId = searchParams.get('order_id');
 
   return (
@@ -14,11 +14,11 @@ export default function PagamentoSucesso() {
         <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6 animate-bounce">
           <CheckCircle className="w-12 h-12 text-green-600" />
         </div>
-        
+
         <h1 className="text-3xl font-bold text-gray-900 mb-2">
           Pagamento Confirmado!
         </h1>
-        
+
         <p className="text-gray-600 mb-6">
           Obrigado pela sua compra! Seu pedido foi confirmado e está sendo processado.
         </p>
@@ -52,7 +52,7 @@ export default function PagamentoSucesso() {
         </div>
 
         <div className="space-y-3">
-          <Button 
+          <Button
             onClick={() => navigate('/')}
             className="w-full bg-primary hover:bg-primary/90"
             size="lg"
@@ -60,8 +60,8 @@ export default function PagamentoSucesso() {
             <Home className="w-4 h-4 mr-2" />
             Voltar ao Início
           </Button>
-          
-          <Button 
+
+          <Button
             onClick={() => navigate('/produtos')}
             variant="outline"
             className="w-full"
@@ -71,9 +71,7 @@ export default function PagamentoSucesso() {
           </Button>
         </div>
 
-        <p className="text-xs text-gray-400 mt-6">
-          Dúvidas? Entre em contato pelo WhatsApp: (33) 99838-4177
-        </p>
+        {/* Telefone removido para proteção dos afiliados */}
       </div>
     </div>
   );
