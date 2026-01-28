@@ -107,18 +107,18 @@ export default function Produtos() {
       sku: produto.sku,
       description: produto.description || '',
       price: (produto.price_cents / 100).toString(),
-      width_cm: produto.width_cm.toString(),
-      length_cm: produto.length_cm.toString(),
-      height_cm: produto.height_cm.toString(),
-      weight: produto.weight_kg?.toString() || '',
-      magnetic_count: (produto as any).magnetic_count?.toString() || '',
-      warranty_years: (produto as any).warranty_years?.toString() || '',
-      therapeutic_technologies: (produto as any).therapeutic_technologies?.toString() || '',
+      width_cm: produto.width_cm?.toString() ?? '',
+      length_cm: produto.length_cm?.toString() ?? '',
+      height_cm: produto.height_cm?.toString() ?? '',
+      weight: produto.weight_kg?.toString() ?? '',
+      magnetic_count: (produto as any).magnetic_count?.toString() ?? '',
+      warranty_years: (produto as any).warranty_years?.toString() ?? '',
+      therapeutic_technologies: (produto as any).therapeutic_technologies?.toString() ?? '',
       product_type: produto.product_type || 'mattress',
-      category: produto.category || 'mattress',
+      category: produto.category || 'colchao',
       status: produto.is_active ? 'active' : 'inactive',
       featured: produto.is_featured,
-      display_order: produto.display_order.toString()
+      display_order: produto.display_order?.toString() ?? '0'
     });
     // Limpar imagens do modal anterior
     setImageFiles([]);
@@ -140,9 +140,8 @@ export default function Produtos() {
       magnetic_count: '',
       warranty_years: '',
       therapeutic_technologies: '',
-      therapeutic_technologies: '',
       product_type: 'mattress',
-      category: 'mattress',
+      category: 'colchao',
       status: 'active',
       featured: false,
       display_order: '0'
@@ -506,7 +505,7 @@ export default function Produtos() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="mattress">Colchão</SelectItem>
+                    <SelectItem value="colchao">Colchão</SelectItem>
                     <SelectItem value="pillow">Travesseiro</SelectItem>
                     <SelectItem value="accessory">Acessório</SelectItem>
                     <SelectItem value="ferramenta_ia">Agente IA (Digital)</SelectItem>
