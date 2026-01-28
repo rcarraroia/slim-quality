@@ -48,11 +48,11 @@ export function ContactForm() {
         setIsSubmitting(true);
         try {
             // Usando o endpoint criado em api/contact.js
-            // Como o apiService adiciona /api automaticamente na baseURL e o endpoint é serverless,
-            // precisamos garantir que o caminho esteja correto.
-            // Se a baseURL for /api, chamar /contact deve resultar em /api/contact.
+            // O endpoint está em /api/contact tanto no Vercel quanto no Express local.
+            // E o apiService usa VITE_API_URL como base.
+            // Portanto, devemos especificar o caminho correto: /api/contact.
 
-            const response = await apiService.post("/contact", values);
+            const response = await apiService.post("/api/contact", values);
 
             if (response.success) {
                 toast.success("Mensagem enviada com sucesso!", {
