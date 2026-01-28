@@ -34,7 +34,7 @@ export default async function handler(req, res) {
 
         const adminEmails = [
             'colchoesslimquality@gmail.com',
-            'jbassis@hotmail.com'
+            'jbmkt01@gmail.com'
         ];
 
         // Lógica de envio de email
