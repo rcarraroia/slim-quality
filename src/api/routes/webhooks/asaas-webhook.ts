@@ -27,6 +27,7 @@ interface AsaasWebhookPayload {
   event: string;
   payment: {
     id: string;
+    subscription?: string;  // ID da assinatura (sub_xxxxx) para cobranças recorrentes
     status: string;
     value: number;
     netValue: number;
@@ -63,7 +64,7 @@ interface ProcessingResult {
  */
 function verifyAsaasToken(receivedToken: string | undefined): boolean {
   const expectedToken = process.env.ASAAS_WEBHOOK_TOKEN;
-  
+
   if (!expectedToken) {
     console.error('[AsaasWebhook] ❌ ASAAS_WEBHOOK_TOKEN não configurado no .env');
     return false;
@@ -75,7 +76,7 @@ function verifyAsaasToken(receivedToken: string | undefined): boolean {
   }
 
   const isValid = receivedToken === expectedToken;
-  
+
   if (!isValid) {
     console.error('[AsaasWebhook] ❌ Token inválido', {
       received: receivedToken.substring(0, 10) + '...',
@@ -92,22 +93,22 @@ function verifyAsaasToken(receivedToken: string | undefined): boolean {
  */
 router.post('/asaas', async (req, res) => {
   const startTime = Date.now();
-  
+
   try {
     // ✅ CORREÇÃO: Validar token via header asaas-access-token
     const receivedToken = req.headers['asaas-access-token'] as string;
-    
+
     if (!verifyAsaasToken(receivedToken)) {
       console.error('[AsaasWebhook] ❌ Autenticação falhou');
       await logWebhookError(req.body, new Error('Token inválido ou ausente'));
-      return res.status(401).json({ 
+      return res.status(401).json({
         success: false,
-        error: 'Unauthorized - Token inválido' 
+        error: 'Unauthorized - Token inválido'
       });
     }
 
     const webhookData: AsaasWebhookPayload = req.body;
-    
+
     console.log(`[AsaasWebhook] 📥 Recebido: ${webhookData.event} | Payment: ${webhookData.payment.id}`);
     console.log(`[AsaasWebhook] 🔐 Token validado com sucesso`);
 
@@ -147,22 +148,22 @@ router.post('/asaas', async (req, res) => {
  * Processa webhook com retry automático
  */
 async function processWithRetry(
-  webhookData: AsaasWebhookPayload, 
+  webhookData: AsaasWebhookPayload,
   maxRetries: number
 ): Promise<ProcessingResult> {
   const retryDelays = [0, 1000, 3000]; // ms
-  
+
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     try {
       if (attempt > 0) {
         console.log(`[AsaasWebhook] 🔄 Tentativa ${attempt + 1}/${maxRetries}`);
         await delay(retryDelays[attempt]);
       }
-      
+
       return await processWebhookEvent(webhookData);
     } catch (error) {
       console.error(`[AsaasWebhook] ❌ Tentativa ${attempt + 1} falhou:`, error);
-      
+
       if (attempt === maxRetries - 1) {
         return {
           success: false,
@@ -171,7 +172,7 @@ async function processWithRetry(
       }
     }
   }
-  
+
   return { success: false, error: 'Máximo de tentativas excedido' };
 }
 
@@ -180,7 +181,7 @@ async function processWithRetry(
  */
 async function processWebhookEvent(webhookData: AsaasWebhookPayload): Promise<ProcessingResult> {
   const { event, payment } = webhookData;
-  
+
   switch (event) {
     case 'PAYMENT_RECEIVED':
       return handlePaymentReceived(payment);
@@ -203,19 +204,19 @@ async function processWebhookEvent(webhookData: AsaasWebhookPayload): Promise<Pr
  */
 async function handlePaymentReceived(payment: AsaasWebhookPayload['payment']): Promise<ProcessingResult> {
   console.log(`[AsaasWebhook] 💰 Pagamento recebido: ${payment.id}`);
-  
+
   // Buscar pedido
   const orderId = await findOrderByAsaasPaymentId(payment.id, payment.externalReference);
   if (!orderId) {
     return { success: false, error: `Pedido não encontrado para payment: ${payment.id}` };
   }
-  
+
   // Atualizar status do pedido
   await updateOrderStatus(orderId, 'processing', payment);
-  
+
   // Atualizar status do pagamento
   await updatePaymentStatus(payment.id, 'received');
-  
+
   return { success: true, orderId };
 }
 
@@ -224,22 +225,22 @@ async function handlePaymentReceived(payment: AsaasWebhookPayload['payment']): P
  */
 async function handlePaymentConfirmed(payment: AsaasWebhookPayload['payment']): Promise<ProcessingResult> {
   console.log(`[AsaasWebhook] ✅ Pagamento confirmado: ${payment.id}`);
-  
+
   // Buscar pedido
   const orderId = await findOrderByAsaasPaymentId(payment.id, payment.externalReference);
   if (!orderId) {
     return { success: false, error: `Pedido não encontrado para payment: ${payment.id}` };
   }
-  
+
   // Atualizar status do pedido para pago
   await updateOrderStatus(orderId, 'paid', payment);
-  
+
   // Atualizar status do pagamento
   await updatePaymentStatus(payment.id, 'confirmed');
-  
+
   // Processar afiliados e comissões
   const commissionResult = await processOrderCommissions(orderId, payment.value);
-  
+
   return {
     success: true,
     orderId,
@@ -254,13 +255,13 @@ async function handlePaymentConfirmed(payment: AsaasWebhookPayload['payment']): 
  * Handler: PAYMENT_SPLIT_CANCELLED / PAYMENT_SPLIT_DIVERGENCE_BLOCK
  */
 async function handleSplitError(
-  payment: AsaasWebhookPayload['payment'], 
+  payment: AsaasWebhookPayload['payment'],
   event: string
 ): Promise<ProcessingResult> {
   console.error(`[AsaasWebhook] ⚠️ Erro de split: ${event} | Payment: ${payment.id}`);
-  
+
   const orderId = await findOrderByAsaasPaymentId(payment.id, payment.externalReference);
-  
+
   // Registrar erro crítico
   await supabase.from('commission_logs').insert({
     order_id: orderId,
@@ -272,14 +273,14 @@ async function handleSplitError(
       error_at: new Date().toISOString()
     })
   });
-  
+
   // Notificar administradores (TODO: implementar notificação)
   console.error(`[AsaasWebhook] 🚨 ALERTA: Split falhou para pedido ${orderId}`);
-  
-  return { 
-    success: false, 
+
+  return {
+    success: false,
     orderId: orderId || undefined,
-    error: `Split error: ${event}` 
+    error: `Split error: ${event}`
   };
 }
 
@@ -288,13 +289,13 @@ async function handleSplitError(
  */
 async function handlePaymentOverdue(payment: AsaasWebhookPayload['payment']): Promise<ProcessingResult> {
   console.log(`[AsaasWebhook] ⏰ Pagamento vencido: ${payment.id}`);
-  
+
   const orderId = await findOrderByAsaasPaymentId(payment.id, payment.externalReference);
   if (orderId) {
     await updateOrderStatus(orderId, 'overdue', payment);
     await updatePaymentStatus(payment.id, 'overdue');
   }
-  
+
   return { success: true, orderId: orderId || undefined };
 }
 
@@ -303,16 +304,16 @@ async function handlePaymentOverdue(payment: AsaasWebhookPayload['payment']): Pr
  */
 async function handlePaymentRefunded(payment: AsaasWebhookPayload['payment']): Promise<ProcessingResult> {
   console.log(`[AsaasWebhook] 💸 Pagamento estornado: ${payment.id}`);
-  
+
   const orderId = await findOrderByAsaasPaymentId(payment.id, payment.externalReference);
   if (orderId) {
     await updateOrderStatus(orderId, 'refunded', payment);
     await updatePaymentStatus(payment.id, 'refunded');
-    
+
     // Cancelar comissões se existirem
     await cancelOrderCommissions(orderId);
   }
-  
+
   return { success: true, orderId: orderId || undefined };
 }
 
@@ -320,7 +321,7 @@ async function handlePaymentRefunded(payment: AsaasWebhookPayload['payment']): P
  * Busca o pedido pelo ID do pagamento do Asaas
  */
 async function findOrderByAsaasPaymentId(
-  asaasPaymentId: string, 
+  asaasPaymentId: string,
   externalReference?: string
 ): Promise<string | null> {
   try {
@@ -331,7 +332,7 @@ async function findOrderByAsaasPaymentId(
         .select('id')
         .eq('id', externalReference)
         .single();
-      
+
       if (orderByRef) return orderByRef.id;
     }
 
@@ -364,8 +365,8 @@ async function findOrderByAsaasPaymentId(
  * Atualiza o status do pedido
  */
 async function updateOrderStatus(
-  orderId: string, 
-  status: string, 
+  orderId: string,
+  status: string,
   paymentData: AsaasWebhookPayload['payment']
 ): Promise<void> {
   try {
@@ -392,9 +393,9 @@ async function updatePaymentStatus(asaasPaymentId: string, status: string): Prom
   try {
     await supabase
       .from('payments')
-      .update({ 
-        status, 
-        updated_at: new Date().toISOString() 
+      .update({
+        status,
+        updated_at: new Date().toISOString()
       })
       .eq('asaas_payment_id', asaasPaymentId);
   } catch (error) {
@@ -407,7 +408,7 @@ async function updatePaymentStatus(asaasPaymentId: string, status: string): Prom
  * ✅ CORRIGIDO: Lê IDs dos afiliados de orders e chama função SQL
  */
 async function processOrderCommissions(
-  orderId: string, 
+  orderId: string,
   orderValue: number
 ): Promise<{
   calculated: boolean;
@@ -439,7 +440,7 @@ async function processOrderCommissions(
 
     if (splitError) {
       console.error('[AsaasWebhook] Erro ao calcular comissões:', splitError);
-      
+
       // Registrar erro no log
       await supabase.from('commission_logs').insert({
         order_id: orderId,
@@ -451,7 +452,7 @@ async function processOrderCommissions(
           error_at: new Date().toISOString()
         })
       });
-      
+
       return { calculated: false };
     }
 
@@ -469,7 +470,7 @@ async function processOrderCommissions(
         .select('full_name')
         .eq('id', affiliate.user_id)
         .single();
-      
+
       affiliateName = profile?.full_name || 'Desconhecido';
     }
 
@@ -496,7 +497,7 @@ async function cancelOrderCommissions(orderId: string): Promise<void> {
   try {
     await supabase
       .from('commissions')
-      .update({ 
+      .update({
         status: 'cancelled',
         updated_at: new Date().toISOString()
       })
@@ -521,7 +522,7 @@ async function cancelOrderCommissions(orderId: string): Promise<void> {
  * Registra o evento do webhook no log
  */
 async function logWebhookEvent(
-  webhookData: AsaasWebhookPayload, 
+  webhookData: AsaasWebhookPayload,
   result: ProcessingResult,
   processingTime: number
 ): Promise<void> {
@@ -573,8 +574,8 @@ function delay(ms: number): Promise<void> {
  * Health check do webhook
  */
 router.get('/asaas/health', (req, res) => {
-  res.json({ 
-    status: 'ok', 
+  res.json({
+    status: 'ok',
     timestamp: new Date().toISOString(),
     supportedEvents: Object.keys(SUPPORTED_EVENTS)
   });

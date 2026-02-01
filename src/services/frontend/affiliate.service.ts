@@ -6,6 +6,7 @@
 import { supabase, supabaseUrl } from '@/config/supabase';
 import { STORAGE_KEYS } from '@/constants/storage-keys';
 import { centsToDecimal } from '@/utils/currency';
+import { MarketingMaterial, MaterialType } from '@/types/database.types';
 
 export interface CreateAffiliateData {
   name: string;
@@ -173,7 +174,7 @@ export class AffiliateFrontendService {
 
       // 3. Chamar Edge Function para validação real
       const { data: { session } } = await supabase.auth.getSession();
-      
+
       const response = await fetch(
         `${supabaseUrl}/functions/v1/validate-asaas-wallet`,
         {
@@ -191,7 +192,7 @@ export class AffiliateFrontendService {
       }
 
       const result = await response.json();
-      
+
       // 4. Atualizar cache
       await this.updateWalletCache(walletId, {
         isValid: result.valid,
@@ -225,7 +226,7 @@ export class AffiliateFrontendService {
     try {
       // Buscar usuário autenticado
       const { data: { user } } = await supabase.auth.getUser();
-      
+
       if (!user) {
         throw new Error('Usuário não autenticado');
       }
@@ -242,7 +243,7 @@ export class AffiliateFrontendService {
         console.error('Erro ao buscar afiliado:', affiliateError);
         throw new Error('Erro ao buscar dados do afiliado');
       }
-      
+
       if (!affiliateData) {
         throw new Error('Afiliado não encontrado');
       }
@@ -299,7 +300,7 @@ export class AffiliateFrontendService {
         totalClicks: affiliateData.total_clicks || 0,
         totalConversions: affiliateData.total_conversions || 0,
         totalCommissions: (affiliateData.total_commissions_cents || 0) / 100,
-        conversionRate: affiliateData.total_clicks > 0 
+        conversionRate: affiliateData.total_clicks > 0
           ? ((affiliateData.total_conversions || 0) / affiliateData.total_clicks * 100)
           : 0,
         avgCommission: affiliateData.total_conversions > 0
@@ -408,7 +409,7 @@ export class AffiliateFrontendService {
     try {
       // Tentar API primeiro
       const { data: { session } } = await supabase.auth.getSession();
-      
+
       const response = await fetch(`${this.baseUrl}?action=referral-link`, {
         method: 'GET',
         headers: {
@@ -515,7 +516,7 @@ export class AffiliateFrontendService {
     try {
       // Buscar usuário autenticado
       const { data: { user } } = await supabase.auth.getUser();
-      
+
       if (!user) {
         throw new Error('Usuário não autenticado');
       }
@@ -532,7 +533,7 @@ export class AffiliateFrontendService {
         console.error('Erro ao buscar afiliado:', affiliateError);
         throw new Error('Erro ao buscar dados do afiliado');
       }
-      
+
       if (!currentAffiliate) {
         throw new Error('Afiliado não encontrado');
       }
@@ -549,10 +550,10 @@ export class AffiliateFrontendService {
           .eq('referred_by', currentAffiliate.id)
           .eq('status', 'active')
           .is('deleted_at', null);
-        
+
         if (n1List && n1List.length > 0) {
           descendants.push(...n1List);
-          
+
           // Buscar N2 (indiretos) para cada N1
           for (const n1 of n1List) {
             const { data: n2List } = await supabase
@@ -561,7 +562,7 @@ export class AffiliateFrontendService {
               .eq('referred_by', n1.id)
               .eq('status', 'active')
               .is('deleted_at', null);
-            
+
             if (n2List && n2List.length > 0) {
               descendants.push(...n2List);
             }
@@ -587,14 +588,14 @@ export class AffiliateFrontendService {
       const n1Ids = filteredDescendants
         .filter(n => n.referred_by === currentAffiliate.id)
         .map(n => n.id);
-      
+
       const stats = {
         totalN1: n1Ids.length,
         totalN2: filteredDescendants.filter(n => n1Ids.includes(n.referred_by)).length,
         totalN3: 0, // Não exibimos N3
         totalCommissions: (currentAffiliate.total_commissions_cents || 0) / 100,
         totalReferrals: filteredDescendants.length,
-        conversionRate: currentAffiliate.total_clicks > 0 
+        conversionRate: currentAffiliate.total_clicks > 0
           ? ((currentAffiliate.total_conversions || 0) / currentAffiliate.total_clicks * 100).toFixed(1)
           : 0
       };
@@ -660,10 +661,10 @@ export class AffiliateFrontendService {
 
     // Construir árvore: conectar filhos aos pais
     const tree: any[] = [];
-    
+
     descendants.forEach(d => {
       const node = descendantsMap.get(d.id);
-      
+
       if (d.referred_by === rootId) {
         // É filho direto (N1)
         tree.push(node);
@@ -699,42 +700,25 @@ export class AffiliateFrontendService {
    */
   async getCommissions(page = 1, limit = 20) {
     try {
-      // Buscar usuário autenticado
       const { data: { user } } = await supabase.auth.getUser();
-      
-      if (!user) {
-        throw new Error('Usuário não autenticado');
-      }
+      if (!user) throw new Error('Usuário não autenticado');
 
-      // Buscar afiliado
-      const { data: affiliate } = await supabase
+      const { data: affiliateData, error: affiliateError } = await supabase
         .from('affiliates')
         .select('id')
         .eq('user_id', user.id)
         .is('deleted_at', null)
         .maybeSingle();
 
-      if (!affiliate) {
-        return {
-          commissions: [],
-          pagination: { page, limit, total: 0, totalPages: 0 },
-          summary: { totalPaid: 0, totalPending: 0, totalCommissions: 0 }
-        };
-      }
+      if (affiliateError) throw affiliateError;
+      if (!affiliateData) throw new Error('Afiliado não encontrado');
 
-      // Buscar comissões com paginação
       const offset = (page - 1) * limit;
-      
-      const { data: commissions, error, count } = await supabase
+
+      const { data, error, count } = await supabase
         .from('commissions')
         .select(`
-          id,
-          commission_value_cents,
-          level,
-          status,
-          created_at,
-          paid_at,
-          order_id,
+          *,
           orders (
             id,
             total_cents,
@@ -742,25 +726,25 @@ export class AffiliateFrontendService {
             customers (name)
           )
         `, { count: 'exact' })
-        .eq('affiliate_id', affiliate.id)
+        .eq('affiliate_id', affiliateData.id)
         .order('created_at', { ascending: false })
         .range(offset, offset + limit - 1);
 
-      if (error) {
-        console.error('Erro ao buscar comissões:', error);
-      }
+      if (error) throw error;
 
-      // Mapear comissões
-      const mappedCommissions = (commissions || []).map((c: any) => ({
+      const centsToDecimal = (cents: number) => cents / 100;
+
+      const mappedCommissions = data.map(c => ({
         id: c.id,
-        amount: (c.commission_value_cents || 0) / 100,
-        type: `N${c.level || 1}`,
+        amount: centsToDecimal(c.amount_cents),
+        baseAmount: centsToDecimal(c.base_amount_cents || 0),
         status: c.status,
+        type: c.type,
         createdAt: c.created_at,
         paidAt: c.paid_at,
         order: c.orders ? {
           id: c.orders.id,
-          total_cents: c.orders.total_cents,
+          total_cents: centsToDecimal(c.orders.total_cents),
           status: c.orders.status,
           customer_name: c.orders.customers?.name || 'Cliente'
         } : null
@@ -770,7 +754,7 @@ export class AffiliateFrontendService {
       const totalPaid = mappedCommissions
         .filter(c => c.status === 'paid')
         .reduce((sum, c) => sum + c.amount, 0);
-      
+
       const totalPending = mappedCommissions
         .filter(c => c.status === 'pending')
         .reduce((sum, c) => sum + c.amount, 0);
@@ -807,7 +791,7 @@ export class AffiliateFrontendService {
     try {
       // Buscar usuário autenticado
       const { data: { user } } = await supabase.auth.getUser();
-      
+
       if (!user) {
         return { isAffiliate: false };
       }
@@ -824,7 +808,7 @@ export class AffiliateFrontendService {
         console.error('Erro ao buscar afiliado:', error);
         return { isAffiliate: false };
       }
-      
+
       if (!affiliateData) {
         return { isAffiliate: false };
       }
@@ -850,11 +834,44 @@ export class AffiliateFrontendService {
       };
     } catch (error) {
       console.error('Erro ao verificar status de afiliado:', error);
-      return { 
+      return {
         isAffiliate: false,
         affiliate: undefined
       };
     }
+  }
+
+  /**
+   * Buscar Materiais de Marketing
+   * Retorna apenas materiais ativos, ordenados por prioridade
+   */
+  async getMarketingMaterials(filters?: { type?: MaterialType; productId?: string }) {
+    let query = supabase
+      .from('marketing_materials')
+      .select(`
+                *,
+                product:products(id, name, slug)
+            `)
+      .eq('is_active', true)
+      .order('display_order', { ascending: true })
+      .order('created_at', { ascending: false });
+
+    if (filters?.type) {
+      query = query.eq('type', filters.type);
+    }
+
+    if (filters?.productId) {
+      query = query.eq('product_id', filters.productId);
+    }
+
+    const { data, error } = await query;
+
+    if (error) {
+      console.error('Error fetching affiliate materials:', error);
+      throw new Error('Erro ao buscar materiais de marketing');
+    }
+
+    return data as MarketingMaterial[];
   }
 
   /**
@@ -870,7 +887,7 @@ export class AffiliateFrontendService {
         expiry: Date.now() + (30 * 24 * 60 * 60 * 1000), // 30 dias
         utmParams: utmParams || {}
       };
-      
+
       localStorage.setItem(STORAGE_KEYS.REFERRAL_CODE, JSON.stringify(referralData));
 
       // Registrar clique no banco
@@ -904,7 +921,7 @@ export class AffiliateFrontendService {
   captureTrackingParams(): { referralCode?: string; utmParams?: any } {
     try {
       const urlParams = new URLSearchParams(window.location.search);
-      
+
       const referralCode = urlParams.get('ref');
       const utmParams = {
         utm_source: urlParams.get('utm_source'),
@@ -935,10 +952,10 @@ export class AffiliateFrontendService {
   async initializeTracking(): Promise<void> {
     try {
       const { referralCode, utmParams } = this.captureTrackingParams();
-      
+
       if (referralCode) {
         await this.trackReferralClick(referralCode, utmParams);
-        
+
         // Limpar parâmetros da URL sem recarregar a página
         const url = new URL(window.location.href);
         url.searchParams.delete('ref');
@@ -947,7 +964,7 @@ export class AffiliateFrontendService {
         url.searchParams.delete('utm_campaign');
         url.searchParams.delete('utm_content');
         url.searchParams.delete('utm_term');
-        
+
         window.history.replaceState({}, document.title, url.toString());
       }
     } catch (error) {
@@ -1035,13 +1052,13 @@ export class AffiliateFrontendService {
       // Tentar parsear como JSON (novo formato)
       try {
         const referralData = JSON.parse(stored);
-        
+
         // Validar expiração
         if (Date.now() > referralData.expiry) {
           this.clearReferralCode();
           return null;
         }
-        
+
         return referralData.code;
       } catch {
         // Formato antigo (string simples) - manter compatibilidade
@@ -1072,7 +1089,7 @@ export class AffiliateFrontendService {
 
     while (attempts < maxAttempts) {
       const code = this.generateRandomCode();
-      
+
       // Verificar se código já existe
       const { data } = await supabase
         .from('affiliates')
@@ -1124,11 +1141,11 @@ export class AffiliateFrontendService {
    */
   private isWalletCacheExpired(cached: any): boolean {
     if (!cached.last_validated_at) return true;
-    
+
     const lastValidated = new Date(cached.last_validated_at);
     const now = new Date();
     const diffMinutes = (now.getTime() - lastValidated.getTime()) / (1000 * 60);
-    
+
     return diffMinutes > 5;
   }
 
@@ -1245,7 +1262,7 @@ export class AffiliateFrontendService {
   async getSales(page = 1, limit = 20) {
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      
+
       if (!user) {
         throw new Error('Usuário não autenticado');
       }
@@ -1266,7 +1283,7 @@ export class AffiliateFrontendService {
       }
 
       const offset = (page - 1) * limit;
-      
+
       // Buscar comissões com informações do pedido
       const { data: commissions, error, count } = await supabase
         .from('commissions')
@@ -1341,7 +1358,7 @@ export class AffiliateFrontendService {
   async getWithdrawals(page = 1, limit = 20) {
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      
+
       const response = await fetch(`${this.baseUrl}?action=withdrawals&page=${page}&limit=${limit}`, {
         method: 'GET',
         headers: {
@@ -1368,7 +1385,7 @@ export class AffiliateFrontendService {
   async getNotificationPreferences() {
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      
+
       const response = await fetch(`${this.baseUrl}?action=notifications`, {
         method: 'GET',
         headers: {
@@ -1410,7 +1427,7 @@ export class AffiliateFrontendService {
   }) {
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      
+
       const response = await fetch(`${this.baseUrl}?action=notifications`, {
         method: 'POST',
         headers: {
@@ -1441,7 +1458,7 @@ export class AffiliateFrontendService {
   async exportReport(type: 'commissions' | 'withdrawals' | 'network', startDate?: string, endDate?: string) {
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      
+
       const response = await fetch(`${this.baseUrl}?action=export`, {
         method: 'POST',
         headers: {
@@ -1485,7 +1502,7 @@ export class AffiliateFrontendService {
   async getStats() {
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      
+
       const response = await fetch(`${this.baseUrl}?action=stats`, {
         method: 'GET',
         headers: {

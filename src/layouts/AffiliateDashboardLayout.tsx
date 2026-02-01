@@ -14,7 +14,8 @@ import {
   ShoppingCart,
   BarChart3,
   Bot, // Icone para IA
-  Loader2
+  Loader2,
+  Megaphone // Adicionado manualmente
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -95,6 +96,7 @@ export function AffiliateDashboardLayout() {
     { icon: Home, label: "Início", path: "/afiliados/dashboard" },
     // Item condicional
     ...(showIAMenu ? [{ icon: Bot, label: "Ferramentas IA", path: "/afiliados/dashboard/ferramentas-ia" }] : []),
+    { icon: Megaphone, label: "Materiais", path: "/afiliados/dashboard/materiais" }, // Novo menu
     { icon: TreeDeciduous, label: "Minha Rede", path: "/afiliados/dashboard/rede" },
     { icon: ShoppingCart, label: "Vendas", path: "/afiliados/dashboard/vendas" },
     { icon: DollarSign, label: "Comissões", path: "/afiliados/dashboard/comissoes" },

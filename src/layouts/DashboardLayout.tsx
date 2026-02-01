@@ -1,13 +1,13 @@
 import { useState } from 'react';
 import { Link, useLocation, Outlet, useNavigate } from 'react-router-dom';
-import { 
-  LayoutDashboard, 
-  MessageSquare, 
-  Package, 
-  DollarSign, 
-  Users, 
-  UserCircle, 
-  Settings, 
+import {
+  LayoutDashboard,
+  MessageSquare,
+  Package,
+  DollarSign,
+  Users,
+  UserCircle,
+  Settings,
   LogOut,
   Search,
   Bell,
@@ -21,9 +21,9 @@ import {
   Menu,
   X,
   Brain,
-  Plug,
   Lightbulb,
-  ShoppingCart
+  ShoppingCart,
+  Megaphone
 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -38,15 +38,15 @@ export function DashboardLayout() {
   const [searchQuery, setSearchQuery] = useState('');
   const [affiliatesMenuOpen, setAffiliatesMenuOpen] = useState(location.pathname.startsWith('/dashboard/afiliados'));
   const [agentMenuOpen, setAgentMenuOpen] = useState(
-    location.pathname.startsWith('/dashboard/agente') || 
-    location.pathname === '/dashboard/agendamentos' || 
+    location.pathname.startsWith('/dashboard/agente') ||
+    location.pathname === '/dashboard/agendamentos' ||
     location.pathname === '/dashboard/automacoes'
   );
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false); // Novo estado para mobile
-  
+
   // Hook para badge dinâmico de aprendizados pendentes
   const { count: pendingLearningCount } = usePendingLearningBadge();
-  
+
   // Hook de autenticação para logout
   const { logout } = useAuth();
 
@@ -77,6 +77,7 @@ export function DashboardLayout() {
   ];
 
   const secondaryItems = [
+    { icon: Megaphone, label: 'Materiais Mkt', path: '/dashboard/materiais', disabled: false },
     { icon: UserCircle, label: 'Clientes', path: '/dashboard/clientes', disabled: false },
     { icon: BarChart3, label: 'Analytics', path: '/dashboard/analytics', disabled: false },
     { icon: Settings, label: 'Configurações', path: '/dashboard/configuracoes', disabled: false },
@@ -84,8 +85,8 @@ export function DashboardLayout() {
 
   const getPageTitle = () => {
     const allItems = [
-      ...menuItems, 
-      ...affiliateSubmenu, 
+      ...menuItems,
+      ...affiliateSubmenu,
       ...agentSubmenu,
       ...secondaryItems
     ];
@@ -96,7 +97,7 @@ export function DashboardLayout() {
   const handleLogout = async () => {
     await logout();
   };
-  
+
   const handleNavigation = (path: string) => {
     navigate(path);
     setMobileMenuOpen(false);
@@ -107,10 +108,10 @@ export function DashboardLayout() {
       {/* Logo */}
       <div className="p-6 border-b">
         <Link to="/dashboard" className="flex items-center justify-center">
-          <img 
-            src="/logo.png" 
-            alt="Slim Quality" 
-            className="h-10 w-auto" 
+          <img
+            src="/logo.png"
+            alt="Slim Quality"
+            className="h-10 w-auto"
           />
         </Link>
       </div>
@@ -134,24 +135,24 @@ export function DashboardLayout() {
         {menuItems.map((item) => {
           const Icon = item.icon;
           const isActive = location.pathname === item.path;
-          
+
           return (
             <Link
               key={item.path}
               to={item.path}
               className={cn(
                 "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors relative",
-                isActive 
-                  ? "bg-primary/10 text-primary" 
+                isActive
+                  ? "bg-primary/10 text-primary"
                   : item.disabled
-                  ? "text-muted-foreground cursor-not-allowed opacity-50"
-                  : "text-foreground hover:bg-muted hover:text-primary"
+                    ? "text-muted-foreground cursor-not-allowed opacity-50"
+                    : "text-foreground hover:bg-muted hover:text-primary"
               )}
-              onClick={(e) => { 
+              onClick={(e) => {
                 if (item.disabled) {
                   e.preventDefault();
                 }
-                handleNavigation(item.path); 
+                handleNavigation(item.path);
               }}
             >
               <Icon className="h-5 w-5" />
@@ -184,7 +185,7 @@ export function DashboardLayout() {
               <ChevronDown className="h-4 w-4 ml-auto" />
             )}
           </button>
-          
+
           {affiliatesMenuOpen && (
             <div className="pl-8 space-y-1">
               {affiliateSubmenu.map((item) => {
@@ -196,8 +197,8 @@ export function DashboardLayout() {
                     to={item.path}
                     className={cn(
                       "flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors",
-                      isActive 
-                        ? "bg-primary/20 text-primary font-medium" 
+                      isActive
+                        ? "bg-primary/20 text-primary font-medium"
                         : "text-muted-foreground hover:bg-muted hover:text-foreground"
                     )}
                     onClick={() => handleNavigation(item.path)}
@@ -217,9 +218,9 @@ export function DashboardLayout() {
             onClick={() => setAgentMenuOpen(!agentMenuOpen)}
             className={cn(
               "flex items-center w-full gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors relative",
-              (location.pathname.startsWith('/dashboard/agente') || 
-               location.pathname === '/dashboard/agendamentos' || 
-               location.pathname === '/dashboard/automacoes')
+              (location.pathname.startsWith('/dashboard/agente') ||
+                location.pathname === '/dashboard/agendamentos' ||
+                location.pathname === '/dashboard/automacoes')
                 ? "bg-primary/10 text-primary"
                 : "text-foreground hover:bg-muted hover:text-primary"
             )}
@@ -237,7 +238,7 @@ export function DashboardLayout() {
               <ChevronDown className="h-4 w-4 ml-auto" />
             )}
           </button>
-          
+
           {agentMenuOpen && (
             <div className="pl-8 space-y-1">
               {agentSubmenu.map((item) => {
@@ -249,8 +250,8 @@ export function DashboardLayout() {
                     to={item.path}
                     className={cn(
                       "flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors",
-                      isActive 
-                        ? "bg-primary/20 text-primary font-medium" 
+                      isActive
+                        ? "bg-primary/20 text-primary font-medium"
                         : "text-muted-foreground hover:bg-muted hover:text-foreground"
                     )}
                     onClick={() => handleNavigation(item.path)}
@@ -281,8 +282,8 @@ export function DashboardLayout() {
                 to={item.path}
                 className={cn(
                   "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors relative",
-                  isActive 
-                    ? "bg-primary/10 text-primary" 
+                  isActive
+                    ? "bg-primary/10 text-primary"
                     : "text-foreground hover:bg-muted hover:text-primary"
                 )}
                 onClick={() => handleNavigation(item.path)}
@@ -297,8 +298,8 @@ export function DashboardLayout() {
 
       {/* Footer */}
       <div className="p-4 border-t">
-        <Button 
-          variant="ghost" 
+        <Button
+          variant="ghost"
           className="w-full justify-start gap-3"
           onClick={handleLogout}
         >
@@ -315,14 +316,14 @@ export function DashboardLayout() {
       <aside className="w-[260px] bg-background border-r flex-col fixed h-full hidden lg:flex">
         {renderSidebarContent()}
       </aside>
-      
+
       {/* Sidebar (Mobile Overlay) */}
       {mobileMenuOpen && (
-        <div 
+        <div
           className="fixed inset-0 z-50 bg-black/50 lg:hidden"
           onClick={() => setMobileMenuOpen(false)}
         >
-          <aside 
+          <aside
             className="w-[260px] bg-background h-full flex flex-col transition-transform duration-300"
             onClick={(e) => e.stopPropagation()}
           >
@@ -340,11 +341,11 @@ export function DashboardLayout() {
       <div className="flex-1 lg:ml-[260px] flex flex-col">
         {/* TopBar */}
         <header className="h-16 bg-background border-b sticky top-0 z-10 flex items-center px-4 lg:px-6 gap-4 shadow-sm">
-          
+
           {/* Mobile Menu Button */}
-          <Button 
-            variant="ghost" 
-            size="icon" 
+          <Button
+            variant="ghost"
+            size="icon"
             className="lg:hidden"
             onClick={() => setMobileMenuOpen(true)}
             aria-label="Abrir menu lateral"
@@ -353,7 +354,7 @@ export function DashboardLayout() {
           </Button>
 
           <h1 className="text-lg lg:text-2xl font-bold truncate">{getPageTitle()}</h1>
-          
+
           <div className="flex-1" />
 
           {/* Search (Hidden on small mobile, visible on tablet/desktop) */}

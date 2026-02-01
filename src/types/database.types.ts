@@ -277,6 +277,27 @@ export interface Affiliate {
 }
 
 // ============================================
+// MARKETING MATERIALS (Nova Funcionalidade)
+// ============================================
+export type MaterialType = 'image' | 'video' | 'text' | 'pdf';
+
+export interface MarketingMaterial {
+  id: string;
+  title: string;
+  description?: string;
+  type: MaterialType;
+  content_url?: string;
+  content_text?: string;
+  product_id?: string;
+  product?: Product; // Join opcional
+  template_vars: string[]; // JSON array armazenado como string[]
+  is_active: boolean;
+  display_order: number;
+  created_at: string;
+  updated_at: string;
+}
+
+// ============================================
 // UTILITY TYPES
 // ============================================
 export type DatabaseError = {

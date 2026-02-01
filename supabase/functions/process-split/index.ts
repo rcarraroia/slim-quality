@@ -196,6 +196,9 @@ serve(async (req) => {
     // 10. Ativar serviço se for ferramenta IA
     if (commissionSplit.main_receiver_wallet_id === walletRenum) {
       await activateAffiliateService(order.affiliate_n1_id, 'agente_ia');
+
+      // NOVO: Provisionar tenant no sistema Multi-Agent
+      await provisionMultiAgentTenant(order.affiliate_n1_id, order.payments?.asaas_payment_id);
     }
 
     // 11. Registrar log de auditoria
@@ -502,6 +505,99 @@ async function activateAffiliateService(userId: string, serviceType: string): Pr
     }
   } catch (error) {
     console.error('Error in activateAffiliateService:', error);
+  }
+}
+
+/**
+ * Provisiona tenant no sistema Multi-Agent
+ * Cria registros em multi_agent_tenants e multi_agent_subscriptions
+ */
+async function provisionMultiAgentTenant(userId: string, asaasPaymentId?: string): Promise<void> {
+  try {
+    // 1. Buscar dados do afiliado
+    const { data: affiliate } = await supabase
+      .from('affiliates')
+      .select('id, name, phone')
+      .eq('user_id', userId)
+      .single();
+
+    if (!affiliate) {
+      console.log('Affiliate not found for tenant provisioning:', userId);
+      return;
+    }
+
+    // 2. Verificar se tenant já existe (idempotência)
+    const { data: existingTenant } = await supabase
+      .from('multi_agent_tenants')
+      .select('id, status')
+      .eq('affiliate_id', affiliate.id)
+      .single();
+
+    if (existingTenant) {
+      // Reativar se existia como canceled/suspended
+      if (existingTenant.status !== 'active') {
+        await supabase
+          .from('multi_agent_tenants')
+          .update({
+            status: 'active',
+            activated_at: new Date().toISOString(),
+            suspended_at: null,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', existingTenant.id);
+        console.log('Tenant reactivated:', existingTenant.id);
+      } else {
+        console.log('Tenant already active:', existingTenant.id);
+      }
+      return;
+    }
+
+    // 3. Criar novo tenant
+    const { data: newTenant, error: tenantError } = await supabase
+      .from('multi_agent_tenants')
+      .insert({
+        affiliate_id: affiliate.id,
+        status: 'active',
+        agent_name: `Agente de ${affiliate.name || 'Afiliado'}`,
+        agent_personality: 'Você é um assistente de vendas especializado em colchões magnéticos terapêuticos da Slim Quality.',
+        knowledge_enabled: true,
+        activated_at: new Date().toISOString()
+      })
+      .select()
+      .single();
+
+    if (tenantError) {
+      console.error('Error creating tenant:', tenantError);
+      return;
+    }
+
+    // 4. Criar subscription vinculada
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 30);
+
+    const { error: subError } = await supabase
+      .from('multi_agent_subscriptions')
+      .insert({
+        tenant_id: newTenant.id,
+        affiliate_id: affiliate.id,
+        // Usa subscription_id se existir (assinaturas) ou payment_id (cobranças avulsas)
+        asaas_subscription_id: asaasPaymentId || 'manual_activation',
+        asaas_customer_id: 'pending_sync',
+        status: 'active',
+        plan_value_cents: 39700, // R$ 397,00
+        billing_type: 'MONTHLY',
+        next_due_date: expiresAt.toISOString().split('T')[0]
+      });
+
+    if (subError) {
+      console.error('Error creating subscription:', subError);
+    } else {
+      console.log('Multi-agent tenant provisioned:', newTenant.id);
+    }
+
+  } catch (error) {
+    console.error('Error in provisionMultiAgentTenant:', error);
+    // Não falhar o split por erro de provisionamento
   }
 }
 

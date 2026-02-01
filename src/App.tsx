@@ -17,6 +17,7 @@ import Sobre from "./pages/Sobre";
 import Login from "./pages/Login";
 import AdminLogin from "./pages/admin/AdminLogin";
 import CustomerLogin from "./pages/CustomerLogin";
+import AffiliateMaterials from '@/pages/affiliates/AffiliateMaterials';
 import AfiliadosLanding from "./pages/afiliados/AfiliadosLanding";
 import AfiliadosCadastro from "./pages/afiliados/AfiliadosCadastro";
 import Dashboard from "./pages/dashboard/Dashboard";
@@ -30,6 +31,7 @@ import Configuracoes from "./pages/dashboard/Configuracoes";
 import Agendamentos from "./pages/dashboard/Agendamentos";
 import Automacoes from "./pages/dashboard/Automacoes";
 import Analytics from "./pages/dashboard/Analytics";
+import Materiais from "./pages/dashboard/Materiais";
 import ListaAfiliados from "./pages/dashboard/afiliados/ListaAfiliados";
 import AdminMinhaRede from "./pages/dashboard/afiliados/MinhaRede";
 import GestaoComissoes from "./pages/dashboard/afiliados/GestaoComissoes";
@@ -116,6 +118,7 @@ const App = () => (
                 <Route path="automacoes" element={<Automacoes />} />
                 <Route path="analytics" element={<Analytics />} />
                 <Route path="configuracoes" element={<Configuracoes />} />
+                <Route path="materiais" element={<Materiais />} />
 
                 {/* Submenu Afiliados Admin */}
                 <Route path="afiliados" element={<ListaAfiliados />} />
@@ -141,6 +144,7 @@ const App = () => (
                 <Route path="recebimentos" element={<AffiliateDashboardRecebimentos />} />
                 <Route path="estatisticas" element={<AffiliateDashboardEstatisticas />} />
                 <Route path="ferramentas-ia" element={<FerramentasIA />} />
+                <Route path="materiais" element={<AffiliateMaterials />} /> {/* Rota de Materiais */}
                 <Route path="configuracoes" element={<AffiliateDashboardConfiguracoes />} />
               </Route>
 
