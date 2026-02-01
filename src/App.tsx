@@ -118,13 +118,12 @@ const App = () => (
                 <Route path="automacoes" element={<Automacoes />} />
                 <Route path="analytics" element={<Analytics />} />
                 <Route path="configuracoes" element={<Configuracoes />} />
-                <Route path="materiais" element={<Materiais />} />
-
                 {/* Submenu Afiliados Admin */}
                 <Route path="afiliados" element={<ListaAfiliados />} />
                 <Route path="afiliados/minha-rede" element={<AdminMinhaRede />} />
                 <Route path="afiliados/comissoes" element={<GestaoComissoes />} />
                 <Route path="afiliados/solicitacoes" element={<Solicitacoes />} />
+                <Route path="afiliados/materiais" element={<Materiais />} /> {/* Movido para cá */}
 
                 {/* NOVO: Submenu Agente IA */}
                 <Route path="agente" element={<AgenteIA />} />

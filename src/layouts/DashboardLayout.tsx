@@ -64,6 +64,7 @@ export function DashboardLayout() {
     { label: 'Minha Rede', path: '/dashboard/afiliados/minha-rede', icon: Users },
     { label: 'Comissões', path: '/dashboard/afiliados/comissoes', icon: DollarSign },
     { label: 'Solicitações', path: '/dashboard/afiliados/solicitacoes', icon: CreditCard },
+    { label: 'Materiais', path: '/dashboard/afiliados/materiais', icon: Megaphone }, // Movido para cá
   ];
 
   const agentSubmenu = [
@@ -78,7 +79,6 @@ export function DashboardLayout() {
   ];
 
   const secondaryItems = [
-    { icon: Megaphone, label: 'Materiais Mkt', path: '/dashboard/materiais', disabled: false },
     { icon: UserCircle, label: 'Clientes', path: '/dashboard/clientes', disabled: false },
     { icon: BarChart3, label: 'Analytics', path: '/dashboard/analytics', disabled: false },
     { icon: Settings, label: 'Configurações', path: '/dashboard/configuracoes', disabled: false },
