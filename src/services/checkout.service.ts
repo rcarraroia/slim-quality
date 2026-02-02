@@ -480,6 +480,7 @@ export class CheckoutService {
       // Chamar backend seguro (API key protegida no servidor)
       // Usar caminho relativo para que a Vercel trate corretamente no mesmo domínio
       const backendUrl = '';
+      console.log('📡 DEBUG: backendUrl =', `"${backendUrl}"`);
 
       // Preparar payload
       const checkoutPayload: Record<string, unknown> = {
@@ -511,7 +512,10 @@ export class CheckoutService {
         };
       }
 
-      const response = await fetch(`${backendUrl}/api/checkout`, {
+      const finalApiUrl = `${backendUrl}/api/checkout`;
+      console.log('📡 DEBUG: Chamando API em:', finalApiUrl);
+
+      const response = await fetch(finalApiUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
