@@ -4,11 +4,11 @@
  */
 
 import { supabase } from '@/config/supabase';
-import type { 
-  CheckoutData, 
-  CheckoutResult, 
-  CreateCustomerData, 
-  CreateOrderData, 
+import type {
+  CheckoutData,
+  CheckoutResult,
+  CreateCustomerData,
+  CreateOrderData,
   CreateOrderItemData,
   CreateShippingAddressData,
   Customer,
@@ -18,56 +18,56 @@ import type {
 } from '@/types/database.types';
 
 export class CheckoutService {
-  
+
   /**
    * Processa checkout completo
    */
   async processCheckout(data: CheckoutData): Promise<CheckoutResult> {
     try {
       console.log('🛒 Iniciando checkout:', data);
-      
+
       // 1. Verificar se cliente já existe
       const customer = await this.findOrCreateCustomer(data.customer);
-      
+
       // 2. Criar pedido
       const order = await this.createOrder(customer.id, data);
-      
+
       // 3. Criar item do pedido
       await this.createOrderItem(order.id, data.product);
-      
+
       // 4. Criar endereço de entrega
       await this.createShippingAddress(order.id, data.shipping);
-      
+
       // 5. Processar afiliado (se houver)
       if (data.affiliate) {
         await this.processAffiliateTracking(order.id, data.affiliate);
       }
-      
+
       // 6. Gerar link de pagamento - passar CPF diretamente do formulário
       const paymentUrl = await this.generatePaymentUrl(order, data.payment, data.customer.cpf_cnpj, data.shipping);
-      
-      console.log('✅ Checkout concluído:', { 
-        customer_id: customer.id, 
-        order_id: order.id 
+
+      console.log('✅ Checkout concluído:', {
+        customer_id: customer.id,
+        order_id: order.id
       });
-      
+
       return {
         success: true,
         customer_id: customer.id,
         order_id: order.id,
         payment_url: paymentUrl
       };
-      
+
     } catch (error) {
       console.error('❌ Erro no checkout:', error);
-      
+
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Erro desconhecido'
       };
     }
   }
-  
+
   /**
    * Encontra cliente existente ou cria novo
    * Se cliente existe mas CPF foi fornecido, atualiza o CPF
@@ -80,50 +80,50 @@ export class CheckoutService {
       .eq('email', customerData.email)
       .is('deleted_at', null)
       .single();
-    
+
     if (existingCustomer) {
       console.log('👤 Cliente existente encontrado:', existingCustomer.id);
-      
+
       // Se CPF foi fornecido e cliente não tem CPF, atualizar
       if (customerData.cpf_cnpj && !existingCustomer.cpf_cnpj) {
         console.log('📝 Atualizando CPF do cliente existente');
         const { data: updatedCustomer, error: updateError } = await supabase
           .from('customers')
-          .update({ 
+          .update({
             cpf_cnpj: customerData.cpf_cnpj,
             updated_at: new Date().toISOString()
           })
           .eq('id', existingCustomer.id)
           .select()
           .single();
-        
+
         if (!updateError && updatedCustomer) {
           return updatedCustomer;
         }
       }
-      
+
       // Retornar cliente com CPF atualizado se foi fornecido
       return {
         ...existingCustomer,
         cpf_cnpj: customerData.cpf_cnpj || existingCustomer.cpf_cnpj
       };
     }
-    
+
     // Criar novo cliente
     const { data: newCustomer, error } = await supabase
       .from('customers')
       .insert(customerData)
       .select()
       .single();
-    
+
     if (error) {
       throw new Error(`Erro ao criar cliente: ${error.message}`);
     }
-    
+
     console.log('👤 Novo cliente criado:', newCustomer.id);
     return newCustomer;
   }
-  
+
   /**
    * Cria pedido
    * Task 4.3: Atualizado para buscar rede completa de afiliados
@@ -163,21 +163,21 @@ export class CheckoutService {
       total_cents: data.totals.total_cents,
       status: 'pending'
     };
-    
+
     const { data: order, error } = await supabase
       .from('orders')
       .insert(orderData)
       .select()
       .single();
-    
+
     if (error) {
       throw new Error(`Erro ao criar pedido: ${error.message}`);
     }
-    
+
     console.log('📦 Pedido criado:', order.id);
     return order;
   }
-  
+
   /**
    * Cria item do pedido
    */
@@ -191,21 +191,21 @@ export class CheckoutService {
       unit_price_cents: product.price_cents,
       total_price_cents: product.price_cents * product.quantity
     };
-    
+
     const { data: item, error } = await supabase
       .from('order_items')
       .insert(itemData)
       .select()
       .single();
-    
+
     if (error) {
       throw new Error(`Erro ao criar item do pedido: ${error.message}`);
     }
-    
+
     console.log('📋 Item do pedido criado:', item.id);
     return item;
   }
-  
+
   /**
    * Cria endereço de entrega
    */
@@ -214,27 +214,27 @@ export class CheckoutService {
       order_id: orderId,
       ...shipping
     };
-    
+
     const { data: address, error } = await supabase
       .from('shipping_addresses')
       .insert(shippingData)
       .select()
       .single();
-    
+
     if (error) {
       throw new Error(`Erro ao criar endereço de entrega: ${error.message}`);
     }
-    
+
     console.log('🏠 Endereço de entrega criado:', address.id);
     return address;
   }
-  
+
   /**
    * Processa rastreamento de afiliado
    */
   private async processAffiliateTracking(orderId: string, affiliate: CheckoutData['affiliate']) {
     if (!affiliate) return;
-    
+
     try {
       // Registrar conversão de referral
       const { error: conversionError } = await supabase
@@ -244,19 +244,19 @@ export class CheckoutService {
           order_id: orderId,
           converted_at: new Date().toISOString()
         });
-      
+
       if (conversionError) {
         console.warn('⚠️ Erro ao registrar conversão:', conversionError.message);
       } else {
         console.log('🎯 Conversão de afiliado registrada');
       }
-      
+
     } catch (error) {
       console.warn('⚠️ Erro no rastreamento de afiliado:', error);
       // Não falhar o checkout por causa do rastreamento
     }
   }
-  
+
   /**
    * Valida formato de Wallet ID do Asaas
    * Formato oficial: UUID v4 (ex: cd912fa1-5fa4-4d49-92eb-b5ab4dfba961)
@@ -411,7 +411,7 @@ export class CheckoutService {
    * Gera URL de pagamento via backend seguro (API key protegida)
    */
   private async generatePaymentUrl(
-    order: Order, 
+    order: Order,
     payment: CheckoutData['payment'],
     cpfCnpj?: string,
     shippingData?: Omit<CreateShippingAddressData, 'order_id'>
@@ -423,33 +423,33 @@ export class CheckoutService {
         .select('*')
         .eq('id', order.customer_id)
         .single();
-      
+
       if (!customer) {
         throw new Error('Cliente não encontrado');
       }
-      
+
       // Buscar dados do produto
       const { data: orderItems } = await supabase
         .from('order_items')
         .select('*')
         .eq('order_id', order.id);
-      
+
       if (!orderItems || orderItems.length === 0) {
         throw new Error('Itens do pedido não encontrados');
       }
-      
+
       // Buscar endereço de entrega
       const { data: shippingAddress } = await supabase
         .from('shipping_addresses')
         .select('*')
         .eq('order_id', order.id)
         .single();
-      
+
       const firstItem = orderItems[0];
-      
+
       // Usar CPF passado diretamente do formulário (prioridade) ou do banco
       const finalCpfCnpj = cpfCnpj || customer.cpf_cnpj;
-      
+
       // Preparar dados do customer para Asaas
       const asaasCustomer = {
         name: customer.name,
@@ -473,10 +473,10 @@ export class CheckoutService {
         referralCode: order.referral_code,
         hasCreditCard: !!payment.creditCard
       });
-      
+
       // Chamar backend seguro (API key protegida no servidor)
       const backendUrl = import.meta.env.VITE_API_URL || 'https://slimquality.com.br';
-      
+
       // Preparar payload
       const checkoutPayload: Record<string, unknown> = {
         customer: asaasCustomer,
@@ -485,7 +485,13 @@ export class CheckoutService {
         description: `Pedido ${order.order_number} - ${firstItem.product_name}`,
         billingType: payment.method.toUpperCase(),
         installments: payment.installments,
-        referralCode: order.referral_code
+        referralCode: order.referral_code,
+        orderItems: orderItems.map(item => ({
+          product_id: item.product_id,
+          product_sku: item.product_sku,
+          quantity: item.quantity,
+          unit_price_cents: item.unit_price_cents
+        }))
       };
 
       // Adicionar dados do cartão se for pagamento com cartão
@@ -510,7 +516,7 @@ export class CheckoutService {
       });
 
       const result = await response.json();
-      
+
       if (result.success) {
         console.log('✅ Checkout processado com sucesso:', {
           orderId: order.id,
@@ -519,7 +525,7 @@ export class CheckoutService {
           status: result.status,
           orderStatus: result.orderStatus
         });
-        
+
         // Se pagamento com cartão foi confirmado, redirecionar para página de sucesso
         if (payment.method === 'credit_card' && (result.status === 'CONFIRMED' || result.orderStatus === 'paid')) {
           const successParams = new URLSearchParams({
@@ -528,31 +534,31 @@ export class CheckoutService {
           });
           return `${window.location.origin}/pagamento-sucesso?${successParams.toString()}`;
         }
-        
+
         // Para PIX e outros métodos, usar a página de pagamento do Asaas (invoiceUrl)
         // É mais seguro e profissional - já tem QR Code, copia e cola, etc.
         if (result.checkoutUrl) {
           return result.checkoutUrl;
         }
-        
+
         // Fallback para página de sucesso se não tiver URL do Asaas
         return `${window.location.origin}/pagamento-sucesso?order_id=${order.id}`;
       } else {
         console.warn('⚠️ Backend retornou erro:', result.error, 'Detalhes:', result.details, 'Debug:', result.debug);
-        
+
         // Construir mensagem de erro mais detalhada
         let errorMessage = result.error || 'Erro ao processar pagamento';
         if (result.details?.errors) {
           const asaasErrors = result.details.errors.map((e: { description?: string }) => e.description).join(', ');
           errorMessage = `${errorMessage}: ${asaasErrors}`;
         }
-        
+
         throw new Error(errorMessage);
       }
-      
+
     } catch (error) {
       console.error('❌ Erro ao gerar pagamento:', error);
-      
+
       // Fallback: retornar URL de erro
       const baseUrl = window.location.origin;
       const errorParams = new URLSearchParams({
@@ -560,7 +566,7 @@ export class CheckoutService {
         error: 'payment_failed',
         message: error instanceof Error ? error.message : 'Erro desconhecido'
       });
-      
+
       return `${baseUrl}/pagamento-erro?${errorParams.toString()}`;
     }
   }
@@ -570,7 +576,7 @@ export class CheckoutService {
    * Mantido aqui apenas para compatibilidade, mas o backend faz isso automaticamente
    */
   private async saveSplitAuditLog(
-    orderId: string, 
+    orderId: string,
     splits: { walletId: string; percentualValue: number }[],
     network: {
       n1?: { id: string; walletId: string };
@@ -581,7 +587,7 @@ export class CheckoutService {
     // Backend já faz isso automaticamente
     console.log('📝 Audit log será salvo pelo backend:', { orderId });
   }
-  
+
   /**
    * Busca pedido por ID
    */
@@ -591,32 +597,32 @@ export class CheckoutService {
       .select('*')
       .eq('id', orderId)
       .single();
-    
+
     if (error) {
       console.error('Erro ao buscar pedido:', error);
       return null;
     }
-    
+
     return data;
   }
-  
+
   /**
    * Atualiza status do pedido
    */
   async updateOrderStatus(orderId: string, status: Order['status']): Promise<boolean> {
     const { error } = await supabase
       .from('orders')
-      .update({ 
+      .update({
         status,
         updated_at: new Date().toISOString()
       })
       .eq('id', orderId);
-    
+
     if (error) {
       console.error('Erro ao atualizar status:', error);
       return false;
     }
-    
+
     console.log(`📊 Status do pedido ${orderId} atualizado para: ${status}`);
     return true;
   }

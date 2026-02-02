@@ -44,16 +44,16 @@ export default async function handler(req, res) {
     const ASAAS_WALLET_JB = process.env.ASAAS_WALLET_JB;
 
     if (!ASAAS_API_KEY) {
-      return res.status(500).json({ 
-        success: false, 
+      return res.status(500).json({
+        success: false,
         error: 'ASAAS_API_KEY não configurada',
         hint: 'Configure no Vercel Dashboard > Settings > Environment Variables'
       });
     }
 
     if (!ASAAS_WALLET_RENUM || !ASAAS_WALLET_JB) {
-      return res.status(500).json({ 
-        success: false, 
+      return res.status(500).json({
+        success: false,
         error: 'Wallets não configuradas',
         missing: {
           ASAAS_WALLET_RENUM: !ASAAS_WALLET_RENUM,
@@ -65,27 +65,27 @@ export default async function handler(req, res) {
     // Parse body
     const body = req.body || {};
     const { customer, orderId, amount, billingType, description, installments, creditCard, creditCardHolderInfo, referralCode } = body;
-    
+
     console.log('Checkout request:', { orderId, amount, billingType, referralCode: referralCode || 'none' });
 
     if (!customer || !orderId || !amount || !billingType) {
-      return res.status(400).json({ 
-        success: false, 
+      return res.status(400).json({
+        success: false,
         error: 'Dados obrigatórios faltando',
         required: ['customer', 'orderId', 'amount', 'billingType'],
-        received: { 
-          hasCustomer: !!customer, 
-          orderId: orderId || null, 
-          amount: amount || null, 
-          billingType: billingType || null 
+        received: {
+          hasCustomer: !!customer,
+          orderId: orderId || null,
+          amount: amount || null,
+          billingType: billingType || null
         }
       });
     }
 
     // Validar CPF/CNPJ obrigatório para Asaas
     if (!customer.cpfCnpj) {
-      return res.status(400).json({ 
-        success: false, 
+      return res.status(400).json({
+        success: false,
         error: 'CPF/CNPJ é obrigatório para processamento do pagamento',
         hint: 'O campo cpfCnpj deve ser enviado no objeto customer'
       });
@@ -93,8 +93,8 @@ export default async function handler(req, res) {
 
     // Validar dados do cartão se for pagamento com cartão
     if (billingType === 'CREDIT_CARD' && !creditCard) {
-      return res.status(400).json({ 
-        success: false, 
+      return res.status(400).json({
+        success: false,
         error: 'Dados do cartão são obrigatórios para pagamento com cartão de crédito',
         required: ['creditCard.holderName', 'creditCard.number', 'creditCard.expiryMonth', 'creditCard.expiryYear', 'creditCard.ccv']
       });
@@ -105,13 +105,13 @@ export default async function handler(req, res) {
     // Produção: $aact_prod_... ou $aact_MjA... (contém _prod_ ou começa com padrão de produção)
     // Sandbox: $aact_YTU5... (não contém _prod_)
     const isProduction = ASAAS_API_KEY.includes('_prod_');
-    const asaasBaseUrl = isProduction 
+    const asaasBaseUrl = isProduction
       ? 'https://api.asaas.com/v3'
       : 'https://api-sandbox.asaas.com/v3';
-    
+
     console.log('Asaas environment:', isProduction ? 'PRODUCTION' : 'SANDBOX');
     console.log('API Key prefix:', ASAAS_API_KEY.substring(0, 15) + '...');
-    
+
     const headers = {
       'Content-Type': 'application/json',
       'access_token': ASAAS_API_KEY
@@ -119,25 +119,25 @@ export default async function handler(req, res) {
 
     // Buscar ou criar customer
     let asaasCustomerId = null;
-    
+
     // Limpar CPF/CNPJ - remover pontos, traços e espaços
     const cleanCpfCnpj = customer.cpfCnpj ? customer.cpfCnpj.replace(/\D/g, '') : null;
-    
+
     const searchRes = await fetch(
       `${asaasBaseUrl}/customers?email=${encodeURIComponent(customer.email)}`,
       { method: 'GET', headers }
     );
-    
+
     if (searchRes.ok) {
       const searchData = await searchRes.json();
       if (searchData.data && searchData.data.length > 0) {
         const existingCustomer = searchData.data[0];
         asaasCustomerId = existingCustomer.id;
-        
+
         // Se o customer existe mas não tem CPF, atualizar
         if (!existingCustomer.cpfCnpj && cleanCpfCnpj) {
           console.log('Updating existing Asaas customer with CPF:', asaasCustomerId);
-          
+
           const updateRes = await fetch(`${asaasBaseUrl}/customers/${asaasCustomerId}`, {
             method: 'PUT',
             headers,
@@ -145,7 +145,7 @@ export default async function handler(req, res) {
               cpfCnpj: cleanCpfCnpj
             })
           });
-          
+
           if (!updateRes.ok) {
             const updateErr = await updateRes.json();
             console.error('Failed to update customer CPF:', updateErr);
@@ -177,11 +177,11 @@ export default async function handler(req, res) {
       });
 
       const responseData = await createRes.json();
-      
+
       if (!createRes.ok) {
         console.error('Asaas customer creation error:', JSON.stringify(responseData, null, 2));
-        return res.status(500).json({ 
-          success: false, 
+        return res.status(500).json({
+          success: false,
           error: 'Erro ao criar customer no Asaas',
           details: responseData,
           debug: {
@@ -196,35 +196,50 @@ export default async function handler(req, res) {
       console.log('Asaas customer created:', asaasCustomerId);
     }
 
-    // Criar pagamento
+    // ✅ NOVO: Verificar se é uma assinatura (Produto Agente IA)
+    const orderItems = body.orderItems || [];
+    const isIAProduct = orderItems.some(item => item.product_sku === 'COL-707D80' || item.sku === 'COL-707D80');
+    const isSubscription = isIAProduct;
+
+    // Criar data de vencimento (vivi para PIX/Boleto, início para Assinatura)
     const dueDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-    
+
     // Calcular split baseado na rede de afiliados
-    const splits = await calculateAffiliateSplit(referralCode, ASAAS_WALLET_RENUM, ASAAS_WALLET_JB);
-    
+    // ✅ NOVO: Passar flag isIAProduct para aplicar split invertido (70% Renum)
+    const splits = await calculateAffiliateSplit(referralCode, ASAAS_WALLET_RENUM, ASAAS_WALLET_JB, isIAProduct);
+
     console.log('Split calculado:', splits);
-    
-    // Payload base do pagamento
+    console.log(`Asaas Target: ${isSubscription ? 'SUBSCRIPTION' : 'PAYMENT'} (SKU IA: ${isIAProduct})`);
+    const asaasEndpoint = isSubscription ? '/subscriptions' : '/payments';
+
+    // Payload base do pagamento/assinatura
     const paymentPayload = {
       customer: asaasCustomerId,
       billingType: billingType,
       value: amount,
-      dueDate: dueDate,
-      description: description || `Pedido ${orderId}`,
       externalReference: orderId,
-      // Desabilitar multa e juros explicitamente
-      fine: { value: 0 },
-      interest: { value: 0 },
+      description: description || `Pedido ${orderId}${isSubscription ? ' - Assinatura Mensal Agente IA' : ''}`,
       split: splits
     };
 
-    // Adicionar parcelas se for cartão de crédito
-    if (billingType === 'CREDIT_CARD' && installments && installments > 1) {
-      paymentPayload.installmentCount = installments;
-      paymentPayload.installmentValue = amount / installments;
+    // Campos específicos de Cobrança única
+    if (!isSubscription) {
+      paymentPayload.dueDate = dueDate;
+      paymentPayload.fine = { value: 0 };
+      paymentPayload.interest = { value: 0 };
+
+      // Adicionar parcelas se for cartão de crédito
+      if (billingType === 'CREDIT_CARD' && installments && installments > 1) {
+        paymentPayload.installmentCount = installments;
+        paymentPayload.installmentValue = amount / installments;
+      }
+    } else {
+      // Campos específicos de Assinatura
+      paymentPayload.nextDueDate = dueDate;
+      paymentPayload.cycle = 'MONTHLY'; // Fixo mensal para o Agente IA
     }
 
-    const paymentRes = await fetch(`${asaasBaseUrl}/payments`, {
+    const paymentRes = await fetch(`${asaasBaseUrl}${asaasEndpoint}`, {
       method: 'POST',
       headers,
       body: JSON.stringify(paymentPayload)
@@ -234,8 +249,8 @@ export default async function handler(req, res) {
 
     if (!paymentRes.ok) {
       console.error('Asaas payment error:', JSON.stringify(paymentData, null, 2));
-      return res.status(500).json({ 
-        success: false, 
+      return res.status(500).json({
+        success: false,
         error: 'Erro ao criar pagamento no Asaas',
         details: paymentData,
         debug: {
@@ -251,15 +266,15 @@ export default async function handler(req, res) {
     // Se for PIX, buscar QR Code separadamente
     let pixQrCode = null;
     let pixCopyPaste = null;
-    
+
     if (billingType === 'PIX') {
       console.log('Fetching PIX QR Code for payment:', paymentData.id);
-      
+
       const pixRes = await fetch(`${asaasBaseUrl}/payments/${paymentData.id}/pixQrCode`, {
         method: 'GET',
         headers
       });
-      
+
       if (pixRes.ok) {
         const pixData = await pixRes.json();
         pixQrCode = pixData.encodedImage;
@@ -273,7 +288,7 @@ export default async function handler(req, res) {
     // Se for cartão de crédito com dados do cartão, processar pagamento imediatamente
     if (billingType === 'CREDIT_CARD' && creditCard) {
       console.log('Processing credit card payment for payment:', paymentData.id);
-      
+
       const payWithCardRes = await fetch(`${asaasBaseUrl}/payments/${paymentData.id}/payWithCreditCard`, {
         method: 'POST',
         headers,
@@ -300,8 +315,8 @@ export default async function handler(req, res) {
 
       if (!payWithCardRes.ok) {
         console.error('Asaas card payment error:', JSON.stringify(cardPaymentData, null, 2));
-        return res.status(500).json({ 
-          success: false, 
+        return res.status(500).json({
+          success: false,
           error: 'Erro ao processar pagamento com cartão',
           details: cardPaymentData
         });
@@ -368,8 +383,8 @@ export default async function handler(req, res) {
     });
 
   } catch (error) {
-    return res.status(500).json({ 
-      success: false, 
+    return res.status(500).json({
+      success: false,
       error: error.message || 'Erro interno',
       type: error.name || 'Error'
     });
@@ -385,7 +400,7 @@ async function getAffiliateNetwork(referralCode, supabase) {
     if (!referralCode) {
       return { n1: null, n2: null, n3: null };
     }
-    
+
     // Buscar N1 pelo referral_code
     const { data: n1, error: n1Error } = await supabase
       .from('affiliates')
@@ -394,15 +409,15 @@ async function getAffiliateNetwork(referralCode, supabase) {
       .eq('status', 'active')
       .is('deleted_at', null)
       .single();
-    
+
     if (n1Error || !n1) {
       console.log('N1 não encontrado:', referralCode);
       return { n1: null, n2: null, n3: null };
     }
-    
+
     let n2Id = null;
     let n3Id = null;
-    
+
     // Buscar N2 (quem indicou o N1)
     if (n1.referred_by) {
       const { data: n2 } = await supabase
@@ -412,10 +427,10 @@ async function getAffiliateNetwork(referralCode, supabase) {
         .eq('status', 'active')
         .is('deleted_at', null)
         .single();
-      
+
       if (n2) {
         n2Id = n2.id;
-        
+
         // Buscar N3 (quem indicou o N2)
         if (n2.referred_by) {
           const { data: n3 } = await supabase
@@ -425,16 +440,16 @@ async function getAffiliateNetwork(referralCode, supabase) {
             .eq('status', 'active')
             .is('deleted_at', null)
             .single();
-          
+
           if (n3) {
             n3Id = n3.id;
           }
         }
       }
     }
-    
+
     console.log('Rede encontrada:', { n1: n1.id, n2: n2Id, n3: n3Id });
-    
+
     return {
       n1: n1.id,
       n2: n2Id,
@@ -463,7 +478,7 @@ async function savePaymentToDatabase(data) {
 
     // ✅ NOVO: Buscar rede de afiliados se houver referralCode
     const affiliateNetwork = await getAffiliateNetwork(data.referralCode, supabase);
-    
+
     // ✅ NOVO: Atualizar pedido com dados dos afiliados
     if (data.referralCode) {
       const { error: updateError } = await supabase
@@ -476,7 +491,7 @@ async function savePaymentToDatabase(data) {
           updated_at: new Date().toISOString()
         })
         .eq('id', data.orderId);
-      
+
       if (updateError) {
         console.error('Erro ao atualizar afiliados do pedido:', updateError);
       } else {
@@ -587,19 +602,36 @@ async function updateOrderStatus(orderId, status) {
  * - Apenas N1: 15% N1 + 7.5% Renum + 7.5% JB
  * - N1 + N2: 15% N1 + 3% N2 + 6% Renum + 6% JB
  * - Rede completa: 15% N1 + 3% N2 + 2% N3 + 5% Renum + 5% JB
+ * 
+ * ✅ REGRA INVERTIDA (AGENTE IA - 70% RENUM):
+ * - Renum (Principal): 70% (Diferente da venda física, aqui ela é a dona do produto)
+ * - Rede (30% restantes): N1, N2, N3 mantêm proporções.
+ * - Slim Quality (Fábrica): Assume o papel de gerente (5%).
  */
-async function calculateAffiliateSplit(referralCode, walletRenum, walletJB) {
+async function calculateAffiliateSplit(referralCode, walletRenum, walletJB, isIAProduct = false) {
   const splits = [];
-  
+
+  // Se for Agente IA, Renum leva 70% logo de cara como dona do produto
+  if (isIAProduct) {
+    splits.push({ walletId: walletRenum, percentualValue: 70 });
+    console.log('💎 Produto IA detectado: Renum recebe 70% como principal.');
+  }
+
   // Se não tem referralCode, split vai todo para gestores
   if (!referralCode) {
+    if (isIAProduct) {
+      // Renum (70) + JB (15) + Slim (Restante 15) = 100%
+      splits.push({ walletId: walletJB, percentualValue: 15 });
+      return splits;
+    }
+
     console.log('Sem referralCode - split 15% Renum + 15% JB');
     return [
       { walletId: walletRenum, percentualValue: 15 },
       { walletId: walletJB, percentualValue: 15 }
     ];
   }
-  
+
   try {
     const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
     const supabaseKey = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY;
@@ -613,7 +645,7 @@ async function calculateAffiliateSplit(referralCode, walletRenum, walletJB) {
     }
 
     const supabase = createClient(supabaseUrl, supabaseKey);
-    
+
     // Buscar N1 pelo referral_code
     const { data: n1Affiliate, error: n1Error } = await supabase
       .from('affiliates')
@@ -622,26 +654,35 @@ async function calculateAffiliateSplit(referralCode, walletRenum, walletJB) {
       .eq('status', 'active')
       .is('deleted_at', null)
       .single();
-    
+
     if (n1Error || !n1Affiliate) {
       console.log('Afiliado N1 não encontrado para referralCode:', referralCode);
+      if (isIAProduct) {
+        // Fallback IA: Renum (70) + JB (15) + Slim (15)
+        splits.push({ walletId: walletJB, percentualValue: 15 });
+        return splits;
+      }
       return [
         { walletId: walletRenum, percentualValue: 15 },
         { walletId: walletJB, percentualValue: 15 }
       ];
     }
-    
+
     // Validar wallet_id do N1
     if (!n1Affiliate.wallet_id || !isValidWalletId(n1Affiliate.wallet_id)) {
       console.log('N1 sem wallet_id válido:', n1Affiliate.id);
+      if (isIAProduct) {
+        splits.push({ walletId: walletJB, percentualValue: 15 });
+        return splits;
+      }
       return [
         { walletId: walletRenum, percentualValue: 15 },
         { walletId: walletJB, percentualValue: 15 }
       ];
     }
-    
+
     console.log('N1 encontrado:', { id: n1Affiliate.id, wallet: n1Affiliate.wallet_id.substring(0, 10) + '...' });
-    
+
     // Buscar N2 (quem indicou o N1)
     let n2Affiliate = null;
     if (n1Affiliate.referred_by) {
@@ -652,13 +693,13 @@ async function calculateAffiliateSplit(referralCode, walletRenum, walletJB) {
         .eq('status', 'active')
         .is('deleted_at', null)
         .single();
-      
+
       if (n2Data?.wallet_id && isValidWalletId(n2Data.wallet_id)) {
         n2Affiliate = n2Data;
         console.log('N2 encontrado:', { id: n2Affiliate.id, wallet: n2Affiliate.wallet_id.substring(0, 10) + '...' });
       }
     }
-    
+
     // Buscar N3 (quem indicou o N2)
     let n3Affiliate = null;
     if (n2Affiliate?.referred_by) {
@@ -669,16 +710,26 @@ async function calculateAffiliateSplit(referralCode, walletRenum, walletJB) {
         .eq('status', 'active')
         .is('deleted_at', null)
         .single();
-      
+
       if (n3Data?.wallet_id && isValidWalletId(n3Data.wallet_id)) {
         n3Affiliate = n3Data;
         console.log('N3 encontrado:', { id: n3Affiliate.id, wallet: n3Affiliate.wallet_id.substring(0, 10) + '...' });
       }
     }
-    
+
     // Calcular split baseado na rede encontrada
     if (!n2Affiliate) {
-      // APENAS N1: 15% N1 + 7.5% Renum + 7.5% JB = 30%
+      // APENAS N1 (30% pool): 15% N1 + 7.5% Slim + 7.5% JB = 30%
+      // + 70% Renum (se IA)
+      if (isIAProduct) {
+        console.log('Split IA: N1 (15%) + JB (7.5%) + Slim (7.5%)');
+        splits.push(
+          { walletId: n1Affiliate.wallet_id, percentualValue: 15 },
+          { walletId: walletJB, percentualValue: 7.5 }
+        );
+        return splits; // Slim (7.5%) fica na principal
+      }
+
       console.log('Split: Apenas N1 (15% + 7.5% + 7.5%)');
       return [
         { walletId: n1Affiliate.wallet_id, percentualValue: 15 },
@@ -686,7 +737,17 @@ async function calculateAffiliateSplit(referralCode, walletRenum, walletJB) {
         { walletId: walletJB, percentualValue: 7.5 }
       ];
     } else if (!n3Affiliate) {
-      // N1 + N2: 15% N1 + 3% N2 + 6% Renum + 6% JB = 30%
+      // N1 + N2 (30% pool): 15% N1 + 3% N2 + 6% Slim + 6% JB = 30%
+      if (isIAProduct) {
+        console.log('Split IA: N1+N2 (15% + 3% + 6% + 6%)');
+        splits.push(
+          { walletId: n1Affiliate.wallet_id, percentualValue: 15 },
+          { walletId: n2Affiliate.wallet_id, percentualValue: 3 },
+          { walletId: walletJB, percentualValue: 6 }
+        );
+        return splits; // Slim (6%) fica na principal
+      }
+
       console.log('Split: N1+N2 (15% + 3% + 6% + 6%)');
       return [
         { walletId: n1Affiliate.wallet_id, percentualValue: 15 },
@@ -695,7 +756,18 @@ async function calculateAffiliateSplit(referralCode, walletRenum, walletJB) {
         { walletId: walletJB, percentualValue: 6 }
       ];
     } else {
-      // REDE COMPLETA: 15% N1 + 3% N2 + 2% N3 + 5% Renum + 5% JB = 30%
+      // REDE COMPLETA (30% pool): 15% N1 + 3% N2 + 2% N3 + 5% Slim + 5% JB = 30%
+      if (isIAProduct) {
+        console.log('Split IA: Rede completa (15% + 3% + 2% + 5% + 5%)');
+        splits.push(
+          { walletId: n1Affiliate.wallet_id, percentualValue: 15 },
+          { walletId: n2Affiliate.wallet_id, percentualValue: 3 },
+          { walletId: n3Affiliate.wallet_id, percentualValue: 2 },
+          { walletId: walletJB, percentualValue: 5 }
+        );
+        return splits; // Slim (5%) fica na principal
+      }
+
       console.log('Split: Rede completa (15% + 3% + 2% + 5% + 5%)');
       return [
         { walletId: n1Affiliate.wallet_id, percentualValue: 15 },
@@ -705,7 +777,7 @@ async function calculateAffiliateSplit(referralCode, walletRenum, walletJB) {
         { walletId: walletJB, percentualValue: 5 }
       ];
     }
-    
+
   } catch (error) {
     console.error('Erro ao calcular split:', error);
     // Fallback para split padrão

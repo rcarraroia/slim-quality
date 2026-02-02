@@ -66,7 +66,7 @@ export default async function handler(req, res) {
 
   try {
     const event = req.body;
-    
+
     console.log('=== WEBHOOK ASAAS RECEBIDO ===');
     console.log('Evento:', JSON.stringify(event, null, 2));
 
@@ -198,19 +198,19 @@ export default async function handler(req, res) {
 
     console.log(`=== WEBHOOK PROCESSADO COM SUCESSO ===`);
 
-    return res.status(200).json({ 
-      received: true, 
+    return res.status(200).json({
+      received: true,
       orderId,
       orderStatus,
-      paymentStatus 
+      paymentStatus
     });
 
   } catch (error) {
     console.error('Erro no webhook:', error);
     // Retornar 200 para não penalizar
-    return res.status(200).json({ 
-      received: true, 
-      error: error.message 
+    return res.status(200).json({
+      received: true,
+      error: error.message
     });
   }
 }
@@ -280,12 +280,20 @@ async function processCommissions(supabase, orderId, paymentValue) {
   };
 
   try {
-    console.log(`💰 Iniciando cálculo de comissões para pedido ${orderId}`);
+    const isSubscription = event.payment?.subscription || false;
+    console.log(`💰 Iniciando cálculo de comissões para pedido ${orderId}${isSubscription ? ' (Cobrança de Assinatura)' : ''}`);
 
     // Buscar pedido com dados de afiliado
     const { data: order, error: orderError } = await supabase
       .from('orders')
-      .select('affiliate_n1_id, affiliate_n2_id, affiliate_n3_id, total_cents, referral_code')
+      .select(`
+        affiliate_n1_id, 
+        affiliate_n2_id, 
+        affiliate_n3_id, 
+        total_cents, 
+        referral_code,
+        order_items (product_id, product_name, product_sku)
+      `)
       .eq('id', orderId)
       .single();
 
@@ -313,10 +321,16 @@ async function processCommissions(supabase, orderId, paymentValue) {
     }
 
     const baseValue = order.total_cents;
-    
+
+    // ✅ NOVO: Verificar se é Agente IA
+    const isIAProduct = order.order_items?.some(item =>
+      item.product_sku === 'COL-707D80' || item.product_name?.toLowerCase().includes('agente ia')
+    ) || false;
+
     // Registrar input
     logData.input_data = {
       orderValue: baseValue,
+      isIAProduct: isIAProduct,
       affiliateN1Id: order.affiliate_n1_id,
       affiliateN2Id: order.affiliate_n2_id,
       affiliateN3Id: order.affiliate_n3_id,
@@ -330,7 +344,8 @@ async function processCommissions(supabase, orderId, paymentValue) {
       baseValue,
       order.affiliate_n1_id,
       order.affiliate_n2_id,
-      order.affiliate_n3_id
+      order.affiliate_n3_id,
+      isIAProduct // ✅ NOVO: Flag de IA
     );
 
     // Registrar output
@@ -435,6 +450,73 @@ async function processCommissions(supabase, orderId, paymentValue) {
     }));
 
     // Inserir comissões
+    // ✅ NOVO: Ajustar metadados para refletir swap Renum/Slim Quality se for IA
+    if (isIAProduct) {
+      commissions.push({
+        order_id: orderId,
+        affiliate_id: null,
+        level: 0, // Manager Nível 0
+        percentage: result.renumPercentage,
+        base_value_cents: baseValue,
+        commission_value_cents: result.renumValue,
+        original_percentage: 0.05,
+        redistribution_applied: result.redistributionApplied,
+        status: 'pending',
+        metadata: {
+          level: 'manager_slim_quality',
+          is_ia: true,
+          manager_name: 'Slim Quality' // Invertido: Slim Quality é a manager no Agente IA
+        }
+      });
+
+      commissions.push({
+        order_id: orderId,
+        affiliate_id: null,
+        level: 0,
+        percentage: result.jbPercentage,
+        base_value_cents: baseValue,
+        commission_value_cents: result.jbValue,
+        original_percentage: 0.05,
+        redistribution_applied: result.redistributionApplied,
+        status: 'pending',
+        metadata: {
+          level: 'manager_jb',
+          is_ia: true,
+          manager_name: 'JB'
+        }
+      });
+    } else {
+      // Fluxo normal (Colchões): Renum e JB são managers
+      if (result.renumValue > 0) {
+        commissions.push({
+          order_id: orderId,
+          affiliate_id: null,
+          level: 0,
+          percentage: result.renumPercentage,
+          base_value_cents: baseValue,
+          commission_value_cents: result.renumValue,
+          original_percentage: 0.05,
+          redistribution_applied: result.redistributionApplied,
+          status: 'pending',
+          metadata: { level: 'manager_renum', manager_name: 'Renum' }
+        });
+      }
+      if (result.jbValue > 0) {
+        commissions.push({
+          order_id: orderId,
+          affiliate_id: null,
+          level: 0,
+          percentage: result.jbPercentage,
+          base_value_cents: baseValue,
+          commission_value_cents: result.jbValue,
+          original_percentage: 0.05,
+          redistribution_applied: result.redistributionApplied,
+          status: 'pending',
+          metadata: { level: 'manager_jb', manager_name: 'JB' }
+        });
+      }
+    }
+
     const { error: commissionError } = await supabase
       .from('commissions')
       .insert(commissions);
@@ -454,29 +536,35 @@ async function processCommissions(supabase, orderId, paymentValue) {
       factory_value_cents: Math.round(baseValue * 0.70),
       commission_percentage: 0.30,
       commission_value_cents: result.totalCommission,
-      
+
       n1_affiliate_id: order.affiliate_n1_id,
       n1_percentage: 0.15,
       n1_value_cents: result.n1Value,
-      
+
       n2_affiliate_id: order.affiliate_n2_id,
       n2_percentage: order.affiliate_n2_id ? 0.03 : 0,
       n2_value_cents: result.n2Value,
-      
+
       n3_affiliate_id: order.affiliate_n3_id,
       n3_percentage: order.affiliate_n3_id ? 0.02 : 0,
       n3_value_cents: result.n3Value,
-      
+
       renum_percentage: result.renumPercentage,
       renum_value_cents: result.renumValue,
-      
+
       jb_percentage: result.jbPercentage,
       jb_value_cents: result.jbValue,
-      
+
       redistribution_applied: result.redistributionApplied,
       redistribution_details: result.redistributionDetails,
-      
-      status: 'pending'
+      status: 'pending',
+      // ✅ NOVO: Registrar beneficiário principal (Renum no Agente IA)
+      main_receiver_wallet_id: isIAProduct ? process.env.ASAAS_WALLET_RENUM : null,
+      asaas_response: {
+        is_ia: isIAProduct,
+        factory_beneficiary: isIAProduct ? 'Renum' : 'Slim Quality',
+        manager_beneficiary: isIAProduct ? 'Slim Quality' : 'Renum'
+      }
     };
 
     const { error: splitError } = await supabase
@@ -531,7 +619,8 @@ async function calculateCommissionsWithRedistribution(
   orderValue,
   n1Id,
   n2Id,
-  n3Id
+  n3Id,
+  isIA = false // ✅ NOVO: Suporte a inversão de papéis
 ) {
   // Valores base
   const n1Value = Math.round(orderValue * 0.15); // 15%
@@ -554,7 +643,7 @@ async function calculateCommissionsWithRedistribution(
     renumPercentage += redistributionPerGestor;
     jbPercentage += redistributionPerGestor;
     redistributionApplied = true;
-    
+
     redistributionDetails = {
       unusedPercentage,
       redistributedToRenum: redistributionPerGestor,

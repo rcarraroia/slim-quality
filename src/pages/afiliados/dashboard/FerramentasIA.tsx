@@ -4,13 +4,16 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/config/supabase";
-import { Loader2, Bot, CheckCircle, AlertCircle, ExternalLink } from "lucide-react";
+import { Loader2, Bot, CheckCircle, AlertCircle, ExternalLink, X } from "lucide-react";
 import { toast } from "sonner";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import AffiliateAwareCheckout from "@/components/checkout/AffiliateAwareCheckout";
 
 interface Product {
     id: string;
     name: string;
     slug: string;
+    sku: string;
     description: string;
     price_cents: number;
 }
@@ -27,6 +30,7 @@ export default function FerramentasIA() {
     const [loading, setLoading] = useState(true);
     const [product, setProduct] = useState<Product | null>(null);
     const [subscription, setSubscription] = useState<Subscription | null>(null);
+    const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
 
     useEffect(() => {
         loadData();
@@ -43,7 +47,7 @@ export default function FerramentasIA() {
             // 2. Buscar produto Agente IA
             const { data: productData, error: productError } = await supabase
                 .from('products')
-                .select('id, name, slug, description, price_cents')
+                .select('id, name, slug, sku, description, price_cents')
                 .eq('category', 'ferramenta_ia')
                 .eq('is_active', true)
                 .maybeSingle();
@@ -202,7 +206,7 @@ export default function FerramentasIA() {
                             <Button
                                 className="w-full gap-2"
                                 size="lg"
-                                onClick={() => navigate(`/produtos/${product.slug}`)}
+                                onClick={() => setIsCheckoutOpen(true)}
                             >
                                 Assinar Agora
                                 <ExternalLink className="h-4 w-4" />
@@ -229,6 +233,34 @@ export default function FerramentasIA() {
                     </CardContent>
                 </Card>
             </div>
+
+            {/* Modal de Checkout */}
+            <Dialog open={isCheckoutOpen} onOpenChange={setIsCheckoutOpen}>
+                <DialogContent className="max-w-4xl p-0 overflow-hidden bg-background">
+                    <DialogHeader className="p-6 pb-0">
+                        <DialogTitle className="text-2xl font-bold flex items-center gap-2">
+                            <Bot className="h-6 w-6 text-primary" />
+                            Assinar {product.name}
+                        </DialogTitle>
+                    </DialogHeader>
+                    <div className="max-h-[85vh] overflow-y-auto p-6 pt-2">
+                        <AffiliateAwareCheckout
+                            product={{
+                                id: product.id,
+                                name: product.name,
+                                sku: product.sku,
+                                price_cents: product.price_cents
+                            }}
+                            onClose={() => setIsCheckoutOpen(false)}
+                            onOrderComplete={(orderId) => {
+                                setIsCheckoutOpen(false);
+                                toast.success("Pedido realizado com sucesso!");
+                                loadData(); // Recarregar para ver se ativou (webhook pode demorar um pouco)
+                            }}
+                        />
+                    </div>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }
