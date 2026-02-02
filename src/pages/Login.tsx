@@ -72,7 +72,11 @@ export default function Login() {
         const returnUrl = localStorage.getItem('login_return_url');
         if (returnUrl) {
           localStorage.removeItem('login_return_url');
-          navigate(returnUrl);
+          if (returnUrl.startsWith('http')) {
+            window.location.href = returnUrl;
+          } else {
+            navigate(returnUrl);
+          }
         } else {
           navigate("/dashboard");
         }

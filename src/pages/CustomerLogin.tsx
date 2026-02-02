@@ -22,7 +22,7 @@ export default function CustomerLogin() {
   const [searchParams] = useSearchParams();
   const { toast } = useToast();
   const { login, register, isAuthenticated, isLoading, isAffiliate } = useCustomerAuth();
-  
+
   const [mode, setMode] = useState<FormMode>('login');
   const [formData, setFormData] = useState({
     name: '',
@@ -48,7 +48,11 @@ export default function CustomerLogin() {
       const returnUrl = localStorage.getItem('customer_login_return_url');
       if (returnUrl) {
         localStorage.removeItem('customer_login_return_url');
-        navigate(returnUrl);
+        if (returnUrl.startsWith('http')) {
+          window.location.href = returnUrl;
+        } else {
+          navigate(returnUrl);
+        }
       } else if (isAffiliate) {
         navigate("/afiliados/dashboard");
       } else {
@@ -169,14 +173,14 @@ export default function CustomerLogin() {
   return (
     <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden">
       <div className="absolute inset-0 bg-gradient-to-br from-green-500/10 via-purple-500/10 to-background -z-10" />
-      
+
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-1 text-center">
           <div className="flex justify-center mb-4">
-            <img 
-              src="/logo.png" 
-              alt="Slim Quality" 
-              className="h-16 w-auto" 
+            <img
+              src="/logo.png"
+              alt="Slim Quality"
+              className="h-16 w-auto"
             />
           </div>
           <CardTitle className="text-2xl">
@@ -263,10 +267,10 @@ export default function CustomerLogin() {
                 />
               </div>
             )}
-            
-            <Button 
-              type="submit" 
-              className="w-full bg-green-600 hover:bg-green-700" 
+
+            <Button
+              type="submit"
+              className="w-full bg-green-600 hover:bg-green-700"
               disabled={isSubmitting}
             >
               {isSubmitting ? (
@@ -283,15 +287,15 @@ export default function CustomerLogin() {
               )}
             </Button>
           </form>
-          
+
           <Separator className="my-4" />
-          
+
           <div className="space-y-2 text-center text-sm">
             {mode === 'login' && (
               <>
                 <p>
                   Não tem conta?{" "}
-                  <button 
+                  <button
                     type="button"
                     onClick={() => setMode('register')}
                     className="text-green-600 hover:underline font-medium"
@@ -300,7 +304,7 @@ export default function CustomerLogin() {
                   </button>
                 </p>
                 <p>
-                  <button 
+                  <button
                     type="button"
                     onClick={() => setMode('forgot')}
                     className="text-muted-foreground hover:underline"
@@ -314,7 +318,7 @@ export default function CustomerLogin() {
             {mode === 'register' && (
               <p>
                 Já tem conta?{" "}
-                <button 
+                <button
                   type="button"
                   onClick={() => setMode('login')}
                   className="text-green-600 hover:underline font-medium"
@@ -325,7 +329,7 @@ export default function CustomerLogin() {
             )}
 
             {mode === 'forgot' && (
-              <button 
+              <button
                 type="button"
                 onClick={() => setMode('login')}
                 className="flex items-center justify-center gap-1 text-muted-foreground hover:underline mx-auto"
@@ -337,10 +341,10 @@ export default function CustomerLogin() {
           </div>
 
           <Separator className="my-4" />
-          
-          <Button 
-            type="button" 
-            variant="outline" 
+
+          <Button
+            type="button"
+            variant="outline"
             className="w-full"
             onClick={() => navigate("/afiliados")}
           >
