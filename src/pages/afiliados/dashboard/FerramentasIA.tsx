@@ -183,7 +183,17 @@ export default function FerramentasIA() {
                             <Button
                                 className="w-full gap-2 bg-success hover:bg-success/90 text-white"
                                 size="lg"
-                                onClick={() => window.open('https://agente-multi-tenant.vercel.app/', '_blank')}
+                                onClick={async () => {
+                                    const { data: { session } } = await supabase.auth.getSession();
+                                    const baseUrl = 'https://agente-multi-tenant.vercel.app/';
+                                    if (session) {
+                                        // Passa os tokens via hash para o Supabase detectar automaticamente no destino
+                                        const hash = `access_token=${session.access_token}&refresh_token=${session.refresh_token}&expires_in=${session.expires_in}&token_type=bearer`;
+                                        window.open(`${baseUrl}#${hash}`, '_blank');
+                                    } else {
+                                        window.open(baseUrl, '_blank');
+                                    }
+                                }}
                             >
                                 Acessar Portal do Agente
                                 <ExternalLink className="h-4 w-4" />
