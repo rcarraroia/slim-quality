@@ -478,7 +478,8 @@ export class CheckoutService {
       });
 
       // Chamar backend seguro (API key protegida no servidor)
-      const backendUrl = import.meta.env.VITE_API_URL || 'https://slimquality.com.br';
+      // Usar caminho relativo para que a Vercel trate corretamente no mesmo domínio
+      const backendUrl = '';
 
       // Preparar payload
       const checkoutPayload: Record<string, unknown> = {
