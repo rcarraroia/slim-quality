@@ -35,8 +35,11 @@ export class CheckoutService {
       // 3. Criar item do pedido
       await this.createOrderItem(order.id, data.product);
 
-      // 4. Criar endereço de entrega
-      await this.createShippingAddress(order.id, data.shipping);
+      // 4. Criar endereço de entrega (Apenas para produtos físicos)
+      const isDigital = data.product.sku === 'COL-707D80';
+      if (!isDigital) {
+        await this.createShippingAddress(order.id, data.shipping);
+      }
 
       // 5. Processar afiliado (se houver)
       if (data.affiliate) {
@@ -438,12 +441,12 @@ export class CheckoutService {
         throw new Error('Itens do pedido não encontrados');
       }
 
-      // Buscar endereço de entrega
+      // Buscar endereço de entrega (Pode não existir para produtos digitais)
       const { data: shippingAddress } = await supabase
         .from('shipping_addresses')
         .select('*')
         .eq('order_id', order.id)
-        .single();
+        .maybeSingle();
 
       const firstItem = orderItems[0];
 

@@ -231,13 +231,13 @@ export default function AffiliateAwareCheckout({
         },
         shipping: {
           recipient_name: customerData.name,
-          street: isDigital ? null : customerData.street,
-          number: isDigital ? null : customerData.number,
-          complement: isDigital ? null : customerData.complement,
-          neighborhood: isDigital ? null : customerData.neighborhood,
-          city: isDigital ? null : customerData.city,
-          state: isDigital ? null : customerData.state,
-          postal_code: isDigital ? null : customerData.postal_code,
+          street: isDigital ? 'Acesso Digital' : customerData.street,
+          number: isDigital ? 'S/N' : customerData.number,
+          complement: isDigital ? 'Digital' : customerData.complement,
+          neighborhood: isDigital ? 'Digital' : customerData.neighborhood,
+          city: isDigital ? 'SAO PAULO' : customerData.city,
+          state: isDigital ? 'SP' : customerData.state,
+          postal_code: isDigital ? '00000-000' : customerData.postal_code,
           phone: customerData.phone
         },
         payment: {
