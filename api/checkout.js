@@ -44,12 +44,27 @@ export default async function handler(req, res) {
     const ASAAS_WALLET_JB = process.env.ASAAS_WALLET_JB;
 
     if (!ASAAS_API_KEY) {
+      console.error('❌ ASAAS_API_KEY está vazia ou não definida no process.env');
       return res.status(500).json({
         success: false,
         error: 'ASAAS_API_KEY não configurada',
         hint: 'Configure no Vercel Dashboard > Settings > Environment Variables'
       });
     }
+
+    const trimmedKey = ASAAS_API_KEY.trim();
+    // Produção: contém _prod_ | Sandbox: padrão contrário
+    const isProduction = trimmedKey.includes('_prod_');
+    const asaasBaseUrl = isProduction
+      ? 'https://api.asaas.com/v3'
+      : 'https://api-sandbox.asaas.com/v3';
+
+    console.log('📡 Asaas Auth Diag:', {
+      envDetected: isProduction ? 'PRODUCTION' : 'SANDBOX',
+      keyLength: trimmedKey.length,
+      keyPrefix: trimmedKey.substring(0, 10),
+      hasDollarPrefix: trimmedKey.startsWith('$')
+    });
 
     if (!ASAAS_WALLET_RENUM || !ASAAS_WALLET_JB) {
       return res.status(500).json({
@@ -100,21 +115,9 @@ export default async function handler(req, res) {
       });
     }
 
-    // Headers para Asaas
-    // Detectar ambiente baseado na API key
-    // Produção: $aact_prod_... ou $aact_MjA... (contém _prod_ ou começa com padrão de produção)
-    // Sandbox: $aact_YTU5... (não contém _prod_)
-    const isProduction = ASAAS_API_KEY.includes('_prod_');
-    const asaasBaseUrl = isProduction
-      ? 'https://api.asaas.com/v3'
-      : 'https://api-sandbox.asaas.com/v3';
-
-    console.log('Asaas environment:', isProduction ? 'PRODUCTION' : 'SANDBOX');
-    console.log('API Key prefix:', ASAAS_API_KEY.substring(0, 15) + '...');
-
     const headers = {
       'Content-Type': 'application/json',
-      'access_token': ASAAS_API_KEY
+      'access_token': trimmedKey
     };
 
     // Buscar ou criar customer
