@@ -16,13 +16,70 @@ export default async function handler(req, res) {
     return res.status(200).end();
   }
 
-  // GET para diagnóstico
+  // GET para diagnóstico COMPLETO (testa autenticação real no Asaas)
   if (req.method === 'GET') {
+    const ASAAS_API_KEY = process.env.ASAAS_API_KEY;
+    const keyInfo = {
+      hasKey: !!ASAAS_API_KEY,
+      keyLength: ASAAS_API_KEY?.length || 0,
+      keyPrefix: ASAAS_API_KEY?.substring(0, 10) || 'N/A',
+      hasDollarPrefix: ASAAS_API_KEY?.startsWith('$') || false,
+      trimmedLength: ASAAS_API_KEY?.trim().length || 0
+    };
+
+    // Detectar ambiente baseado na chave
+    const trimmedKey = ASAAS_API_KEY?.trim() || '';
+    const isProduction = trimmedKey.includes('_prod_');
+    const asaasBaseUrl = isProduction
+      ? 'https://api.asaas.com/v3'
+      : 'https://api-sandbox.asaas.com/v3';
+
+    // Teste de autenticação real no Asaas
+    let authTestResult = { success: false, error: 'Não testado' };
+    if (ASAAS_API_KEY) {
+      try {
+        const testResponse = await fetch(`${asaasBaseUrl}/customers?limit=1`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'access_token': trimmedKey
+          }
+        });
+
+        const testData = await testResponse.json();
+
+        if (testResponse.ok) {
+          authTestResult = {
+            success: true,
+            status: testResponse.status,
+            message: 'Autenticação OK! Chave válida.',
+            customersFound: testData.totalCount || 0
+          };
+        } else {
+          authTestResult = {
+            success: false,
+            status: testResponse.status,
+            error: testData.errors?.[0]?.description || testData.message || 'Erro desconhecido',
+            rawResponse: testData
+          };
+        }
+      } catch (fetchError) {
+        authTestResult = {
+          success: false,
+          error: `Erro de conexão: ${fetchError.message}`
+        };
+      }
+    }
+
     return res.status(200).json({
-      status: 'ok',
-      message: 'Checkout API funcionando',
+      status: authTestResult.success ? 'ok' : 'auth_failed',
+      message: authTestResult.success ? 'Checkout API funcionando' : 'Falha na autenticação do Asaas',
+      keyDiagnostic: keyInfo,
+      environment: isProduction ? 'PRODUCTION' : 'SANDBOX',
+      asaasBaseUrl: asaasBaseUrl,
+      authTest: authTestResult,
       env: {
-        hasAsaasKey: !!process.env.ASAAS_API_KEY,
+        hasAsaasKey: !!ASAAS_API_KEY,
         hasWalletRenum: !!process.env.ASAAS_WALLET_RENUM,
         hasWalletJB: !!process.env.ASAAS_WALLET_JB,
         hasSupabaseUrl: !!process.env.SUPABASE_URL || !!process.env.VITE_SUPABASE_URL,
