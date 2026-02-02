@@ -326,11 +326,44 @@ export default async function handler(req, res) {
     // Se for PIX, buscar QR Code separadamente
     let pixQrCode = null;
     let pixCopyPaste = null;
+    let paymentIdForPix = paymentData.id;
 
     if (billingType === 'PIX') {
-      console.log('Fetching PIX QR Code for payment:', paymentData.id);
+      // ✅ Para ASSINATURAS, precisamos buscar a primeira cobrança gerada
+      if (isSubscription) {
+        console.log('Subscription created, fetching first payment for PIX QR Code...');
 
-      const pixRes = await fetch(`${asaasBaseUrl}/payments/${paymentData.id}/pixQrCode`, {
+        // Aguardar um pouco para o Asaas gerar a cobrança (pode levar alguns ms)
+        await new Promise(resolve => setTimeout(resolve, 1000));
+
+        // Buscar cobranças da assinatura
+        const paymentsRes = await fetch(`${asaasBaseUrl}/subscriptions/${paymentData.id}/payments`, {
+          method: 'GET',
+          headers
+        });
+
+        if (paymentsRes.ok) {
+          const paymentsData = await paymentsRes.json();
+          console.log('Subscription payments found:', paymentsData.totalCount);
+
+          if (paymentsData.data && paymentsData.data.length > 0) {
+            // Pegar a primeira cobrança (mais recente ou pendente)
+            const firstPayment = paymentsData.data[0];
+            paymentIdForPix = firstPayment.id;
+            console.log('Using payment ID for PIX QR Code:', paymentIdForPix);
+          } else {
+            console.warn('No payments found for subscription yet');
+          }
+        } else {
+          const paymentsError = await paymentsRes.text();
+          console.error('Failed to fetch subscription payments:', paymentsError);
+        }
+      }
+
+      // Buscar QR Code do pagamento (seja de cobrança única ou da primeira cobrança da assinatura)
+      console.log('Fetching PIX QR Code for payment:', paymentIdForPix);
+
+      const pixRes = await fetch(`${asaasBaseUrl}/payments/${paymentIdForPix}/pixQrCode`, {
         method: 'GET',
         headers
       });
@@ -341,9 +374,11 @@ export default async function handler(req, res) {
         pixCopyPaste = pixData.payload;
         console.log('PIX QR Code obtained successfully');
       } else {
-        console.warn('Failed to get PIX QR Code, using fallback');
+        const pixError = await pixRes.text();
+        console.warn('Failed to get PIX QR Code:', pixError);
       }
     }
+
 
     // Se for cartão de crédito com dados do cartão, processar pagamento imediatamente
     if (billingType === 'CREDIT_CARD' && creditCard) {
