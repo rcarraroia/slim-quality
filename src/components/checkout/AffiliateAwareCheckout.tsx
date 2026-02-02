@@ -107,8 +107,8 @@ export default function AffiliateAwareCheckout({
         return;
       }
 
-      // Validar senha se não estiver logado
-      if (!isAuthenticated) {
+      // Validar senha se não estiver logado (e não for produto digital/dashboard)
+      if (!isAuthenticated && !isDigital) {
         if (!customerData.password) {
           toast({
             title: "Senha obrigatória",
@@ -153,10 +153,16 @@ export default function AffiliateAwareCheckout({
         }
       }
 
-      let userId: string | null = null;
+      let userId: string | null = loggedUser?.id || null;
 
-      // Se não estiver logado, criar conta primeiro
-      if (!isAuthenticated) {
+      // Se não tiver userId do hook, tentar buscar direto do Supabase (fallback para dashboard)
+      if (!userId) {
+        const { data: { user: supabaseUser } } = await supabase.auth.getUser();
+        userId = supabaseUser?.id || null;
+      }
+
+      // Se ainda não estiver logado e NÃO for digital, criar conta primeiro
+      if (!userId && !isDigital) {
         // Criar usuário no auth.users
         const { data: authData, error: authError } = await supabase.auth.signUp({
           email: customerData.email,
@@ -183,9 +189,17 @@ export default function AffiliateAwareCheckout({
           return;
         }
 
-        userId = authData.user?.id || null;
-      } else {
-        userId = loggedUser?.id || null;
+        userId = userId; // Mantém o ID encontrado ou criado
+      }
+
+      // Se for digital e ainda não tivermos userId, erro crítico
+      if (isDigital && !userId) {
+        toast({
+          title: "Sessão expirada",
+          description: "Sua sessão expirou. Por favor, faça login novamente no painel.",
+          variant: "destructive"
+        });
+        return;
       }
 
       // Montar dados do checkout (excluindo campos que não existem na tabela customers)
@@ -370,7 +384,8 @@ export default function AffiliateAwareCheckout({
           {!orderCreated && (
             <div className="space-y-4">
               {/* Link para login se já tem conta */}
-              {!isAuthenticated && (
+              {/* Link para login se já tem conta - Esconder se for digital (afiliado logado no painel) */}
+              {!isAuthenticated && !isDigital && (
                 <div className="flex items-center justify-center gap-2 p-3 bg-muted/50 rounded-lg">
                   <LogIn className="h-4 w-4 text-muted-foreground" />
                   <span className="text-sm text-muted-foreground">Já tem conta?</span>
@@ -444,13 +459,13 @@ export default function AffiliateAwareCheckout({
                   required
                 />
 
-                {/* Campos de senha - apenas se não estiver logado */}
-                {!isAuthenticated && (
+                {/* Campos de senha - apenas se não estiver logado E não for digital */}
+                {!isAuthenticated && !isDigital && (
                   <>
                     <div className="pt-2 border-t">
                       <h4 className="font-semibold text-sm mb-2">Criar sua conta:</h4>
                     </div>
-
+                    {/* ... (restante do conteúdo oculto via !isDigital) ... */}
                     <div className="relative">
                       <input
                         type={showPassword ? "text" : "password"}
@@ -458,7 +473,7 @@ export default function AffiliateAwareCheckout({
                         value={customerData.password}
                         onChange={(e) => updateCustomerData('password', e.target.value)}
                         className="w-full px-3 py-2 pr-10 border rounded-md text-sm"
-                        required
+                        required={!isDigital}
                         minLength={6}
                       />
                       <button
@@ -481,7 +496,7 @@ export default function AffiliateAwareCheckout({
                           ? 'border-red-500'
                           : ''
                           }`}
-                        required
+                        required={!isDigital}
                       />
                       <button
                         type="button"
