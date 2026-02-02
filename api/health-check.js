@@ -2,13 +2,8 @@
  * Vercel Serverless Function - Health Check Asaas
  * Monitora a conexão com o Asaas e envia alertas se houver problemas
  * 
- * Executa: Manualmente via GET ou via Cron Job da Vercel
+ * Executa: Manualmente via GET ou via Cron Job configurado no vercel.json
  */
-
-export const config = {
-    // Cron: Roda a cada 6 horas
-    cron: '0 */6 * * *'
-};
 
 export default async function handler(req, res) {
     // CORS headers
