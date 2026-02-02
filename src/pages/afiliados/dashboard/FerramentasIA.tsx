@@ -149,7 +149,7 @@ export default function FerramentasIA() {
                                     </p>
                                 </div>
                                 <p className="text-sm text-muted-foreground">
-                                    Para configurar seu agente, acesse o menu exclusivo de configurações (em breve).
+                                    Acesse o portal exclusivo para configurar o seu agente, conectar o WhatsApp e gerenciar seus leads.
                                 </p>
                             </div>
                         ) : (
@@ -180,8 +180,13 @@ export default function FerramentasIA() {
                     </CardContent>
                     <CardFooter>
                         {isActive ? (
-                            <Button variant="outline" className="w-full" disabled>
-                                Gerenciar Assinatura (Em Breve)
+                            <Button
+                                className="w-full gap-2 bg-success hover:bg-success/90 text-white"
+                                size="lg"
+                                onClick={() => window.open('https://agente-multi-tenant.vercel.app/', '_blank')}
+                            >
+                                Acessar Portal do Agente
+                                <ExternalLink className="h-4 w-4" />
                             </Button>
                         ) : (
                             <Button
