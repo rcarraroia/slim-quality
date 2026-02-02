@@ -327,6 +327,7 @@ export default async function handler(req, res) {
     let pixQrCode = null;
     let pixCopyPaste = null;
     let paymentIdForPix = paymentData.id;
+    let subscriptionFirstPaymentInvoiceUrl = null;
 
     if (billingType === 'PIX') {
       // ✅ Para ASSINATURAS, precisamos buscar a primeira cobrança gerada
@@ -350,6 +351,7 @@ export default async function handler(req, res) {
             // Pegar a primeira cobrança (mais recente ou pendente)
             const firstPayment = paymentsData.data[0];
             paymentIdForPix = firstPayment.id;
+            subscriptionFirstPaymentInvoiceUrl = firstPayment.invoiceUrl;
             console.log('Using payment ID for PIX QR Code:', paymentIdForPix);
           } else {
             console.warn('No payments found for subscription yet');
@@ -470,7 +472,8 @@ export default async function handler(req, res) {
     return res.status(200).json({
       success: true,
       paymentId: paymentData.id,
-      checkoutUrl: paymentData.invoiceUrl,
+      // ✅ SE for assinatura, use o invoiceUrl da primeira cobrança, senão use o da resposta original
+      checkoutUrl: subscriptionFirstPaymentInvoiceUrl || paymentData.invoiceUrl,
       pixQrCode: pixQrCode,
       pixCopyPaste: pixCopyPaste,
       boletoUrl: paymentData.bankSlipUrl,
