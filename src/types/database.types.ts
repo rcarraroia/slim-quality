@@ -26,12 +26,13 @@ export interface Customer {
   assigned_to?: string;
   status: 'active' | 'inactive';
   notes?: string;
+  user_id?: string;
   created_at: string;
   updated_at: string;
   deleted_at?: string;
 }
 
-export type CustomerSource = 
+export type CustomerSource =
   | 'affiliate'
   | 'organic'
   | 'website'
@@ -60,6 +61,7 @@ export interface CreateCustomerData {
   source: CustomerSource;
   referral_code?: string;
   status?: 'active' | 'inactive';
+  user_id?: string;
   notes?: string;
 }
 
@@ -90,7 +92,7 @@ export interface Order {
   deleted_at?: string;
 }
 
-export type OrderStatus = 
+export type OrderStatus =
   | 'pending'
   | 'confirmed'
   | 'processing'
@@ -213,7 +215,7 @@ export interface CreditCardData {
 export interface CheckoutData {
   // Dados do cliente
   customer: CreateCustomerData;
-  
+
   // Dados do produto
   product: {
     id: string;
@@ -222,23 +224,23 @@ export interface CheckoutData {
     price_cents: number;
     quantity: number;
   };
-  
+
   // Dados de entrega
   shipping: Omit<CreateShippingAddressData, 'order_id'>;
-  
+
   // Dados de pagamento
   payment: {
     method: 'pix' | 'credit_card';
     installments?: number;
     creditCard?: CreditCardData; // Dados do cartão para checkout transparente
   };
-  
+
   // Dados de afiliado (se houver)
   affiliate?: {
     referral_code: string;
     affiliate_id?: string;
   };
-  
+
   // Totais
   totals: {
     subtotal_cents: number;

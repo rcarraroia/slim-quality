@@ -32,13 +32,15 @@ interface AffiliateAwareCheckoutProps {
   onOrderComplete?: (orderId: string) => void;
   onClose?: () => void;
   className?: string;
+  isDigital?: boolean; // ✅ NOVO: Modo simplificado sem endereço e login redundante
 }
 
-export default function AffiliateAwareCheckout({ 
-  product, 
+export default function AffiliateAwareCheckout({
+  product,
   onOrderComplete,
   onClose,
-  className 
+  className,
+  isDigital = false
 }: AffiliateAwareCheckoutProps) {
   const { referralInfo, trackConversion, getCurrentReferralCode } = useReferralTracking();
   const { toast } = useToast();
@@ -137,11 +139,11 @@ export default function AffiliateAwareCheckout({
 
       // Validar dados do cartão se for pagamento com cartão
       if (selectedPaymentMethod.type === 'credit_card') {
-        if (!selectedPaymentMethod.creditCard?.number || 
-            !selectedPaymentMethod.creditCard?.holderName ||
-            !selectedPaymentMethod.creditCard?.expiryMonth ||
-            !selectedPaymentMethod.creditCard?.expiryYear ||
-            !selectedPaymentMethod.creditCard?.ccv) {
+        if (!selectedPaymentMethod.creditCard?.number ||
+          !selectedPaymentMethod.creditCard?.holderName ||
+          !selectedPaymentMethod.creditCard?.expiryMonth ||
+          !selectedPaymentMethod.creditCard?.expiryYear ||
+          !selectedPaymentMethod.creditCard?.ccv) {
           toast({
             title: "Dados do cartão incompletos",
             description: "Preencha todos os dados do cartão de crédito.",
@@ -188,7 +190,7 @@ export default function AffiliateAwareCheckout({
 
       // Montar dados do checkout (excluindo campos que não existem na tabela customers)
       const { password, confirmPassword, cpf, ...customerDataClean } = customerData;
-      
+
       const checkoutData: CheckoutData = {
         customer: {
           ...customerDataClean,
@@ -237,7 +239,7 @@ export default function AffiliateAwareCheckout({
 
       if (result.success) {
         setOrderCreated(true);
-        
+
         toast({
           title: "🎉 Pedido criado com sucesso!",
           description: (
@@ -275,10 +277,10 @@ export default function AffiliateAwareCheckout({
 
     } catch (error) {
       console.error('Erro no checkout:', error);
-      
+
       let errorMessage = "Não foi possível processar seu pedido. Tente novamente.";
       let errorTitle = "Erro no checkout";
-      
+
       if (error instanceof Error) {
         if (error.message.includes('network') || error.message.includes('fetch')) {
           errorTitle = "Problema de conexão";
@@ -293,15 +295,15 @@ export default function AffiliateAwareCheckout({
           errorMessage = error.message;
         }
       }
-      
+
       toast({
         title: errorTitle,
         description: errorMessage,
         variant: "destructive",
         action: (
-          <Button 
-            variant="outline" 
-            size="sm" 
+          <Button
+            variant="outline"
+            size="sm"
             onClick={() => window.location.reload()}
           >
             Tentar Novamente
@@ -332,7 +334,7 @@ export default function AffiliateAwareCheckout({
             Finalizar Compra
           </CardTitle>
         </CardHeader>
-        
+
         <CardContent className="space-y-6">
           {/* Informações do Produto */}
           <div className="space-y-3">
@@ -344,8 +346,8 @@ export default function AffiliateAwareCheckout({
                 </p>
               </div>
               {product.image && (
-                <img 
-                  src={product.image} 
+                <img
+                  src={product.image}
                   alt={product.name}
                   className="w-16 h-16 object-cover rounded-lg"
                 />
@@ -360,6 +362,7 @@ export default function AffiliateAwareCheckout({
               onSelect={setSelectedPaymentMethod}
               selected={selectedPaymentMethod}
               className="mb-6"
+              maxInstallments={isDigital ? 1 : 12} // ✅ Travar em 1x se for digital (assinatura)
             />
           )}
 
@@ -371,8 +374,8 @@ export default function AffiliateAwareCheckout({
                 <div className="flex items-center justify-center gap-2 p-3 bg-muted/50 rounded-lg">
                   <LogIn className="h-4 w-4 text-muted-foreground" />
                   <span className="text-sm text-muted-foreground">Já tem conta?</span>
-                  <Link 
-                    to="/entrar" 
+                  <Link
+                    to="/entrar"
                     className="text-sm font-medium text-primary hover:underline"
                   >
                     Fazer login
@@ -390,8 +393,11 @@ export default function AffiliateAwareCheckout({
                 </div>
               )}
 
-              <h4 className="font-semibold text-sm">Dados para entrega:</h4>
-              
+              {/* ✅ NOVO: Título do formulário muda se for digital */}
+              <h4 className="font-semibold text-sm">
+                {isDigital ? 'Confirme seus dados de contato:' : 'Dados para entrega:'}
+              </h4>
+
               <div className="grid grid-cols-1 gap-3">
                 <input
                   type="text"
@@ -401,7 +407,7 @@ export default function AffiliateAwareCheckout({
                   className="w-full px-3 py-2 border rounded-md text-sm"
                   required
                 />
-                
+
                 <div className="grid grid-cols-2 gap-2">
                   <input
                     type="email"
@@ -420,7 +426,7 @@ export default function AffiliateAwareCheckout({
                     required
                   />
                 </div>
-                
+
                 <input
                   type="text"
                   placeholder="CPF * (apenas números)"
@@ -444,7 +450,7 @@ export default function AffiliateAwareCheckout({
                     <div className="pt-2 border-t">
                       <h4 className="font-semibold text-sm mb-2">Criar sua conta:</h4>
                     </div>
-                    
+
                     <div className="relative">
                       <input
                         type={showPassword ? "text" : "password"}
@@ -470,12 +476,11 @@ export default function AffiliateAwareCheckout({
                         placeholder="Confirmar senha *"
                         value={customerData.confirmPassword}
                         onChange={(e) => updateCustomerData('confirmPassword', e.target.value)}
-                        className={`w-full px-3 py-2 pr-10 border rounded-md text-sm ${
-                          customerData.confirmPassword && 
-                          customerData.password !== customerData.confirmPassword 
-                            ? 'border-red-500' 
-                            : ''
-                        }`}
+                        className={`w-full px-3 py-2 pr-10 border rounded-md text-sm ${customerData.confirmPassword &&
+                          customerData.password !== customerData.confirmPassword
+                          ? 'border-red-500'
+                          : ''
+                          }`}
                         required
                       />
                       <button
@@ -487,76 +492,81 @@ export default function AffiliateAwareCheckout({
                       </button>
                     </div>
 
-                    {customerData.confirmPassword && 
-                     customerData.password !== customerData.confirmPassword && (
-                      <p className="text-xs text-red-500">As senhas não coincidem</p>
-                    )}
+                    {customerData.confirmPassword &&
+                      customerData.password !== customerData.confirmPassword && (
+                        <p className="text-xs text-red-500">As senhas não coincidem</p>
+                      )}
 
                     <p className="text-xs text-muted-foreground">
                       Sua conta será criada automaticamente para acompanhar seus pedidos.
                     </p>
                   </>
                 )}
-                
-                <div className="grid grid-cols-3 gap-2">
-                  <input
-                    type="text"
-                    placeholder="Rua"
-                    value={customerData.street}
-                    onChange={(e) => updateCustomerData('street', e.target.value)}
-                    className="col-span-2 px-3 py-2 border rounded-md text-sm"
-                  />
-                  <input
-                    type="text"
-                    placeholder="Número"
-                    value={customerData.number}
-                    onChange={(e) => updateCustomerData('number', e.target.value)}
-                    className="px-3 py-2 border rounded-md text-sm"
-                  />
-                </div>
-                
-                <input
-                  type="text"
-                  placeholder="Complemento"
-                  value={customerData.complement}
-                  onChange={(e) => updateCustomerData('complement', e.target.value)}
-                  className="w-full px-3 py-2 border rounded-md text-sm"
-                />
-                
-                <div className="grid grid-cols-2 gap-2">
-                  <input
-                    type="text"
-                    placeholder="Bairro"
-                    value={customerData.neighborhood}
-                    onChange={(e) => updateCustomerData('neighborhood', e.target.value)}
-                    className="px-3 py-2 border rounded-md text-sm"
-                  />
-                  <input
-                    type="text"
-                    placeholder="CEP"
-                    value={customerData.postal_code}
-                    onChange={(e) => updateCustomerData('postal_code', e.target.value)}
-                    className="px-3 py-2 border rounded-md text-sm"
-                  />
-                </div>
-                
-                <div className="grid grid-cols-2 gap-2">
-                  <input
-                    type="text"
-                    placeholder="Cidade"
-                    value={customerData.city}
-                    onChange={(e) => updateCustomerData('city', e.target.value)}
-                    className="px-3 py-2 border rounded-md text-sm"
-                  />
-                  <input
-                    type="text"
-                    placeholder="Estado"
-                    value={customerData.state}
-                    onChange={(e) => updateCustomerData('state', e.target.value)}
-                    className="px-3 py-2 border rounded-md text-sm"
-                    maxLength={2}
-                  />
-                </div>
+
+                {/* ✅ NOVO: Esconder campos de endereço se for produto digital */}
+                {!isDigital && (
+                  <>
+                    <div className="grid grid-cols-3 gap-2">
+                      <input
+                        type="text"
+                        placeholder="Rua"
+                        value={customerData.street}
+                        onChange={(e) => updateCustomerData('street', e.target.value)}
+                        className="col-span-2 px-3 py-2 border rounded-md text-sm"
+                      />
+                      <input
+                        type="text"
+                        placeholder="Número"
+                        value={customerData.number}
+                        onChange={(e) => updateCustomerData('number', e.target.value)}
+                        className="px-3 py-2 border rounded-md text-sm"
+                      />
+                    </div>
+
+                    <input
+                      type="text"
+                      placeholder="Complemento"
+                      value={customerData.complement}
+                      onChange={(e) => updateCustomerData('complement', e.target.value)}
+                      className="w-full px-3 py-2 border rounded-md text-sm"
+                    />
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <input
+                        type="text"
+                        placeholder="Bairro"
+                        value={customerData.neighborhood}
+                        onChange={(e) => updateCustomerData('neighborhood', e.target.value)}
+                        className="px-3 py-2 border rounded-md text-sm"
+                      />
+                      <input
+                        type="text"
+                        placeholder="CEP"
+                        value={customerData.postal_code}
+                        onChange={(e) => updateCustomerData('postal_code', e.target.value)}
+                        className="px-3 py-2 border rounded-md text-sm"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <input
+                        type="text"
+                        placeholder="Cidade"
+                        value={customerData.city}
+                        onChange={(e) => updateCustomerData('city', e.target.value)}
+                        className="px-3 py-2 border rounded-md text-sm"
+                      />
+                      <input
+                        type="text"
+                        placeholder="Estado"
+                        value={customerData.state}
+                        onChange={(e) => updateCustomerData('state', e.target.value)}
+                        className="px-3 py-2 border rounded-md text-sm"
+                        maxLength={2}
+                      />
+                    </div>
+                  </>
+                )}
               </div>
             </div>
           )}
@@ -601,7 +611,7 @@ export default function AffiliateAwareCheckout({
           </div>
 
           {/* Botão de Checkout */}
-          <Button 
+          <Button
             onClick={handleCheckout}
             disabled={isProcessing || orderCreated}
             className="w-full"
@@ -631,7 +641,7 @@ export default function AffiliateAwareCheckout({
             <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
               <CheckCircle2 className="h-4 w-4 text-green-600" />
               <span>
-                {selectedPaymentMethod.type === 'pix' 
+                {selectedPaymentMethod.type === 'pix'
                   ? 'Pagamento via PIX - Aprovação instantânea'
                   : `Cartão de Crédito - ${selectedPaymentMethod.installments || 1}x ${selectedPaymentMethod.installments === 1 ? 'à vista' : 'sem juros'}`
                 }

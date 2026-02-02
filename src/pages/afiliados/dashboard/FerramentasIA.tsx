@@ -251,6 +251,7 @@ export default function FerramentasIA() {
                                 sku: product.sku,
                                 price_cents: product.price_cents
                             }}
+                            isDigital={true} // ✅ NOVO: Checkout simplificado para produto digital
                             onClose={() => setIsCheckoutOpen(false)}
                             onOrderComplete={(orderId) => {
                                 setIsCheckoutOpen(false);

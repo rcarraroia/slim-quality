@@ -30,13 +30,15 @@ interface PaymentMethodSelectorProps {
   onSelect: (method: PaymentMethod) => void;
   selected?: PaymentMethod;
   className?: string;
+  maxInstallments?: number; // ✅ NOVO: Limitar parcelas (ex: 1 para assinaturas)
 }
 
-export default function PaymentMethodSelector({ 
-  amount, 
-  onSelect, 
+export default function PaymentMethodSelector({
+  amount,
+  onSelect,
   selected,
-  className 
+  className,
+  maxInstallments = 12 // Default 12x
 }: PaymentMethodSelectorProps) {
   const [selectedMethod, setSelectedMethod] = useState<PaymentMethod['type']>(selected?.type || 'pix');
   const [selectedInstallments, setSelectedInstallments] = useState<number>(selected?.installments || 1);
@@ -50,15 +52,15 @@ export default function PaymentMethodSelector({
 
   const amountInReais = amount / 100;
 
-  // Calcular parcelas (sem juros até 12x)
-  const installmentOptions = Array.from({ length: 12 }, (_, i) => {
+  // Calcular parcelas (sem juros até o limite definido)
+  const installmentOptions = Array.from({ length: Math.min(12, maxInstallments) }, (_, i) => {
     const installments = i + 1;
     const installmentValue = amountInReais / installments;
-    
+
     return {
       installments,
       value: installmentValue,
-      label: installments === 1 
+      label: installments === 1
         ? `À vista - R$ ${amountInReais.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
         : `${installments}x de R$ ${installmentValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} sem juros`
     };
@@ -66,12 +68,12 @@ export default function PaymentMethodSelector({
 
   const handleMethodSelect = (type: PaymentMethod['type']) => {
     setSelectedMethod(type);
-    
+
     if (type === 'pix') {
       onSelect({ type: 'pix' });
     } else {
-      onSelect({ 
-        type: 'credit_card', 
+      onSelect({
+        type: 'credit_card',
         installments: selectedInstallments,
         creditCard: creditCardData.number ? creditCardData : undefined
       });
@@ -80,8 +82,8 @@ export default function PaymentMethodSelector({
 
   const handleInstallmentSelect = (installments: number) => {
     setSelectedInstallments(installments);
-    onSelect({ 
-      type: 'credit_card', 
+    onSelect({
+      type: 'credit_card',
       installments,
       creditCard: creditCardData.number ? creditCardData : undefined
     });
@@ -89,23 +91,23 @@ export default function PaymentMethodSelector({
 
   const handleCreditCardChange = (field: keyof CreditCardData, value: string) => {
     let formattedValue = value;
-    
+
     // Formatação do número do cartão (adiciona espaços a cada 4 dígitos)
     if (field === 'number') {
       formattedValue = value.replace(/\D/g, '').slice(0, 16);
     }
-    
+
     // Formatação do mês (apenas 2 dígitos)
     if (field === 'expiryMonth') {
       formattedValue = value.replace(/\D/g, '').slice(0, 2);
       if (parseInt(formattedValue) > 12) formattedValue = '12';
     }
-    
+
     // Formatação do ano (apenas 4 dígitos)
     if (field === 'expiryYear') {
       formattedValue = value.replace(/\D/g, '').slice(0, 4);
     }
-    
+
     // Formatação do CVV (apenas 3-4 dígitos)
     if (field === 'ccv') {
       formattedValue = value.replace(/\D/g, '').slice(0, 4);
@@ -113,10 +115,10 @@ export default function PaymentMethodSelector({
 
     const newCardData = { ...creditCardData, [field]: formattedValue };
     setCreditCardData(newCardData);
-    
+
     // Atualizar seleção com dados do cartão
-    onSelect({ 
-      type: 'credit_card', 
+    onSelect({
+      type: 'credit_card',
       installments: selectedInstallments,
       creditCard: newCardData.number ? newCardData : undefined
     });
@@ -131,22 +133,20 @@ export default function PaymentMethodSelector({
     <div className={className}>
       <div className="space-y-4">
         <h4 className="font-semibold text-lg">Escolha a forma de pagamento:</h4>
-        
+
         {/* Opção PIX */}
-        <Card 
-          className={`cursor-pointer transition-all ${
-            selectedMethod === 'pix' 
-              ? 'ring-2 ring-primary border-primary bg-primary/5' 
+        <Card
+          className={`cursor-pointer transition-all ${selectedMethod === 'pix'
+              ? 'ring-2 ring-primary border-primary bg-primary/5'
               : 'hover:border-primary/50'
-          }`}
+            }`}
           onClick={() => handleMethodSelect('pix')}
         >
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className={`p-2 rounded-lg ${
-                  selectedMethod === 'pix' ? 'bg-primary text-white' : 'bg-muted'
-                }`}>
+                <div className={`p-2 rounded-lg ${selectedMethod === 'pix' ? 'bg-primary text-white' : 'bg-muted'
+                  }`}>
                   <Smartphone className="h-5 w-5" />
                 </div>
                 <div>
@@ -173,20 +173,18 @@ export default function PaymentMethodSelector({
         </Card>
 
         {/* Opção Cartão de Crédito */}
-        <Card 
-          className={`cursor-pointer transition-all ${
-            selectedMethod === 'credit_card' 
-              ? 'ring-2 ring-primary border-primary bg-primary/5' 
+        <Card
+          className={`cursor-pointer transition-all ${selectedMethod === 'credit_card'
+              ? 'ring-2 ring-primary border-primary bg-primary/5'
               : 'hover:border-primary/50'
-          }`}
+            }`}
           onClick={() => handleMethodSelect('credit_card')}
         >
           <CardContent className="p-4">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-3">
-                <div className={`p-2 rounded-lg ${
-                  selectedMethod === 'credit_card' ? 'bg-primary text-white' : 'bg-muted'
-                }`}>
+                <div className={`p-2 rounded-lg ${selectedMethod === 'credit_card' ? 'bg-primary text-white' : 'bg-muted'
+                  }`}>
                   <CreditCard className="h-5 w-5" />
                 </div>
                 <div>
@@ -194,7 +192,7 @@ export default function PaymentMethodSelector({
                     Cartão de Crédito
                     <Badge variant="secondary" className="bg-blue-100 text-blue-800">
                       <Clock className="h-3 w-3 mr-1" />
-                      Até 12x
+                      {maxInstallments === 1 ? 'À vista' : `Até ${maxInstallments}x`}
                     </Badge>
                   </div>
                   <p className="text-sm text-muted-foreground">
@@ -213,7 +211,7 @@ export default function PaymentMethodSelector({
                     <Lock className="h-4 w-4" />
                     <span>Dados do cartão (ambiente seguro)</span>
                   </div>
-                  
+
                   <div className="space-y-2">
                     <Label htmlFor="cardHolder" className="text-sm">Nome no cartão</Label>
                     <Input
@@ -224,7 +222,7 @@ export default function PaymentMethodSelector({
                       className="bg-white"
                     />
                   </div>
-                  
+
                   <div className="space-y-2">
                     <Label htmlFor="cardNumber" className="text-sm">Número do cartão</Label>
                     <Input
@@ -236,7 +234,7 @@ export default function PaymentMethodSelector({
                       className="bg-white font-mono"
                     />
                   </div>
-                  
+
                   <div className="grid grid-cols-3 gap-2">
                     <div className="space-y-2">
                       <Label htmlFor="expiryMonth" className="text-sm">Mês</Label>
@@ -325,9 +323,9 @@ export default function PaymentMethodSelector({
                 )}
               </p>
               <p className="text-sm text-muted-foreground">
-                {selectedMethod === 'pix' 
+                {selectedMethod === 'pix'
                   ? 'Aprovação instantânea após o pagamento'
-                  : selectedInstallments === 1 
+                  : selectedInstallments === 1
                     ? 'Pagamento à vista no cartão'
                     : 'Parcelamento sem juros'
                 }
