@@ -205,6 +205,14 @@ export default function AffiliateAwareCheckout({
       // Montar dados do checkout (excluindo campos que não existem na tabela customers)
       const { password, confirmPassword, cpf, ...customerDataClean } = customerData;
 
+      // ✅ NOVO: Se for digital, forçar campos de endereço como null para satisfazer constraints do banco
+      if (isDigital) {
+        const addressFields = ['street', 'number', 'complement', 'neighborhood', 'city', 'state', 'postal_code'];
+        addressFields.forEach(field => {
+          (customerDataClean as any)[field] = null;
+        });
+      }
+
       const checkoutData: CheckoutData = {
         customer: {
           ...customerDataClean,
@@ -223,13 +231,13 @@ export default function AffiliateAwareCheckout({
         },
         shipping: {
           recipient_name: customerData.name,
-          street: customerData.street,
-          number: customerData.number,
-          complement: customerData.complement,
-          neighborhood: customerData.neighborhood,
-          city: customerData.city,
-          state: customerData.state,
-          postal_code: customerData.postal_code,
+          street: isDigital ? null : customerData.street,
+          number: isDigital ? null : customerData.number,
+          complement: isDigital ? null : customerData.complement,
+          neighborhood: isDigital ? null : customerData.neighborhood,
+          city: isDigital ? null : customerData.city,
+          state: isDigital ? null : customerData.state,
+          postal_code: isDigital ? null : customerData.postal_code,
           phone: customerData.phone
         },
         payment: {
