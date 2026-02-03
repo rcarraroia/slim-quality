@@ -151,6 +151,27 @@ export default function AffiliateAwareCheckout({
           });
           return;
         }
+
+        // Validar campos de endereço obrigatórios para cartão (Payment First)
+        if (!customerData.postal_code || !customerData.number) {
+          toast({
+            title: "Endereço obrigatório",
+            description: "Para pagamento com cartão, preencha CEP e número da residência.",
+            variant: "destructive"
+          });
+          return;
+        }
+
+        // Validar formato do CEP (8 dígitos)
+        const cepLimpo = customerData.postal_code.replace(/\D/g, '');
+        if (cepLimpo.length !== 8) {
+          toast({
+            title: "CEP inválido",
+            description: "Digite um CEP válido com 8 dígitos.",
+            variant: "destructive"
+          });
+          return;
+        }
       }
 
       let userId: string | null = loggedUser?.id || null;
@@ -205,8 +226,8 @@ export default function AffiliateAwareCheckout({
       // Montar dados do checkout (excluindo campos que não existem na tabela customers)
       const { password, confirmPassword, cpf, ...customerDataClean } = customerData;
 
-      // ✅ NOVO: Se for digital, forçar campos de endereço como null para satisfazer constraints do banco
-      if (isDigital) {
+      // ✅ NOVO: Se for digital MAS cartão, usar dados reais de endereço (Payment First)
+      if (isDigital && selectedPaymentMethod.type !== 'credit_card') {
         const addressFields = ['street', 'number', 'complement', 'neighborhood', 'city', 'state', 'postal_code'];
         addressFields.forEach(field => {
           (customerDataClean as any)[field] = null;
@@ -231,13 +252,13 @@ export default function AffiliateAwareCheckout({
         },
         shipping: {
           recipient_name: customerData.name,
-          street: isDigital ? 'Acesso Digital' : customerData.street,
-          number: isDigital ? 'S/N' : customerData.number,
-          complement: isDigital ? 'Digital' : customerData.complement,
-          neighborhood: isDigital ? 'Digital' : customerData.neighborhood,
-          city: isDigital ? 'SAO PAULO' : customerData.city,
-          state: isDigital ? 'SP' : customerData.state,
-          postal_code: isDigital ? '00000-000' : customerData.postal_code,
+          street: (isDigital && selectedPaymentMethod.type !== 'credit_card') ? 'Acesso Digital' : customerData.street,
+          number: (isDigital && selectedPaymentMethod.type !== 'credit_card') ? 'S/N' : customerData.number,
+          complement: (isDigital && selectedPaymentMethod.type !== 'credit_card') ? 'Digital' : customerData.complement,
+          neighborhood: (isDigital && selectedPaymentMethod.type !== 'credit_card') ? 'Digital' : customerData.neighborhood,
+          city: (isDigital && selectedPaymentMethod.type !== 'credit_card') ? 'SAO PAULO' : customerData.city,
+          state: (isDigital && selectedPaymentMethod.type !== 'credit_card') ? 'SP' : customerData.state,
+          postal_code: (isDigital && selectedPaymentMethod.type !== 'credit_card') ? '00000-000' : customerData.postal_code,
           phone: customerData.phone
         },
         payment: {
@@ -526,8 +547,18 @@ export default function AffiliateAwareCheckout({
                   </>
                 )}
 
-                {/* ✅ NOVO: Esconder campos de endereço se for produto digital */}
-                {!isDigital && (
+                {/* ✅ NOVO: Mostrar campos de endereço se for cartão (necessário para Payment First) */}
+                {(!isDigital || selectedPaymentMethod.type === 'credit_card') && (
+                  <>
+                    {/* Aviso para cartão em produtos digitais */}
+                    {isDigital && selectedPaymentMethod.type === 'credit_card' && (
+                      <div className="p-3 bg-orange-50 border border-orange-200 rounded-lg">
+                        <p className="text-sm text-orange-700">
+                          <strong>Pagamento com cartão:</strong> Para processar o pagamento com segurança, 
+                          precisamos de alguns dados de endereço (obrigatório pela operadora).
+                        </p>
+                      </div>
+                    )}
                   <>
                     <div className="grid grid-cols-3 gap-2">
                       <input
@@ -539,10 +570,13 @@ export default function AffiliateAwareCheckout({
                       />
                       <input
                         type="text"
-                        placeholder="Número"
+                        placeholder="Número * (para cartão)"
                         value={customerData.number}
                         onChange={(e) => updateCustomerData('number', e.target.value)}
-                        className="px-3 py-2 border rounded-md text-sm"
+                        className={`px-3 py-2 border rounded-md text-sm ${
+                          selectedPaymentMethod.type === 'credit_card' ? 'border-orange-300 bg-orange-50' : ''
+                        }`}
+                        required={selectedPaymentMethod.type === 'credit_card'}
                       />
                     </div>
 
@@ -564,10 +598,18 @@ export default function AffiliateAwareCheckout({
                       />
                       <input
                         type="text"
-                        placeholder="CEP"
+                        placeholder="CEP * (para cartão)"
                         value={customerData.postal_code}
-                        onChange={(e) => updateCustomerData('postal_code', e.target.value)}
-                        className="px-3 py-2 border rounded-md text-sm"
+                        onChange={(e) => {
+                          // Formatar CEP: 00000-000
+                          const value = e.target.value.replace(/\D/g, '').slice(0, 8);
+                          const formatted = value.replace(/(\d{5})(\d)/, '$1-$2');
+                          updateCustomerData('postal_code', formatted);
+                        }}
+                        className={`px-3 py-2 border rounded-md text-sm ${
+                          selectedPaymentMethod.type === 'credit_card' ? 'border-orange-300 bg-orange-50' : ''
+                        }`}
+                        required={selectedPaymentMethod.type === 'credit_card'}
                       />
                     </div>
 
