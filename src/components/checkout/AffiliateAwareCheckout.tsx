@@ -559,7 +559,7 @@ export default function AffiliateAwareCheckout({
                         </p>
                       </div>
                     )}
-                  <>
+
                     <div className="grid grid-cols-3 gap-2">
                       <input
                         type="text"

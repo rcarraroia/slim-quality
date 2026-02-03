@@ -47,16 +47,16 @@ export default function AfiliadosLanding() {
       <section className="relative overflow-hidden bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-primary/20 via-background to-secondary/10 py-24">
         <div className="absolute inset-0 bg-grid-white/[0.02] bg-[size:20px_20px]" />
         <div className="container relative mx-auto px-6">
-          <div className="grid gap-12 lg:grid-cols-2 lg:gap-8 items-center">
+          <div className="grid gap-8 lg:grid-cols-[1.2fr_0.8fr] lg:gap-12 items-center">
             <div className="space-y-8 animate-in fade-in slide-in-from-left duration-1000">
               <div className="inline-block rounded-full bg-primary/10 px-4 py-1.5 text-sm font-medium text-primary ring-1 ring-primary/20">
                 💰 Ganhe até 15% por venda
               </div>
 
-              <h1 className="text-5xl font-bold leading-tight lg:text-6xl tracking-tight">
+              <h1 className="text-4xl font-bold leading-tight lg:text-6xl tracking-tight max-w-2xl">
                 Transforme Indicações em
-                <span className="block bg-gradient-to-r from-primary via-primary/80 to-secondary bg-clip-text text-transparent">
-                  Rendimento exponencial
+                <span className="block bg-gradient-to-r from-primary via-primary/80 to-secondary bg-clip-text text-transparent whitespace-nowrap">
+                  Rendimento Exponencial
                 </span>
               </h1>
 
@@ -97,33 +97,33 @@ export default function AfiliadosLanding() {
               <div className="absolute -inset-1 bg-gradient-to-r from-primary/30 to-secondary/30 rounded-2xl blur-2xl opacity-50" />
               <Card className="relative border-primary/10 shadow-2xl backdrop-blur-md bg-background/80 overflow-hidden">
                 <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full -mr-16 -mt-16 blur-3xl" />
-                <CardContent className="p-8">
-                  <div className="space-y-8">
+                <CardContent className="p-6 lg:p-8">
+                  <div className="space-y-6 lg:space-y-8">
                     <div className="flex items-center gap-4 group">
-                      <div className="rounded-2xl bg-primary/10 p-4 ring-1 ring-primary/20 group-hover:bg-primary/20 transition-colors">
-                        <Zap className="h-6 w-6 text-primary" />
+                      <div className="rounded-2xl bg-primary/10 p-3 lg:p-4 ring-1 ring-primary/20 group-hover:bg-primary/20 transition-colors shrink-0">
+                        <Zap className="h-5 w-5 lg:h-6 lg:w-6 text-primary" />
                       </div>
                       <div>
-                        <p className="font-bold text-lg">Cadastro Rápido</p>
-                        <p className="text-muted-foreground">Sua rede pronta em 5 minutos</p>
+                        <p className="font-bold text-base lg:text-lg">Cadastro Rápido</p>
+                        <p className="text-sm text-muted-foreground">Sua rede pronta em 5 minutos</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-4 group">
-                      <div className="rounded-2xl bg-primary/10 p-4 ring-1 ring-primary/20 group-hover:bg-primary/20 transition-colors">
-                        <Shield className="h-6 w-6 text-primary" />
+                      <div className="rounded-2xl bg-primary/10 p-3 lg:p-4 ring-1 ring-primary/20 group-hover:bg-primary/20 transition-colors shrink-0">
+                        <Shield className="h-5 w-5 lg:h-6 lg:w-6 text-primary" />
                       </div>
                       <div>
-                        <p className="font-bold text-lg">Transparência Total</p>
-                        <p className="text-muted-foreground">Acompanhe cada comissão em tempo real</p>
+                        <p className="font-bold text-base lg:text-lg">Transparência Total</p>
+                        <p className="text-sm text-muted-foreground">Acompanhe comissões em tempo real</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-4 group">
-                      <div className="rounded-2xl bg-primary/10 p-4 ring-1 ring-primary/20 group-hover:bg-primary/20 transition-colors">
-                        <Clock className="h-6 w-6 text-primary" />
+                      <div className="rounded-2xl bg-primary/10 p-3 lg:p-4 ring-1 ring-primary/20 group-hover:bg-primary/20 transition-colors shrink-0">
+                        <Clock className="h-5 w-5 lg:h-6 lg:w-6 text-primary" />
                       </div>
                       <div>
-                        <p className="font-bold text-lg">Liquidez Semanal</p>
-                        <p className="text-muted-foreground">Receba seus lucros via PIX</p>
+                        <p className="font-bold text-base lg:text-lg">Liquidez Semanal</p>
+                        <p className="text-sm text-muted-foreground">Receba seus lucros via PIX</p>
                       </div>
                     </div>
                   </div>
