@@ -324,49 +324,51 @@ export default async function handler(req, res) {
       });
     }
 
+    // Identificar qual ID usar para operações subsequentes (PIX ou Cartão)
+    // Se for assinatura, o paymentData.id é o ID da assinatura (sub_xxx), mas precisamos do ID da cobrança (pay_xxx)
+    let paymentIdToProcess = paymentData.id;
+    let finalInvoiceUrl = paymentData.invoiceUrl;
+    let subscriptionFirstPayment = null;
+
+    if (isSubscription) {
+      console.log('Subscription created, fetching first payment...');
+
+      // Aguardar um pouco para o Asaas gerar a cobrança (pode levar alguns ms)
+      await new Promise(resolve => setTimeout(resolve, 1500));
+
+      // Buscar cobranças da assinatura
+      const paymentsRes = await fetch(`${asaasBaseUrl}/subscriptions/${paymentData.id}/payments`, {
+        method: 'GET',
+        headers
+      });
+
+      if (paymentsRes.ok) {
+        const paymentsData = await paymentsRes.json();
+
+        if (paymentsData.data && paymentsData.data.length > 0) {
+          // Pegar a primeira cobrança (mais recente ou pendente)
+          subscriptionFirstPayment = paymentsData.data[0];
+          paymentIdToProcess = subscriptionFirstPayment.id;
+          finalInvoiceUrl = subscriptionFirstPayment.invoiceUrl;
+          console.log('Using real payment ID for operations:', paymentIdToProcess);
+        } else {
+          console.warn('No payments found for subscription yet');
+        }
+      } else {
+        const paymentsError = await paymentsRes.text();
+        console.error('Failed to fetch subscription payments:', paymentsError);
+      }
+    }
+
     // Se for PIX, buscar QR Code separadamente
     let pixQrCode = null;
     let pixCopyPaste = null;
-    let paymentIdForPix = paymentData.id;
-    let subscriptionFirstPaymentInvoiceUrl = null;
 
     if (billingType === 'PIX') {
-      // ✅ Para ASSINATURAS, precisamos buscar a primeira cobrança gerada
-      if (isSubscription) {
-        console.log('Subscription created, fetching first payment for PIX QR Code...');
-
-        // Aguardar um pouco para o Asaas gerar a cobrança (pode levar alguns ms)
-        await new Promise(resolve => setTimeout(resolve, 1000));
-
-        // Buscar cobranças da assinatura
-        const paymentsRes = await fetch(`${asaasBaseUrl}/subscriptions/${paymentData.id}/payments`, {
-          method: 'GET',
-          headers
-        });
-
-        if (paymentsRes.ok) {
-          const paymentsData = await paymentsRes.json();
-          console.log('Subscription payments found:', paymentsData.totalCount);
-
-          if (paymentsData.data && paymentsData.data.length > 0) {
-            // Pegar a primeira cobrança (mais recente ou pendente)
-            const firstPayment = paymentsData.data[0];
-            paymentIdForPix = firstPayment.id;
-            subscriptionFirstPaymentInvoiceUrl = firstPayment.invoiceUrl;
-            console.log('Using payment ID for PIX QR Code:', paymentIdForPix);
-          } else {
-            console.warn('No payments found for subscription yet');
-          }
-        } else {
-          const paymentsError = await paymentsRes.text();
-          console.error('Failed to fetch subscription payments:', paymentsError);
-        }
-      }
-
       // Buscar QR Code do pagamento (seja de cobrança única ou da primeira cobrança da assinatura)
-      console.log('Fetching PIX QR Code for payment:', paymentIdForPix);
+      console.log('Fetching PIX QR Code for payment:', paymentIdToProcess);
 
-      const pixRes = await fetch(`${asaasBaseUrl}/payments/${paymentIdForPix}/pixQrCode`, {
+      const pixRes = await fetch(`${asaasBaseUrl}/payments/${paymentIdToProcess}/pixQrCode`, {
         method: 'GET',
         headers
       });
@@ -385,9 +387,9 @@ export default async function handler(req, res) {
 
     // Se for cartão de crédito com dados do cartão, processar pagamento imediatamente
     if (billingType === 'CREDIT_CARD' && creditCard) {
-      console.log('Processing credit card payment for payment:', paymentData.id);
+      console.log('Processing credit card payment for payment ID:', paymentIdToProcess);
 
-      const payWithCardRes = await fetch(`${asaasBaseUrl}/payments/${paymentData.id}/payWithCreditCard`, {
+      const payWithCardRes = await fetch(`${asaasBaseUrl}/payments/${paymentIdToProcess}/payWithCreditCard`, {
         method: 'POST',
         headers,
         body: JSON.stringify({
@@ -426,7 +428,7 @@ export default async function handler(req, res) {
       // Registrar no banco de dados
       await savePaymentToDatabase({
         orderId,
-        asaasPaymentId: paymentData.id,
+        asaasPaymentId: paymentIdToProcess,
         asaasCustomerId,
         billingType,
         amount,
@@ -457,7 +459,7 @@ export default async function handler(req, res) {
     // Registrar pagamento PIX no banco de dados
     await savePaymentToDatabase({
       orderId,
-      asaasPaymentId: paymentData.id,
+      asaasPaymentId: paymentIdToProcess,
       asaasCustomerId,
       billingType,
       amount,
@@ -472,9 +474,9 @@ export default async function handler(req, res) {
     // Sucesso (PIX ou aguardando dados do cartão)
     return res.status(200).json({
       success: true,
-      paymentId: paymentData.id,
+      paymentId: paymentIdToProcess,
       // ✅ SE for assinatura, use o invoiceUrl da primeira cobrança, senão use o da resposta original
-      checkoutUrl: subscriptionFirstPaymentInvoiceUrl || paymentData.invoiceUrl,
+      checkoutUrl: finalInvoiceUrl,
       pixQrCode: pixQrCode,
       pixCopyPaste: pixCopyPaste,
       boletoUrl: paymentData.bankSlipUrl,
