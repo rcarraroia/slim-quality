@@ -8,6 +8,7 @@ import { createClient } from '@supabase/supabase-js';
 export default async function handler(req, res) {
   // CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
+  console.log('Trigger Vercel Deploy - Fix PIX Invoice URL'); // Force deploy
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS, GET');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
