@@ -644,15 +644,6 @@ export default async function handler(req, res) {
         orderStatus: isActive ? 'paid' : 'pending',
         paymentFirst: true
       });
-    }
-        billingType,
-        amount,
-        status: isConfirmed ? 'confirmed' : 'pending',
-        installments: 1,
-        cardBrand: paymentData.creditCard?.creditCardBrand,
-        cardLastDigits: paymentData.creditCard?.creditCardNumber,
-        referralCode: referralCode || null
-      });
 
       // Se assinatura ativa, atualizar status do pedido para 'paid'
       if (isActive) {
