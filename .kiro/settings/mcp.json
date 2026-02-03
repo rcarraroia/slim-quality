@@ -11,6 +11,17 @@
         "get-response-schema",
         "execute-request"
       ]
+    },
+    "supabase-hosted": {
+      "url": "https://mcp.supabase.com/mcp",
+      "autoApprove": [
+        "list_projects",
+        "get_project",
+        "list_tables",
+        "execute_sql",
+        "get_project_url",
+        "get_publishable_keys"
+      ]
     }
   }
 }

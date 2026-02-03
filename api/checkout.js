@@ -271,33 +271,90 @@ export default async function handler(req, res) {
 
     console.log('Split calculado:', splits);
     console.log(`Asaas Target: ${isSubscription ? 'SUBSCRIPTION' : 'PAYMENT'} (SKU IA: ${isIAProduct})`);
-    const asaasEndpoint = isSubscription ? '/subscriptions' : '/payments';
 
-    // Payload base do pagamento/assinatura
-    const paymentPayload = {
-      customer: asaasCustomerId,
-      billingType: billingType,
-      value: amount,
-      externalReference: orderId,
-      description: description || `Pedido ${orderId}${isSubscription ? ' - Assinatura Mensal Agente IA' : ''}`,
-      split: splits
-    };
+    // ✅ CORREÇÃO CRÍTICA: Payment First para Assinaturas com Cartão
+    let asaasEndpoint;
+    let paymentPayload;
 
-    // Campos específicos de Cobrança única
-    if (!isSubscription) {
-      paymentPayload.dueDate = dueDate;
-      paymentPayload.fine = { value: 0 };
-      paymentPayload.interest = { value: 0 };
+    if (isSubscription && billingType === 'CREDIT_CARD' && creditCard) {
+      // NOVO: Endpoint atômico para assinatura + cartão
+      asaasEndpoint = '/subscriptions/'; // Com barra final obrigatória
+      console.log('🔄 Usando Payment First: Criando assinatura COM cartão atomicamente');
 
-      // Adicionar parcelas se for cartão de crédito
-      if (billingType === 'CREDIT_CARD' && installments && installments > 1) {
-        paymentPayload.installmentCount = installments;
-        paymentPayload.installmentValue = amount / installments;
-      }
+      // Capturar IP real do cliente (obrigatório para endpoint atômico)
+      const remoteIp = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || 
+                       req.headers['x-real-ip'] || 
+                       req.connection.remoteAddress || 
+                       req.socket.remoteAddress ||
+                       '127.0.0.1';
+
+      // Construir creditCardHolderInfo com fallbacks
+      const holderInfo = {
+        name: creditCardHolderInfo?.name || customer.name,
+        email: creditCardHolderInfo?.email || customer.email,
+        cpfCnpj: creditCardHolderInfo?.cpfCnpj || customer.cpfCnpj,
+        postalCode: creditCardHolderInfo?.postalCode || customer.postalCode || '35315000', // Fallback CEP
+        addressNumber: creditCardHolderInfo?.addressNumber || customer.addressNumber || 'S/N',
+        phone: creditCardHolderInfo?.phone || customer.phone || customer.mobilePhone
+      };
+
+      paymentPayload = {
+        customer: asaasCustomerId,
+        billingType: billingType,
+        value: amount,
+        nextDueDate: dueDate,
+        cycle: 'MONTHLY',
+        externalReference: orderId,
+        description: description || `Pedido ${orderId} - Assinatura Mensal Agente IA`,
+        split: splits,
+        creditCard: {
+          holderName: creditCard.holderName,
+          number: creditCard.number,
+          expiryMonth: creditCard.expiryMonth,
+          expiryYear: creditCard.expiryYear,
+          ccv: creditCard.ccv
+        },
+        creditCardHolderInfo: holderInfo,
+        remoteIp: remoteIp
+      };
+
+      console.log('💳 Payment First payload:', {
+        customer: asaasCustomerId,
+        billingType,
+        value: amount,
+        remoteIp,
+        holderInfo: { ...holderInfo, cpfCnpj: holderInfo.cpfCnpj?.substring(0, 3) + '***' }
+      });
+
     } else {
-      // Campos específicos de Assinatura
-      paymentPayload.nextDueDate = dueDate;
-      paymentPayload.cycle = 'MONTHLY'; // Fixo mensal para o Agente IA
+      // FLUXO ORIGINAL: Para produtos físicos ou PIX
+      asaasEndpoint = isSubscription ? '/subscriptions' : '/payments';
+
+      paymentPayload = {
+        customer: asaasCustomerId,
+        billingType: billingType,
+        value: amount,
+        externalReference: orderId,
+        description: description || `Pedido ${orderId}${isSubscription ? ' - Assinatura Mensal Agente IA' : ''}`,
+        split: splits
+      };
+
+      // Campos específicos de Cobrança única
+      if (!isSubscription) {
+        paymentPayload.dueDate = dueDate;
+        paymentPayload.fine = { value: 0 };
+        paymentPayload.interest = { value: 0 };
+
+        // Adicionar parcelas se for cartão de crédito
+        if (billingType === 'CREDIT_CARD' && installments && installments > 1) {
+          paymentPayload.installmentCount = installments;
+          paymentPayload.installmentValue = amount / installments;
+        }
+      } else {
+        // Campos específicos de Assinatura
+        paymentPayload.nextDueDate = dueDate;
+        paymentPayload.cycle = 'MONTHLY'; // Fixo mensal para o Agente IA
+      }
     }
 
     const paymentRes = await fetch(`${asaasBaseUrl}${asaasEndpoint}`, {
@@ -324,13 +381,14 @@ export default async function handler(req, res) {
       });
     }
 
-    // Identificar qual ID usar para operações subsequentes (PIX ou Cartão)
-    // Se for assinatura, o paymentData.id é o ID da assinatura (sub_xxx), mas precisamos do ID da cobrança (pay_xxx)
+    // Identificar qual ID usar para operações subsequentes
     let paymentIdToProcess = paymentData.id;
     let finalInvoiceUrl = paymentData.invoiceUrl;
     let subscriptionFirstPayment = null;
 
-    if (isSubscription) {
+    // ✅ CORREÇÃO: Para Payment First, não precisamos buscar primeira cobrança
+    if (isSubscription && !(billingType === 'CREDIT_CARD' && creditCard)) {
+      // APENAS para assinaturas PIX/Boleto (fluxo antigo)
       console.log('Subscription created, fetching first payment...');
 
       // Aguardar um pouco para o Asaas gerar a cobrança (pode levar alguns ms)
@@ -358,6 +416,14 @@ export default async function handler(req, res) {
         const paymentsError = await paymentsRes.text();
         console.error('Failed to fetch subscription payments:', paymentsError);
       }
+    } else if (isSubscription && billingType === 'CREDIT_CARD' && creditCard) {
+      // NOVO: Para Payment First, a assinatura já foi processada atomicamente
+      console.log('✅ Payment First: Assinatura criada e cartão processado atomicamente');
+      console.log('Subscription status:', paymentData.status);
+      
+      // Para assinaturas com Payment First, usar o ID da assinatura diretamente
+      // O Asaas já processou o cartão e criou a primeira cobrança
+      finalInvoiceUrl = paymentData.invoiceUrl || `https://www.asaas.com/c/${paymentData.id}`;
     }
 
     // Se for PIX, buscar QR Code separadamente
@@ -386,7 +452,8 @@ export default async function handler(req, res) {
 
 
     // Se for cartão de crédito com dados do cartão, processar pagamento imediatamente
-    if (billingType === 'CREDIT_CARD' && creditCard) {
+    // ✅ CORREÇÃO: Não processar cartão novamente se já foi processado atomicamente (Payment First)
+    if (billingType === 'CREDIT_CARD' && creditCard && !(isSubscription && billingType === 'CREDIT_CARD')) {
       console.log('Processing credit card payment for payment ID:', paymentIdToProcess);
 
       const payWithCardRes = await fetch(`${asaasBaseUrl}/payments/${paymentIdToProcess}/payWithCreditCard`, {
@@ -404,7 +471,7 @@ export default async function handler(req, res) {
             name: customer.name,
             email: customer.email,
             cpfCnpj: customer.cpfCnpj,
-            postalCode: customer.postalCode || '00000000',
+            postalCode: customer.postalCode || '35315000',
             addressNumber: customer.addressNumber || 'S/N',
             phone: customer.phone || customer.mobilePhone
           }
@@ -453,6 +520,47 @@ export default async function handler(req, res) {
         confirmedDate: cardPaymentData.confirmedDate,
         message: 'Pagamento com cartão processado com sucesso',
         orderStatus: isConfirmed ? 'paid' : 'pending'
+      });
+    }
+
+    // ✅ NOVO: Tratar sucesso do Payment First (assinatura + cartão atômico)
+    if (isSubscription && billingType === 'CREDIT_CARD' && creditCard) {
+      console.log('✅ Payment First completed successfully');
+      
+      // Determinar status baseado na resposta da assinatura
+      const isActive = paymentData.status === 'ACTIVE';
+      const isConfirmed = isActive; // Se assinatura está ativa, primeira cobrança foi paga
+
+      // Registrar no banco de dados
+      await savePaymentToDatabase({
+        orderId,
+        asaasPaymentId: paymentData.id, // ID da assinatura
+        asaasCustomerId,
+        billingType,
+        amount,
+        status: isConfirmed ? 'confirmed' : 'pending',
+        installments: 1,
+        cardBrand: paymentData.creditCard?.creditCardBrand,
+        cardLastDigits: paymentData.creditCard?.creditCardNumber,
+        referralCode: referralCode || null
+      });
+
+      // Se assinatura ativa, atualizar status do pedido para 'paid'
+      if (isActive) {
+        await updateOrderStatus(orderId, 'paid');
+        console.log(`Pedido ${orderId} atualizado para 'paid' após Payment First`);
+      }
+
+      // Sucesso no Payment First
+      return res.status(200).json({
+        success: true,
+        paymentId: paymentData.id,
+        subscriptionId: paymentData.id,
+        status: paymentData.status,
+        checkoutUrl: finalInvoiceUrl,
+        message: 'Assinatura criada e primeira cobrança processada com sucesso',
+        orderStatus: isActive ? 'paid' : 'pending',
+        paymentFirst: true // Flag para identificar que foi Payment First
       });
     }
 
