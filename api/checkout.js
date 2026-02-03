@@ -588,79 +588,115 @@ export default async function handler(req, res) {
 
     // ✅ CORREÇÃO: Tratamento específico para Payment First
     if (isSubscription && billingType === 'CREDIT_CARD' && creditCard) {
-      console.log('✅ Payment First completed successfully');
-      console.log('📊 Subscription details:', {
-        id: paymentData.id,
-        status: paymentData.status,
-        nextDueDate: paymentData.nextDueDate,
-        cycle: paymentData.cycle,
-        value: paymentData.value
+      console.log('🔄 Payment First: Assinatura criada, processando cartão da primeira cobrança...');
+      
+      // Aguardar um pouco para o Asaas gerar a primeira cobrança
+      await new Promise(resolve => setTimeout(resolve, 2000));
+
+      // Buscar a primeira cobrança da assinatura
+      const paymentsRes = await fetch(`${asaasBaseUrl}/subscriptions/${paymentData.id}/payments`, {
+        method: 'GET',
+        headers
       });
+
+      let firstPaymentId = null;
+      if (paymentsRes.ok) {
+        const paymentsData = await paymentsRes.json();
+        if (paymentsData.data && paymentsData.data.length > 0) {
+          firstPaymentId = paymentsData.data[0].id;
+          console.log('💳 Primeira cobrança encontrada:', firstPaymentId);
+        }
+      }
+
+      if (!firstPaymentId) {
+        console.error('❌ Primeira cobrança não encontrada para assinatura:', paymentData.id);
+        return res.status(500).json({
+          success: false,
+          error: 'Assinatura criada mas primeira cobrança não encontrada',
+          subscriptionId: paymentData.id
+        });
+      }
+
+      // FORÇAR processamento do cartão na primeira cobrança
+      console.log('💳 Processando cartão na primeira cobrança:', firstPaymentId);
       
-      // Para Payment First, verificar se assinatura foi criada com status ACTIVE
-      const isActive = paymentData.status === 'ACTIVE';
-      const isConfirmed = isActive; // Se assinatura está ativa, primeira cobrança foi processada
+      const payWithCardRes = await fetch(`${asaasBaseUrl}/payments/${firstPaymentId}/payWithCreditCard`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          creditCard: {
+            holderName: creditCard.holderName,
+            number: creditCard.number,
+            expiryMonth: creditCard.expiryMonth,
+            expiryYear: creditCard.expiryYear,
+            ccv: creditCard.ccv
+          },
+          creditCardHolderInfo: holderInfo,
+          remoteIp: remoteIp
+        })
+      });
+
+      const cardPaymentData = await payWithCardRes.json();
+
+      if (!payWithCardRes.ok) {
+        console.error('❌ Erro ao processar cartão na primeira cobrança:', JSON.stringify(cardPaymentData, null, 2));
+        return res.status(500).json({
+          success: false,
+          error: 'Assinatura criada mas falha no processamento do cartão',
+          details: cardPaymentData,
+          subscriptionId: paymentData.id,
+          paymentId: firstPaymentId
+        });
+      }
+
+      // Verificar se pagamento foi confirmado
+      const isConfirmed = cardPaymentData.status === 'CONFIRMED' || cardPaymentData.status === 'RECEIVED';
       
-      console.log('💳 Payment First result:', {
-        subscriptionActive: isActive,
-        paymentConfirmed: isConfirmed,
-        subscriptionId: paymentData.id
+      console.log('✅ Payment First com processamento forçado:', {
+        subscriptionId: paymentData.id,
+        paymentId: firstPaymentId,
+        paymentStatus: cardPaymentData.status,
+        confirmed: isConfirmed,
+        confirmedDate: cardPaymentData.confirmedDate
       });
 
       // Registrar no banco de dados
       await savePaymentToDatabase({
         orderId,
-        asaasPaymentId: paymentData.id, // ID da assinatura
+        asaasPaymentId: firstPaymentId, // ID da primeira cobrança (não da assinatura)
         asaasCustomerId,
         billingType,
         amount,
         status: isConfirmed ? 'confirmed' : 'pending',
-        installments: 1, // Assinaturas sempre 1x
-        cardBrand: null, // Não disponível na resposta de assinatura
-        cardLastDigits: null, // Não disponível na resposta de assinatura
+        installments: 1,
+        cardBrand: cardPaymentData.creditCard?.creditCardBrand,
+        cardLastDigits: creditCard.number?.slice(-4),
         referralCode: referralCode || null,
-        subscriptionId: paymentData.id, // Adicionar ID da assinatura
-        paymentFirst: true // Flag para identificar Payment First
-      });
-
-      // Se assinatura ativa, atualizar status do pedido para 'paid'
-      if (isActive) {
-        await updateOrderStatus(orderId, 'paid');
-        console.log(`✅ Pedido ${orderId} atualizado para 'paid' após Payment First bem-sucedido`);
-      }
-
-      // URL da assinatura para acompanhamento
-      finalInvoiceUrl = paymentData.invoiceUrl || `https://www.asaas.com/c/${paymentData.id}`;
-
-      // Sucesso no Payment First
-      return res.status(200).json({
-        success: true,
-        paymentId: paymentData.id,
-        subscriptionId: paymentData.id,
-        status: paymentData.status,
-        nextDueDate: paymentData.nextDueDate,
-        invoiceUrl: finalInvoiceUrl,
-        message: isActive ? 'Assinatura criada e primeira cobrança processada com sucesso (Payment First)' : 'Assinatura criada, aguardando processamento do cartão',
-        orderStatus: isActive ? 'paid' : 'pending',
+        subscriptionId: paymentData.id, // ID da assinatura
         paymentFirst: true
       });
 
-      // Se assinatura ativa, atualizar status do pedido para 'paid'
-      if (isActive) {
+      // Se pagamento confirmado, atualizar status do pedido para 'paid'
+      if (isConfirmed) {
         await updateOrderStatus(orderId, 'paid');
-        console.log(`Pedido ${orderId} atualizado para 'paid' após Payment First`);
+        console.log(`✅ Pedido ${orderId} atualizado para 'paid' após Payment First com processamento forçado`);
       }
 
-      // Sucesso no Payment First
+      // URL da primeira cobrança para acompanhamento
+      finalInvoiceUrl = cardPaymentData.invoiceUrl || `https://www.asaas.com/i/${firstPaymentId}`;
+
+      // Sucesso no Payment First com processamento forçado
       return res.status(200).json({
         success: true,
-        paymentId: paymentData.id,
-        subscriptionId: paymentData.id,
-        status: paymentData.status,
-        checkoutUrl: finalInvoiceUrl,
-        message: 'Assinatura criada e primeira cobrança processada com sucesso',
-        orderStatus: isActive ? 'paid' : 'pending',
-        paymentFirst: true // Flag para identificar que foi Payment First
+        paymentId: firstPaymentId, // ID da cobrança processada
+        subscriptionId: paymentData.id, // ID da assinatura
+        status: cardPaymentData.status,
+        confirmedDate: cardPaymentData.confirmedDate,
+        invoiceUrl: finalInvoiceUrl,
+        message: isConfirmed ? 'Assinatura criada e primeira cobrança processada com sucesso (Payment First)' : 'Assinatura criada, cartão processado mas aguardando confirmação',
+        orderStatus: isConfirmed ? 'paid' : 'pending',
+        paymentFirst: true,
+        forcedProcessing: true // Flag para identificar que foi processamento forçado
       });
     }
 
