@@ -292,16 +292,32 @@ export default async function handler(req, res) {
       const holderInfo = {
         name: creditCardHolderInfo?.name || customer.name,
         email: creditCardHolderInfo?.email || customer.email,
-        cpfCnpj: creditCardHolderInfo?.cpfCnpj || customer.cpfCnpj,
-        postalCode: creditCardHolderInfo?.postalCode || customer.postalCode || '30112000', // Fallback CEP válido (Belo Horizonte/MG)
+        cpfCnpj: (creditCardHolderInfo?.cpfCnpj || customer.cpfCnpj || '').replace(/\D/g, ''), // ✅ CORREÇÃO: Apenas números
+        postalCode: (creditCardHolderInfo?.postalCode || customer.postalCode || '30112000').replace(/\D/g, ''), // ✅ CORREÇÃO: Apenas números
         addressNumber: creditCardHolderInfo?.addressNumber || customer.addressNumber || 'S/N',
-        phone: creditCardHolderInfo?.phone || customer.phone || customer.mobilePhone
+        phone: (creditCardHolderInfo?.phone || customer.phone || customer.mobilePhone || '').replace(/\D/g, '') // ✅ CORREÇÃO: Apenas números
       };
 
-      // Validar CEP (formato brasileiro: 8 dígitos)
-      if (holderInfo.postalCode && !/^\d{8}$/.test(holderInfo.postalCode.replace(/\D/g, ''))) {
+      // Validar CPF (11 dígitos obrigatório)
+      if (!holderInfo.cpfCnpj || holderInfo.cpfCnpj.length !== 11) {
+        console.error('❌ CPF inválido para Payment First:', holderInfo.cpfCnpj);
+        return res.status(400).json({
+          success: false,
+          error: 'CPF obrigatório e deve ter 11 dígitos para pagamento com cartão',
+          details: { cpfLength: holderInfo.cpfCnpj?.length || 0 }
+        });
+      }
+
+      // Validar CEP (8 dígitos obrigatório)
+      if (!holderInfo.postalCode || holderInfo.postalCode.length !== 8) {
         console.warn('⚠️ CEP inválido detectado:', holderInfo.postalCode, '- usando fallback');
         holderInfo.postalCode = '30112000';
+      }
+
+      // Validar telefone (mínimo 10 dígitos)
+      if (!holderInfo.phone || holderInfo.phone.length < 10) {
+        console.warn('⚠️ Telefone inválido detectado:', holderInfo.phone, '- usando fallback');
+        holderInfo.phone = '1199999999'; // Fallback telefone válido
       }
 
       console.log('📍 Dados do titular validados:', {
@@ -310,18 +326,17 @@ export default async function handler(req, res) {
         postalCode: holderInfo.postalCode,
         addressNumber: holderInfo.addressNumber,
         cpfCnpj: holderInfo.cpfCnpj ? holderInfo.cpfCnpj.substring(0, 3) + '***' : 'N/A',
+        phone: holderInfo.phone ? holderInfo.phone.substring(0, 2) + '***' : 'N/A',
         remoteIp
       });
 
+      // ✅ CORREÇÃO: Payload mínimo para Payment First (apenas campos obrigatórios)
       paymentPayload = {
         customer: asaasCustomerId,
         billingType: billingType,
         value: amount,
         nextDueDate: dueDate,
         cycle: 'MONTHLY',
-        externalReference: orderId,
-        description: description || `Pedido ${orderId} - Assinatura Mensal Agente IA`,
-        split: splits,
         creditCard: {
           holderName: creditCard.holderName,
           number: creditCard.number,
@@ -330,15 +345,23 @@ export default async function handler(req, res) {
           ccv: creditCard.ccv
         },
         creditCardHolderInfo: holderInfo,
-        remoteIp: remoteIp
+        remoteIp: remoteIp,
+        // ✅ CORREÇÃO: Adicionar campos opcionais apenas se válidos
+        ...(orderId && { externalReference: orderId }),
+        ...(description && { description: description.substring(0, 500) }), // Limitar a 500 caracteres
+        ...(splits && splits.length > 0 && { split: splits })
       };
 
-      console.log('💳 Payment First payload:', {
+      console.log('💳 Payment First payload (campos obrigatórios):', {
         customer: asaasCustomerId,
         billingType,
         value: amount,
+        nextDueDate: dueDate,
+        cycle: 'MONTHLY',
         remoteIp,
-        holderInfo: { ...holderInfo, cpfCnpj: holderInfo.cpfCnpj?.substring(0, 3) + '***' }
+        creditCardPresent: !!paymentPayload.creditCard,
+        holderInfoValid: !!(holderInfo.name && holderInfo.email && holderInfo.cpfCnpj && holderInfo.postalCode && holderInfo.addressNumber && holderInfo.phone),
+        splitCount: splits?.length || 0
       });
 
     } else {
@@ -380,21 +403,46 @@ export default async function handler(req, res) {
 
     const paymentData = await paymentRes.json();
 
+    // ✅ CORREÇÃO: Log detalhado da resposta para debug do Payment First
+    console.log('📡 Asaas Response Status:', paymentRes.status);
+    console.log('📡 Asaas Response Headers:', Object.fromEntries(paymentRes.headers.entries()));
+    
     if (!paymentRes.ok) {
-      console.error('Asaas payment error:', JSON.stringify(paymentData, null, 2));
+      console.error('❌ Asaas payment error (Payment First):', JSON.stringify(paymentData, null, 2));
+      console.error('❌ Request payload que falhou:', JSON.stringify({
+        endpoint: `${asaasBaseUrl}${asaasEndpoint}`,
+        method: 'POST',
+        payloadKeys: Object.keys(paymentPayload),
+        billingType: paymentPayload.billingType,
+        hasCrediCard: !!paymentPayload.creditCard,
+        hasCreditCardHolderInfo: !!paymentPayload.creditCardHolderInfo,
+        hasRemoteIp: !!paymentPayload.remoteIp
+      }, null, 2));
+      
       return res.status(500).json({
         success: false,
         error: 'Erro ao criar pagamento no Asaas',
         details: paymentData,
         debug: {
+          endpoint: asaasEndpoint,
           customerId: asaasCustomerId,
           billingType,
           amount,
+          paymentFirstAttempt: isSubscription && billingType === 'CREDIT_CARD',
           walletRenum: ASAAS_WALLET_RENUM?.substring(0, 10) + '...',
           walletJB: ASAAS_WALLET_JB?.substring(0, 10) + '...'
         }
       });
     }
+
+    // ✅ CORREÇÃO: Log de sucesso detalhado
+    console.log('✅ Asaas payment created successfully:', {
+      id: paymentData.id,
+      status: paymentData.status,
+      billingType: paymentData.billingType,
+      value: paymentData.value,
+      paymentFirstSuccess: isSubscription && billingType === 'CREDIT_CARD'
+    });
 
     // Identificar qual ID usar para operações subsequentes
     let paymentIdToProcess = paymentData.id;
@@ -538,19 +586,65 @@ export default async function handler(req, res) {
       });
     }
 
-    // ✅ NOVO: Tratar sucesso do Payment First (assinatura + cartão atômico)
+    // ✅ CORREÇÃO: Tratamento específico para Payment First
     if (isSubscription && billingType === 'CREDIT_CARD' && creditCard) {
       console.log('✅ Payment First completed successfully');
+      console.log('📊 Subscription details:', {
+        id: paymentData.id,
+        status: paymentData.status,
+        nextDueDate: paymentData.nextDueDate,
+        cycle: paymentData.cycle,
+        value: paymentData.value
+      });
       
-      // Determinar status baseado na resposta da assinatura
+      // Para Payment First, verificar se assinatura foi criada com status ACTIVE
       const isActive = paymentData.status === 'ACTIVE';
-      const isConfirmed = isActive; // Se assinatura está ativa, primeira cobrança foi paga
+      const isConfirmed = isActive; // Se assinatura está ativa, primeira cobrança foi processada
+      
+      console.log('💳 Payment First result:', {
+        subscriptionActive: isActive,
+        paymentConfirmed: isConfirmed,
+        subscriptionId: paymentData.id
+      });
 
       // Registrar no banco de dados
       await savePaymentToDatabase({
         orderId,
         asaasPaymentId: paymentData.id, // ID da assinatura
         asaasCustomerId,
+        billingType,
+        amount,
+        status: isConfirmed ? 'confirmed' : 'pending',
+        installments: 1, // Assinaturas sempre 1x
+        cardBrand: null, // Não disponível na resposta de assinatura
+        cardLastDigits: null, // Não disponível na resposta de assinatura
+        referralCode: referralCode || null,
+        subscriptionId: paymentData.id, // Adicionar ID da assinatura
+        paymentFirst: true // Flag para identificar Payment First
+      });
+
+      // Se assinatura ativa, atualizar status do pedido para 'paid'
+      if (isActive) {
+        await updateOrderStatus(orderId, 'paid');
+        console.log(`✅ Pedido ${orderId} atualizado para 'paid' após Payment First bem-sucedido`);
+      }
+
+      // URL da assinatura para acompanhamento
+      finalInvoiceUrl = paymentData.invoiceUrl || `https://www.asaas.com/c/${paymentData.id}`;
+
+      // Sucesso no Payment First
+      return res.status(200).json({
+        success: true,
+        paymentId: paymentData.id,
+        subscriptionId: paymentData.id,
+        status: paymentData.status,
+        nextDueDate: paymentData.nextDueDate,
+        invoiceUrl: finalInvoiceUrl,
+        message: isActive ? 'Assinatura criada e primeira cobrança processada com sucesso (Payment First)' : 'Assinatura criada, aguardando processamento do cartão',
+        orderStatus: isActive ? 'paid' : 'pending',
+        paymentFirst: true
+      });
+    }
         billingType,
         amount,
         status: isConfirmed ? 'confirmed' : 'pending',
