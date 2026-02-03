@@ -53,9 +53,9 @@ export default function AfiliadosLanding() {
                 💰 Ganhe até 15% por venda
               </div>
 
-              <h1 className="text-4xl font-bold leading-tight lg:text-6xl tracking-tight max-w-2xl">
+              <h1 className="text-3xl font-bold leading-tight lg:text-5xl tracking-tight max-w-2xl">
                 Transforme Indicações em
-                <span className="block bg-gradient-to-r from-primary via-primary/80 to-secondary bg-clip-text text-transparent whitespace-nowrap">
+                <span className="block bg-gradient-to-r from-primary via-primary/80 to-secondary bg-clip-text text-transparent">
                   Rendimento Exponencial
                 </span>
               </h1>
