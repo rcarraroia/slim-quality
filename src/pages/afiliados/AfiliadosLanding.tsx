@@ -3,10 +3,10 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Slider } from "@/components/ui/slider";
-import { 
-  DollarSign, 
-  Users, 
-  TrendingUp, 
+import {
+  DollarSign,
+  Users,
+  TrendingUp,
   CheckCircle2,
   ArrowRight,
   Zap,
@@ -21,9 +21,9 @@ export default function AfiliadosLanding() {
   const [nivel3, setNivel3] = useState([15]); // Aumentei o mock para N3 para refletir o exemplo
   const [showChatWidget, setShowChatWidget] = useState(false);
 
-  // Ticket médio = (3190 + 3290 + 3490 + 4890) / 4 = 3715
-  const ticketMedio = 3715;
-  
+  // Ticket médio = Baseado no colchão padrão R$ 4.400,00
+  const ticketMedio = 4400;
+
   const calcularGanhos = () => {
     // N1: 15%
     const n1 = nivel1[0] * ticketMedio * 0.15;
@@ -31,7 +31,7 @@ export default function AfiliadosLanding() {
     const n2 = nivel2[0] * ticketMedio * 0.03;
     // N3: 2%
     const n3 = nivel3[0] * ticketMedio * 0.02;
-    
+
     return {
       mensal: n1 + n2 + n3,
       anual: (n1 + n2 + n3) * 12,
@@ -44,83 +44,86 @@ export default function AfiliadosLanding() {
   return (
     <div className="min-h-screen">
       {/* Hero Section */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-primary/10 via-background to-secondary/10 py-24">
-        <div className="container mx-auto px-6">
+      <section className="relative overflow-hidden bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-primary/20 via-background to-secondary/10 py-24">
+        <div className="absolute inset-0 bg-grid-white/[0.02] bg-[size:20px_20px]" />
+        <div className="container relative mx-auto px-6">
           <div className="grid gap-12 lg:grid-cols-2 lg:gap-8 items-center">
-            <div className="space-y-8">
-              <div className="inline-block rounded-full bg-primary/10 px-4 py-1.5 text-sm font-medium text-primary">
+            <div className="space-y-8 animate-in fade-in slide-in-from-left duration-1000">
+              <div className="inline-block rounded-full bg-primary/10 px-4 py-1.5 text-sm font-medium text-primary ring-1 ring-primary/20">
                 💰 Ganhe até 15% por venda
               </div>
-              
-              <h1 className="text-5xl font-bold leading-tight lg:text-6xl">
+
+              <h1 className="text-5xl font-bold leading-tight lg:text-6xl tracking-tight">
                 Transforme Indicações em
-                <span className="block bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
-                  Renda Recorrente
+                <span className="block bg-gradient-to-r from-primary via-primary/80 to-secondary bg-clip-text text-transparent">
+                  Rendimento exponencial
                 </span>
               </h1>
-              
-              <p className="text-xl text-muted-foreground">
-                Ajude pessoas a dormirem melhor e construa uma renda extra 
+
+              <p className="text-xl text-muted-foreground max-w-lg">
+                Ajude pessoas a dormirem melhor e construa uma rede de rendimentos
                 indicando nossos colchões terapêuticos magnéticos.
               </p>
 
               <div className="flex flex-wrap gap-4">
-                <Button size="lg" asChild className="gap-2">
+                <Button size="lg" asChild className="gap-2 shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/30 transition-all duration-300">
                   <Link to="/afiliados/cadastro">
                     Quero Ser Afiliado
                     <ArrowRight className="h-5 w-5" />
                   </Link>
                 </Button>
-                <Button size="lg" variant="outline" onClick={() => setShowChatWidget(true)}>
+                <Button size="lg" variant="outline" onClick={() => setShowChatWidget(true)} className="backdrop-blur-sm bg-background/50">
                   Falar com Especialista
                 </Button>
               </div>
 
               <div className="flex gap-8 pt-4">
-                <div>
+                <div className="space-y-1">
                   <p className="text-3xl font-bold text-primary">15%</p>
-                  <p className="text-sm text-muted-foreground">Comissão Direta</p>
+                  <p className="text-sm text-muted-foreground font-medium uppercase tracking-wider">Comissão Direta</p>
                 </div>
-                <div>
+                <div className="space-y-1">
                   <p className="text-3xl font-bold text-primary">3 Níveis</p>
-                  <p className="text-sm text-muted-foreground">De Ganhos</p>
+                  <p className="text-sm text-muted-foreground font-medium uppercase tracking-wider">De Ganhos</p>
                 </div>
-                <div>
-                  <p className="text-3xl font-bold text-primary">R$ 7.8k+</p>
-                  <p className="text-sm text-muted-foreground">Média Mensal</p>
+                <div className="space-y-1">
+                  <p className="text-3xl font-bold text-primary">R$ 9.2k+</p>
+                  <p className="text-sm text-muted-foreground font-medium uppercase tracking-wider">Média Mensal</p>
                 </div>
               </div>
             </div>
 
-            <div className="relative">
-              <Card className="border-2 shadow-2xl">
+            <div className="relative animate-in fade-in slide-in-from-right duration-1000 delay-200">
+              <div className="absolute -inset-1 bg-gradient-to-r from-primary/30 to-secondary/30 rounded-2xl blur-2xl opacity-50" />
+              <Card className="relative border-primary/10 shadow-2xl backdrop-blur-md bg-background/80 overflow-hidden">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full -mr-16 -mt-16 blur-3xl" />
                 <CardContent className="p-8">
-                  <div className="space-y-6">
-                    <div className="flex items-center gap-3">
-                      <div className="rounded-full bg-primary/10 p-3">
+                  <div className="space-y-8">
+                    <div className="flex items-center gap-4 group">
+                      <div className="rounded-2xl bg-primary/10 p-4 ring-1 ring-primary/20 group-hover:bg-primary/20 transition-colors">
                         <Zap className="h-6 w-6 text-primary" />
                       </div>
                       <div>
-                        <p className="font-semibold">Cadastro Rápido</p>
-                        <p className="text-sm text-muted-foreground">Comece em 5 minutos</p>
+                        <p className="font-bold text-lg">Cadastro Rápido</p>
+                        <p className="text-muted-foreground">Sua rede pronta em 5 minutos</p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-3">
-                      <div className="rounded-full bg-primary/10 p-3">
+                    <div className="flex items-center gap-4 group">
+                      <div className="rounded-2xl bg-primary/10 p-4 ring-1 ring-primary/20 group-hover:bg-primary/20 transition-colors">
                         <Shield className="h-6 w-6 text-primary" />
                       </div>
                       <div>
-                        <p className="font-semibold">100% Seguro</p>
-                        <p className="text-sm text-muted-foreground">Sistema confiável</p>
+                        <p className="font-bold text-lg">Transparência Total</p>
+                        <p className="text-muted-foreground">Acompanhe cada comissão em tempo real</p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-3">
-                      <div className="rounded-full bg-primary/10 p-3">
+                    <div className="flex items-center gap-4 group">
+                      <div className="rounded-2xl bg-primary/10 p-4 ring-1 ring-primary/20 group-hover:bg-primary/20 transition-colors">
                         <Clock className="h-6 w-6 text-primary" />
                       </div>
                       <div>
-                        <p className="font-semibold">Pagamento Rápido</p>
-                        <p className="text-sm text-muted-foreground">Saques semanais via PIX</p>
+                        <p className="font-bold text-lg">Liquidez Semanal</p>
+                        <p className="text-muted-foreground">Receba seus lucros via PIX</p>
                       </div>
                     </div>
                   </div>
@@ -150,7 +153,7 @@ export default function AfiliadosLanding() {
                 </div>
                 <h3 className="text-2xl font-bold">Cadastre-se</h3>
                 <p className="text-muted-foreground">
-                  Preencha o formulário com seus dados e informações bancárias. 
+                  Preencha o formulário com seus dados e informações bancárias.
                   Em poucos minutos você terá seu link de afiliado.
                 </p>
               </CardContent>
@@ -164,7 +167,7 @@ export default function AfiliadosLanding() {
                 </div>
                 <h3 className="text-2xl font-bold">Indique</h3>
                 <p className="text-muted-foreground">
-                  Compartilhe seu link nas redes sociais, grupos de WhatsApp 
+                  Compartilhe seu link nas redes sociais, grupos de WhatsApp
                   ou diretamente com pessoas que possam se beneficiar.
                 </p>
               </CardContent>
@@ -178,7 +181,7 @@ export default function AfiliadosLanding() {
                 </div>
                 <h3 className="text-2xl font-bold">Receba</h3>
                 <p className="text-muted-foreground">
-                  A cada venda realizada através do seu link, você recebe 
+                  A cada venda realizada através do seu link, você recebe
                   comissão automaticamente. Saque via PIX quando quiser.
                 </p>
               </CardContent>
@@ -197,60 +200,63 @@ export default function AfiliadosLanding() {
             </p>
           </div>
 
-          <div className="grid gap-6 md:grid-cols-3 max-w-4xl mx-auto">
-            <Card className="border-2 border-primary shadow-lg">
+          <div className="grid gap-8 md:grid-cols-3 max-w-5xl mx-auto">
+            <Card className="relative group border-primary/20 shadow-xl backdrop-blur-sm bg-background/50 hover:bg-background/80 transition-all duration-300 hover:-translate-y-2">
+              <div className="absolute top-0 inset-x-0 h-1.5 bg-gradient-to-r from-primary to-primary/60 rounded-t-xl" />
               <CardContent className="p-8 text-center space-y-4">
-                <div className="flex items-center justify-center w-20 h-20 mx-auto rounded-full bg-primary text-primary-foreground text-3xl font-bold">
+                <div className="flex items-center justify-center w-24 h-24 mx-auto rounded-2xl bg-primary text-primary-foreground text-4xl font-black shadow-lg shadow-primary/20">
                   15%
                 </div>
                 <h3 className="text-2xl font-bold">Nível 1 (Direto)</h3>
-                <p className="text-muted-foreground">
+                <p className="text-muted-foreground font-medium">
                   Suas indicações diretas
                 </p>
-                <div className="pt-4 border-t">
-                  <p className="text-sm text-muted-foreground">Exemplo (Venda Padrão R$ 3.290):</p>
-                  <p className="text-lg font-semibold text-primary">
-                    R$ 493,50
+                <div className="pt-6 mt-4 border-t border-primary/10">
+                  <p className="text-sm text-muted-foreground mb-1">Exemplo (Venda Padrão R$ 4.400,00):</p>
+                  <p className="text-3xl font-black text-primary">
+                    R$ 660,00
                   </p>
-                  <p className="text-xs text-muted-foreground">por venda</p>
+                  <p className="text-xs font-bold text-muted-foreground/60 uppercase tracking-tighter mt-1">por venda finalizada</p>
                 </div>
               </CardContent>
             </Card>
 
-            <Card className="border-2 border-secondary shadow-lg">
+            <Card className="relative group border-secondary/20 shadow-xl backdrop-blur-sm bg-background/50 hover:bg-background/80 transition-all duration-300 hover:-translate-y-2">
+              <div className="absolute top-0 inset-x-0 h-1.5 bg-gradient-to-r from-secondary to-secondary/60 rounded-t-xl" />
               <CardContent className="p-8 text-center space-y-4">
-                <div className="flex items-center justify-center w-20 h-20 mx-auto rounded-full bg-secondary text-secondary-foreground text-3xl font-bold">
+                <div className="flex items-center justify-center w-24 h-24 mx-auto rounded-2xl bg-secondary text-secondary-foreground text-4xl font-black shadow-lg shadow-secondary/20">
                   3%
                 </div>
                 <h3 className="text-2xl font-bold">Nível 2</h3>
-                <p className="text-muted-foreground">
+                <p className="text-muted-foreground font-medium">
                   Indicados dos seus indicados
                 </p>
-                <div className="pt-4 border-t">
-                  <p className="text-sm text-muted-foreground">Exemplo (Venda Queen R$ 3.490):</p>
-                  <p className="text-lg font-semibold text-secondary">
-                    R$ 104,70
+                <div className="pt-6 mt-4 border-t border-secondary/10">
+                  <p className="text-sm text-muted-foreground mb-1">Exemplo (Venda Padrão R$ 4.400,00):</p>
+                  <p className="text-3xl font-black text-secondary">
+                    R$ 132,00
                   </p>
-                  <p className="text-xs text-muted-foreground">por venda</p>
+                  <p className="text-xs font-bold text-muted-foreground/60 uppercase tracking-tighter mt-1">por venda da rede</p>
                 </div>
               </CardContent>
             </Card>
 
-            <Card className="border-2 shadow-lg">
+            <Card className="relative group border-muted shadow-xl backdrop-blur-sm bg-background/50 hover:bg-background/80 transition-all duration-300 hover:-translate-y-2">
+              <div className="absolute top-0 inset-x-0 h-1.5 bg-gradient-to-r from-muted-foreground/20 to-muted-foreground/10 rounded-t-xl" />
               <CardContent className="p-8 text-center space-y-4">
-                <div className="flex items-center justify-center w-20 h-20 mx-auto rounded-full bg-muted text-foreground text-3xl font-bold">
+                <div className="flex items-center justify-center w-24 h-24 mx-auto rounded-2xl bg-muted text-foreground text-4xl font-black shadow-lg">
                   2%
                 </div>
                 <h3 className="text-2xl font-bold">Nível 3</h3>
-                <p className="text-muted-foreground">
+                <p className="text-muted-foreground font-medium">
                   Terceiro nível da sua rede
                 </p>
-                <div className="pt-4 border-t">
-                  <p className="text-sm text-muted-foreground">Exemplo (Venda King R$ 4.890):</p>
-                  <p className="text-lg font-semibold">
-                    R$ 97,80
+                <div className="pt-6 mt-4 border-t border-muted">
+                  <p className="text-sm text-muted-foreground mb-1">Exemplo (Venda Padrão R$ 4.400,00):</p>
+                  <p className="text-3xl font-black text-foreground">
+                    R$ 88,00
                   </p>
-                  <p className="text-xs text-muted-foreground">por venda</p>
+                  <p className="text-xs font-bold text-muted-foreground/60 uppercase tracking-tighter mt-1">por venda da expansão</p>
                 </div>
               </CardContent>
             </Card>
@@ -264,7 +270,7 @@ export default function AfiliadosLanding() {
           <div className="text-center mb-16">
             <h2 className="text-4xl font-bold mb-4">Simule Seus Ganhos</h2>
             <p className="text-xl text-muted-foreground">
-              Veja quanto você pode ganhar mensalmente (Ticket Médio R$ 3.715)
+              Veja quanto você pode ganhar mensalmente (Ticket Médio R$ 4.400,00)
             </p>
           </div>
 
@@ -484,7 +490,7 @@ export default function AfiliadosLanding() {
                 Pronto para Começar a Ganhar?
               </h2>
               <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-                Cadastre-se agora e comece a construir sua renda recorrente 
+                Cadastre-se agora e comece a construir sua renda recorrente
                 ajudando pessoas a dormirem melhor
               </p>
               <div className="flex flex-wrap gap-4 justify-center pt-4">
@@ -505,12 +511,12 @@ export default function AfiliadosLanding() {
           </Card>
         </div>
       </section>
-      
+
       {/* Chat Widget */}
       {showChatWidget && (
-        <ChatWidget 
+        <ChatWidget
           autoOpen={true}
-          onClose={() => setShowChatWidget(false)} 
+          onClose={() => setShowChatWidget(false)}
         />
       )}
     </div>

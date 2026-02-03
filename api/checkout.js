@@ -288,15 +288,30 @@ export default async function handler(req, res) {
                        req.socket.remoteAddress ||
                        '127.0.0.1';
 
-      // Construir creditCardHolderInfo com fallbacks
+      // Construir creditCardHolderInfo com fallbacks e validação
       const holderInfo = {
         name: creditCardHolderInfo?.name || customer.name,
         email: creditCardHolderInfo?.email || customer.email,
         cpfCnpj: creditCardHolderInfo?.cpfCnpj || customer.cpfCnpj,
-        postalCode: creditCardHolderInfo?.postalCode || customer.postalCode || '35315000', // Fallback CEP
+        postalCode: creditCardHolderInfo?.postalCode || customer.postalCode || '30112000', // Fallback CEP válido (Belo Horizonte/MG)
         addressNumber: creditCardHolderInfo?.addressNumber || customer.addressNumber || 'S/N',
         phone: creditCardHolderInfo?.phone || customer.phone || customer.mobilePhone
       };
+
+      // Validar CEP (formato brasileiro: 8 dígitos)
+      if (holderInfo.postalCode && !/^\d{8}$/.test(holderInfo.postalCode.replace(/\D/g, ''))) {
+        console.warn('⚠️ CEP inválido detectado:', holderInfo.postalCode, '- usando fallback');
+        holderInfo.postalCode = '30112000';
+      }
+
+      console.log('📍 Dados do titular validados:', {
+        name: holderInfo.name,
+        email: holderInfo.email,
+        postalCode: holderInfo.postalCode,
+        addressNumber: holderInfo.addressNumber,
+        cpfCnpj: holderInfo.cpfCnpj ? holderInfo.cpfCnpj.substring(0, 3) + '***' : 'N/A',
+        remoteIp
+      });
 
       paymentPayload = {
         customer: asaasCustomerId,
@@ -471,7 +486,7 @@ export default async function handler(req, res) {
             name: customer.name,
             email: customer.email,
             cpfCnpj: customer.cpfCnpj,
-            postalCode: customer.postalCode || '35315000',
+            postalCode: customer.postalCode || '30112000', // Fallback CEP válido (Belo Horizonte/MG)
             addressNumber: customer.addressNumber || 'S/N',
             phone: customer.phone || customer.mobilePhone
           }
