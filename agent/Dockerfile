@@ -39,9 +39,11 @@ RUN pip install --no-cache-dir --user --timeout=300 --retries=3 \
     mcp>=1.25.0 \
     structlog>=23.2.0
 
-# Instalar PyTorch CPU-only (muito menor que GPU version)
+# Instalar PyTorch CPU-only com versões compatíveis
 RUN pip install --no-cache-dir --user --timeout=600 --retries=5 \
     torch==2.4.0+cpu \
+    torchvision==0.19.0+cpu \
+    torchaudio==2.4.0+cpu \
     --index-url https://download.pytorch.org/whl/cpu
 
 # Instalar dependências de ML/AI separadamente
