@@ -200,7 +200,10 @@ export default function AgenteConfiguracao() {
   useEffect(() => {
     loadConfig();
     loadSubAgents();
-    loadSubscription();
+    // TODO: Implementar loadSubscription() quando o backend estiver pronto
+    // Por enquanto, definir subscription como ativa para permitir acesso
+    setSubscription({ status: 'active', expires_at: null });
+    setIsLoadingSubscription(false);
   }, []);
 
   const handleSaveConfig = async () => {
