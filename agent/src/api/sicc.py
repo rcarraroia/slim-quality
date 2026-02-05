@@ -405,14 +405,47 @@ async def approve_sicc_learning(
             # Registrar aprovação via Behavior Service
             behavior_service = sicc_service.behavior_service
             
-            # Simular aprovação (na implementação real, seria persistido)
-            logger.info("Aprendizado aprovado", learning_id=learning_id, reason=action.reason if action else None)
-            
-            return SuccessResponse(
-                success=True,
-                message=f"Aprendizado {learning_id} aprovado com sucesso",
-                data={"learning_id": learning_id, "action": "approved"}
-            )
+            # PERSISTIR APROVAÇÃO NO BANCO DE DADOS
+            try:
+                from ..services.supabase_client import get_supabase_client
+                from datetime import datetime
+                
+                supabase = get_supabase_client()
+                
+                # Atualizar status na tabela learning_logs
+                update_data = {
+                    'status': 'approved',
+                    'approved_at': datetime.now().isoformat(),
+                    'approved_by': 'admin',
+                    'approval_reason': action.reason if action and hasattr(action, 'reason') else 'Aprovado via interface admin',
+                    'updated_at': datetime.now().isoformat()
+                }
+                
+                result = supabase.table('learning_logs').update(update_data).eq('id', learning_id).execute()
+                
+                if not result.data:
+                    logger.warning("Nenhum registro encontrado para atualizar", learning_id=learning_id)
+                    return SuccessResponse(
+                        success=False,
+                        message=f"Aprendizado {learning_id} não encontrado"
+                    )
+                
+                logger.info("Aprendizado aprovado e persistido no banco", 
+                           learning_id=learning_id, 
+                           reason=action.reason if action and hasattr(action, 'reason') else None)
+                
+                return SuccessResponse(
+                    success=True,
+                    message=f"Aprendizado {learning_id} aprovado com sucesso",
+                    data={"learning_id": learning_id, "action": "approved", "updated_record": result.data[0] if result.data else None}
+                )
+                
+            except Exception as db_error:
+                logger.error("Erro ao persistir aprovação no banco", learning_id=learning_id, error=str(db_error))
+                return SuccessResponse(
+                    success=False,
+                    message=f"Erro ao salvar aprovação no banco: {str(db_error)}"
+                )
             
         except Exception as sicc_error:
             logger.error("Erro ao aprovar aprendizado SICC", learning_id=learning_id, error=str(sicc_error))
@@ -455,14 +488,47 @@ async def reject_sicc_learning(
                     message="SICC não está inicializado"
                 )
             
-            # Registrar rejeição
-            logger.info("Aprendizado rejeitado", learning_id=learning_id, reason=action.reason if action else None)
-            
-            return SuccessResponse(
-                success=True,
-                message=f"Aprendizado {learning_id} rejeitado com sucesso",
-                data={"learning_id": learning_id, "action": "rejected"}
-            )
+            # PERSISTIR REJEIÇÃO NO BANCO DE DADOS
+            try:
+                from ..services.supabase_client import get_supabase_client
+                from datetime import datetime
+                
+                supabase = get_supabase_client()
+                
+                # Atualizar status na tabela learning_logs
+                update_data = {
+                    'status': 'rejected',
+                    'approved_at': datetime.now().isoformat(),
+                    'approved_by': 'admin',
+                    'approval_reason': action.reason if action and hasattr(action, 'reason') else 'Rejeitado via interface admin',
+                    'updated_at': datetime.now().isoformat()
+                }
+                
+                result = supabase.table('learning_logs').update(update_data).eq('id', learning_id).execute()
+                
+                if not result.data:
+                    logger.warning("Nenhum registro encontrado para atualizar", learning_id=learning_id)
+                    return SuccessResponse(
+                        success=False,
+                        message=f"Aprendizado {learning_id} não encontrado"
+                    )
+                
+                logger.info("Aprendizado rejeitado e persistido no banco", 
+                           learning_id=learning_id, 
+                           reason=action.reason if action and hasattr(action, 'reason') else None)
+                
+                return SuccessResponse(
+                    success=True,
+                    message=f"Aprendizado {learning_id} rejeitado com sucesso",
+                    data={"learning_id": learning_id, "action": "rejected", "updated_record": result.data[0] if result.data else None}
+                )
+                
+            except Exception as db_error:
+                logger.error("Erro ao persistir rejeição no banco", learning_id=learning_id, error=str(db_error))
+                return SuccessResponse(
+                    success=False,
+                    message=f"Erro ao salvar rejeição no banco: {str(db_error)}"
+                )
             
         except Exception as sicc_error:
             logger.error("Erro ao rejeitar aprendizado SICC", learning_id=learning_id, error=str(sicc_error))

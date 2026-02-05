@@ -24,6 +24,9 @@ export default function AffiliateDashboardConfiguracoes() {
   const [customer, setCustomer] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
+  // Estado controlado para o campo Estado
+  const [selectedState, setSelectedState] = useState("");
+
   // Estados para Wallet ID
   const [walletId, setWalletId] = useState("");
   const [showWalletHelp, setShowWalletHelp] = useState(false);
@@ -105,6 +108,8 @@ export default function AffiliateDashboardConfiguracoes() {
 
       if (customerData) {
         setCustomer(customerData);
+        // Inicializar estado controlado do campo Estado
+        setSelectedState(customerData.state || "");
       }
 
       // Buscar preferências de notificações
@@ -142,7 +147,6 @@ export default function AffiliateDashboardConfiguracoes() {
       const emailInput = document.getElementById('email') as HTMLInputElement;
       const phoneInput = document.getElementById('telefone') as HTMLInputElement;
       const cityInput = document.getElementById('cidade') as HTMLInputElement;
-      const stateSelect = document.querySelector('#estado button') as HTMLButtonElement;
       const cepInput = document.getElementById('cep') as HTMLInputElement;
       const birthDateInput = document.getElementById('birthDate') as HTMLInputElement;
 
@@ -151,7 +155,7 @@ export default function AffiliateDashboardConfiguracoes() {
         email: emailInput?.value || '',
         phone: phoneInput?.value || '',
         city: cityInput?.value || null,
-        state: stateSelect?.textContent !== 'Selecione' ? stateSelect?.textContent : null,
+        state: selectedState || null, // ✅ Usar estado controlado
         cep: cepInput?.value || null,
         birth_date: birthDateInput?.value || null,
       };
@@ -649,7 +653,7 @@ export default function AffiliateDashboardConfiguracoes() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="estado">Estado</Label>
-              <Select defaultValue={customer?.state || ""}>
+              <Select value={selectedState} onValueChange={setSelectedState}>
                 <SelectTrigger id="estado">
                   <SelectValue placeholder="Selecione" />
                 </SelectTrigger>
