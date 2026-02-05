@@ -80,7 +80,7 @@ coverage.xml
 .context
 .github
 .hypothesis
-.kiro
+.kiro/steering
 .spec
 docs
 BUGS_SISTEMA_AFILIADOS
