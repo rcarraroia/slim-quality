@@ -12,8 +12,7 @@
     "test:ui": "vitest --ui",
     "test:coverage": "vitest --coverage",
     "test:run": "vitest run",
-    "migrate:affiliates": "tsx scripts/migrate-existing-affiliates.ts",
-    "postbuild": "npm run migrate:affiliates"
+    "migrate:affiliates": "node scripts/migrate-existing-affiliates.js"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.3.2",
