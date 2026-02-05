@@ -1,9 +1,9 @@
-# Slim Quality Agent - Backend Conversacional
-# Multi-stage build para otimização de produção
-# Base: Python 3.11 slim para menor tamanho
+# Slim Quality Agent - Versão MÍNIMA para produção
+# SEM PyTorch - Deploy ultra-rápido
+# Base: Python 3.11 slim
 
 # ============================================
-# STAGE 1: Builder - Instalar dependências (REBUILD FORÇADO)
+# STAGE 1: Builder - Instalar dependências
 # ============================================
 FROM python:3.11-slim as builder
 
@@ -17,10 +17,10 @@ RUN apt-get update && apt-get install -y \
 # Criar diretório de trabalho
 WORKDIR /app
 
-# Copiar requirements e instalar dependências com retry e otimizações
+# Copiar requirements e instalar apenas dependências essenciais
 COPY requirements.txt .
 
-# Instalar dependências em etapas para melhor resiliência de rede
+# Instalar dependências principais (SEM PyTorch)
 RUN pip install --no-cache-dir --user --timeout=300 --retries=3 \
     fastapi==0.115.0 \
     uvicorn[standard]==0.32.0 \
@@ -39,38 +39,30 @@ RUN pip install --no-cache-dir --user --timeout=300 --retries=3 \
     mcp>=1.25.0 \
     structlog>=23.2.0
 
-# Instalar PyTorch CPU-only (muito menor que GPU version)
-RUN pip install --no-cache-dir --user --timeout=600 --retries=5 \
-    torch==2.4.0+cpu \
-    --index-url https://download.pytorch.org/whl/cpu
-
-# Instalar dependências de ML/AI separadamente
-RUN pip install --no-cache-dir --user --timeout=300 --retries=3 \
-    transformers>=4.35.0 \
-    sentence-transformers>=2.2.2 \
-    numpy>=1.24.0 \
-    scikit-learn>=1.3.0
-
-# Instalar dependências restantes
+# Instalar dependências Google
 RUN pip install --no-cache-dir --user --timeout=300 --retries=3 \
     google-api-python-client>=2.108.0 \
     google-auth-httplib2>=0.2.0 \
     google-auth-oauthlib>=1.2.0 \
-    google-generativeai>=0.8.0 \
+    google-generativeai>=0.8.0
+
+# Instalar dependências de banco
+RUN pip install --no-cache-dir --user --timeout=300 --retries=3 \
     psycopg2-binary>=2.9.7 \
     pgvector>=0.2.4 \
     sqlalchemy>=2.0.0 \
-    alembic>=1.12.0 \
+    alembic>=1.12.0
+
+# Instalar dependências async
+RUN pip install --no-cache-dir --user --timeout=300 --retries=3 \
     asyncio-mqtt>=0.13.0 \
     aioredis>=2.0.1 \
     aiohttp>=3.8.0 \
-    celery>=5.3.0 \
-    pandas>=2.1.0 \
-    matplotlib>=3.7.0 \
-    seaborn>=0.12.0 \
-    hypothesis>=6.88.0 \
-    pytest>=7.4.0 \
-    pytest-asyncio>=0.21.0
+    celery>=5.3.0
+
+# Instalar apenas numpy básico (sem ML pesado)
+RUN pip install --no-cache-dir --user --timeout=300 --retries=3 \
+    numpy>=1.24.0
 
 # ============================================
 # STAGE 2: Runtime - Imagem final otimizada
@@ -79,8 +71,8 @@ FROM python:3.11-slim
 
 # Metadados da imagem
 LABEL maintainer="Slim Quality Team"
-LABEL version="1.0.0"
-LABEL description="Backend conversacional com LangGraph + FastAPI"
+LABEL version="1.0.0-minimal"
+LABEL description="Backend conversacional MÍNIMO - sem ML pesado"
 
 # Criar usuário não-root para segurança
 RUN groupadd -r app && useradd -r -g app -u 1000 app
@@ -120,7 +112,7 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
 # Mudar para usuário não-root
 USER app
 
-# Comando para rodar FastAPI (com logs forçados)
-CMD echo "=== CONTAINER INICIANDO ===" && \
+# Comando para rodar FastAPI
+CMD echo "=== CONTAINER INICIANDO (MINIMAL) ===" && \
     echo "Executando: uvicorn src.api.main:app --host 0.0.0.0 --port 8000" && \
     uvicorn src.api.main:app --host 0.0.0.0 --port 8000 --log-level debug
