@@ -18,14 +18,15 @@ describe('CommissionCalculatorService', () => {
 
   describe('Property 4: Soma de comissões = 30%', () => {
     it('deve calcular corretamente com apenas N1 (sem rede)', async () => {
-      // Cenário: Vendedor sem ascendentes
+      // Cenário: Vendedor sem ascendentes (usando ID real do banco)
+      // Beatriz Fatima Almeida Carraro (sem referred_by)
       // Esperado: N1=15%, N2=0%, N3=0%, Renum=7.5%, JB=7.5%
       const orderValue = 329000; // R$ 3.290,00 em centavos
       
       const result = await calculator.calculateCommissions({
         orderId: 'order-test-1',
         orderValue,
-        affiliateN1Id: 'aff-n1-only'
+        affiliateN1Id: '6f889212-9f9a-4ed8-9429-c3bdf26cb9da' // Beatriz Fatima (sem referred_by)
       });
 
       // Validar valores individuais
@@ -53,14 +54,15 @@ describe('CommissionCalculatorService', () => {
     });
 
     it('deve calcular corretamente com N1 + N2 (sem N3)', async () => {
-      // Cenário: Vendedor com 1 ascendente
+      // Cenário: Vendedor com 1 ascendente (usando IDs reais do banco)
+      // Giuseppe Afonso (36f5a54f) tem referred_by = 6f889212 (Beatriz Fatima)
       // Esperado: N1=15%, N2=3%, N3=0%, Renum=6%, JB=6%
       const orderValue = 329000; // R$ 3.290,00
       
       const result = await calculator.calculateCommissions({
         orderId: 'order-test-2',
         orderValue,
-        affiliateN1Id: 'aff-n1-with-n2'
+        affiliateN1Id: '36f5a54f-cb07-4260-ae59-da71136a2940' // Giuseppe Afonso (tem N2)
       });
 
       // Validar valores individuais
@@ -88,14 +90,15 @@ describe('CommissionCalculatorService', () => {
     });
 
     it('deve calcular corretamente com rede completa (N1 + N2 + N3)', async () => {
-      // Cenário: Vendedor com 2 ascendentes
+      // Cenário: Vendedor com 2 ascendentes (usando IDs reais do banco)
+      // Maria Edurda Carraro (3be7c0cb) → Giuseppe Afonso (36f5a54f) → Beatriz Fatima (6f889212)
       // Esperado: N1=15%, N2=3%, N3=2%, Renum=5%, JB=5%
       const orderValue = 329000; // R$ 3.290,00
       
       const result = await calculator.calculateCommissions({
         orderId: 'order-test-3',
         orderValue,
-        affiliateN1Id: 'aff-n1-complete'
+        affiliateN1Id: '3be7c0cb-344a-4c1a-ac49-e0bd77104223' // Maria Edurda (tem N2 e N3)
       });
 
       // Validar valores individuais
@@ -123,7 +126,7 @@ describe('CommissionCalculatorService', () => {
     });
 
     it('deve manter 30% com diferentes valores de pedido', async () => {
-      // Property-based test: Testar com múltiplos valores
+      // Property-based test: Testar com múltiplos valores usando ID real
       const testValues = [
         100000,  // R$ 1.000,00
         329000,  // R$ 3.290,00 (Padrão)
@@ -136,7 +139,7 @@ describe('CommissionCalculatorService', () => {
         const result = await calculator.calculateCommissions({
           orderId: `order-test-${orderValue}`,
           orderValue,
-          affiliateN1Id: 'aff-test'
+          affiliateN1Id: '6f889212-9f9a-4ed8-9429-c3bdf26cb9da' // Beatriz Fatima (ID real)
         });
 
         // PROPERTY: Total sempre = 30% (tolerância 1 centavo)
@@ -157,7 +160,7 @@ describe('CommissionCalculatorService', () => {
     });
 
     it('deve redistribuir corretamente quando falta N2 e N3', async () => {
-      // Cenário: Apenas N1, sem ascendentes
+      // Cenário: Apenas N1, sem ascendentes (usando ID real)
       // Percentual não utilizado: 3% + 2% = 5%
       // Redistribuição: 2.5% para cada gestor
       const orderValue = 100000; // R$ 1.000,00
@@ -165,7 +168,7 @@ describe('CommissionCalculatorService', () => {
       const result = await calculator.calculateCommissions({
         orderId: 'order-redistribution-1',
         orderValue,
-        affiliateN1Id: 'aff-n1-only'
+        affiliateN1Id: '6f889212-9f9a-4ed8-9429-c3bdf26cb9da' // Beatriz Fatima (sem referred_by)
       });
 
       expect(result.redistributionApplied).toBe(true);
@@ -180,7 +183,7 @@ describe('CommissionCalculatorService', () => {
     });
 
     it('deve redistribuir corretamente quando falta apenas N3', async () => {
-      // Cenário: N1 + N2, sem N3
+      // Cenário: N1 + N2, sem N3 (usando IDs reais)
       // Percentual não utilizado: 2%
       // Redistribuição: 1% para cada gestor
       const orderValue = 100000; // R$ 1.000,00
@@ -188,7 +191,7 @@ describe('CommissionCalculatorService', () => {
       const result = await calculator.calculateCommissions({
         orderId: 'order-redistribution-2',
         orderValue,
-        affiliateN1Id: 'aff-n1-with-n2'
+        affiliateN1Id: '36f5a54f-cb07-4260-ae59-da71136a2940' // Giuseppe Afonso (tem N2, sem N3)
       });
 
       expect(result.redistributionApplied).toBe(true);
@@ -203,13 +206,13 @@ describe('CommissionCalculatorService', () => {
     });
 
     it('deve validar que soma nunca ultrapassa 30%', async () => {
-      // Property: Soma NUNCA pode ser > 30%
+      // Property: Soma NUNCA pode ser > 30% (usando ID real)
       const orderValue = 329000;
       
       const result = await calculator.calculateCommissions({
         orderId: 'order-validation',
         orderValue,
-        affiliateN1Id: 'aff-test'
+        affiliateN1Id: '6f889212-9f9a-4ed8-9429-c3bdf26cb9da' // Beatriz Fatima (ID real)
       });
 
       const totalPercentage = result.n1.percentage + 
@@ -223,13 +226,13 @@ describe('CommissionCalculatorService', () => {
     });
 
     it('deve validar que nenhuma comissão é negativa', async () => {
-      // Property: Todas as comissões >= 0
+      // Property: Todas as comissões >= 0 (usando ID real)
       const orderValue = 329000;
       
       const result = await calculator.calculateCommissions({
         orderId: 'order-positive',
         orderValue,
-        affiliateN1Id: 'aff-test'
+        affiliateN1Id: '6f889212-9f9a-4ed8-9429-c3bdf26cb9da' // Beatriz Fatima (ID real)
       });
 
       // PROPERTY: Todos os valores >= 0
@@ -276,7 +279,7 @@ describe('CommissionCalculatorService', () => {
       const result = await calculator.calculateCommissions({
         orderId: 'order-tiny',
         orderValue,
-        affiliateN1Id: 'aff-test'
+        affiliateN1Id: '6f889212-9f9a-4ed8-9429-c3bdf26cb9da' // Beatriz Fatima (ID real)
       });
 
       // Mesmo com 1 centavo, soma deve ser <= 1 centavo (30% de 1 = 0.3 ≈ 0)
@@ -289,7 +292,7 @@ describe('CommissionCalculatorService', () => {
       const result = await calculator.calculateCommissions({
         orderId: 'order-huge',
         orderValue,
-        affiliateN1Id: 'aff-test'
+        affiliateN1Id: '6f889212-9f9a-4ed8-9429-c3bdf26cb9da' // Beatriz Fatima (ID real)
       });
 
       // Total = 30% de 100k = 30k
@@ -304,7 +307,7 @@ describe('CommissionCalculatorService', () => {
       const result = await calculator.calculateCommissions({
         orderId: 'order-decimal',
         orderValue,
-        affiliateN1Id: 'aff-test'
+        affiliateN1Id: '6f889212-9f9a-4ed8-9429-c3bdf26cb9da' // Beatriz Fatima (ID real)
       });
 
       // Validar que todos os valores são inteiros (centavos)

@@ -1,22 +1,31 @@
 /**
  * Rollback Service - Sistema de Assinaturas
  * 
- * Gerencia rollback de emergência e procedimentos de recuperação
- * para o sistema de assinaturas.
+ * Serviço responsável por executar rollbacks automáticos e manuais
+ * do sistema de assinaturas em caso de problemas críticos.
  * 
- * Task 17.1: Implementar rollback automático
+ * Task 17.1: Configure feature flags para assinaturas
  */
 
-import { LoggerService } from './LoggerService';
-import { featureFlagService } from '../../config/feature-flags.config';
+import { featureFlags } from '../../config/feature-flags.config.js';
+import { LoggerService } from './LoggerService.js';
 
 export interface RollbackPlan {
   id: string;
   name: string;
   description: string;
-  steps: RollbackStep[];
   estimatedDuration: number; // minutes
   riskLevel: 'low' | 'medium' | 'high';
+  requiresConfirmation: boolean;
+  steps: RollbackStep[];
+}
+
+export interface RollbackTrigger {
+  type: 'manual' | 'automatic';
+  reason: string;
+  severity: 'low' | 'medium' | 'high' | 'critical';
+  affectedFeatures: string[];
+  triggerLevel: 'low' | 'medium' | 'high';
   requiresConfirmation: boolean;
 }
 
@@ -55,7 +64,7 @@ export class RollbackService {
   private executions: Map<string, RollbackExecution> = new Map();
 
   constructor() {
-    this.logger = new LoggerService('RollbackService');
+    this.logger = LoggerService.getInstance();
   }
 
   /**
@@ -237,12 +246,17 @@ export class RollbackService {
 
     this.executions.set(executionId, execution);
 
-    this.logger.info('Starting rollback execution', {
-      executionId,
-      planId,
-      reason,
-      triggeredBy,
-      stepsCount: plan.steps.length
+    this.logger.info('RollbackService', 'Starting rollback execution', {
+      correlationId: executionId,
+      service: 'RollbackService',
+      operation: 'executePlan',
+      metadata: {
+        executionId,
+        planId,
+        reason,
+        triggeredBy,
+        stepsCount: plan.steps.length
+      }
     });
 
     try {
@@ -253,20 +267,30 @@ export class RollbackService {
       execution.status = 'completed';
       execution.completedAt = new Date().toISOString();
 
-      this.logger.info('Rollback execution completed successfully', {
-        executionId,
-        planId,
-        duration: this.calculateDuration(execution)
+      this.logger.info('RollbackService', 'Rollback execution completed successfully', {
+        correlationId: executionId,
+        service: 'RollbackService',
+        operation: 'executePlan',
+        metadata: {
+          executionId,
+          planId,
+          duration: this.calculateDuration(execution)
+        }
       });
 
     } catch (error) {
       execution.status = 'failed';
       execution.completedAt = new Date().toISOString();
 
-      this.logger.error('Rollback execution failed', error as Error, {
-        executionId,
-        planId,
-        reason
+      this.logger.error('RollbackService', 'Rollback execution failed', error as Error, {
+        correlationId: executionId,
+        service: 'RollbackService',
+        operation: 'executePlan',
+        metadata: {
+          executionId,
+          planId,
+          reason
+        }
       });
 
       throw error;
@@ -292,11 +316,16 @@ export class RollbackService {
     stepExecution.status = 'running';
     stepExecution.startedAt = new Date().toISOString();
 
-    this.logger.info('Executing rollback step', {
-      executionId,
-      stepId: step.id,
-      stepName: step.name,
-      action: step.action
+    this.logger.info('RollbackService', 'Executing rollback step', {
+      correlationId: executionId,
+      service: 'RollbackService',
+      operation: 'executeStep',
+      metadata: {
+        executionId,
+        stepId: step.id,
+        stepName: step.name,
+        action: step.action
+      }
     });
 
     try {
@@ -331,10 +360,15 @@ export class RollbackService {
       stepExecution.completedAt = new Date().toISOString();
       stepExecution.result = result;
 
-      this.logger.info('Rollback step completed', {
-        executionId,
-        stepId: step.id,
-        result
+      this.logger.info('RollbackService', 'Rollback step completed', {
+        correlationId: executionId,
+        service: 'RollbackService',
+        operation: 'executeStep',
+        metadata: {
+          executionId,
+          stepId: step.id,
+          result
+        }
       });
 
     } catch (error) {
@@ -342,9 +376,14 @@ export class RollbackService {
       stepExecution.completedAt = new Date().toISOString();
       stepExecution.error = (error as Error).message;
 
-      this.logger.error('Rollback step failed', error as Error, {
-        executionId,
-        stepId: step.id
+      this.logger.error('RollbackService', 'Rollback step failed', error as Error, {
+        correlationId: executionId,
+        service: 'RollbackService',
+        operation: 'executeStep',
+        metadata: {
+          executionId,
+          stepId: step.id
+        }
       });
 
       throw error;
@@ -360,10 +399,15 @@ export class RollbackService {
     // In a real implementation, this would update environment variables
     // or a configuration service. For now, we'll simulate the action.
     
-    this.logger.info('Disabling feature', { feature, value });
+    this.logger.info('RollbackService', 'Disabling feature', { 
+      correlationId: crypto.randomUUID(),
+      service: 'RollbackService',
+      operation: 'disableFeature',
+      metadata: { feature, value }
+    });
     
     // Force refresh feature flags
-    featureFlagService.getCurrentFlags();
+    featureFlags.getConfig();
     
     return { feature, previousValue: true, newValue: value };
   }
@@ -374,7 +418,12 @@ export class RollbackService {
   private async revertConfig(parameters: Record<string, any>): Promise<any> {
     const { key, value } = parameters;
     
-    this.logger.info('Reverting configuration', { key, value });
+    this.logger.info('RollbackService', 'Reverting configuration', { 
+      correlationId: crypto.randomUUID(),
+      service: 'RollbackService',
+      operation: 'revertConfig',
+      metadata: { key, value }
+    });
     
     // In a real implementation, this would update the configuration store
     return { key, newValue: value };
@@ -386,11 +435,16 @@ export class RollbackService {
   private async clearCache(parameters: Record<string, any>): Promise<any> {
     const { cacheType } = parameters;
     
-    this.logger.info('Clearing cache', { cacheType });
+    this.logger.info('RollbackService', 'Clearing cache', { 
+      correlationId: crypto.randomUUID(),
+      service: 'RollbackService',
+      operation: 'clearCache',
+      metadata: { cacheType }
+    });
     
     // Force refresh feature flags cache
     if (cacheType === 'feature_flags') {
-      featureFlagService.getCurrentFlags();
+      featureFlags.getConfig();
     }
     
     return { cacheType, cleared: true };
@@ -402,7 +456,12 @@ export class RollbackService {
   private async notifyTeam(parameters: Record<string, any>): Promise<any> {
     const { message, channels } = parameters;
     
-    this.logger.info('Sending team notification', { message, channels });
+    this.logger.info('RollbackService', 'Sending team notification', { 
+      correlationId: crypto.randomUUID(),
+      service: 'RollbackService',
+      operation: 'notifyTeam',
+      metadata: { message, channels }
+    });
     
     // In a real implementation, this would send notifications via Slack, email, etc.
     // For now, we'll just log the notification
@@ -414,7 +473,12 @@ export class RollbackService {
    * Execute custom action
    */
   private async executeCustomAction(parameters: Record<string, any>): Promise<any> {
-    this.logger.info('Executing custom rollback action', { parameters });
+    this.logger.info('RollbackService', 'Executing custom rollback action', { 
+      correlationId: crypto.randomUUID(),
+      service: 'RollbackService',
+      operation: 'executeCustomAction',
+      metadata: { parameters }
+    });
     
     // Custom actions would be implemented here based on specific needs
     return { customAction: true, parameters };

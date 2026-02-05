@@ -9,6 +9,8 @@ import { supabase } from '@/config/supabase';
 import { affiliateService } from '@/services/affiliates/affiliate.service';
 import { walletValidator } from '@/services/asaas/wallet-validator.service';
 import { commissionCalculator } from '@/services/affiliates/commission-calculator.service';
+import { documentValidationService } from '@/services/document-validation.service';
+import { regularizationService } from '@/services/regularization.service';
 
 const router = Router();
 
@@ -25,6 +27,16 @@ const CreateAffiliateSchema = z.object({
 const UpdateStatusSchema = z.object({
   status: z.enum(['pending', 'active', 'inactive', 'suspended', 'rejected']),
   reason: z.string().min(10).max(500).optional()
+});
+
+// Schemas para validação de documentos
+const ValidateDocumentSchema = z.object({
+  document: z.string().min(11).max(18), // CPF: 11 dígitos, CNPJ: 14 dígitos + formatação
+});
+
+const UpdateDocumentSchema = z.object({
+  document: z.string().min(11).max(18),
+  documentType: z.enum(['CPF', 'CNPJ']).optional() // Opcional, será detectado automaticamente
 });
 
 /**
@@ -209,6 +221,182 @@ router.get('/network', requireAuth, async (req, res) => {
 
   } catch (error) {
     console.error('Erro ao buscar rede:', error);
+    res.status(500).json({ error: 'Erro interno' });
+  }
+});
+
+/**
+ * POST /api/affiliates/validate-document
+ * Validação prévia de documento CPF/CNPJ
+ */
+router.post('/validate-document', async (req, res) => {
+  try {
+    // 1. Validar dados de entrada
+    const validation = ValidateDocumentSchema.safeParse(req.body);
+    if (!validation.success) {
+      return res.status(400).json({ 
+        error: 'Dados inválidos',
+        details: validation.error.issues 
+      });
+    }
+
+    const { document } = validation.data;
+
+    // 2. Validar documento
+    const result = await documentValidationService.validateDocument(document);
+
+    // 3. Retornar resultado
+    res.json({
+      success: true,
+      data: {
+        isValid: result.isValid,
+        document: result.document,
+        type: result.type,
+        errors: result.errors,
+        isDuplicate: result.isDuplicate,
+        // Não retornar existingAffiliateId por segurança
+        validationId: result.validationId
+      }
+    });
+
+  } catch (error) {
+    console.error('Erro ao validar documento:', error);
+    res.status(500).json({ 
+      error: 'Erro interno na validação' 
+    });
+  }
+});
+
+/**
+ * PUT /api/affiliates/:id/document
+ * Atualização de documento de afiliado
+ */
+router.put('/:id/document', requireAuth, async (req, res) => {
+  try {
+    const affiliateId = req.params.id;
+
+    // 1. Validar dados de entrada
+    const validation = UpdateDocumentSchema.safeParse(req.body);
+    if (!validation.success) {
+      return res.status(400).json({ 
+        error: 'Dados inválidos',
+        details: validation.error.issues 
+      });
+    }
+
+    const { document } = validation.data;
+
+    // 2. Verificar se afiliado existe e pertence ao usuário
+    const { data: affiliate, error: affiliateError } = await supabase
+      .from('affiliates')
+      .select('id, user_id, name, email, document, document_type')
+      .eq('id', affiliateId)
+      .single();
+
+    if (affiliateError || !affiliate) {
+      return res.status(404).json({ error: 'Afiliado não encontrado' });
+    }
+
+    // 3. Verificar autorização (usuário só pode atualizar próprio documento)
+    if (affiliate.user_id !== req.user.id) {
+      return res.status(403).json({ error: 'Não autorizado' });
+    }
+
+    // 4. Validar documento (excluindo o próprio afiliado da verificação de duplicação)
+    const validationResult = await documentValidationService.validateDocument(
+      document, 
+      affiliateId,
+      affiliateId // Excluir da verificação de duplicação
+    );
+
+    if (!validationResult.isValid) {
+      return res.status(400).json({
+        error: 'Documento inválido',
+        details: validationResult.errors
+      });
+    }
+
+    // 5. Atualizar documento no banco
+    const now = new Date().toISOString();
+    const { error: updateError } = await supabase
+      .from('affiliates')
+      .update({
+        document: validationResult.document,
+        document_type: validationResult.type,
+        document_validated_at: now,
+        document_validation_source: 'manual_update',
+        updated_at: now
+      })
+      .eq('id', affiliateId);
+
+    if (updateError) {
+      console.error('Erro ao atualizar documento:', updateError);
+      return res.status(500).json({ error: 'Erro ao atualizar documento' });
+    }
+
+    // 6. Processar regularização se houver solicitação pendente
+    if (validationResult.type === 'CPF' || validationResult.type === 'CNPJ') {
+      await regularizationService.processRegularization(
+        affiliateId,
+        validationResult.document,
+        validationResult.type
+      );
+    }
+
+    res.json({
+      success: true,
+      data: {
+        document: validationResult.document,
+        type: validationResult.type,
+        validatedAt: now
+      },
+      message: 'Documento atualizado com sucesso'
+    });
+
+  } catch (error) {
+    console.error('Erro ao atualizar documento:', error);
+    res.status(500).json({ error: 'Erro interno' });
+  }
+});
+
+/**
+ * GET /api/affiliates/:id/regularization-status
+ * Status de regularização de afiliado
+ */
+router.get('/:id/regularization-status', requireAuth, async (req, res) => {
+  try {
+    const affiliateId = req.params.id;
+
+    // 1. Verificar se afiliado existe e pertence ao usuário
+    const { data: affiliate, error: affiliateError } = await supabase
+      .from('affiliates')
+      .select('id, user_id')
+      .eq('id', affiliateId)
+      .single();
+
+    if (affiliateError || !affiliate) {
+      return res.status(404).json({ error: 'Afiliado não encontrado' });
+    }
+
+    // 2. Verificar autorização
+    if (affiliate.user_id !== req.user.id) {
+      return res.status(403).json({ error: 'Não autorizado' });
+    }
+
+    // 3. Obter status de regularização
+    const status = await regularizationService.getRegularizationStatus(affiliateId);
+
+    if (!status) {
+      return res.status(404).json({ error: 'Status de regularização não encontrado' });
+    }
+
+    res.json({
+      success: true,
+      data: status
+    });
+
+  } catch (error) {
+    console.error('Erro ao buscar status de regularização:', error);
     res.status(500).json({ error: 'Erro interno' });
   }
 });

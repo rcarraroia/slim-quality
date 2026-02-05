@@ -29,6 +29,8 @@ import adminCommissionsRoutes from './api/routes/admin/commissions';
 import adminWithdrawalsRoutes from './api/routes/admin/withdrawals';
 import mcpRoutes from './api/routes/mcp';
 import authRoutes from './api/routes/auth';
+// NOVO: Rotas isoladas para assinaturas
+import subscriptionsRoutes from './api/routes/subscriptions';
 
 const app = express();
 
@@ -84,6 +86,9 @@ app.use('/api/affiliates', affiliatesRoutes);
 app.use('/api/referral', referralTrackingRoutes);
 app.use('/api/webhooks', asaasWebhookRoutes);
 app.use('/api/mcp', mcpRoutes);
+
+// NOVO: Rotas isoladas para assinaturas (namespace separado)
+app.use('/api/subscriptions', subscriptionsRoutes);
 
 // Nova rota para chat do site
 app.post('/api/chat', async (req, res) => {
