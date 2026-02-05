@@ -412,6 +412,7 @@ export class CheckoutService {
 
   /**
    * Gera URL de pagamento via backend seguro (API key protegida)
+   * ✅ ROTEAMENTO INTELIGENTE: Detecta produtos IA e usa sistema de assinaturas
    */
   private async generatePaymentUrl(
     order: Order,
@@ -431,15 +432,52 @@ export class CheckoutService {
         throw new Error('Cliente não encontrado');
       }
 
-      // Buscar dados do produto
+      // Buscar dados do produto com informações completas
       const { data: orderItems } = await supabase
         .from('order_items')
-        .select('*')
+        .select(`
+          *,
+          products:product_id (
+            id,
+            name,
+            sku,
+            category,
+            description
+          )
+        `)
         .eq('order_id', order.id);
 
       if (!orderItems || orderItems.length === 0) {
         throw new Error('Itens do pedido não encontrados');
       }
+
+      // ✅ DETECÇÃO INTELIGENTE DE PRODUTO IA
+      const hasIAProduct = orderItems.some(item => {
+        const product = item.products as any;
+        return product && (
+          product.category === 'ferramenta_ia' ||
+          product.sku === 'COL-707D80' ||
+          product.name?.toLowerCase().includes('agente ia')
+        );
+      });
+
+      console.log('🔍 Detecção de produto:', {
+        hasIAProduct,
+        orderItems: orderItems.map(item => ({
+          sku: (item.products as any)?.sku,
+          category: (item.products as any)?.category,
+          name: (item.products as any)?.name
+        }))
+      });
+
+      // ✅ ROTEAMENTO: Se for produto IA, usar sistema de assinaturas
+      if (hasIAProduct) {
+        console.log('🚀 Produto IA detectado - usando sistema de assinaturas');
+        return await this.processSubscriptionPayment(order, payment, customer, orderItems, cpfCnpj, shippingData);
+      }
+
+      // ✅ PRODUTOS FÍSICOS: Continuar com sistema tradicional
+      console.log('📦 Produto físico detectado - usando sistema tradicional');
 
       // Buscar endereço de entrega (Pode não existir para produtos digitais)
       const { data: shippingAddress } = await supabase
@@ -502,14 +540,26 @@ export class CheckoutService {
       // Adicionar dados do cartão se for pagamento com cartão
       if (payment.method === 'credit_card' && payment.creditCard) {
         checkoutPayload.creditCard = payment.creditCard;
+        
+        // ✅ CORREÇÃO: Usar dados do payment.creditCardHolderInfo se disponível, senão usar dados do customer
+        const holderInfo = payment.creditCardHolderInfo || {};
+        
         checkoutPayload.creditCardHolderInfo = {
-          name: customer.name,
-          email: customer.email,
-          cpfCnpj: asaasCustomer.cpfCnpj,
-          postalCode: asaasCustomer.postalCode || '00000000',
-          addressNumber: asaasCustomer.addressNumber || 'S/N',
-          phone: customer.phone
+          name: holderInfo.name || customer.name,
+          email: holderInfo.email || customer.email,
+          cpfCnpj: holderInfo.cpfCnpj || asaasCustomer.cpfCnpj,
+          postalCode: (holderInfo.postalCode || asaasCustomer.postalCode || '30112000').replace(/\D/g, ''),
+          addressNumber: holderInfo.addressNumber || asaasCustomer.addressNumber || 'S/N',
+          phone: (holderInfo.phone || customer.phone || '').replace(/\D/g, '')
         };
+        
+        console.log('💳 Dados do portador do cartão:', {
+          name: checkoutPayload.creditCardHolderInfo.name,
+          email: checkoutPayload.creditCardHolderInfo.email,
+          cpfCnpj: checkoutPayload.creditCardHolderInfo.cpfCnpj ? '***' + checkoutPayload.creditCardHolderInfo.cpfCnpj.slice(-3) : 'N/A',
+          postalCode: checkoutPayload.creditCardHolderInfo.postalCode,
+          phone: checkoutPayload.creditCardHolderInfo.phone ? checkoutPayload.creditCardHolderInfo.phone.slice(0, 2) + '***' : 'N/A'
+        });
       }
 
       const finalApiUrl = `${backendUrl}/api/checkout`;
@@ -573,6 +623,157 @@ export class CheckoutService {
         order_id: order.id,
         error: 'payment_failed',
         message: error instanceof Error ? error.message : 'Erro desconhecido'
+      });
+
+      return `${baseUrl}/pagamento-erro?${errorParams.toString()}`;
+    }
+  }
+
+  /**
+   * ✅ NOVO: Processa pagamento de assinatura usando sistema novo
+   */
+  private async processSubscriptionPayment(
+    order: Order,
+    payment: CheckoutData['payment'],
+    customer: any,
+    orderItems: any[],
+    cpfCnpj?: string,
+    shippingData?: Omit<CreateShippingAddressData, 'order_id'>
+  ): Promise<string> {
+    try {
+      // Importar serviço de assinaturas dinamicamente
+      const { subscriptionFrontendService } = await import('@/services/frontend/subscription.service');
+
+      // Usar CPF passado diretamente do formulário (prioridade) ou do banco
+      const finalCpfCnpj = cpfCnpj || customer.cpf_cnpj;
+
+      // Validar CPF antes de processar
+      if (!finalCpfCnpj) {
+        throw new Error('CPF é obrigatório para assinatura');
+      }
+
+      // Preparar dados para o sistema de assinaturas
+      const subscriptionData = {
+        userId: customer.id,
+        planId: orderItems[0].product_id,
+        amount: order.total_cents / 100,
+        orderItems: orderItems.map(item => ({
+          id: item.product_id,
+          name: item.product_name,
+          quantity: item.quantity,
+          value: item.unit_price_cents / 100,
+          description: (item.products as any)?.description || item.product_name,
+          metadata: {
+            hasAI: true,
+            aiFeatures: ['chat', 'automation', 'analytics']
+          }
+        })),
+        customerData: {
+          name: customer.name,
+          email: customer.email,
+          phone: customer.phone,
+          cpf: finalCpfCnpj.replace(/\D/g, ''),
+          address: {
+            zipCode: shippingData?.postal_code?.replace(/\D/g, '') || '30112000',
+            street: shippingData?.street || 'Rua Principal',
+            number: shippingData?.number || 'S/N',
+            complement: shippingData?.complement || '',
+            neighborhood: shippingData?.neighborhood || 'Centro',
+            city: shippingData?.city || 'Belo Horizonte',
+            state: shippingData?.state || 'MG'
+          }
+        },
+        paymentMethod: {
+          type: payment.method === 'credit_card' ? 'CREDIT_CARD' as const : 'PIX' as const,
+          creditCard: payment.creditCard ? {
+            holderName: payment.creditCard.holderName,
+            number: payment.creditCard.number,
+            expiryMonth: payment.creditCard.expiryMonth,
+            expiryYear: payment.creditCard.expiryYear,
+            ccv: payment.creditCard.ccv
+          } : undefined
+        },
+        affiliateData: order.referral_code ? {
+          referralCode: order.referral_code
+        } : undefined
+      };
+
+      console.log('🚀 Processando assinatura via sistema novo:', {
+        orderId: order.id,
+        planId: subscriptionData.planId,
+        amount: subscriptionData.amount,
+        paymentMethod: subscriptionData.paymentMethod.type,
+        hasAffiliate: !!subscriptionData.affiliateData
+      });
+
+      // Criar pagamento de assinatura
+      const result = await subscriptionFrontendService.createSubscriptionPayment(subscriptionData);
+
+      if (!result.success) {
+        throw new Error(result.error || 'Erro ao criar assinatura');
+      }
+
+      console.log('✅ Assinatura criada com sucesso:', {
+        paymentId: result.data!.paymentId,
+        status: result.data!.status,
+        correlationId: result.data!.correlationId
+      });
+
+      // Para PIX, retornar URL de polling/acompanhamento
+      if (subscriptionData.paymentMethod.type === 'PIX') {
+        const pollingParams = new URLSearchParams({
+          payment_id: result.data!.paymentId,
+          correlation_id: result.data!.correlationId,
+          type: 'subscription'
+        });
+        return `${window.location.origin}/pagamento-acompanhamento?${pollingParams.toString()}`;
+      }
+
+      // Para cartão de crédito, iniciar polling automático
+      if (subscriptionData.paymentMethod.type === 'CREDIT_CARD') {
+        console.log('💳 Iniciando polling para pagamento com cartão...');
+        
+        const pollingResult = await subscriptionFrontendService.pollPaymentStatus(
+          result.data!.paymentId,
+          (attempt, maxAttempts) => {
+            console.log(`🔄 Polling tentativa ${attempt}/${maxAttempts}`);
+          }
+        );
+
+        if (pollingResult.success && pollingResult.data?.status === 'CONFIRMED') {
+          // Pagamento confirmado - redirecionar para sucesso
+          const successParams = new URLSearchParams({
+            order_id: order.id,
+            payment_id: result.data!.paymentId,
+            subscription_id: pollingResult.data.subscriptionId || 'created',
+            type: 'subscription'
+          });
+          return `${window.location.origin}/pagamento-sucesso?${successParams.toString()}`;
+        } else {
+          // Timeout ou falha - redirecionar para acompanhamento
+          const pollingParams = new URLSearchParams({
+            payment_id: result.data!.paymentId,
+            correlation_id: result.data!.correlationId,
+            type: 'subscription',
+            status: pollingResult.data?.status || 'timeout'
+          });
+          return `${window.location.origin}/pagamento-acompanhamento?${pollingParams.toString()}`;
+        }
+      }
+
+      // Fallback
+      return `${window.location.origin}/pagamento-sucesso?order_id=${order.id}`;
+
+    } catch (error) {
+      console.error('❌ Erro ao processar assinatura:', error);
+
+      // Fallback: retornar URL de erro específica para assinaturas
+      const baseUrl = window.location.origin;
+      const errorParams = new URLSearchParams({
+        order_id: order.id,
+        error: 'subscription_failed',
+        message: error instanceof Error ? error.message : 'Erro na assinatura',
+        type: 'subscription'
       });
 
       return `${baseUrl}/pagamento-erro?${errorParams.toString()}`;

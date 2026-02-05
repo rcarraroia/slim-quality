@@ -233,6 +233,14 @@ export interface CheckoutData {
     method: 'pix' | 'credit_card';
     installments?: number;
     creditCard?: CreditCardData; // Dados do cartão para checkout transparente
+    creditCardHolderInfo?: {
+      name: string;
+      email: string;
+      cpfCnpj: string;
+      postalCode: string;
+      addressNumber: string;
+      phone: string;
+    };
   };
 
   // Dados de afiliado (se houver)
