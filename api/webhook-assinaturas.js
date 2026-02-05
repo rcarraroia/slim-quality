@@ -41,7 +41,15 @@ export default async function handler(req, res) {
     console.log(`[WH-Assinaturas] 🔔 Evento ${eventType} recebido para Assinatura ${asaasSubscriptionId}`);
 
     if (!asaasSubscriptionId) {
-      console.log('[WH-Assinaturas] ⚠️ Evento ignorado: asaasSubscriptionId não encontrado');
+      // Verificar se é Payment First via externalReference
+      const externalRef = payment?.externalReference;
+      if (externalRef && externalRef.startsWith('subscription_')) {
+        console.log('[WH-Assinaturas] 🔄 Processando Payment First:', externalRef);
+        await handlePaymentFirstConfirmed(supabase, payment);
+        return res.status(200).json({ success: true, type: 'payment_first' });
+      }
+      
+      console.log('[WH-Assinaturas] ⚠️ Evento ignorado: não é assinatura nem Payment First');
       return res.status(200).json({ received: true, message: 'Sem ID de assinatura' });
     }
 
@@ -67,8 +75,20 @@ export default async function handler(req, res) {
     return res.status(200).json({ success: true });
 
   } catch (error) {
-    console.error('[WH-Assinaturas] ❌ Erro crítico:', error);
-    return res.status(200).json({ error: error.message }); // 200 para o Asaas não repetir infinitamente
+    console.error('[WH-Assinaturas] 💥 ERRO CRÍTICO:', {
+      message: error.message,
+      stack: error.stack,
+      event: req.body?.event,
+      timestamp: new Date().toISOString()
+    });
+
+    // IMPORTANTE: Sempre retornar 200 para Asaas (evita reenvios infinitos)
+    // O erro já foi logado para investigação posterior
+    return res.status(200).json({ 
+      received: true, 
+      error: 'Internal processing error (logged)', 
+      timestamp: new Date().toISOString() 
+    });
   }
 }
 
@@ -159,5 +179,160 @@ async function handleSubscriptionDeleted(supabase, asaasSubscriptionId) {
         suspended_at: new Date().toISOString()
       })
       .eq('id', sub.tenant_id);
+  }
+}
+
+/**
+ * Processa pagamentos Payment First (sem assinatura tradicional)
+ */
+async function handlePaymentFirstConfirmed(supabase, payment) {
+  const startTime = Date.now();
+  console.log('[WH-PaymentFirst] 🚀 Iniciando processamento:', {
+    paymentId: payment.id,
+    externalRef: payment.externalReference,
+    value: payment.value
+  });
+
+  try {
+    // ============================================================
+    // ETAPA 1: IDEMPOTÊNCIA - Verificar se evento já foi processado
+    // ============================================================
+    const { data: existingEvent } = await supabase
+      .from('subscription_webhook_events')
+      .select('id, processed_at')
+      .eq('asaas_event_id', payment.id)
+      .eq('event_type', 'PAYMENT_CONFIRMED')
+      .single();
+
+    if (existingEvent) {
+      console.log('[WH-PaymentFirst] ⚠️ Evento já processado anteriormente:', {
+        eventId: existingEvent.id,
+        processedAt: existingEvent.processed_at
+      });
+      return { 
+        success: true, 
+        duplicate: true, 
+        message: 'Evento já processado' 
+      };
+    }
+
+    // ============================================================
+    // ETAPA 2: Atualizar subscription_orders
+    // ============================================================
+    const { data: order, error: orderError } = await supabase
+      .from('subscription_orders')
+      .update({ 
+        status: 'active',
+        confirmed_at: new Date().toISOString(),
+        asaas_confirmed_value: payment.value
+      })
+      .eq('asaas_payment_id', payment.id)
+      .select('id, user_id, affiliate_data')
+      .single();
+
+    if (orderError || !order) {
+      console.error('[WH-PaymentFirst] ❌ Erro ao atualizar subscription_orders:', orderError);
+      throw new Error(`Pedido não encontrado para payment_id: ${payment.id}`);
+    }
+
+    console.log('[WH-PaymentFirst] ✅ subscription_orders atualizada:', {
+      orderId: order.id,
+      userId: order.user_id,
+      status: 'active'
+    });
+
+    // ============================================================
+    // ETAPA 3: Buscar/Ativar tenant
+    // ============================================================
+    const { data: tenant, error: tenantError } = await supabase
+      .from('multi_agent_tenants')
+      .select('id, status')
+      .eq('affiliate_id', order.user_id)
+      .single();
+
+    if (tenantError || !tenant) {
+      console.warn('[WH-PaymentFirst] ⚠️ Tenant não encontrado para user_id:', order.user_id);
+      // NÃO bloqueia - pode ser criado depois manualmente
+    } else {
+      // Ativar tenant
+      const { error: activateError } = await supabase
+        .from('multi_agent_tenants')
+        .update({
+          status: 'active',
+          activated_at: new Date().toISOString(),
+          last_payment_at: new Date().toISOString()
+        })
+        .eq('id', tenant.id);
+
+      if (activateError) {
+        console.error('[WH-PaymentFirst] ❌ Erro ao ativar tenant:', activateError);
+      } else {
+        console.log('[WH-PaymentFirst] ✅ Tenant ativado:', {
+          tenantId: tenant.id,
+          previousStatus: tenant.status,
+          newStatus: 'active'
+        });
+      }
+    }
+
+    // ============================================================
+    // ETAPA 4: Registrar evento processado (idempotência)
+    // ============================================================
+    const { error: eventError } = await supabase
+      .from('subscription_webhook_events')
+      .insert({
+        asaas_event_id: payment.id,
+        event_type: 'PAYMENT_CONFIRMED',
+        payload: JSON.stringify(payment),
+        processed_at: new Date().toISOString(),
+        processing_time_ms: Date.now() - startTime,
+        order_id: order.id,
+        user_id: order.user_id
+      });
+
+    if (eventError) {
+      console.error('[WH-PaymentFirst] ⚠️ Erro ao registrar evento (não fatal):', eventError);
+      // NÃO bloqueia - evento foi processado com sucesso
+    }
+
+    // ============================================================
+    // ETAPA 5: Sucesso final
+    // ============================================================
+    const processingTime = Date.now() - startTime;
+    console.log('[WH-PaymentFirst] ✅ Processamento concluído:', {
+      paymentId: payment.id,
+      orderId: order.id,
+      processingTimeMs: processingTime
+    });
+
+    return {
+      success: true,
+      orderId: order.id,
+      tenantActivated: !!tenant,
+      processingTimeMs: processingTime
+    };
+
+  } catch (error) {
+    const processingTime = Date.now() - startTime;
+    console.error('[WH-PaymentFirst] 💥 ERRO FATAL:', {
+      error: error.message,
+      stack: error.stack,
+      paymentId: payment.id,
+      processingTimeMs: processingTime
+    });
+
+    // Registrar erro para auditoria
+    await supabase.from('subscription_webhook_events').insert({
+      asaas_event_id: payment.id,
+      event_type: 'PAYMENT_CONFIRMED',
+      payload: JSON.stringify(payment),
+      error_message: error.message,
+      processed_at: new Date().toISOString(),
+      processing_time_ms: processingTime
+    }).catch(err => {
+      console.error('[WH-PaymentFirst] ❌ Falha ao registrar erro:', err);
+    });
+
+    throw error; // Re-lançar para tratamento upstream
   }
 }
