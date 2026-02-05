@@ -81,7 +81,6 @@ coverage.xml
 .github
 .hypothesis
 .kiro/steering
-.spec
 docs
 BUGS_SISTEMA_AFILIADOS
 backups
