@@ -47,17 +47,32 @@ export default function AgenteAprendizados() {
   const [editText, setEditText] = useState('');
   const [learnings, setLearnings] = useState<Learning[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [pendingCount, setPendingCount] = useState(0);
+
+  // Carregar contador de pendentes
+  const loadPendingCount = async () => {
+    try {
+      const response = await apiClient.get<Learning[]>('/api/sicc/learnings?status=pending');
+      const pendingData = Array.isArray(response.data) ? response.data : [];
+      setPendingCount(pendingData.length);
+    } catch (error) {
+      console.error('❌ Erro ao carregar contador de pendentes:', error);
+      setPendingCount(0);
+    }
+  };
 
   const itemsPerPage = 5;
 
-  // Carregar aprendizados
-  const loadLearnings = async () => {
+  // Carregar aprendizados baseado na aba ativa
+  const loadLearnings = async (status?: string) => {
     try {
-      const response = await apiClient.get<Learning[]>('/api/sicc/learnings');
+      // Determinar status baseado na aba ativa ou parâmetro
+      const statusParam = status || (activeTab === 'aprovados' ? 'approved' : 'pending');
+      const response = await apiClient.get<Learning[]>(`/api/sicc/learnings?status=${statusParam}`);
       // Validar se response.data é um array
       const learningsData = Array.isArray(response.data) ? response.data : [];
       setLearnings(learningsData);
-      console.log('✅ Aprendizados carregados:', learningsData);
+      console.log(`✅ Aprendizados carregados (${statusParam}):`, learningsData);
     } catch (error) {
       console.error('❌ Erro ao carregar aprendizados:', error);
       // Em caso de erro, definir array vazio para evitar crashes
@@ -74,12 +89,20 @@ export default function AgenteAprendizados() {
 
   useEffect(() => {
     loadLearnings();
+    loadPendingCount();
   }, []);
+
+  // Recarregar dados quando a aba mudar
+  useEffect(() => {
+    if (!isLoading) {
+      loadLearnings();
+      // Sempre atualizar contador de pendentes
+      loadPendingCount();
+    }
+  }, [activeTab]);
   
-  // Filtrar aprendizados
+  // Filtrar aprendizados (apenas por busca e confiança, status vem da API)
   const filteredLearnings = learnings.filter(learning => {
-    const matchesTab = activeTab === 'fila' ? learning.status === 'pending' : learning.status === 'approved';
-    
     // Proteção contra valores undefined
     const pattern = learning.description || learning.pattern_type || '';
     const response = learning.suggested_response || '';
@@ -92,7 +115,7 @@ export default function AgenteAprendizados() {
                              (confidenceFilter === 'medium' && learning.confidence >= 0.6 && learning.confidence < 0.8) ||
                              (confidenceFilter === 'low' && learning.confidence < 0.6);
     
-    return matchesTab && matchesSearch && matchesConfidence;
+    return matchesSearch && matchesConfidence;
   });
 
   const totalPages = Math.ceil(filteredLearnings.length / itemsPerPage);
@@ -100,8 +123,6 @@ export default function AgenteAprendizados() {
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
   );
-
-  const pendingCount = learnings.filter(l => l.status === 'pending').length;
 
   const handleAprovar = async (id: string) => {
     try {
