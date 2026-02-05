@@ -137,6 +137,26 @@ export default async function handler(req, res) {
 
     // Parse body
     const body = req.body || {};
+    
+    // ============================================================
+    // GUARD: Rejeitar produtos IA (devem usar endpoint de assinaturas)
+    // ============================================================
+    const orderItems = body.orderItems || [];
+    const hasIAProduct = orderItems.some(item => 
+      item.product_sku === 'COL-707D80' || 
+      item.sku === 'COL-707D80'
+    );
+
+    if (hasIAProduct) {
+      console.log('[Checkout] ❌ Tentativa de processar produto IA - rejeitado');
+      return res.status(400).json({
+        success: false,
+        error: 'Produtos de assinatura (Agente IA) devem ser processados via endpoint dedicado',
+        hint: 'Use POST /api/subscriptions/create-payment para produtos IA',
+        documentation: 'Consulte .spec/subscription-payment-flow/ para detalhes'
+      });
+    }
+
     const { customer, orderId, amount, billingType, description, installments, creditCard, creditCardHolderInfo, referralCode } = body;
 
     console.log('Checkout request:', { orderId, amount, billingType, referralCode: referralCode || 'none' });
@@ -257,137 +277,36 @@ export default async function handler(req, res) {
       console.log('Asaas customer created:', asaasCustomerId);
     }
 
-    // ✅ NOVO: Verificar se é uma assinatura (Produto Agente IA)
-    const orderItems = body.orderItems || [];
-    const isIAProduct = orderItems.some(item => item.product_sku === 'COL-707D80' || item.sku === 'COL-707D80');
-    const isSubscription = isIAProduct;
-
-    // Criar data de vencimento (vivi para PIX/Boleto, início para Assinatura)
+    // Criar data de vencimento (7 dias para PIX/Boleto)
     const dueDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
-    // Calcular split baseado na rede de afiliados
-    // ✅ NOVO: Passar flag isIAProduct para aplicar split invertido (70% Renum)
-    const splits = await calculateAffiliateSplit(referralCode, ASAAS_WALLET_RENUM, ASAAS_WALLET_JB, isIAProduct);
+    // Calcular split baseado na rede de afiliados (apenas produtos físicos)
+    const splits = await calculateAffiliateSplit(referralCode, ASAAS_WALLET_RENUM, ASAAS_WALLET_JB);
 
     console.log('Split calculado:', splits);
-    console.log(`Asaas Target: ${isSubscription ? 'SUBSCRIPTION' : 'PAYMENT'} (SKU IA: ${isIAProduct})`);
+    console.log('Asaas Target: PAYMENT (produtos físicos)');
 
-    // ✅ CORREÇÃO CRÍTICA: Payment First para Assinaturas com Cartão
-    let asaasEndpoint;
+    // Endpoint sempre /payments para produtos físicos
+    let asaasEndpoint = '/payments';
     let paymentPayload;
+    // Endpoint sempre /payments para produtos físicos
+    paymentPayload = {
+      customer: asaasCustomerId,
+      billingType: billingType,
+      value: amount,
+      externalReference: orderId,
+      description: description || `Pedido ${orderId}`,
+      split: splits,
+      dueDate: dueDate,
+      fine: { value: 0 },
+      interest: { value: 0 }
+    };
 
-    if (isSubscription && billingType === 'CREDIT_CARD' && creditCard) {
-      // NOVO: Endpoint atômico para assinatura + cartão
-      asaasEndpoint = '/subscriptions/'; // Com barra final obrigatória
-      console.log('🔄 Usando Payment First: Criando assinatura COM cartão atomicamente');
-
-      // Capturar IP real do cliente (obrigatório para endpoint atômico)
-      const remoteIp = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || 
-                       req.headers['x-real-ip'] || 
-                       req.connection.remoteAddress || 
-                       req.socket.remoteAddress ||
-                       '127.0.0.1';
-
-      // Construir creditCardHolderInfo com fallbacks e validação
-      const holderInfo = {
-        name: creditCardHolderInfo?.name || customer.name,
-        email: creditCardHolderInfo?.email || customer.email,
-        cpfCnpj: (creditCardHolderInfo?.cpfCnpj || customer.cpfCnpj || '').replace(/\D/g, ''), // ✅ CORREÇÃO: Apenas números
-        postalCode: (creditCardHolderInfo?.postalCode || customer.postalCode || '30112000').replace(/\D/g, ''), // ✅ CORREÇÃO: Apenas números
-        addressNumber: creditCardHolderInfo?.addressNumber || customer.addressNumber || 'S/N',
-        phone: (creditCardHolderInfo?.phone || customer.phone || customer.mobilePhone || '').replace(/\D/g, '') // ✅ CORREÇÃO: Apenas números
-      };
-
-      // Validar CPF (11 dígitos obrigatório)
-      if (!holderInfo.cpfCnpj || holderInfo.cpfCnpj.length !== 11) {
-        console.error('❌ CPF inválido para Payment First:', holderInfo.cpfCnpj);
-        return res.status(400).json({
-          success: false,
-          error: 'CPF obrigatório e deve ter 11 dígitos para pagamento com cartão',
-          details: { cpfLength: holderInfo.cpfCnpj?.length || 0 }
-        });
-      }
-
-      // Validar CEP (8 dígitos obrigatório)
-      if (!holderInfo.postalCode || holderInfo.postalCode.length !== 8) {
-        console.warn('⚠️ CEP inválido detectado:', holderInfo.postalCode, '- usando fallback');
-        holderInfo.postalCode = '30112000';
-      }
-
-      // Validar telefone (mínimo 10 dígitos)
-      if (!holderInfo.phone || holderInfo.phone.length < 10) {
-        console.warn('⚠️ Telefone inválido detectado:', holderInfo.phone, '- usando fallback');
-        holderInfo.phone = '1199999999'; // Fallback telefone válido
-      }
-
-      console.log('📍 Dados do titular validados:', {
-        name: holderInfo.name,
-        email: holderInfo.email,
-        postalCode: holderInfo.postalCode,
-        addressNumber: holderInfo.addressNumber,
-        cpfCnpj: holderInfo.cpfCnpj ? holderInfo.cpfCnpj.substring(0, 3) + '***' : 'N/A',
-        phone: holderInfo.phone ? holderInfo.phone.substring(0, 2) + '***' : 'N/A',
-        remoteIp
-      });
-
-      // ✅ CORREÇÃO: Payload mínimo para Payment First (apenas campos obrigatórios)
-      paymentPayload = {
-        customer: asaasCustomerId,
-        billingType: billingType,
-        value: amount,
-        nextDueDate: dueDate,
-        cycle: 'MONTHLY',
-        creditCard: {
-          holderName: creditCard.holderName,
-          number: creditCard.number,
-          expiryMonth: creditCard.expiryMonth,
-          expiryYear: creditCard.expiryYear,
-          ccv: creditCard.ccv
-        },
-        creditCardHolderInfo: holderInfo,
-        remoteIp: remoteIp,
-        // ✅ CORREÇÃO: Adicionar campos opcionais apenas se válidos
-        ...(orderId && { externalReference: orderId }),
-        ...(description && { description: description.substring(0, 500) }), // Limitar a 500 caracteres
-        ...(splits && splits.length > 0 && { split: splits })
-      };
-
-      console.log('💳 Payment First payload (campos obrigatórios):', {
-        customer: asaasCustomerId,
-        billingType,
-        value: amount,
-        nextDueDate: dueDate,
-        cycle: 'MONTHLY',
-        remoteIp,
-        creditCardPresent: !!paymentPayload.creditCard,
-        holderInfoValid: !!(holderInfo.name && holderInfo.email && holderInfo.cpfCnpj && holderInfo.postalCode && holderInfo.addressNumber && holderInfo.phone),
-        splitCount: splits?.length || 0
-      });
-
-    } else {
-      // FLUXO ORIGINAL: Para produtos físicos ou PIX
-      asaasEndpoint = isSubscription ? '/subscriptions' : '/payments';
-
-      paymentPayload = {
-        customer: asaasCustomerId,
-        billingType: billingType,
-        value: amount,
-        externalReference: orderId,
-        description: description || `Pedido ${orderId}${isSubscription ? ' - Assinatura Mensal Agente IA' : ''}`,
-        split: splits
-      };
-
-      // Campos específicos de Cobrança única
-      if (!isSubscription) {
-        paymentPayload.dueDate = dueDate;
-        paymentPayload.fine = { value: 0 };
-        paymentPayload.interest = { value: 0 };
-
-        // Adicionar parcelas se for cartão de crédito
-        if (billingType === 'CREDIT_CARD' && installments && installments > 1) {
-          paymentPayload.installmentCount = installments;
-          paymentPayload.installmentValue = amount / installments;
-        }
+    // Adicionar parcelas se for cartão de crédito
+    if (billingType === 'CREDIT_CARD' && installments && installments > 1) {
+      paymentPayload.installmentCount = installments;
+      paymentPayload.installmentValue = amount / installments;
+    }
       } else {
         // Campos específicos de Assinatura
         paymentPayload.nextDueDate = dueDate;
@@ -428,38 +347,23 @@ export default async function handler(req, res) {
           customerId: asaasCustomerId,
           billingType,
           amount,
-          paymentFirstAttempt: isSubscription && billingType === 'CREDIT_CARD',
           walletRenum: ASAAS_WALLET_RENUM?.substring(0, 10) + '...',
           walletJB: ASAAS_WALLET_JB?.substring(0, 10) + '...'
         }
       });
     }
 
-    // ✅ CORREÇÃO: Log de sucesso detalhado
+    // Log de sucesso detalhado
     console.log('✅ Asaas payment created successfully:', {
       id: paymentData.id,
       status: paymentData.status,
       billingType: paymentData.billingType,
-      value: paymentData.value,
-      paymentFirstSuccess: isSubscription && billingType === 'CREDIT_CARD'
+      value: paymentData.value
     });
 
-    // Identificar qual ID usar para operações subsequentes
+    // Usar o ID do pagamento criado
     let paymentIdToProcess = paymentData.id;
     let finalInvoiceUrl = paymentData.invoiceUrl;
-    let subscriptionFirstPayment = null;
-
-    // ✅ CORREÇÃO: Para Payment First, não precisamos buscar primeira cobrança
-    if (isSubscription && !(billingType === 'CREDIT_CARD' && creditCard)) {
-      // APENAS para assinaturas PIX/Boleto (fluxo antigo)
-      console.log('Subscription created, fetching first payment...');
-
-      // Aguardar um pouco para o Asaas gerar a cobrança (pode levar alguns ms)
-      await new Promise(resolve => setTimeout(resolve, 1500));
-
-      // Buscar cobranças da assinatura
-      const paymentsRes = await fetch(`${asaasBaseUrl}/subscriptions/${paymentData.id}/payments`, {
-        method: 'GET',
         headers
       });
 
@@ -479,14 +383,6 @@ export default async function handler(req, res) {
         const paymentsError = await paymentsRes.text();
         console.error('Failed to fetch subscription payments:', paymentsError);
       }
-    } else if (isSubscription && billingType === 'CREDIT_CARD' && creditCard) {
-      // NOVO: Para Payment First, a assinatura já foi processada atomicamente
-      console.log('✅ Payment First: Assinatura criada e cartão processado atomicamente');
-      console.log('Subscription status:', paymentData.status);
-      
-      // Para assinaturas com Payment First, usar o ID da assinatura diretamente
-      // O Asaas já processou o cartão e criou a primeira cobrança
-      finalInvoiceUrl = paymentData.invoiceUrl || `https://www.asaas.com/c/${paymentData.id}`;
     }
 
     // Se for PIX, buscar QR Code separadamente
@@ -494,7 +390,7 @@ export default async function handler(req, res) {
     let pixCopyPaste = null;
 
     if (billingType === 'PIX') {
-      // Buscar QR Code do pagamento (seja de cobrança única ou da primeira cobrança da assinatura)
+      // Buscar QR Code do pagamento
       console.log('Fetching PIX QR Code for payment:', paymentIdToProcess);
 
       const pixRes = await fetch(`${asaasBaseUrl}/payments/${paymentIdToProcess}/pixQrCode`, {
@@ -513,10 +409,8 @@ export default async function handler(req, res) {
       }
     }
 
-
     // Se for cartão de crédito com dados do cartão, processar pagamento imediatamente
-    // ✅ CORREÇÃO: Não processar cartão novamente se já foi processado atomicamente (Payment First)
-    if (billingType === 'CREDIT_CARD' && creditCard && !(isSubscription && billingType === 'CREDIT_CARD')) {
+    if (billingType === 'CREDIT_CARD' && creditCard) {
       console.log('Processing credit card payment for payment ID:', paymentIdToProcess);
 
       const payWithCardRes = await fetch(`${asaasBaseUrl}/payments/${paymentIdToProcess}/payWithCreditCard`, {
@@ -586,44 +480,15 @@ export default async function handler(req, res) {
       });
     }
 
-    // ✅ CORREÇÃO: Tratamento específico para Payment First
-    if (isSubscription && billingType === 'CREDIT_CARD' && creditCard) {
-      console.log('🔄 Payment First: Assinatura criada, processando cartão da primeira cobrança...');
-      
-      // Aguardar um pouco para o Asaas gerar a primeira cobrança
-      await new Promise(resolve => setTimeout(resolve, 2000));
-
-      // Buscar a primeira cobrança da assinatura
-      const paymentsRes = await fetch(`${asaasBaseUrl}/subscriptions/${paymentData.id}/payments`, {
-        method: 'GET',
-        headers
-      });
-
-      let firstPaymentId = null;
-      if (paymentsRes.ok) {
-        const paymentsData = await paymentsRes.json();
-        if (paymentsData.data && paymentsData.data.length > 0) {
-          firstPaymentId = paymentsData.data[0].id;
-          console.log('💳 Primeira cobrança encontrada:', firstPaymentId);
-        }
-      }
-
-      if (!firstPaymentId) {
-        console.error('❌ Primeira cobrança não encontrada para assinatura:', paymentData.id);
-        return res.status(500).json({
-          success: false,
-          error: 'Assinatura criada mas primeira cobrança não encontrada',
-          subscriptionId: paymentData.id
-        });
-      }
-
-      // FORÇAR processamento do cartão na primeira cobrança
-      console.log('💳 Processando cartão na primeira cobrança:', firstPaymentId);
-      
-      const payWithCardRes = await fetch(`${asaasBaseUrl}/payments/${firstPaymentId}/payWithCreditCard`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
+    // Registrar no banco de dados
+    await savePaymentToDatabase({
+      orderId,
+      asaasPaymentId: paymentIdToProcess,
+      asaasCustomerId,
+      billingType,
+      amount,
+      status: isConfirmed ? 'confirmed' : 'pending',
+      installments: installments || 1,
           creditCard: {
             holderName: creditCard.holderName,
             number: creditCard.number,
@@ -953,23 +818,9 @@ async function updateOrderStatus(orderId, status) {
  * - Rede (30% restantes): N1, N2, N3 mantêm proporções.
  * - Slim Quality (Fábrica): Assume o papel de gerente (5%).
  */
-async function calculateAffiliateSplit(referralCode, walletRenum, walletJB, isIAProduct = false) {
-  const splits = [];
-
-  // Se for Agente IA, Renum leva 70% logo de cara como dona do produto
-  if (isIAProduct) {
-    splits.push({ walletId: walletRenum, percentualValue: 70 });
-    console.log('💎 Produto IA detectado: Renum recebe 70% como principal.');
-  }
-
+async function calculateAffiliateSplit(referralCode, walletRenum, walletJB) {
   // Se não tem referralCode, split vai todo para gestores
   if (!referralCode) {
-    if (isIAProduct) {
-      // Renum (70) + JB (15) + Slim (Restante 15) = 100%
-      splits.push({ walletId: walletJB, percentualValue: 15 });
-      return splits;
-    }
-
     console.log('Sem referralCode - split 15% Renum + 15% JB');
     return [
       { walletId: walletRenum, percentualValue: 15 },
@@ -1002,11 +853,6 @@ async function calculateAffiliateSplit(referralCode, walletRenum, walletJB, isIA
 
     if (n1Error || !n1Affiliate) {
       console.log('Afiliado N1 não encontrado para referralCode:', referralCode);
-      if (isIAProduct) {
-        // Fallback IA: Renum (70) + JB (15) + Slim (15)
-        splits.push({ walletId: walletJB, percentualValue: 15 });
-        return splits;
-      }
       return [
         { walletId: walletRenum, percentualValue: 15 },
         { walletId: walletJB, percentualValue: 15 }
@@ -1016,10 +862,6 @@ async function calculateAffiliateSplit(referralCode, walletRenum, walletJB, isIA
     // Validar wallet_id do N1
     if (!n1Affiliate.wallet_id || !isValidWalletId(n1Affiliate.wallet_id)) {
       console.log('N1 sem wallet_id válido:', n1Affiliate.id);
-      if (isIAProduct) {
-        splits.push({ walletId: walletJB, percentualValue: 15 });
-        return splits;
-      }
       return [
         { walletId: walletRenum, percentualValue: 15 },
         { walletId: walletJB, percentualValue: 15 }
@@ -1062,19 +904,9 @@ async function calculateAffiliateSplit(referralCode, walletRenum, walletJB, isIA
       }
     }
 
-    // Calcular split baseado na rede encontrada
+    // Calcular split baseado na rede encontrada (apenas produtos físicos)
     if (!n2Affiliate) {
-      // APENAS N1 (30% pool): 15% N1 + 7.5% Slim + 7.5% JB = 30%
-      // + 70% Renum (se IA)
-      if (isIAProduct) {
-        console.log('Split IA: N1 (15%) + JB (7.5%) + Slim (7.5%)');
-        splits.push(
-          { walletId: n1Affiliate.wallet_id, percentualValue: 15 },
-          { walletId: walletJB, percentualValue: 7.5 }
-        );
-        return splits; // Slim (7.5%) fica na principal
-      }
-
+      // APENAS N1: 15% N1 + 7.5% Renum + 7.5% JB = 30%
       console.log('Split: Apenas N1 (15% + 7.5% + 7.5%)');
       return [
         { walletId: n1Affiliate.wallet_id, percentualValue: 15 },
@@ -1082,17 +914,7 @@ async function calculateAffiliateSplit(referralCode, walletRenum, walletJB, isIA
         { walletId: walletJB, percentualValue: 7.5 }
       ];
     } else if (!n3Affiliate) {
-      // N1 + N2 (30% pool): 15% N1 + 3% N2 + 6% Slim + 6% JB = 30%
-      if (isIAProduct) {
-        console.log('Split IA: N1+N2 (15% + 3% + 6% + 6%)');
-        splits.push(
-          { walletId: n1Affiliate.wallet_id, percentualValue: 15 },
-          { walletId: n2Affiliate.wallet_id, percentualValue: 3 },
-          { walletId: walletJB, percentualValue: 6 }
-        );
-        return splits; // Slim (6%) fica na principal
-      }
-
+      // N1 + N2: 15% N1 + 3% N2 + 6% Renum + 6% JB = 30%
       console.log('Split: N1+N2 (15% + 3% + 6% + 6%)');
       return [
         { walletId: n1Affiliate.wallet_id, percentualValue: 15 },
@@ -1101,18 +923,7 @@ async function calculateAffiliateSplit(referralCode, walletRenum, walletJB, isIA
         { walletId: walletJB, percentualValue: 6 }
       ];
     } else {
-      // REDE COMPLETA (30% pool): 15% N1 + 3% N2 + 2% N3 + 5% Slim + 5% JB = 30%
-      if (isIAProduct) {
-        console.log('Split IA: Rede completa (15% + 3% + 2% + 5% + 5%)');
-        splits.push(
-          { walletId: n1Affiliate.wallet_id, percentualValue: 15 },
-          { walletId: n2Affiliate.wallet_id, percentualValue: 3 },
-          { walletId: n3Affiliate.wallet_id, percentualValue: 2 },
-          { walletId: walletJB, percentualValue: 5 }
-        );
-        return splits; // Slim (5%) fica na principal
-      }
-
+      // REDE COMPLETA: 15% N1 + 3% N2 + 2% N3 + 5% Renum + 5% JB = 30%
       console.log('Split: Rede completa (15% + 3% + 2% + 5% + 5%)');
       return [
         { walletId: n1Affiliate.wallet_id, percentualValue: 15 },
