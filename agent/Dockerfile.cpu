@@ -1,9 +1,9 @@
-# Slim Quality Agent - Backend Conversacional
-# Multi-stage build para otimização de produção
+# Slim Quality Agent - Backend Conversacional (CPU-ONLY VERSION)
+# Versão otimizada para deploy rápido sem GPU
 # Base: Python 3.11 slim para menor tamanho
 
 # ============================================
-# STAGE 1: Builder - Instalar dependências (REBUILD FORÇADO)
+# STAGE 1: Builder - Instalar dependências
 # ============================================
 FROM python:3.11-slim as builder
 
@@ -17,10 +17,17 @@ RUN apt-get update && apt-get install -y \
 # Criar diretório de trabalho
 WORKDIR /app
 
-# Copiar requirements e instalar dependências com retry e otimizações
+# Copiar requirements e instalar dependências CPU-only
 COPY requirements.txt .
 
-# Instalar dependências em etapas para melhor resiliência de rede
+# Instalar PyTorch CPU-only (muito menor que GPU version)
+RUN pip install --no-cache-dir --user --timeout=600 --retries=5 \
+    torch==2.10.0+cpu \
+    torchvision==0.19.0+cpu \
+    torchaudio==2.10.0+cpu \
+    --index-url https://download.pytorch.org/whl/cpu
+
+# Instalar dependências principais
 RUN pip install --no-cache-dir --user --timeout=300 --retries=3 \
     fastapi==0.115.0 \
     uvicorn[standard]==0.32.0 \
@@ -39,12 +46,7 @@ RUN pip install --no-cache-dir --user --timeout=300 --retries=3 \
     mcp>=1.25.0 \
     structlog>=23.2.0
 
-# Instalar PyTorch CPU-only (muito menor que GPU version)
-RUN pip install --no-cache-dir --user --timeout=600 --retries=5 \
-    torch==2.10.0+cpu \
-    --index-url https://download.pytorch.org/whl/cpu
-
-# Instalar dependências de ML/AI separadamente
+# Instalar dependências de ML (sem CUDA)
 RUN pip install --no-cache-dir --user --timeout=300 --retries=3 \
     transformers>=4.35.0 \
     sentence-transformers>=2.2.2 \
@@ -79,8 +81,8 @@ FROM python:3.11-slim
 
 # Metadados da imagem
 LABEL maintainer="Slim Quality Team"
-LABEL version="1.0.0"
-LABEL description="Backend conversacional com LangGraph + FastAPI"
+LABEL version="1.0.0-cpu"
+LABEL description="Backend conversacional com LangGraph + FastAPI (CPU-only)"
 
 # Criar usuário não-root para segurança
 RUN groupadd -r app && useradd -r -g app -u 1000 app
@@ -121,6 +123,6 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
 USER app
 
 # Comando para rodar FastAPI (com logs forçados)
-CMD echo "=== CONTAINER INICIANDO ===" && \
+CMD echo "=== CONTAINER INICIANDO (CPU-ONLY) ===" && \
     echo "Executando: uvicorn src.api.main:app --host 0.0.0.0 --port 8000" && \
     uvicorn src.api.main:app --host 0.0.0.0 --port 8000 --log-level debug

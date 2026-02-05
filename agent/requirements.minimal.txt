@@ -1,0 +1,93 @@
+# ============================================
+# SLIM QUALITY AGENT - REQUIREMENTS MÍNIMOS
+# Versão otimizada para deploy rápido
+# ============================================
+
+# ============================================
+# CORE WEB FRAMEWORK
+# ============================================
+fastapi==0.115.0
+uvicorn[standard]==0.32.0
+
+# ============================================
+# LANGCHAIN ECOSYSTEM (ESSENCIAL)
+# ============================================
+langchain==1.2.0
+langgraph==1.0.5
+langchain-anthropic==1.3.0
+langchain-core==1.2.5
+
+# ============================================
+# AI/LLM CLIENTS
+# ============================================
+openai>=1.50.0
+
+# ============================================
+# DATABASE & STORAGE
+# ============================================
+supabase==2.27.0
+redis>=5.0.0
+psycopg2-binary>=2.9.7
+pgvector>=0.2.4
+sqlalchemy>=2.0.0
+alembic>=1.12.0
+
+# ============================================
+# HTTP & NETWORKING
+# ============================================
+httpx
+aiohttp>=3.8.0
+
+# ============================================
+# CONFIGURATION & VALIDATION
+# ============================================
+python-dotenv>=1.0.0
+pydantic>=2.11.0
+pydantic-settings>=2.5.0
+python-multipart>=0.0.9
+
+# ============================================
+# MCP & INTEGRATIONS
+# ============================================
+mcp>=1.25.0
+
+# ============================================
+# GOOGLE SERVICES
+# ============================================
+google-api-python-client>=2.108.0
+google-auth-httplib2>=0.2.0
+google-auth-oauthlib>=1.2.0
+google-generativeai>=0.8.0
+
+# ============================================
+# LOGGING & MONITORING
+# ============================================
+structlog>=23.2.0
+
+# ============================================
+# ML/AI (CPU-ONLY, LIGHTWEIGHT)
+# ============================================
+# PyTorch CPU-only (muito menor)
+--index-url https://download.pytorch.org/whl/cpu
+torch==2.10.0+cpu
+
+# Transformers essenciais
+transformers>=4.35.0
+sentence-transformers>=2.2.2
+
+# Numpy básico
+numpy>=1.24.0
+
+# ============================================
+# ASYNC & MESSAGING
+# ============================================
+asyncio-mqtt>=0.13.0
+aioredis>=2.0.1
+celery>=5.3.0
+
+# ============================================
+# TESTING (OPCIONAL - REMOVER EM PROD)
+# ============================================
+# pytest>=7.4.0
+# pytest-asyncio>=0.21.0
+# hypothesis>=6.88.0
