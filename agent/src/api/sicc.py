@@ -391,19 +391,19 @@ async def approve_sicc_learning(
     try:
         logger.info("Aprovando aprendizado SICC", learning_id=learning_id)
         
-        # PERSISTIR APROVAÇÃO NO BANCO DE DADOS (PRIORIDADE MÁXIMA)
+        # PERSISTÊNCIA RÁPIDA NO BANCO DE DADOS
         try:
             from ..services.supabase_client import get_supabase_client
             from datetime import datetime
             
             supabase = get_supabase_client()
             
-            # Atualizar status na tabela learning_logs
+            # Atualizar status na tabela learning_logs (operação simples e rápida)
             update_data = {
                 'status': 'approved',
                 'approved_at': datetime.now().isoformat(),
                 'approved_by': 'admin',
-                'approval_reason': action.reason if action and hasattr(action, 'reason') else 'Aprovado via interface admin',
+                'approval_reason': 'Aprovado via interface admin',
                 'updated_at': datetime.now().isoformat()
             }
             
@@ -416,29 +416,12 @@ async def approve_sicc_learning(
                     message=f"Aprendizado {learning_id} não encontrado"
                 )
             
-            logger.info("Aprendizado aprovado e persistido no banco", 
-                       learning_id=learning_id, 
-                       reason=action.reason if action and hasattr(action, 'reason') else None)
-            
-            # Tentar integrar com SICC se disponível (opcional)
-            try:
-                from ..services.sicc.sicc_service import get_sicc_service
-                sicc_service = get_sicc_service()
-                
-                if sicc_service.is_initialized:
-                    # Registrar aprovação via Behavior Service
-                    behavior_service = sicc_service.behavior_service
-                    logger.info("Aprovação registrada no SICC Service")
-                else:
-                    logger.info("SICC não inicializado - aprovação salva apenas no banco")
-                    
-            except Exception as sicc_error:
-                logger.warning("Erro ao integrar com SICC Service (não crítico)", error=str(sicc_error))
+            logger.info("Aprendizado aprovado e persistido no banco", learning_id=learning_id)
             
             return SuccessResponse(
                 success=True,
                 message=f"Aprendizado {learning_id} aprovado com sucesso",
-                data={"learning_id": learning_id, "action": "approved", "updated_record": result.data[0] if result.data else None}
+                data={"learning_id": learning_id, "action": "approved"}
             )
             
         except Exception as db_error:
@@ -471,19 +454,19 @@ async def reject_sicc_learning(
     try:
         logger.info("Rejeitando aprendizado SICC", learning_id=learning_id)
         
-        # PERSISTIR REJEIÇÃO NO BANCO DE DADOS (PRIORIDADE MÁXIMA)
+        # PERSISTÊNCIA RÁPIDA NO BANCO DE DADOS
         try:
             from ..services.supabase_client import get_supabase_client
             from datetime import datetime
             
             supabase = get_supabase_client()
             
-            # Atualizar status na tabela learning_logs
+            # Atualizar status na tabela learning_logs (operação simples e rápida)
             update_data = {
                 'status': 'rejected',
                 'approved_at': datetime.now().isoformat(),
                 'approved_by': 'admin',
-                'approval_reason': action.reason if action and hasattr(action, 'reason') else 'Rejeitado via interface admin',
+                'approval_reason': 'Rejeitado via interface admin',
                 'updated_at': datetime.now().isoformat()
             }
             
@@ -496,27 +479,12 @@ async def reject_sicc_learning(
                     message=f"Aprendizado {learning_id} não encontrado"
                 )
             
-            logger.info("Aprendizado rejeitado e persistido no banco", 
-                       learning_id=learning_id, 
-                       reason=action.reason if action and hasattr(action, 'reason') else None)
-            
-            # Tentar integrar com SICC se disponível (opcional)
-            try:
-                from ..services.sicc.sicc_service import get_sicc_service
-                sicc_service = get_sicc_service()
-                
-                if sicc_service.is_initialized:
-                    logger.info("Rejeição registrada no SICC Service")
-                else:
-                    logger.info("SICC não inicializado - rejeição salva apenas no banco")
-                    
-            except Exception as sicc_error:
-                logger.warning("Erro ao integrar com SICC Service (não crítico)", error=str(sicc_error))
+            logger.info("Aprendizado rejeitado e persistido no banco", learning_id=learning_id)
             
             return SuccessResponse(
                 success=True,
                 message=f"Aprendizado {learning_id} rejeitado com sucesso",
-                data={"learning_id": learning_id, "action": "rejected", "updated_record": result.data[0] if result.data else None}
+                data={"learning_id": learning_id, "action": "rejected"}
             )
             
         except Exception as db_error:
