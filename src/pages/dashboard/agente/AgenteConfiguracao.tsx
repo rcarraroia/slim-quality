@@ -19,7 +19,6 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import SubAgentCard from '@/components/SubAgentCard';
 import agentService from '@/services/agent.service';
-import { CreditCard, Lock } from 'lucide-react';
 import { supabase } from '@/config/supabase';
 
 interface AgentConfig {
@@ -54,10 +53,7 @@ interface ChatMessage {
   time?: number;
 }
 
-interface AffiliateService {
-  status: 'active' | 'inactive' | 'trial' | 'pending';
-  expires_at: string | null;
-}
+
 
 export default function AgenteConfiguracao() {
   const { toast } = useToast();
@@ -85,9 +81,7 @@ export default function AgenteConfiguracao() {
   const [testMessage, setTestMessage] = useState('');
   const [isTestingPrompt, setIsTestingPrompt] = useState(false);
 
-  // Estado da Assinatura
-  const [subscription, setSubscription] = useState<AffiliateService | null>(null);
-  const [isLoadingSubscription, setIsLoadingSubscription] = useState(true);
+
 
   // Carregar configuração atual
   const loadConfig = async () => {
@@ -200,10 +194,6 @@ export default function AgenteConfiguracao() {
   useEffect(() => {
     loadConfig();
     loadSubAgents();
-    // TODO: Implementar loadSubscription() quando o backend estiver pronto
-    // Por enquanto, definir subscription como ativa para permitir acesso
-    setSubscription({ status: 'active', expires_at: null });
-    setIsLoadingSubscription(false);
   }, []);
 
   const handleSaveConfig = async () => {
@@ -291,7 +281,7 @@ export default function AgenteConfiguracao() {
         <div className="text-center py-8">Carregando configuração...</div>
       ) : (
         <Tabs defaultValue="geral" className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="geral">
               <Settings className="h-4 w-4 mr-2" />
               Configuração Geral
@@ -300,34 +290,9 @@ export default function AgenteConfiguracao() {
               <Bot className="h-4 w-4 mr-2" />
               Sub-Agentes ({subAgents.length})
             </TabsTrigger>
-            <TabsTrigger value="assinatura">
-              <CreditCard className="h-4 w-4 mr-2" />
-              Assinatura
-            </TabsTrigger>
           </TabsList>
 
-          {/* Bloqueio de Acesso */}
-          {subscription?.status !== 'active' && (
-            <div className="mt-6">
-              <Card className="border-dashed border-2">
-                <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-                  <div className="h-12 w-12 rounded-full bg-orange-100 flex items-center justify-center mb-4">
-                    <Lock className="h-6 w-6 text-orange-600" />
-                  </div>
-                  <CardTitle className="mb-2">Acesso Restrito ao Agente IA</CardTitle>
-                  <CardDescription className="max-w-md">
-                    Para configurar e utilizar as ferramentas de Inteligência Artificial, é necessário possuir uma assinatura ativa do Agente IA.
-                  </CardDescription>
-                  <Button className="mt-6 bg-orange-600 hover:bg-orange-700" onClick={() => (window as any).location.href = '/checkout/agente-ia-assinatura'}>
-                    <CreditCard className="h-4 w-4 mr-2" />
-                    Ativar Assinatura Agora
-                  </Button>
-                </CardContent>
-              </Card>
-            </div>
-          )}
-
-          <div className={subscription?.status === 'active' ? '' : 'hidden'}>
+          <div className="mt-6">
 
             {/* Tab: Configuração Geral */}
             <TabsContent value="geral">
@@ -434,8 +399,8 @@ export default function AgenteConfiguracao() {
                         {chatMessages.map((message, index) => (
                           <div key={index} className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                             <div className={`max-w-[80%] p-3 rounded-lg ${message.role === 'user'
-                                ? 'bg-blue-500 text-white'
-                                : 'bg-gray-100 text-gray-900'
+                              ? 'bg-blue-500 text-white'
+                              : 'bg-gray-100 text-gray-900'
                               }`}>
                               <p className="text-sm">{message.content}</p>
                               {message.tokens && (
@@ -495,44 +460,6 @@ export default function AgenteConfiguracao() {
               )}
             </TabsContent>
           </div>
-
-          {/* Tab: Assinatura */}
-          <TabsContent value="assinatura">
-            <Card>
-              <CardHeader>
-                <CardTitle>Gestão da Assinatura</CardTitle>
-                <CardDescription>Consulte o status do seu serviço de Inteligência Artificial</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="flex items-center justify-between p-4 bg-muted rounded-lg">
-                  <div>
-                    <p className="font-medium">Status do Serviço</p>
-                    <Badge variant={subscription?.status === 'active' ? 'default' : 'secondary'} className={subscription?.status === 'active' ? 'bg-green-600' : ''}>
-                      {subscription?.status === 'active' ? 'Ativo' : 'Inativo / Pendente'}
-                    </Badge>
-                  </div>
-                  {subscription?.expires_at && (
-                    <div className="text-right">
-                      <p className="text-sm text-muted-foreground">Próxima renovação</p>
-                      <p className="font-mono">{new Date(subscription.expires_at).toLocaleDateString()}</p>
-                    </div>
-                  )}
-                </div>
-
-                {subscription?.status !== 'active' && (
-                  <div className="p-4 border border-orange-200 bg-orange-50 rounded-lg">
-                    <p className="text-sm text-orange-800">
-                      <strong>Atenção:</strong> Sua assinatura não está ativa. Ative hoje e ganhe acesso vitalício ao pool de 30% de comissões sobre sua rede.
-                    </p>
-                  </div>
-                )}
-
-                <Button className="w-full" disabled={subscription?.status === 'active'}>
-                  {subscription?.status === 'active' ? 'Assinatura Ativa ✅' : 'Contratar Agente IA'}
-                </Button>
-              </CardContent>
-            </Card>
-          </TabsContent>
         </Tabs>
       )}
     </div>
