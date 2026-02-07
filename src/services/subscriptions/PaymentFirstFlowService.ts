@@ -31,16 +31,15 @@ export class PaymentFirstFlowService {
    */
   async processRegistration(orderData: SubscriptionOrderData): Promise<PaymentFirstResult> {
     const correlationId = crypto.randomUUID();
-
+    
     try {
       console.log(`[PaymentFirst] Iniciando fluxo para ${orderData.customer.email}`, { correlationId });
-
-      // 1. Criar pagamento inicial via Edge Function (Primeira Mensalidade)
-      // O create-payment já deve cuidar da criação/vínculo do cliente no Asaas internamente ou via adapter
+      
+      // 1. Processar primeira mensalidade via Edge Function create-payment
       const firstPayment = await this.asaasAdapter.createPayment({
-        customerId: orderData.customer.id || 'new-customer',
+        customerId: orderData.customer.id || 'temp-customer',
         value: orderData.monthlyValue,
-        dueDate: new Date().toISOString().split('T')[0],
+        dueDate: new Date().toISOString().split('T')[0], // HOJE
         billingType: 'CREDIT_CARD',
         creditCard: orderData.payment.creditCard,
         creditCardHolderInfo: orderData.payment.creditCardHolderInfo,
@@ -48,67 +47,177 @@ export class PaymentFirstFlowService {
         externalReference: correlationId,
         remoteIp: orderData.metadata?.remoteIp
       });
-
-      console.log(`[PaymentFirst] Pagamento criado: ${firstPayment.id}`);
-
-      // 2. Aguardar confirmação via Polling Modular (15s timeout, 1s interval)
+      
+      console.log(`[PaymentFirst] Primeira mensalidade criada via Edge Function: ${firstPayment.id}`);
+      
+      // 2. Aguardar confirmação via Edge Function poll-payment-status
       const pollingResult = await this.asaasAdapter.pollPaymentStatus(
         firstPayment.id,
         correlationId,
-        15
+        15 // 15 segundos timeout
       );
-
+      
       if (!pollingResult.confirmed) {
-        console.warn(`[PaymentFirst] Pagamento não confirmado no prazo: ${firstPayment.id}`, { pollingResult });
+        console.log(`[PaymentFirst] Polling falhou ou timeout`);
         return {
           success: false,
-          error: pollingResult.timeout ? 'Tempo esgotado aguardando confirmação do pagamento' : 'Pagamento não autorizado ou pendente',
-          asaasCustomerId: firstPayment.customerId || 'pending',
+          error: pollingResult.timeout ? 'Timeout na confirmação do pagamento' : 'Pagamento não confirmado',
+          asaasCustomerId: orderData.customer.id || 'temp-customer',
           asaasPaymentId: firstPayment.id
         };
       }
-
-      console.log(`[PaymentFirst] Pagamento confirmado! Criando assinatura recorrente...`);
-
-      // 3. Criar assinatura recorrente via Edge Function (Usa o token do cartão do primeiro pagamento)
+      
+      console.log(`[PaymentFirst] Pagamento confirmado via Edge Function`);
+      
+      // 3. Criar assinatura recorrente via Edge Function create-subscription
       const subscription = await this.asaasAdapter.createSubscription({
-        customerId: pollingResult.payment.customer || firstPayment.customerId,
+        customerId: orderData.customer.id || 'temp-customer',
         value: orderData.monthlyValue,
         cycle: 'MONTHLY',
-        description: `${orderData.product.name} - Assinatura Mensal`,
-        creditCardToken: firstPayment.id, // O backend usa o ID do pagamento para recuperar o token
+        description: `${orderData.product.name} - Assinatura mensal`,
+        creditCardToken: firstPayment.id, // Usar payment ID como token
         nextDueDate: this.calculateNextBillingDate(),
-        orderItems: orderData.orderItems || [],
+        orderItems: orderData.orderItems?.map(item => ({
+          productId: item.productId,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+          totalPrice: item.totalPrice
+        })) || [],
         correlationId
       });
-
-      console.log(`[PaymentFirst] Assinatura criada com sucesso: ${subscription.id}`);
-
-      // 4. Persistir o pedido finalizado com todos os IDs
+      
+      console.log(`[PaymentFirst] Assinatura recorrente criada via Edge Function: ${subscription.id}`);
+      
+      // 4. Salvar no banco de dados
       await this.saveSubscriptionOrder({
         orderData,
-        asaasCustomerId: subscription.customerId,
+        asaasCustomerId: orderData.customer.id || 'temp-customer',
         asaasPaymentId: firstPayment.id,
         asaasSubscriptionId: subscription.id,
         status: 'active'
       });
-
+      
       return {
         success: true,
-        asaasCustomerId: subscription.customerId,
+        asaasCustomerId: orderData.customer.id || 'temp-customer',
         asaasPaymentId: firstPayment.id,
         asaasSubscriptionId: subscription.id,
         nextDueDate: subscription.nextDueDate
       };
-
+      
     } catch (error: any) {
-      console.error('[PaymentFirst] Falha crítica no fluxo orquestrado:', error);
+      console.error('[PaymentFirst] Erro no fluxo:', error);
+      
       return {
         success: false,
-        error: error.message || 'Erro interno no processamento do fluxo',
+        error: error.message || 'Erro interno no processamento',
         correlationId
       };
     }
+  }
+
+  /**
+   * Cria cliente no Asaas
+   * Baseado no padrão Comademig
+   */
+  private async createAsaasCustomer(customerData: SubscriptionOrderData['customer']): Promise<AsaasCustomerData> {
+    const payload = this.asaasAdapter.convertToAsaasCustomer(customerData);
+    
+    const response = await fetch(`${subscriptionConfig.asaas.baseUrl}/customers`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'access_token': subscriptionConfig.asaas.apiKey
+      },
+      body: JSON.stringify(payload)
+    });
+    
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(`Erro ao criar cliente Asaas: ${error.errors?.[0]?.description || response.statusText}`);
+    }
+    
+    return await response.json();
+  }
+
+  /**
+   * Processa primeira mensalidade via /v3/payments
+   * CRÍTICO: NÃO usar /v3/subscriptions para primeira mensalidade
+   */
+  private async processFirstPayment(params: {
+    customerId: string;
+    orderData: SubscriptionOrderData;
+    correlationId: string;
+  }): Promise<AsaasPaymentData> {
+    const { customerId, orderData, correlationId } = params;
+    
+    const payload = this.asaasAdapter.convertToAsaasPayment({
+      customerId,
+      value: orderData.monthlyValue,
+      dueDate: new Date().toISOString().split('T')[0], // HOJE
+      billingType: 'CREDIT_CARD',
+      creditCard: orderData.payment.creditCard,
+      creditCardHolderInfo: orderData.payment.creditCardHolderInfo,
+      description: `${orderData.product.name} - Primeira mensalidade`,
+      externalReference: correlationId,
+      remoteIp: orderData.metadata?.remoteIp
+    });
+    
+    const response = await fetch(`${subscriptionConfig.asaas.baseUrl}/payments`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'access_token': subscriptionConfig.asaas.apiKey
+      },
+      body: JSON.stringify(payload)
+    });
+    
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(`Erro ao processar primeira mensalidade: ${error.errors?.[0]?.description || response.statusText}`);
+    }
+    
+    return await response.json();
+  }
+
+  /**
+   * Cria assinatura recorrente via /v3/subscriptions
+   * SÓ DEPOIS da primeira mensalidade ser confirmada
+   */
+  private async createRecurringSubscription(params: {
+    customerId: string;
+    creditCardToken: string;
+    orderData: SubscriptionOrderData;
+    nextDueDate: string;
+  }): Promise<any> {
+    const { customerId, creditCardToken, orderData, nextDueDate } = params;
+    
+    const payload = {
+      customer: customerId,
+      billingType: 'CREDIT_CARD',
+      value: orderData.monthlyValue,
+      nextDueDate,
+      cycle: 'MONTHLY',
+      description: `${orderData.product.name} - Assinatura mensal`,
+      creditCardToken, // Token do cartão da primeira mensalidade
+      // NÃO enviar dados do cartão novamente, usar token
+    };
+    
+    const response = await fetch(`${subscriptionConfig.asaas.baseUrl}/subscriptions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'access_token': subscriptionConfig.asaas.apiKey
+      },
+      body: JSON.stringify(payload)
+    });
+    
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(`Erro ao criar assinatura recorrente: ${error.errors?.[0]?.description || response.statusText}`);
+    }
+    
+    return await response.json();
   }
 
   /**
@@ -131,9 +240,9 @@ export class PaymentFirstFlowService {
     status: string;
   }): Promise<void> {
     const { orderData, asaasCustomerId, asaasPaymentId, asaasSubscriptionId, status } = params;
-
+    
     const orderNumber = `SUB-${Date.now()}`;
-
+    
     const { error } = await supabase
       .from('subscription_orders')
       .insert({
@@ -156,7 +265,7 @@ export class PaymentFirstFlowService {
         affiliate_n1_id: orderData.metadata?.affiliateId,
         order_items: orderData.orderItems || [] // OBRIGATÓRIO para detecção IA
       });
-
+    
     if (error) {
       throw new Error(`Erro ao salvar pedido: ${error.message}`);
     }

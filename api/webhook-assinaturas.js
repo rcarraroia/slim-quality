@@ -222,10 +222,12 @@ async function handlePaymentFirstConfirmed(supabase, payment) {
     const { data: order, error: orderError } = await supabase
       .from('subscription_orders')
       .update({ 
-        status: 'active'
+        status: 'active',
+        confirmed_at: new Date().toISOString(),
+        asaas_confirmed_value: payment.value
       })
       .eq('asaas_payment_id', payment.id)
-      .select('id, affiliate_n1_id, customer_email')
+      .select('id, user_id, affiliate_data')
       .single();
 
     if (orderError || !order) {
@@ -235,7 +237,7 @@ async function handlePaymentFirstConfirmed(supabase, payment) {
 
     console.log('[WH-PaymentFirst] ✅ subscription_orders atualizada:', {
       orderId: order.id,
-      customerEmail: order.customer_email,
+      userId: order.user_id,
       status: 'active'
     });
 
@@ -245,11 +247,11 @@ async function handlePaymentFirstConfirmed(supabase, payment) {
     const { data: tenant, error: tenantError } = await supabase
       .from('multi_agent_tenants')
       .select('id, status')
-      .eq('affiliate_id', order.affiliate_n1_id)
+      .eq('affiliate_id', order.user_id)
       .single();
 
     if (tenantError || !tenant) {
-      console.warn('[WH-PaymentFirst] ⚠️ Tenant não encontrado para customer_email:', order.customer_email);
+      console.warn('[WH-PaymentFirst] ⚠️ Tenant não encontrado para user_id:', order.user_id);
       // NÃO bloqueia - pode ser criado depois manualmente
     } else {
       // Ativar tenant
@@ -257,7 +259,8 @@ async function handlePaymentFirstConfirmed(supabase, payment) {
         .from('multi_agent_tenants')
         .update({
           status: 'active',
-          activated_at: new Date().toISOString()
+          activated_at: new Date().toISOString(),
+          last_payment_at: new Date().toISOString()
         })
         .eq('id', tenant.id);
 
@@ -282,8 +285,9 @@ async function handlePaymentFirstConfirmed(supabase, payment) {
         event_type: 'PAYMENT_CONFIRMED',
         payload: JSON.stringify(payment),
         processed_at: new Date().toISOString(),
-        processing_result: { processing_time_ms: Date.now() - startTime },
-        subscription_order_id: order.id
+        processing_time_ms: Date.now() - startTime,
+        order_id: order.id,
+        user_id: order.user_id
       });
 
     if (eventError) {
@@ -324,7 +328,7 @@ async function handlePaymentFirstConfirmed(supabase, payment) {
       payload: JSON.stringify(payment),
       error_message: error.message,
       processed_at: new Date().toISOString(),
-      processing_result: { processing_time_ms: processingTime }
+      processing_time_ms: processingTime
     }).catch(err => {
       console.error('[WH-PaymentFirst] ❌ Falha ao registrar erro:', err);
     });

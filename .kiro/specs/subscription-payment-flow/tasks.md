@@ -338,22 +338,18 @@ Implementação do fluxo robusto de pagamento de assinaturas seguindo o padrão 
     - ✅ **VALIDADO:** Testes unitários completos em tests/unit/feature-flags-rollback.test.ts
     - _Requirements: 11.5_
   
-  - [x] 17.2 Documentar procedimentos de rollback
-    - ✅ **CONCLUÍDO:** Runbook de rollback de emergência criado
-    - ✅ **CONCLUÍDO:** Pontos de verificação críticos documentados
-    - ✅ **CONCLUÍDO:** Scripts de rollback automatizado implementados
-    - ✅ **CONCLUÍDO:** Documentação completa em `docs/subscription-system/`
-    - ✅ **RESULTADO:** Sistema de rollback totalmente documentado e funcional
+  - [ ] 17.2 Documentar procedimentos de rollback
+    - Criar runbook para rollback de emergência
+    - Documentar pontos de verificação críticos
+    - Implementar scripts de rollback automatizado
     - _Requirements: 11.5_
 
-- [x] 18. Final checkpoint - Sistema pronto para produção
-  - ✅ **CONCLUÍDO:** Verificação via Power Supabase Hosted realizada com sucesso
-  - ✅ **CONFIRMADO:** Sistema de assinaturas isolado - 3 tabelas vazias (subscription_orders: 0, subscription_webhook_events: 0, subscription_polling_logs: 0)
-  - ✅ **VALIDADO:** Sistema de produtos físicos 100% funcional - orders: 35, products: 6, multi_agent_tenants: 2 ativos
-  - ✅ **CONFIRMADO:** Feature flags e rollback implementados e funcionais
-  - ✅ **VALIDADO:** Documentação completa de rollback criada em docs/subscription-system/
-  - ✅ **RESULTADO:** Sistema pronto para produção com isolamento total confirmado
-  - ✅ **STATUS:** SISTEMA APROVADO PARA DEPLOY EM PRODUÇÃO
+- [ ] 18. Final checkpoint - Sistema pronto para produção
+  - Validar que todos os testes passam consistentemente
+  - Confirmar isolamento total do sistema existente
+  - Verificar que feature flags estão funcionando
+  - Documentar que sistema está pronto para deploy
+  - Ensure all tests pass, ask the user if questions arise.
 
 - [ ] 19. Implementar arquitetura baseada no Comademig
   - [x] 19.1 Refatorar PaymentFirstFlowService seguindo padrão Comademig
