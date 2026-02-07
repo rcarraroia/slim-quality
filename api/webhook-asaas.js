@@ -185,6 +185,11 @@ export default async function handler(req, res) {
       await processCommissions(supabase, orderId, payment.value);
     }
 
+    // 5. NOVO: Se é assinatura de agente, processar ativação
+    if (event.payment?.subscription && isAgentSubscription(payment)) {
+      await processAgentSubscription(supabase, event, payment);
+    }
+
     // Atualizar log como processado
     await supabase
       .from('asaas_webhook_logs')
@@ -668,4 +673,377 @@ async function calculateCommissionsWithRedistribution(
     redistributionApplied,
     redistributionDetails
   };
+}
+
+// ============================================
+// HELPER: IS AGENT SUBSCRIPTION
+// ============================================
+function isAgentSubscription(payment) {
+  // Identificar se é assinatura de agente baseado em:
+  // 1. Valor (R$ 99,00 = 9900 centavos)
+  // 2. Descrição contém "agente" ou "ia"
+  // 3. externalReference contém "agent_" ou "ia_"
+  
+  const value = payment.value || 0;
+  const description = (payment.description || '').toLowerCase();
+  const externalRef = (payment.externalReference || '').toLowerCase();
+  
+  // Valor típico de assinatura de agente
+  if (value === 99.00 || value === 9900) {
+    return true;
+  }
+  
+  // Descrição contém palavras-chave
+  if (description.includes('agente') || description.includes('ia') || 
+      description.includes('agent') || description.includes('multi-tenant')) {
+    return true;
+  }
+  
+  // External reference contém identificadores
+  if (externalRef.includes('agent_') || externalRef.includes('ia_') || 
+      externalRef.includes('multi_tenant')) {
+    return true;
+  }
+  
+  return false;
+}
+
+// ============================================
+// PROCESS AGENT SUBSCRIPTION
+// ============================================
+async function processAgentSubscription(supabase, event, payment) {
+  try {
+    console.log('🤖 Processando assinatura de agente:', {
+      subscriptionId: payment.subscription,
+      paymentId: payment.id,
+      value: payment.value,
+      status: payment.status
+    });
+
+    const { event: eventType } = event;
+    const subscriptionId = payment.subscription;
+    const customerId = payment.customer;
+
+    // 1. Buscar afiliado pelo customer ID ou external reference
+    let affiliateId = null;
+    
+    // Tentar extrair affiliate_id do externalReference
+    const externalRef = payment.externalReference;
+    if (externalRef && externalRef.includes('affiliate_')) {
+      const match = externalRef.match(/affiliate_([a-f0-9-]{36})/);
+      if (match) {
+        affiliateId = match[1];
+      }
+    }
+    
+    // Se não encontrou, buscar por customer ID
+    if (!affiliateId && customerId) {
+      const { data: customerData } = await supabase
+        .from('asaas_customers')
+        .select('affiliate_id')
+        .eq('asaas_customer_id', customerId)
+        .single();
+      
+      if (customerData) {
+        affiliateId = customerData.affiliate_id;
+      }
+    }
+
+    if (!affiliateId) {
+      console.log('⚠️ Assinatura de agente sem affiliate_id identificado');
+      return;
+    }
+
+    // 2. Buscar tenant existente
+    const { data: existingTenant } = await supabase
+      .from('multi_agent_tenants')
+      .select('*')
+      .eq('affiliate_id', affiliateId)
+      .single();
+
+    // 3. Processar baseado no tipo de evento
+    switch (eventType) {
+      case 'PAYMENT_CONFIRMED':
+      case 'PAYMENT_RECEIVED':
+        await handleAgentSubscriptionActivation(
+          supabase, 
+          affiliateId, 
+          subscriptionId, 
+          customerId, 
+          payment,
+          existingTenant
+        );
+        break;
+        
+      case 'PAYMENT_OVERDUE':
+        await handleAgentSubscriptionOverdue(supabase, affiliateId, subscriptionId);
+        break;
+        
+      case 'PAYMENT_DELETED':
+      case 'PAYMENT_REFUNDED':
+        await handleAgentSubscriptionCancellation(supabase, affiliateId, subscriptionId);
+        break;
+        
+      default:
+        console.log(`Evento de assinatura ${eventType} não processado`);
+    }
+
+    console.log('✅ Assinatura de agente processada com sucesso');
+
+  } catch (error) {
+    console.error('❌ Erro ao processar assinatura de agente:', error);
+    // Não falhar o webhook por causa da assinatura
+  }
+}
+
+// ============================================
+// HANDLE AGENT SUBSCRIPTION ACTIVATION
+// ============================================
+async function handleAgentSubscriptionActivation(
+  supabase, 
+  affiliateId, 
+  subscriptionId, 
+  customerId, 
+  payment,
+  existingTenant
+) {
+  try {
+    console.log(`🟢 Ativando assinatura de agente para affiliate ${affiliateId}`);
+
+    // 1. Criar ou atualizar assinatura
+    const subscriptionData = {
+      affiliate_id: affiliateId,
+      asaas_subscription_id: subscriptionId,
+      asaas_customer_id: customerId,
+      status: 'active',
+      plan_value_cents: Math.round((payment.value || 99) * 100),
+      billing_type: payment.billingType || 'CREDIT_CARD',
+      next_due_date: payment.dueDate || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+      updated_at: new Date().toISOString()
+    };
+
+    if (existingTenant) {
+      // Atualizar assinatura existente
+      subscriptionData.tenant_id = existingTenant.id;
+      
+      const { error: updateError } = await supabase
+        .from('multi_agent_subscriptions')
+        .upsert(subscriptionData, { 
+          onConflict: 'tenant_id',
+          ignoreDuplicates: false 
+        });
+
+      if (updateError) {
+        console.error('Erro ao atualizar assinatura:', updateError);
+        throw updateError;
+      }
+
+      // Reativar tenant se estava suspenso
+      await supabase
+        .from('multi_agent_tenants')
+        .update({
+          status: 'active',
+          activated_at: new Date().toISOString(),
+          suspended_at: null,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', existingTenant.id);
+
+    } else {
+      // Criar novo tenant
+      const { data: newTenant, error: tenantError } = await supabase
+        .from('multi_agent_tenants')
+        .insert({
+          affiliate_id: affiliateId,
+          status: 'active',
+          agent_name: 'Assistente IA',
+          agent_personality: 'IA amigável e eficiente para suporte',
+          knowledge_enabled: true,
+          whatsapp_provider: 'evolution',
+          whatsapp_status: 'disconnected',
+          activated_at: new Date().toISOString()
+        })
+        .select()
+        .single();
+
+      if (tenantError) {
+        console.error('Erro ao criar tenant:', tenantError);
+        throw tenantError;
+      }
+
+      // Criar assinatura para o novo tenant
+      subscriptionData.tenant_id = newTenant.id;
+      
+      const { error: subscriptionError } = await supabase
+        .from('multi_agent_subscriptions')
+        .insert(subscriptionData);
+
+      if (subscriptionError) {
+        console.error('Erro ao criar assinatura:', subscriptionError);
+        throw subscriptionError;
+      }
+    }
+
+    // 2. Criar/atualizar serviço do afiliado
+    const expiresAt = new Date();
+    expiresAt.setMonth(expiresAt.getMonth() + 1); // 1 mês
+
+    await supabase
+      .from('affiliate_services')
+      .upsert({
+        affiliate_id: affiliateId,
+        service_type: 'agente_ia',
+        status: 'active',
+        expires_at: expiresAt.toISOString(),
+        metadata: {
+          asaas_subscription_id: subscriptionId,
+          activated_via: 'webhook',
+          activated_at: new Date().toISOString()
+        },
+        updated_at: new Date().toISOString()
+      }, {
+        onConflict: 'affiliate_id,service_type',
+        ignoreDuplicates: false
+      });
+
+    // 3. Notificar afiliado (opcional - implementar depois)
+    await notifyAffiliateAgentActivation(supabase, affiliateId, subscriptionId);
+
+    console.log('✅ Assinatura de agente ativada com sucesso');
+
+  } catch (error) {
+    console.error('❌ Erro na ativação da assinatura:', error);
+    throw error;
+  }
+}
+
+// ============================================
+// HANDLE AGENT SUBSCRIPTION OVERDUE
+// ============================================
+async function handleAgentSubscriptionOverdue(supabase, affiliateId, subscriptionId) {
+  try {
+    console.log(`🟡 Assinatura de agente em atraso: ${subscriptionId}`);
+
+    // 1. Atualizar status da assinatura
+    await supabase
+      .from('multi_agent_subscriptions')
+      .update({
+        status: 'overdue',
+        updated_at: new Date().toISOString()
+      })
+      .eq('affiliate_id', affiliateId)
+      .eq('asaas_subscription_id', subscriptionId);
+
+    // 2. Suspender tenant (mas não deletar)
+    await supabase
+      .from('multi_agent_tenants')
+      .update({
+        status: 'suspended',
+        suspended_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
+      .eq('affiliate_id', affiliateId);
+
+    // 3. Atualizar serviço do afiliado
+    await supabase
+      .from('affiliate_services')
+      .update({
+        status: 'suspended',
+        updated_at: new Date().toISOString()
+      })
+      .eq('affiliate_id', affiliateId)
+      .eq('service_type', 'agente_ia');
+
+    console.log('⚠️ Assinatura suspensa por atraso');
+
+  } catch (error) {
+    console.error('❌ Erro ao processar atraso:', error);
+  }
+}
+
+// ============================================
+// HANDLE AGENT SUBSCRIPTION CANCELLATION
+// ============================================
+async function handleAgentSubscriptionCancellation(supabase, affiliateId, subscriptionId) {
+  try {
+    console.log(`🔴 Cancelando assinatura de agente: ${subscriptionId}`);
+
+    // 1. Cancelar assinatura
+    await supabase
+      .from('multi_agent_subscriptions')
+      .update({
+        status: 'canceled',
+        canceled_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
+      .eq('affiliate_id', affiliateId)
+      .eq('asaas_subscription_id', subscriptionId);
+
+    // 2. Cancelar tenant
+    await supabase
+      .from('multi_agent_tenants')
+      .update({
+        status: 'canceled',
+        suspended_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
+      .eq('affiliate_id', affiliateId);
+
+    // 3. Cancelar serviço do afiliado
+    await supabase
+      .from('affiliate_services')
+      .update({
+        status: 'canceled',
+        updated_at: new Date().toISOString()
+      })
+      .eq('affiliate_id', affiliateId)
+      .eq('service_type', 'agente_ia');
+
+    console.log('❌ Assinatura de agente cancelada');
+
+  } catch (error) {
+    console.error('❌ Erro ao cancelar assinatura:', error);
+  }
+}
+
+// ============================================
+// NOTIFY AFFILIATE AGENT ACTIVATION
+// ============================================
+async function notifyAffiliateAgentActivation(supabase, affiliateId, subscriptionId) {
+  try {
+    // Buscar dados do afiliado
+    const { data: affiliate } = await supabase
+      .from('affiliates')
+      .select('name, email, user_id')
+      .eq('id', affiliateId)
+      .single();
+
+    if (!affiliate) {
+      console.log('Afiliado não encontrado para notificação');
+      return;
+    }
+
+    // TODO: Implementar notificação por email
+    // Por enquanto, apenas log
+    console.log(`📧 Notificação de ativação enviada para ${affiliate.email}`);
+
+    // Registrar notificação no banco (opcional)
+    await supabase
+      .from('notifications')
+      .insert({
+        user_id: affiliate.user_id,
+        type: 'agent_activation',
+        title: 'Agente IA Ativado!',
+        message: 'Seu Agente IA foi ativado com sucesso. Você já pode começar a usar!',
+        data: {
+          subscription_id: subscriptionId,
+          affiliate_id: affiliateId
+        },
+        read: false
+      });
+
+  } catch (error) {
+    console.error('Erro ao notificar afiliado:', error);
+    // Não falhar por causa da notificação
+  }
 }

@@ -675,8 +675,8 @@ export class CheckoutService {
           cpf: finalCpfCnpj.replace(/\D/g, ''),
           address: {
             zipCode: shippingData?.postal_code?.replace(/\D/g, '') || '30112000',
-            street: shippingData?.street || 'Rua Principal',
-            number: shippingData?.number || 'S/N',
+            street: shippingData?.street || 'Endereço Digital',
+            number: shippingData?.number || '1',
             complement: shippingData?.complement || '',
             neighborhood: shippingData?.neighborhood || 'Centro',
             city: shippingData?.city || 'Belo Horizonte',

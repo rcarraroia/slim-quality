@@ -48,7 +48,7 @@ export class AsaasAdapter {
   }): Promise<any> {
     try {
       console.log(`[AsaasAdapter] Creating payment via Edge Function for correlation_id: ${params.externalReference}`);
-      
+
       // Mapear para formato da Edge Function
       const edgeRequest = {
         customer: {
@@ -92,13 +92,13 @@ export class AsaasAdapter {
       }
 
       const result = await response.json();
-      
+
       if (!result.success) {
         throw new Error(`Payment creation failed: ${result.error}`);
       }
 
       console.log(`[AsaasAdapter] Payment created successfully via Edge Function: ${result.payment.id}`);
-      
+
       return {
         id: result.payment.id,
         status: result.payment.status,
@@ -122,7 +122,7 @@ export class AsaasAdapter {
   async pollPaymentStatus(paymentId: string, correlationId: string, timeoutSeconds = 15): Promise<{ confirmed: boolean; payment?: any; timeout?: boolean }> {
     try {
       console.log(`[AsaasAdapter] Polling payment status via Edge Function: ${paymentId}`);
-      
+
       const edgeRequest = {
         paymentId,
         correlationId,
@@ -143,13 +143,13 @@ export class AsaasAdapter {
       }
 
       const result = await response.json();
-      
+
       if (!result.success) {
         throw new Error(`Payment polling failed: ${result.error}`);
       }
 
       console.log(`[AsaasAdapter] Polling completed - Confirmed: ${result.confirmed}, Timeout: ${result.timeout}`);
-      
+
       return {
         confirmed: result.confirmed,
         payment: result.payment,
@@ -176,13 +176,14 @@ export class AsaasAdapter {
   }): Promise<any> {
     try {
       console.log(`[AsaasAdapter] Creating subscription via Edge Function for customer: ${params.customerId}`);
-      
+
       const edgeRequest = {
-        paymentId: params.creditCardToken, // Usar como referência
+        paymentId: params.creditCardToken, // ID do pagamento CONFIRMADO
         customerId: params.customerId,
-        planId: 'default-plan', // Será buscado na Edge Function
+        planId: params.orderItems?.[0]?.productId || 'default-plan', // Pegar do order items se possível
         correlationId: params.correlationId,
-        orderItems: params.orderItems
+        orderItems: params.orderItems,
+        nextDueDate: params.nextDueDate
       };
 
       const response = await fetch(`${this.edgeFunctionsUrl}/create-subscription`, {
@@ -198,13 +199,13 @@ export class AsaasAdapter {
       }
 
       const result = await response.json();
-      
+
       if (!result.success) {
         throw new Error(`Subscription creation failed: ${result.error}`);
       }
 
       console.log(`[AsaasAdapter] Subscription created successfully via Edge Function: ${result.subscription.id}`);
-      
+
       return {
         id: result.subscription.asaasSubscriptionId,
         status: result.subscription.status,
@@ -259,7 +260,7 @@ export class AsaasAdapter {
     remoteIp?: string;
   }): any {
     const { customerId, value, dueDate, billingType, creditCard, creditCardHolderInfo, description, externalReference } = params;
-    
+
     return {
       customer: customerId,
       billingType,
@@ -307,7 +308,7 @@ export class AsaasAdapter {
     nextDueDate: string;
   }): any {
     const { customerId, value, cycle, description, creditCardToken, nextDueDate } = params;
-    
+
     return {
       customer: customerId,
       billingType: 'CREDIT_CARD',
@@ -329,15 +330,15 @@ export class AsaasAdapter {
    */
   private sanitizePhone(phone?: string): string {
     if (!phone) return '';
-    
+
     // Remove tudo que não é número
     const cleaned = phone.replace(/\D/g, '');
-    
+
     // Adiciona código do país se necessário
     if (cleaned.length === 10 || cleaned.length === 11) {
       return `+55${cleaned}`;
     }
-    
+
     return cleaned;
   }
 
@@ -346,7 +347,7 @@ export class AsaasAdapter {
    */
   private sanitizeCpf(cpf?: string): string {
     if (!cpf) return '';
-    
+
     // Remove tudo que não é número
     return cpf.replace(/\D/g, '');
   }
@@ -356,31 +357,31 @@ export class AsaasAdapter {
    */
   validateCustomerData(customerData: SubscriptionOrderData['customer']): string[] {
     const errors: string[] = [];
-    
+
     if (!customerData.name?.trim()) {
       errors.push('Nome do cliente é obrigatório');
     }
-    
+
     if (!customerData.email?.trim()) {
       errors.push('Email do cliente é obrigatório');
     }
-    
+
     if (!this.isValidEmail(customerData.email)) {
       errors.push('Email do cliente inválido');
     }
-    
+
     if (!customerData.phone?.trim()) {
       errors.push('Telefone do cliente é obrigatório');
     }
-    
+
     if (!customerData.cpf?.trim()) {
       errors.push('CPF do cliente é obrigatório');
     }
-    
+
     if (!this.isValidCpf(customerData.cpf)) {
       errors.push('CPF do cliente inválido');
     }
-    
+
     return errors;
   }
 
@@ -389,35 +390,35 @@ export class AsaasAdapter {
    */
   validateCreditCardData(creditCard: any, holderInfo: any): string[] {
     const errors: string[] = [];
-    
+
     if (!creditCard.holderName?.trim()) {
       errors.push('Nome do portador é obrigatório');
     }
-    
+
     if (!creditCard.number?.trim()) {
       errors.push('Número do cartão é obrigatório');
     }
-    
+
     if (!creditCard.expiryMonth) {
       errors.push('Mês de vencimento é obrigatório');
     }
-    
+
     if (!creditCard.expiryYear) {
       errors.push('Ano de vencimento é obrigatório');
     }
-    
+
     if (!creditCard.ccv?.trim()) {
       errors.push('CCV é obrigatório');
     }
-    
+
     if (!holderInfo.name?.trim()) {
       errors.push('Nome do portador (holder info) é obrigatório');
     }
-    
+
     if (!holderInfo.cpfCnpj?.trim()) {
       errors.push('CPF do portador é obrigatório');
     }
-    
+
     return errors;
   }
 
@@ -435,15 +436,15 @@ export class AsaasAdapter {
    */
   private isValidCpf(cpf?: string): boolean {
     if (!cpf) return false;
-    
+
     const cleaned = cpf.replace(/\D/g, '');
-    
+
     // Verifica se tem 11 dígitos
     if (cleaned.length !== 11) return false;
-    
+
     // Verifica se não são todos iguais
     if (/^(\d)\1{10}$/.test(cleaned)) return false;
-    
+
     // Validação básica dos dígitos verificadores
     let sum = 0;
     for (let i = 0; i < 9; i++) {
@@ -452,7 +453,7 @@ export class AsaasAdapter {
     let remainder = (sum * 10) % 11;
     if (remainder === 10 || remainder === 11) remainder = 0;
     if (remainder !== parseInt(cleaned.charAt(9))) return false;
-    
+
     sum = 0;
     for (let i = 0; i < 10; i++) {
       sum += parseInt(cleaned.charAt(i)) * (11 - i);
@@ -460,7 +461,7 @@ export class AsaasAdapter {
     remainder = (sum * 10) % 11;
     if (remainder === 10 || remainder === 11) remainder = 0;
     if (remainder !== parseInt(cleaned.charAt(10))) return false;
-    
+
     return true;
   }
 }
