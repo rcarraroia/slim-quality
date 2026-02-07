@@ -239,19 +239,59 @@ export class CheckoutService {
     if (!affiliate) return;
 
     try {
-      // Registrar conversão de referral
+      // Buscar affiliate_id pelo referral_code
+      const { data: affiliateData, error: affiliateError } = await supabase
+        .from('affiliates')
+        .select('id')
+        .eq('referral_code', affiliate.referral_code)
+        .eq('status', 'active')
+        .is('deleted_at', null)
+        .single();
+
+      if (affiliateError || !affiliateData) {
+        console.warn('⚠️ Afiliado não encontrado para código:', affiliate.referral_code);
+        return;
+      }
+
+      // Buscar dados do pedido para calcular comissão
+      const { data: order, error: orderError } = await supabase
+        .from('orders')
+        .select('customer_id, total_cents')
+        .eq('id', orderId)
+        .single();
+
+      if (orderError || !order) {
+        console.warn('⚠️ Pedido não encontrado:', orderId);
+        return;
+      }
+
+      // Calcular comissão (15% para N1)
+      const commissionPercentage = 15;
+      const commissionValueCents = Math.round(order.total_cents * (commissionPercentage / 100));
+
+      // Registrar conversão de referral com affiliate_id obrigatório
       const { error: conversionError } = await supabase
         .from('referral_conversions')
         .insert({
           referral_code: affiliate.referral_code,
+          affiliate_id: affiliateData.id, // ✅ CORRIGIDO: Incluir affiliate_id obrigatório
           order_id: orderId,
-          converted_at: new Date().toISOString()
+          order_value_cents: order.total_cents,
+          commission_percentage: commissionPercentage,
+          commission_value_cents: commissionValueCents,
+          customer_id: order.customer_id,
+          converted_at: new Date().toISOString(),
+          status: 'confirmed'
         });
 
       if (conversionError) {
         console.warn('⚠️ Erro ao registrar conversão:', conversionError.message);
       } else {
-        console.log('🎯 Conversão de afiliado registrada');
+        console.log('🎯 Conversão de afiliado registrada com sucesso:', {
+          affiliateId: affiliateData.id,
+          orderId: orderId,
+          commissionValueCents: commissionValueCents
+        });
       }
 
     } catch (error) {

@@ -1,6 +1,6 @@
 /**
  * Vercel Serverless Function - Checkout Asaas
- * Processa pagamentos PIX e Cartão via Asaas
+ * Processa pagamentos PIX, Boleto e Cartão via Asaas (APENAS PRODUTOS FÍSICOS)
  */
 
 import { createClient } from '@supabase/supabase-js';
@@ -8,7 +8,6 @@ import { createClient } from '@supabase/supabase-js';
 export default async function handler(req, res) {
   // CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
-  console.log('Trigger Vercel Deploy - Fix PIX Invoice URL'); // Force deploy
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS, GET');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
@@ -116,7 +115,6 @@ export default async function handler(req, res) {
     const asaasBaseUrl = isProduction
       ? 'https://api.asaas.com/v3'
       : 'https://api-sandbox.asaas.com/v3';
-
     console.log('📡 Asaas Auth Diag:', {
       envDetected: isProduction ? 'PRODUCTION' : 'SANDBOX',
       keyLength: trimmedKey.length,
@@ -174,7 +172,6 @@ export default async function handler(req, res) {
         }
       });
     }
-
     // Validar CPF/CNPJ obrigatório para Asaas
     if (!customer.cpfCnpj) {
       return res.status(400).json({
@@ -236,7 +233,6 @@ export default async function handler(req, res) {
         }
       }
     }
-
     if (!asaasCustomerId) {
       console.log('Creating Asaas customer:', {
         name: customer.name,
@@ -287,10 +283,8 @@ export default async function handler(req, res) {
     console.log('Asaas Target: PAYMENT (produtos físicos)');
 
     // Endpoint sempre /payments para produtos físicos
-    let asaasEndpoint = '/payments';
-    let paymentPayload;
-    // Endpoint sempre /payments para produtos físicos
-    paymentPayload = {
+    const asaasEndpoint = '/payments';
+    const paymentPayload = {
       customer: asaasCustomerId,
       billingType: billingType,
       value: amount,
@@ -301,17 +295,10 @@ export default async function handler(req, res) {
       fine: { value: 0 },
       interest: { value: 0 }
     };
-
     // Adicionar parcelas se for cartão de crédito
     if (billingType === 'CREDIT_CARD' && installments && installments > 1) {
       paymentPayload.installmentCount = installments;
       paymentPayload.installmentValue = amount / installments;
-    }
-      } else {
-        // Campos específicos de Assinatura
-        paymentPayload.nextDueDate = dueDate;
-        paymentPayload.cycle = 'MONTHLY'; // Fixo mensal para o Agente IA
-      }
     }
 
     const paymentRes = await fetch(`${asaasBaseUrl}${asaasEndpoint}`, {
@@ -322,12 +309,11 @@ export default async function handler(req, res) {
 
     const paymentData = await paymentRes.json();
 
-    // ✅ CORREÇÃO: Log detalhado da resposta para debug do Payment First
+    // Log detalhado da resposta para debug
     console.log('📡 Asaas Response Status:', paymentRes.status);
-    console.log('📡 Asaas Response Headers:', Object.fromEntries(paymentRes.headers.entries()));
     
     if (!paymentRes.ok) {
-      console.error('❌ Asaas payment error (Payment First):', JSON.stringify(paymentData, null, 2));
+      console.error('❌ Asaas payment error:', JSON.stringify(paymentData, null, 2));
       console.error('❌ Request payload que falhou:', JSON.stringify({
         endpoint: `${asaasBaseUrl}${asaasEndpoint}`,
         method: 'POST',
@@ -362,33 +348,12 @@ export default async function handler(req, res) {
     });
 
     // Usar o ID do pagamento criado
-    let paymentIdToProcess = paymentData.id;
-    let finalInvoiceUrl = paymentData.invoiceUrl;
-        headers
-      });
-
-      if (paymentsRes.ok) {
-        const paymentsData = await paymentsRes.json();
-
-        if (paymentsData.data && paymentsData.data.length > 0) {
-          // Pegar a primeira cobrança (mais recente ou pendente)
-          subscriptionFirstPayment = paymentsData.data[0];
-          paymentIdToProcess = subscriptionFirstPayment.id;
-          finalInvoiceUrl = subscriptionFirstPayment.invoiceUrl;
-          console.log('Using real payment ID for operations:', paymentIdToProcess);
-        } else {
-          console.warn('No payments found for subscription yet');
-        }
-      } else {
-        const paymentsError = await paymentsRes.text();
-        console.error('Failed to fetch subscription payments:', paymentsError);
-      }
-    }
+    const paymentIdToProcess = paymentData.id;
+    const finalInvoiceUrl = paymentData.invoiceUrl;
 
     // Se for PIX, buscar QR Code separadamente
     let pixQrCode = null;
     let pixCopyPaste = null;
-
     if (billingType === 'PIX') {
       // Buscar QR Code do pagamento
       console.log('Fetching PIX QR Code for payment:', paymentIdToProcess);
@@ -445,7 +410,6 @@ export default async function handler(req, res) {
           details: cardPaymentData
         });
       }
-
       // Determinar se pagamento foi confirmado
       const isConfirmed = cardPaymentData.status === 'CONFIRMED' || cardPaymentData.status === 'RECEIVED';
 
@@ -480,92 +444,7 @@ export default async function handler(req, res) {
       });
     }
 
-    // Registrar no banco de dados
-    await savePaymentToDatabase({
-      orderId,
-      asaasPaymentId: paymentIdToProcess,
-      asaasCustomerId,
-      billingType,
-      amount,
-      status: isConfirmed ? 'confirmed' : 'pending',
-      installments: installments || 1,
-          creditCard: {
-            holderName: creditCard.holderName,
-            number: creditCard.number,
-            expiryMonth: creditCard.expiryMonth,
-            expiryYear: creditCard.expiryYear,
-            ccv: creditCard.ccv
-          },
-          creditCardHolderInfo: holderInfo,
-          remoteIp: remoteIp
-        })
-      });
-
-      const cardPaymentData = await payWithCardRes.json();
-
-      if (!payWithCardRes.ok) {
-        console.error('❌ Erro ao processar cartão na primeira cobrança:', JSON.stringify(cardPaymentData, null, 2));
-        return res.status(500).json({
-          success: false,
-          error: 'Assinatura criada mas falha no processamento do cartão',
-          details: cardPaymentData,
-          subscriptionId: paymentData.id,
-          paymentId: firstPaymentId
-        });
-      }
-
-      // Verificar se pagamento foi confirmado
-      const isConfirmed = cardPaymentData.status === 'CONFIRMED' || cardPaymentData.status === 'RECEIVED';
-      
-      console.log('✅ Payment First com processamento forçado:', {
-        subscriptionId: paymentData.id,
-        paymentId: firstPaymentId,
-        paymentStatus: cardPaymentData.status,
-        confirmed: isConfirmed,
-        confirmedDate: cardPaymentData.confirmedDate
-      });
-
-      // Registrar no banco de dados
-      await savePaymentToDatabase({
-        orderId,
-        asaasPaymentId: firstPaymentId, // ID da primeira cobrança (não da assinatura)
-        asaasCustomerId,
-        billingType,
-        amount,
-        status: isConfirmed ? 'confirmed' : 'pending',
-        installments: 1,
-        cardBrand: cardPaymentData.creditCard?.creditCardBrand,
-        cardLastDigits: creditCard.number?.slice(-4),
-        referralCode: referralCode || null,
-        subscriptionId: paymentData.id, // ID da assinatura
-        paymentFirst: true
-      });
-
-      // Se pagamento confirmado, atualizar status do pedido para 'paid'
-      if (isConfirmed) {
-        await updateOrderStatus(orderId, 'paid');
-        console.log(`✅ Pedido ${orderId} atualizado para 'paid' após Payment First com processamento forçado`);
-      }
-
-      // URL da primeira cobrança para acompanhamento
-      finalInvoiceUrl = cardPaymentData.invoiceUrl || `https://www.asaas.com/i/${firstPaymentId}`;
-
-      // Sucesso no Payment First com processamento forçado
-      return res.status(200).json({
-        success: true,
-        paymentId: firstPaymentId, // ID da cobrança processada
-        subscriptionId: paymentData.id, // ID da assinatura
-        status: cardPaymentData.status,
-        confirmedDate: cardPaymentData.confirmedDate,
-        invoiceUrl: finalInvoiceUrl,
-        message: isConfirmed ? 'Assinatura criada e primeira cobrança processada com sucesso (Payment First)' : 'Assinatura criada, cartão processado mas aguardando confirmação',
-        orderStatus: isConfirmed ? 'paid' : 'pending',
-        paymentFirst: true,
-        forcedProcessing: true // Flag para identificar que foi processamento forçado
-      });
-    }
-
-    // Registrar pagamento PIX no banco de dados
+    // Registrar pagamento PIX/Boleto no banco de dados
     await savePaymentToDatabase({
       orderId,
       asaasPaymentId: paymentIdToProcess,
@@ -580,19 +459,18 @@ export default async function handler(req, res) {
       referralCode: referralCode || null
     });
 
-    // Sucesso (PIX ou aguardando dados do cartão)
+    // Sucesso (PIX ou Boleto)
     return res.status(200).json({
       success: true,
       paymentId: paymentIdToProcess,
-      // ✅ SE for assinatura, use o invoiceUrl da primeira cobrança, senão use o da resposta original
       checkoutUrl: finalInvoiceUrl,
       pixQrCode: pixQrCode,
       pixCopyPaste: pixCopyPaste,
       boletoUrl: paymentData.bankSlipUrl,
       status: paymentData.status
     });
-
   } catch (error) {
+    console.error('❌ Erro crítico no checkout:', error);
     return res.status(500).json({
       success: false,
       error: error.message || 'Erro interno',
@@ -657,7 +535,6 @@ async function getAffiliateNetwork(referralCode, supabase) {
         }
       }
     }
-
     console.log('Rede encontrada:', { n1: n1.id, n2: n2Id, n3: n3Id });
 
     return {
@@ -686,10 +563,10 @@ async function savePaymentToDatabase(data) {
 
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // ✅ NOVO: Buscar rede de afiliados se houver referralCode
+    // Buscar rede de afiliados se houver referralCode
     const affiliateNetwork = await getAffiliateNetwork(data.referralCode, supabase);
 
-    // ✅ NOVO: Atualizar pedido com dados dos afiliados
+    // Atualizar pedido com dados dos afiliados
     if (data.referralCode) {
       const { error: updateError } = await supabase
         .from('orders')
@@ -715,7 +592,6 @@ async function savePaymentToDatabase(data) {
       'CREDIT_CARD': 'credit_card',
       'BOLETO': 'boleto'
     };
-
     // 1. Criar registro na tabela payments
     const paymentRecord = {
       order_id: data.orderId,
@@ -770,7 +646,6 @@ async function savePaymentToDatabase(data) {
     console.error('Erro ao salvar pagamento no banco:', error);
   }
 }
-
 /**
  * Atualiza o status do pedido na tabela orders
  */
@@ -812,11 +687,6 @@ async function updateOrderStatus(orderId, status) {
  * - Apenas N1: 15% N1 + 7.5% Renum + 7.5% JB
  * - N1 + N2: 15% N1 + 3% N2 + 6% Renum + 6% JB
  * - Rede completa: 15% N1 + 3% N2 + 2% N3 + 5% Renum + 5% JB
- * 
- * ✅ REGRA INVERTIDA (AGENTE IA - 70% RENUM):
- * - Renum (Principal): 70% (Diferente da venda física, aqui ela é a dona do produto)
- * - Rede (30% restantes): N1, N2, N3 mantêm proporções.
- * - Slim Quality (Fábrica): Assume o papel de gerente (5%).
  */
 async function calculateAffiliateSplit(referralCode, walletRenum, walletJB) {
   // Se não tem referralCode, split vai todo para gestores
@@ -827,7 +697,6 @@ async function calculateAffiliateSplit(referralCode, walletRenum, walletJB) {
       { walletId: walletJB, percentualValue: 15 }
     ];
   }
-
   try {
     const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
     const supabaseKey = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY;
@@ -886,7 +755,6 @@ async function calculateAffiliateSplit(referralCode, walletRenum, walletJB) {
         console.log('N2 encontrado:', { id: n2Affiliate.id, wallet: n2Affiliate.wallet_id.substring(0, 10) + '...' });
       }
     }
-
     // Buscar N3 (quem indicou o N2)
     let n3Affiliate = null;
     if (n2Affiliate?.referred_by) {
@@ -943,7 +811,6 @@ async function calculateAffiliateSplit(referralCode, walletRenum, walletJB) {
     ];
   }
 }
-
 /**
  * Valida formato de Wallet ID do Asaas
  */
