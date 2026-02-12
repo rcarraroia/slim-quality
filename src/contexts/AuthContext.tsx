@@ -10,14 +10,18 @@ interface User {
   id: string;
   email: string;
   name: string;
+  full_name: string;
   role: 'admin' | 'super_admin';
   is_active: boolean;
   last_login_at?: string;
   created_at: string;
+  phone?: string;
+  avatar_url?: string;
 }
 
 interface AuthContextType {
   user: User | null;
+  profile: User | null; // Alias para compatibilidade
   isAuthenticated: boolean;
   isLoading: boolean;
   isAdmin: () => boolean;
@@ -61,6 +65,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const value = {
     user,
+    profile: user, // Alias para compatibilidade
     isAuthenticated,
     isLoading,
     isAdmin,

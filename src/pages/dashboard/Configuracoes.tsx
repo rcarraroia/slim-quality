@@ -59,15 +59,55 @@ type UserData = {
 };
 
 export default function Configuracoes() {
-  const [activeTab, setActiveTab] = useState('usuarios'); // Mudando para usuarios por padrão
+  const [activeTab, setActiveTab] = useState('perfil'); // Mudando para perfil por padrão
   const { toast } = useToast();
-  const { isSuperAdmin } = useAuth();
+  const { isSuperAdmin, user } = useAuth();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<UserData | null>(null);
   const [statusFilter, setStatusFilter] = useState('todos');
   const [cargoFilter, setCargoFilter] = useState('todos');
   const [users, setUsers] = useState<UserData[]>([]);
   const [loading, setLoading] = useState(true);
+  const [profileData, setProfileData] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    role: ''
+  });
+
+  // Função para obter iniciais do nome
+  const getInitials = (name: string) => {
+    return name
+      .split(' ')
+      .map(n => n[0])
+      .join('')
+      .toUpperCase()
+      .slice(0, 2);
+  };
+
+  // Função para formatar o cargo
+  const formatRole = (role: string) => {
+    const roleMap: Record<string, string> = {
+      'super_admin': 'Super Admin',
+      'admin': 'Administrador',
+      'vendedor': 'Vendedor',
+      'suporte': 'Suporte',
+      'financeiro': 'Financeiro'
+    };
+    return roleMap[role] || role;
+  };
+
+  // Carregar dados do perfil do usuário logado
+  useEffect(() => {
+    if (user) {
+      setProfileData({
+        name: user.full_name || user.name || '',
+        email: user.email || '',
+        phone: user.phone || '',
+        role: formatRole(user.role)
+      });
+    }
+  }, [user]);
 
   // Carregar usuários do banco
   const loadUsers = async () => {
@@ -108,8 +148,36 @@ export default function Configuracoes() {
     loadUsers();
   }, []);
 
-  const handleSave = (section: string) => {
-    toast({ title: "Configurações salvas!", description: `A seção ${section} foi atualizada.` });
+  const handleSave = async (section: string) => {
+    if (section === 'Perfil') {
+      try {
+        // Atualizar dados do perfil no Supabase
+        const { error } = await supabase
+          .from('profiles')
+          .update({
+            full_name: profileData.name,
+            phone: profileData.phone,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', user?.id);
+
+        if (error) throw error;
+
+        toast({ 
+          title: "Perfil atualizado!", 
+          description: "Suas informações foram salvas com sucesso." 
+        });
+      } catch (error) {
+        console.error('Erro ao atualizar perfil:', error);
+        toast({ 
+          title: "Erro ao salvar", 
+          description: "Não foi possível atualizar o perfil.",
+          variant: "destructive"
+        });
+      }
+    } else {
+      toast({ title: "Configurações salvas!", description: `A seção ${section} foi atualizada.` });
+    }
   };
 
   const handleEditUser = (user: UserData) => {
@@ -187,16 +255,43 @@ export default function Configuracoes() {
             <h3 className="text-xl font-semibold">👤 Meu Perfil</h3>
             <div className="flex items-center gap-6">
               <Avatar className="h-20 w-20">
-                <AvatarFallback className="bg-primary text-primary-foreground text-2xl">JA</AvatarFallback>
+                <AvatarImage src={user?.avatar_url || ""} />
+                <AvatarFallback className="bg-primary text-primary-foreground text-2xl">
+                  {user ? getInitials(user.full_name || user.name) : 'U'}
+                </AvatarFallback>
               </Avatar>
               <Button variant="outline">Alterar Foto</Button>
             </div>
             
             <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2"><Label>Nome</Label><Input defaultValue="João Admin" /></div>
-              <div className="space-y-2"><Label>Email</Label><Input type="email" defaultValue="joao@slimquality.com.br" /></div>
-              <div className="space-y-2"><Label>Telefone</Label><Input defaultValue="(31) 99999-8888" /></div>
-              <div className="space-y-2"><Label>Cargo</Label><Input defaultValue="Supervisor" disabled /></div>
+              <div className="space-y-2">
+                <Label>Nome</Label>
+                <Input 
+                  value={profileData.name} 
+                  onChange={(e) => setProfileData(prev => ({ ...prev, name: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Email</Label>
+                <Input 
+                  type="email" 
+                  value={profileData.email} 
+                  onChange={(e) => setProfileData(prev => ({ ...prev, email: e.target.value }))}
+                  disabled 
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Telefone</Label>
+                <Input 
+                  value={profileData.phone} 
+                  onChange={(e) => setProfileData(prev => ({ ...prev, phone: e.target.value }))}
+                  placeholder="(31) 99999-8888"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Cargo</Label>
+                <Input value={profileData.role} disabled />
+              </div>
             </div>
             <Button onClick={() => handleSave('Perfil')}>Salvar Alterações</Button>
 

@@ -48,8 +48,30 @@ export function DashboardLayout() {
   // Hook para badge dinâmico de aprendizados pendentes
   const { count: pendingLearningCount } = usePendingLearningBadge();
 
-  // Hook de autenticação para logout
-  const { logout } = useAuth();
+  // Hook de autenticação para logout e dados do usuário
+  const { logout, user } = useAuth();
+
+  // Função para obter iniciais do nome
+  const getInitials = (name: string) => {
+    return name
+      .split(' ')
+      .map(n => n[0])
+      .join('')
+      .toUpperCase()
+      .slice(0, 2);
+  };
+
+  // Função para formatar o cargo
+  const formatRole = (role: string) => {
+    const roleMap: Record<string, string> = {
+      'super_admin': 'Super Admin',
+      'admin': 'Administrador',
+      'vendedor': 'Vendedor',
+      'suporte': 'Suporte',
+      'financeiro': 'Financeiro'
+    };
+    return roleMap[role] || role;
+  };
 
   const menuItems = [
     { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard', disabled: false },
@@ -121,12 +143,14 @@ export function DashboardLayout() {
       <div className="p-4 border-b">
         <div className="flex items-center gap-3">
           <Avatar>
-            <AvatarImage src="" />
-            <AvatarFallback className="bg-primary text-primary-foreground">JA</AvatarFallback>
+            <AvatarImage src={user?.avatar_url || ""} />
+            <AvatarFallback className="bg-primary text-primary-foreground">
+              {user ? getInitials(user.full_name || user.name) : 'U'}
+            </AvatarFallback>
           </Avatar>
           <div>
-            <p className="text-sm font-medium">João Admin</p>
-            <p className="text-xs text-muted-foreground">Supervisor</p>
+            <p className="text-sm font-medium">{user?.full_name || user?.name || 'Usuário'}</p>
+            <p className="text-xs text-muted-foreground">{user ? formatRole(user.role) : 'Carregando...'}</p>
           </div>
         </div>
       </div>
@@ -378,8 +402,10 @@ export function DashboardLayout() {
 
           {/* User Avatar */}
           <Avatar className="cursor-pointer">
-            <AvatarImage src="" />
-            <AvatarFallback className="bg-primary text-primary-foreground">JA</AvatarFallback>
+            <AvatarImage src={user?.avatar_url || ""} />
+            <AvatarFallback className="bg-primary text-primary-foreground">
+              {user ? getInitials(user.full_name || user.name) : 'U'}
+            </AvatarFallback>
           </Avatar>
         </header>
 

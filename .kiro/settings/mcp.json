@@ -21,7 +21,8 @@
         "execute_sql",
         "get_project_url",
         "get_publishable_keys"
-      ]
+      ],
+      "disabled": true
     }
   }
 }
