@@ -441,12 +441,16 @@ async function handleWithdrawals(req, res, supabase) {
 // ============================================
 async function handleNotifications(req, res, supabase) {
   try {
+    console.log('[Notifications] Iniciando handler', { query: req.query, method: req.method });
+    
     const { user, affiliate } = await authenticateAffiliate(req, supabase);
     if (!affiliate) {
+      console.log('[Notifications] Afiliado não encontrado');
       return res.status(404).json({ success: false, error: 'Afiliado não encontrado' });
     }
 
     const { subaction, id, limit = 50 } = req.query;
+    console.log('[Notifications] Subaction:', subaction, 'Affiliate ID:', affiliate.id);
 
     // Roteamento por subaction
     switch (subaction) {
@@ -461,12 +465,13 @@ async function handleNotifications(req, res, supabase) {
       case 'preferences':
         return handleNotificationsPreferences(req, res, supabase, affiliate);
       default:
+        console.log('[Notifications] Subaction não reconhecida, usando fallback para preferências');
         // Fallback para preferências (compatibilidade)
         return handleNotificationsPreferences(req, res, supabase, affiliate);
     }
   } catch (error) {
     console.error('[Notifications] Erro:', error);
-    return res.status(500).json({ success: false, error: 'Erro ao processar notificações' });
+    return res.status(500).json({ success: false, error: 'Erro ao processar notificações', details: error.message });
   }
 }
 
