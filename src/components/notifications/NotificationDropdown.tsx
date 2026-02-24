@@ -4,6 +4,7 @@
  * Dropdown com últimas 5 notificações
  */
 
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { CheckCheck, Bell } from 'lucide-react';
 import {
@@ -12,6 +13,7 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
+  DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -27,6 +29,7 @@ interface NotificationDropdownProps {
 
 export function NotificationDropdown({ dashboardPath = '/dashboard/notificacoes' }: NotificationDropdownProps) {
   const navigate = useNavigate();
+  const [open, setOpen] = useState(false);
   const {
     notifications,
     unreadCount,
@@ -59,8 +62,10 @@ export function NotificationDropdown({ dashboardPath = '/dashboard/notificacoes'
   };
 
   return (
-    <DropdownMenu>
-      <NotificationBell unreadCount={unreadCount} />
+    <DropdownMenu open={open} onOpenChange={setOpen}>
+      <DropdownMenuTrigger asChild>
+        <NotificationBell unreadCount={unreadCount} isOpen={open} />
+      </DropdownMenuTrigger>
 
       <DropdownMenuContent align="end" className="w-[380px]">
         {/* Header */}
