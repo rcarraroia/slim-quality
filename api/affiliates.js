@@ -446,77 +446,237 @@ async function handleNotifications(req, res, supabase) {
       return res.status(404).json({ success: false, error: 'Afiliado não encontrado' });
     }
 
-    if (req.method === 'GET') {
-      const { data: preferences, error: preferencesError } = await supabase
-        .from('affiliate_notification_preferences')
-        .select('*')
-        .eq('affiliate_id', affiliate.id)
-        .maybeSingle();
+    const { subaction, id, limit = 50 } = req.query;
 
-      if (preferencesError && preferencesError.code !== 'PGRST116') {
-        throw preferencesError;
-      }
-
-      if (!preferences) {
-        return res.status(200).json({
-          success: true,
-          data: {
-            email_commissions: true,
-            email_monthly_report: true,
-            email_new_affiliates: true,
-            email_promotions: false,
-            whatsapp_commissions: false,
-            whatsapp_monthly_report: false
-          }
-        });
-      }
-
-      return res.status(200).json({ success: true, data: preferences });
-    } else if (req.method === 'POST') {
-      const {
-        email_commissions,
-        email_monthly_report,
-        email_new_affiliates,
-        email_promotions,
-        whatsapp_commissions,
-        whatsapp_monthly_report
-      } = req.body;
-
-      if (
-        typeof email_commissions !== 'boolean' ||
-        typeof email_monthly_report !== 'boolean' ||
-        typeof email_new_affiliates !== 'boolean' ||
-        typeof email_promotions !== 'boolean'
-      ) {
-        return res.status(400).json({ success: false, error: 'Dados inválidos' });
-      }
-
-      const preferencesData = {
-        affiliate_id: affiliate.id,
-        email_commissions,
-        email_monthly_report,
-        email_new_affiliates,
-        email_promotions,
-        whatsapp_commissions: whatsapp_commissions || false,
-        whatsapp_monthly_report: whatsapp_monthly_report || false,
-        updated_at: new Date().toISOString()
-      };
-
-      const { data, error } = await supabase
-        .from('affiliate_notification_preferences')
-        .upsert(preferencesData, { onConflict: 'affiliate_id', returning: 'representation' })
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      return res.status(200).json({ success: true, message: 'Preferências salvas com sucesso', data });
+    // Roteamento por subaction
+    switch (subaction) {
+      case 'list':
+        return handleNotificationsList(req, res, supabase, affiliate, limit);
+      case 'unread-count':
+        return handleNotificationsUnreadCount(req, res, supabase, affiliate);
+      case 'mark-read':
+        return handleNotificationsMarkRead(req, res, supabase, affiliate, id);
+      case 'mark-all-read':
+        return handleNotificationsMarkAllRead(req, res, supabase, affiliate);
+      case 'preferences':
+        return handleNotificationsPreferences(req, res, supabase, affiliate);
+      default:
+        // Fallback para preferências (compatibilidade)
+        return handleNotificationsPreferences(req, res, supabase, affiliate);
     }
-
-    return res.status(405).json({ success: false, error: 'Método não permitido' });
   } catch (error) {
     console.error('[Notifications] Erro:', error);
-    return res.status(500).json({ success: false, error: 'Erro ao processar preferências' });
+    return res.status(500).json({ success: false, error: 'Erro ao processar notificações' });
+  }
+}
+
+// Subhandler: List notifications
+async function handleNotificationsList(req, res, supabase, affiliate, limit) {
+  if (req.method !== 'GET') {
+    return res.status(405).json({ success: false, error: 'Método não permitido' });
+  }
+
+  const { data: notifications, error } = await supabase
+    .from('notification_logs')
+    .select('id, type, data, sent_at, read_at')
+    .eq('affiliate_id', affiliate.id)
+    .order('sent_at', { ascending: false })
+    .limit(parseInt(limit));
+
+  if (error) throw error;
+
+  const formattedNotifications = (notifications || []).map(n => ({
+    id: n.id,
+    type: n.type,
+    title: n.data?.title || getTitleByType(n.type),
+    message: n.data?.message || getMessageByType(n.type, n.data),
+    data: n.data,
+    created_at: n.sent_at,
+    read_at: n.read_at
+  }));
+
+  return res.status(200).json({
+    success: true,
+    data: formattedNotifications
+  });
+}
+
+// Subhandler: Unread count
+async function handleNotificationsUnreadCount(req, res, supabase, affiliate) {
+  if (req.method !== 'GET') {
+    return res.status(405).json({ success: false, error: 'Método não permitido' });
+  }
+
+  const { count, error } = await supabase
+    .from('notification_logs')
+    .select('*', { count: 'exact', head: true })
+    .eq('affiliate_id', affiliate.id)
+    .is('read_at', null);
+
+  if (error) throw error;
+
+  return res.status(200).json({
+    success: true,
+    data: count || 0
+  });
+}
+
+// Subhandler: Mark as read
+async function handleNotificationsMarkRead(req, res, supabase, affiliate, notificationId) {
+  if (req.method !== 'PUT') {
+    return res.status(405).json({ success: false, error: 'Método não permitido' });
+  }
+
+  if (!notificationId) {
+    return res.status(400).json({ success: false, error: 'ID da notificação é obrigatório' });
+  }
+
+  // Verificar se notificação pertence ao afiliado
+  const { data: notification, error: checkError } = await supabase
+    .from('notification_logs')
+    .select('id, affiliate_id')
+    .eq('id', notificationId)
+    .single();
+
+  if (checkError || !notification) {
+    return res.status(404).json({ success: false, error: 'Notificação não encontrada' });
+  }
+
+  if (notification.affiliate_id !== affiliate.id) {
+    return res.status(403).json({ success: false, error: 'Acesso negado' });
+  }
+
+  const { error: updateError } = await supabase
+    .from('notification_logs')
+    .update({ read_at: new Date().toISOString() })
+    .eq('id', notificationId);
+
+  if (updateError) throw updateError;
+
+  return res.status(200).json({
+    success: true,
+    message: 'Notificação marcada como lida'
+  });
+}
+
+// Subhandler: Mark all as read
+async function handleNotificationsMarkAllRead(req, res, supabase, affiliate) {
+  if (req.method !== 'PUT') {
+    return res.status(405).json({ success: false, error: 'Método não permitido' });
+  }
+
+  const { error: updateError } = await supabase
+    .from('notification_logs')
+    .update({ read_at: new Date().toISOString() })
+    .eq('affiliate_id', affiliate.id)
+    .is('read_at', null);
+
+  if (updateError) throw updateError;
+
+  return res.status(200).json({
+    success: true,
+    message: 'Todas as notificações foram marcadas como lidas'
+  });
+}
+
+// Subhandler: Preferences (mantido para compatibilidade)
+async function handleNotificationsPreferences(req, res, supabase, affiliate) {
+  if (req.method === 'GET') {
+    const { data: preferences, error: preferencesError } = await supabase
+      .from('affiliate_notification_preferences')
+      .select('*')
+      .eq('affiliate_id', affiliate.id)
+      .maybeSingle();
+
+    if (preferencesError && preferencesError.code !== 'PGRST116') {
+      throw preferencesError;
+    }
+
+    if (!preferences) {
+      return res.status(200).json({
+        success: true,
+        data: {
+          email_commissions: true,
+          email_monthly_report: true,
+          email_new_affiliates: true,
+          email_promotions: false,
+          whatsapp_commissions: false,
+          whatsapp_monthly_report: false
+        }
+      });
+    }
+
+    return res.status(200).json({ success: true, data: preferences });
+  } else if (req.method === 'POST') {
+    const {
+      email_commissions,
+      email_monthly_report,
+      email_new_affiliates,
+      email_promotions,
+      whatsapp_commissions,
+      whatsapp_monthly_report
+    } = req.body;
+
+    if (
+      typeof email_commissions !== 'boolean' ||
+      typeof email_monthly_report !== 'boolean' ||
+      typeof email_new_affiliates !== 'boolean' ||
+      typeof email_promotions !== 'boolean'
+    ) {
+      return res.status(400).json({ success: false, error: 'Dados inválidos' });
+    }
+
+    const preferencesData = {
+      affiliate_id: affiliate.id,
+      email_commissions,
+      email_monthly_report,
+      email_new_affiliates,
+      email_promotions,
+      whatsapp_commissions: whatsapp_commissions || false,
+      whatsapp_monthly_report: whatsapp_monthly_report || false,
+      updated_at: new Date().toISOString()
+    };
+
+    const { data, error } = await supabase
+      .from('affiliate_notification_preferences')
+      .upsert(preferencesData, { onConflict: 'affiliate_id', returning: 'representation' })
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    return res.status(200).json({ success: true, message: 'Preferências salvas com sucesso', data });
+  }
+
+  return res.status(405).json({ success: false, error: 'Método não permitido' });
+}
+
+// Helper: Get title by type
+function getTitleByType(type) {
+  const titles = {
+    'welcome': 'Bem-vindo ao Programa de Afiliados!',
+    'commission_paid': 'Comissão Recebida!',
+    'withdrawal_processed': 'Saque Processado!',
+    'status_change': 'Atualização Importante',
+    'network_update': 'Novidade na sua Rede',
+    'payment_reminder': 'Lembrete de Pagamento',
+    'monthly_report': 'Relatório Mensal Disponível',
+    'broadcast': 'Comunicado Importante'
+  };
+  return titles[type] || 'Notificação';
+}
+
+// Helper: Get message by type
+function getMessageByType(type, data) {
+  switch (type) {
+    case 'commission_paid':
+      return `Você recebeu uma comissão de R$ ${data?.commission_value || '0,00'}`;
+    case 'withdrawal_processed':
+      return `Seu saque de R$ ${data?.amount || '0,00'} foi processado com sucesso`;
+    case 'welcome':
+      return 'Parabéns! Você agora faz parte do nosso programa de afiliados.';
+    default:
+      return data?.message || 'Você tem uma nova notificação';
   }
 }
 

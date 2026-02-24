@@ -41,7 +41,7 @@ export function useNotifications(options: UseNotificationsOptions = {}) {
   } = useQuery({
     queryKey: ['notifications'],
     queryFn: async () => {
-      const response = await apiService.get<{ success: boolean; data: NotificationLog[] }>('/notifications?action=list&limit=5');
+      const response = await apiService.get<{ success: boolean; data: NotificationLog[] }>('/affiliates?action=notifications&subaction=list&limit=5');
       return { notifications: response.data.data, total: response.data.data.length, page: 1, limit: 5 };
     },
     enabled,
@@ -57,7 +57,7 @@ export function useNotifications(options: UseNotificationsOptions = {}) {
   } = useQuery({
     queryKey: ['notifications', 'unread-count'],
     queryFn: async () => {
-      const response = await apiService.get<{ success: boolean; data: number }>('/notifications?action=unread-count');
+      const response = await apiService.get<{ success: boolean; data: number }>('/affiliates?action=notifications&subaction=unread-count');
       return { count: response.data.data };
     },
     enabled,
@@ -68,7 +68,7 @@ export function useNotifications(options: UseNotificationsOptions = {}) {
   // Mutation: Marcar como lida
   const markAsReadMutation = useMutation({
     mutationFn: async (notificationId: string) => {
-      const response = await apiService.put<{ success: boolean; message: string }>(`/notifications?action=mark-read&id=${notificationId}`, {});
+      const response = await apiService.put<{ success: boolean; message: string }>(`/affiliates?action=notifications&subaction=mark-read&id=${notificationId}`, {});
       return response.data;
     },
     onSuccess: () => {
@@ -81,7 +81,7 @@ export function useNotifications(options: UseNotificationsOptions = {}) {
   // Mutation: Marcar todas como lidas
   const markAllAsReadMutation = useMutation({
     mutationFn: async () => {
-      const response = await apiService.put<{ success: boolean; message: string }>('/notifications?action=mark-all-read', {});
+      const response = await apiService.put<{ success: boolean; message: string }>('/affiliates?action=notifications&subaction=mark-all-read', {});
       return response.data;
     },
     onSuccess: () => {
@@ -131,7 +131,7 @@ export function useNotificationsPage(page: number = 1, limit: number = 20) {
   } = useQuery({
     queryKey: ['notifications', 'page', page, limit],
     queryFn: async () => {
-      const response = await apiService.get<{ success: boolean; data: NotificationLog[] }>(`/notifications?action=list&limit=${limit}`);
+      const response = await apiService.get<{ success: boolean; data: NotificationLog[] }>(`/affiliates?action=notifications&subaction=list&limit=${limit}`);
       return { notifications: response.data.data, total: response.data.data.length, page, limit };
     },
     staleTime: 60000, // 1 minuto
@@ -140,7 +140,7 @@ export function useNotificationsPage(page: number = 1, limit: number = 20) {
   // Mutation: Marcar como lida
   const markAsReadMutation = useMutation({
     mutationFn: async (notificationId: string) => {
-      const response = await apiService.put<{ success: boolean; message: string }>(`/notifications?action=mark-read&id=${notificationId}`, {});
+      const response = await apiService.put<{ success: boolean; message: string }>(`/affiliates?action=notifications&subaction=mark-read&id=${notificationId}`, {});
       return response.data;
     },
     onSuccess: () => {
@@ -152,7 +152,7 @@ export function useNotificationsPage(page: number = 1, limit: number = 20) {
   // Mutation: Marcar todas como lidas
   const markAllAsReadMutation = useMutation({
     mutationFn: async () => {
-      const response = await apiService.put<{ success: boolean; message: string }>('/notifications?action=mark-all-read', {});
+      const response = await apiService.put<{ success: boolean; message: string }>('/affiliates?action=notifications&subaction=mark-all-read', {});
       return response.data;
     },
     onSuccess: () => {
