@@ -51,7 +51,9 @@ import AffiliateDashboardRecebimentos from "./pages/afiliados/dashboard/Recebime
 import AffiliateDashboardEstatisticas from "./pages/afiliados/dashboard/Estatisticas";
 import FerramentasIA from "./pages/afiliados/dashboard/FerramentasIA";
 import AffiliateDashboardConfiguracoes from "./pages/afiliados/dashboard/Configuracoes";
+import NotificacoesAfiliado from "./pages/afiliados/dashboard/Notificacoes";
 import TermosAfiliados from "./pages/afiliados/TermosAfiliados";
+import Notificacoes from "./pages/dashboard/Notificacoes";
 import CustomerInicio from "./pages/minha-conta/Inicio";
 import CustomerPedidos from "./pages/minha-conta/Pedidos";
 import CustomerDados from "./pages/minha-conta/Dados";
@@ -132,6 +134,9 @@ const App = () => (
                 <Route path="agente/mcp" element={<AgenteMcp />} />
                 <Route path="agente/metricas" element={<AgenteMetricas />} />
                 <Route path="agente/aprendizados" element={<AgenteAprendizados />} />
+                
+                {/* Notificações Admin */}
+                <Route path="notificacoes" element={<Notificacoes />} />
               </Route>
 
               {/* 3. CONTEXTO AFILIADO (Dashboard do Afiliado) */}
@@ -144,6 +149,7 @@ const App = () => (
                 <Route path="estatisticas" element={<AffiliateDashboardEstatisticas />} />
                 <Route path="ferramentas-ia" element={<FerramentasIA />} />
                 <Route path="materiais" element={<AffiliateMaterials />} /> {/* Rota de Materiais */}
+                <Route path="notificacoes" element={<NotificacoesAfiliado />} />
                 <Route path="configuracoes" element={<AffiliateDashboardConfiguracoes />} />
               </Route>
 

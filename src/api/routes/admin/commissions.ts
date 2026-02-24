@@ -217,6 +217,36 @@ router.post('/:id/approve', verifyAdmin, async (req: AdminRequest, res) => {
       throw updateError;
     }
 
+    // ============================================
+    // GATILHO AUTOMÁTICO: Notificação de Comissão Paga
+    // ============================================
+    // 🚨 DÉBITO TÉCNICO: Este gatilho está no frontend TypeScript.
+    // FASE 2: Mover para backend Python ou Edge Function para:
+    //   - Centralizar lógica de negócio
+    //   - Evitar dependência de chamadas frontend
+    //   - Garantir execução mesmo em falhas de UI
+    // ============================================
+    try {
+      await supabase.from('notification_logs').insert({
+        affiliate_id: commission.affiliate_id,
+        type: 'commission_received',
+        data: {
+          commission_id: id,
+          commission_value: Math.round(commission.commission_value_cents / 100),
+          order_number: commission.order?.order_number,
+          level: commission.level,
+          paid_at: new Date().toISOString()
+        },
+        channel: 'email',
+        status: 'sent',
+        recipient_email: commission.affiliate?.email,
+        sent_at: new Date().toISOString()
+      });
+    } catch (notificationError) {
+      // Log do erro mas não bloqueia aprovação da comissão
+      console.error('Erro ao criar notificação de comissão:', notificationError);
+    }
+
     // Log da ação
     await auditLogger.logAction({
       adminId: req.admin!.id,

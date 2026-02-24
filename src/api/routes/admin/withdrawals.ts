@@ -214,6 +214,36 @@ router.post('/:id/approve', verifyAdmin, async (req: AdminRequest, res: Response
       throw updateError;
     }
 
+    // ============================================
+    // GATILHO AUTOMÁTICO: Notificação de Saque Processado
+    // ============================================
+    // 🚨 DÉBITO TÉCNICO: Este gatilho está no frontend TypeScript.
+    // FASE 2: Mover para backend Python ou Edge Function para:
+    //   - Centralizar lógica de negócio
+    //   - Evitar dependência de chamadas frontend
+    //   - Garantir execução mesmo em falhas de UI
+    // ============================================
+    try {
+      await supabase.from('notification_logs').insert({
+        affiliate_id: withdrawal.affiliate_id,
+        type: 'withdrawal_processed',
+        data: {
+          withdrawal_id: id,
+          amount: Math.round(withdrawal.amount_cents / 100),
+          wallet_id: withdrawal.affiliate?.wallet_id,
+          processed_at: new Date().toISOString(),
+          processed_by_admin: req.admin!.name || req.admin!.email
+        },
+        channel: 'email',
+        status: 'sent',
+        recipient_email: withdrawal.affiliate?.email,
+        sent_at: new Date().toISOString()
+      });
+    } catch (notificationError) {
+      // Log do erro mas não bloqueia aprovação do saque
+      console.error('Erro ao criar notificação de saque:', notificationError);
+    }
+
     // Log da ação
     await auditLogger.logAction({
       adminId: req.admin!.id,

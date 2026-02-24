@@ -6,7 +6,6 @@ import {
   DollarSign,
   Settings,
   LogOut,
-  Bell,
   Search,
   CreditCard,
   Home,
@@ -24,6 +23,7 @@ import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { affiliateFrontendService } from "@/services/frontend/affiliate.service";
 import { supabase } from "@/config/supabase";
+import { NotificationDropdown } from "@/components/notifications/NotificationDropdown";
 
 export function AffiliateDashboardLayout() {
   const navigate = useNavigate();
@@ -236,12 +236,7 @@ export function AffiliateDashboardLayout() {
             </div>
 
             {/* Notifications */}
-            <Button variant="ghost" size="icon" className="relative">
-              <Bell className="h-5 w-5" />
-              <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-destructive text-xs text-destructive-foreground">
-                3
-              </span>
-            </Button>
+            <NotificationDropdown dashboardPath="/afiliados/dashboard/notificacoes" />
 
             {/* User Avatar */}
             <Avatar className="h-9 w-9 cursor-pointer" onClick={() => navigate('/afiliados/dashboard/configuracoes')}>

@@ -31,6 +31,9 @@ import mcpRoutes from './api/routes/mcp';
 import authRoutes from './api/routes/auth';
 // NOVO: Rotas isoladas para assinaturas
 import subscriptionsRoutes from './api/routes/subscriptions';
+// NOVO: Rotas de notificações (Sistema de Notificações - Fase 2)
+import notificationsRoutes from './api/routes/notifications';
+import adminNotificationsRoutes from './api/routes/admin/notifications';
 
 const app = express();
 
@@ -80,12 +83,14 @@ app.use('/api/auth', authRateLimit, authRoutes);
 app.use('/api/admin/affiliates', adminRateLimit, adminAffiliatesRoutes);
 app.use('/api/admin/commissions', adminRateLimit, adminCommissionsRoutes);
 app.use('/api/admin/withdrawals', adminRateLimit, adminWithdrawalsRoutes);
+app.use('/api/admin/notifications', adminRateLimit, adminNotificationsRoutes);
 
 // Rotas gerais (já protegidas pelo rate limiting geral)
 app.use('/api/affiliates', affiliatesRoutes);
 app.use('/api/referral', referralTrackingRoutes);
 app.use('/api/webhooks', asaasWebhookRoutes);
 app.use('/api/mcp', mcpRoutes);
+app.use('/api/notifications', notificationsRoutes);
 
 // NOVO: Rotas isoladas para assinaturas (namespace separado)
 app.use('/api/subscriptions', subscriptionsRoutes);

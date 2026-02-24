@@ -10,7 +10,6 @@ import {
   Settings,
   LogOut,
   Search,
-  Bell,
   ChevronDown,
   ChevronUp,
   CreditCard,
@@ -32,6 +31,7 @@ import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { usePendingLearningBadge } from '@/hooks/useRealtimeConversations';
 import { useAuth } from '@/hooks/useAuth';
+import { NotificationDropdown } from '@/components/notifications/NotificationDropdown';
 
 export function DashboardLayout() {
   const location = useLocation();
@@ -395,10 +395,7 @@ export function DashboardLayout() {
           </div>
 
           {/* Notifications */}
-          <Button variant="ghost" size="icon" className="relative">
-            <Bell className="h-5 w-5" />
-            <span className="absolute top-1 right-1 h-2 w-2 bg-destructive rounded-full" />
-          </Button>
+          <NotificationDropdown dashboardPath="/dashboard/notificacoes" />
 
           {/* User Avatar */}
           <Avatar className="cursor-pointer">
