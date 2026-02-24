@@ -47,21 +47,21 @@ export interface UnreadCountResponse {
 class AdminNotificationService {
   /**
    * Listar notificações enviadas (broadcasts)
-   * GET /api/admin/notifications/sent
+   * GET /api/admin/notifications?action=sent
    */
   async listSentNotifications(
     page: number = 1,
     limit: number = 20
   ): Promise<ApiResponse<{ notifications: BroadcastSent[]; total: number; page: number; limit: number }>> {
-    return apiService.get<any>(`/admin/notifications/sent?page=${page}&limit=${limit}`);
+    return apiService.get<any>(`/admin/notifications?action=sent&page=${page}&limit=${limit}`);
   }
 
   /**
    * Criar notificação broadcast
-   * POST /api/admin/notifications/create
+   * POST /api/admin/notifications?action=create
    */
   async createBroadcast(data: CreateBroadcastRequest): Promise<ApiResponse<{ message: string; sent_count: number }>> {
-    return apiService.post<any>('/admin/notifications/create', data);
+    return apiService.post<any>('/admin/notifications?action=create', data);
   }
 
   /**
