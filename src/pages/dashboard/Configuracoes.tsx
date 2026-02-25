@@ -13,9 +13,10 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { StatusBadge } from "@/components/dashboard/StatusBadge";
 import { UserManagementModal } from "@/components/admin/UserManagementModal";
 import { FaqManagement } from "@/components/admin/FaqManagement";
+import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/config/supabase";
 import { useAuth } from "@/contexts/AuthContext";
-import { 
+import {
   Settings, User, Building2, Users, CreditCard, Bell, Shield, Link, Palette, Edit, Trash2, CheckCircle, Clock, Plus, Loader2, HelpCircle
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -113,7 +114,7 @@ export default function Configuracoes() {
   const loadUsers = async () => {
     try {
       setLoading(true);
-      
+
       // Verificar se usuário está autenticado
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
@@ -121,7 +122,7 @@ export default function Configuracoes() {
         setUsers([]);
         return;
       }
-      
+
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
@@ -163,14 +164,14 @@ export default function Configuracoes() {
 
         if (error) throw error;
 
-        toast({ 
-          title: "Perfil atualizado!", 
-          description: "Suas informações foram salvas com sucesso." 
+        toast({
+          title: "Perfil atualizado!",
+          description: "Suas informações foram salvas com sucesso."
         });
       } catch (error) {
         console.error('Erro ao atualizar perfil:', error);
-        toast({ 
-          title: "Erro ao salvar", 
+        toast({
+          title: "Erro ao salvar",
           description: "Não foi possível atualizar o perfil.",
           variant: "destructive"
         });
@@ -213,7 +214,7 @@ export default function Configuracoes() {
       // Soft delete - marcar como deletado
       const { error } = await supabase
         .from('profiles')
-        .update({ 
+        .update({
           deleted_at: new Date().toISOString(),
           status: 'inativo'
         })
@@ -262,28 +263,28 @@ export default function Configuracoes() {
               </Avatar>
               <Button variant="outline">Alterar Foto</Button>
             </div>
-            
+
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Nome</Label>
-                <Input 
-                  value={profileData.name} 
+                <Input
+                  value={profileData.name}
                   onChange={(e) => setProfileData(prev => ({ ...prev, name: e.target.value }))}
                 />
               </div>
               <div className="space-y-2">
                 <Label>Email</Label>
-                <Input 
-                  type="email" 
-                  value={profileData.email} 
+                <Input
+                  type="email"
+                  value={profileData.email}
                   onChange={(e) => setProfileData(prev => ({ ...prev, email: e.target.value }))}
-                  disabled 
+                  disabled
                 />
               </div>
               <div className="space-y-2">
                 <Label>Telefone</Label>
-                <Input 
-                  value={profileData.phone} 
+                <Input
+                  value={profileData.phone}
                   onChange={(e) => setProfileData(prev => ({ ...prev, phone: e.target.value }))}
                   placeholder="(31) 99999-8888"
                 />
@@ -406,6 +407,7 @@ export default function Configuracoes() {
                     <TableHead>Nome</TableHead>
                     <TableHead>Email</TableHead>
                     <TableHead>Cargo</TableHead>
+                    <TableHead>Afiliado</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Último Acesso</TableHead>
                     <TableHead className="text-right">Ações</TableHead>
@@ -429,6 +431,19 @@ export default function Configuracoes() {
                         <span className={cn("px-3 py-1 rounded-full text-xs font-medium", cargoColors[user.role])}>
                           {user.role}
                         </span>
+                      </TableCell>
+                      <TableCell>
+                        <Badge
+                          variant="outline"
+                          className={cn(
+                            "border-0 px-3 py-1 text-xs font-medium",
+                            user.is_affiliate
+                              ? "bg-success/10 text-success hover:bg-success/20"
+                              : "bg-muted text-muted-foreground hover:bg-muted/80"
+                          )}
+                        >
+                          {user.is_affiliate ? "Sim" : "Não"}
+                        </Badge>
                       </TableCell>
                       <TableCell>
                         <StatusBadge status={user.status} />
@@ -611,9 +626,9 @@ export default function Configuracoes() {
           {renderContent()}
         </CardContent>
       </Card>
-      
+
       {/* Modal de Gerenciamento de Usuários */}
-      <UserManagementModal 
+      <UserManagementModal
         user={editingUser}
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
