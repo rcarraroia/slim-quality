@@ -279,7 +279,7 @@ class CustomerAuthService {
         }
       }
 
-      // Criar afiliado (ativação automática - admin só desativa se necessário)
+      // Criar afiliado (status 'pending' conforme RLS policy)
       const { data: affiliateData, error: affiliateError } = await supabase
         .from('affiliates')
         .insert({
@@ -288,15 +288,14 @@ class CustomerAuthService {
           email: data.email,
           phone: data.phone,
           referral_code: referralCode,
-          status: 'active', // Ativação automática
+          status: 'pending', // Respeita RLS policy 20260109030936
           referred_by: referrerId
         })
         .select('id, status')
         .single();
 
       if (affiliateError || !affiliateData) {
-        console.error('Erro ao criar afiliado:', affiliateError);
-        // Não falhar o registro, apenas logar
+        throw new Error('Falha ao criar registro de afiliado: ' + affiliateError?.message);
       }
 
       // Atualizar dados do usuário com info de afiliado

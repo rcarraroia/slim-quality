@@ -20,6 +20,15 @@ export default function LandingPageWithRef() {
       }
 
       try {
+        // 🔧 MIGRAÇÃO: Limpar chaves legadas antes de processar
+        const legacyKeys = ['referralCode', 'referralClickedAt', 'referral_code'];
+        legacyKeys.forEach(key => {
+          if (localStorage.getItem(key)) {
+            console.log(`[LandingPageWithRef] Removendo chave legada: ${key}`);
+            localStorage.removeItem(key);
+          }
+        });
+
         // 1. Buscar afiliado pelo slug ou referral_code
         const slugUpper = slug.toUpperCase();
         const { data: affiliate } = await supabase
@@ -35,12 +44,9 @@ export default function LandingPageWithRef() {
           const expiryDate = new Date();
           expiryDate.setDate(expiryDate.getDate() + 30); // 30 dias de validade
           
-          const referralData = {
-            code: affiliate.referral_code,
-            timestamp: Date.now(),
-            expiry: expiryDate.getTime()
-          };
-          localStorage.setItem(STORAGE_KEYS.REFERRAL_CODE, JSON.stringify(referralData));
+          // Salvar código como string pura (igual ao referral-tracker.ts)
+          localStorage.setItem(STORAGE_KEYS.REFERRAL_CODE, affiliate.referral_code);
+          localStorage.setItem(STORAGE_KEYS.REFERRAL_EXPIRES, expiryDate.getTime().toString());
           
           // Cookie também (para compatibilidade)
           document.cookie = `slim_referral_code=${affiliate.referral_code}; expires=${expiryDate.toUTCString()}; path=/; SameSite=Lax`;
@@ -48,20 +54,24 @@ export default function LandingPageWithRef() {
           console.log('[LandingPageWithRef] Código de referência salvo:', affiliate.referral_code);
 
           // 3. Registrar clique em background (não bloqueia redirecionamento)
-          getClientIP().then(ip => {
-            supabase
-              .from('referral_clicks')
-              .insert({
-                referral_code: affiliate.referral_code,
-                affiliate_id: affiliate.id,
-                ip_address: ip,
-                user_agent: navigator.userAgent,
-                referer: document.referrer,
-                clicked_at: new Date().toISOString()
-              })
-              .then(() => {})
-              .catch(() => {});
-          });
+          (async () => {
+            try {
+              const ip = await getClientIP();
+              await supabase
+                .from('referral_clicks')
+                .insert({
+                  referral_code: affiliate.referral_code,
+                  affiliate_id: affiliate.id,
+                  ip_address: ip,
+                  user_agent: navigator.userAgent,
+                  referer: document.referrer,
+                  clicked_at: new Date().toISOString()
+                });
+            } catch (err) {
+              // Erro silencioso
+              console.warn('Erro ao registrar clique:', err);
+            }
+          })();
         }
       } catch (error) {
         // Silencioso - não mostra erro

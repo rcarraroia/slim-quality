@@ -15,6 +15,12 @@ export const STORAGE_KEYS = {
   REFERRAL_CODE: 'slim_referral_code',
   
   /**
+   * Chave para armazenar data de expiração do código de referência
+   * Usado em conjunto com REFERRAL_CODE para validar TTL de 30 dias
+   */
+  REFERRAL_EXPIRES: 'slim_referral_expires',
+  
+  /**
    * Chave para armazenar sessão do usuário
    */
   USER_SESSION: 'slim_user_session',

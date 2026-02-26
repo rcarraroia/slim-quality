@@ -284,23 +284,15 @@ export class ReferralTracker {
       // Verificar se estamos no browser
       if (typeof window === 'undefined') return;
       
-      // ✅ NOVO: Migrar código antigo se existir
-      const oldCode = localStorage.getItem('referral_code');
-      const newCode = localStorage.getItem('slim_referral_code');
-      
-      if (oldCode && !newCode) {
-        // Migrar dados antigos
-        try {
-          const oldData = JSON.parse(oldCode);
-          localStorage.setItem('slim_referral_code', oldCode);
-          localStorage.removeItem('referral_code');
-          console.log('[ReferralTracker] Código migrado: referral_code → slim_referral_code');
-        } catch {
-          // Se não for JSON, migrar como string simples
-          localStorage.setItem('slim_referral_code', oldCode);
-          localStorage.removeItem('referral_code');
+      // 🔧 MIGRAÇÃO: Limpar chaves legadas
+      const legacyKeys = ['referralCode', 'referralClickedAt', 'referral_code', 'referral_expires', 'referral_utm'];
+      legacyKeys.forEach(key => {
+        const value = localStorage.getItem(key);
+        if (value) {
+          console.log(`[ReferralTracker] Removendo chave legada: ${key}`);
+          localStorage.removeItem(key);
         }
-      }
+      });
       
       // Capturar código se presente na URL
       this.captureReferralCode();
