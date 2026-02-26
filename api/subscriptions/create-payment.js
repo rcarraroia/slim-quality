@@ -1,272 +1,842 @@
 /**
- * API REST para criação de pagamentos de assinatura
- * Rota: POST /api/subscriptions/create-payment
+ * API DE PAGAMENTOS E ASSINATURAS
+ * Gerencia cobranças de taxa de adesão e mensalidades
  * 
- * Implementa o fluxo Payment First para assinaturas:
- * 1. Cria cliente no Asaas
- * 2. Cria pagamento inicial (primeira mensalidade)
- * 3. Retorna dados para polling
+ * Actions:
+ * - POST ?action=create-membership-payment (criar cobrança de adesão)
+ * - POST ?action=create-subscription (criar assinatura mensal - Logista)
+ * - POST ?action=cancel-subscription (cancelar assinatura)
+ * - GET  ?action=get-history (histórico de pagamentos)
+ * - GET  ?action=get-receipt (comprovante de pagamento)
  */
 
 import { createClient } from '@supabase/supabase-js';
 
+// Constantes de comissionamento
+const COMMISSION_RATES = {
+  SLIM: 0.10,      // 10% para Slim Quality
+  SELLER: 0.15,    // 15% para N1
+  N1: 0.03,        // 3% para N2
+  N2: 0.02,        // 2% para N3
+  RENUM: 0.05,     // 5% base para Renum
+  JB: 0.05         // 5% base para JB
+};
+
 export default async function handler(req, res) {
-  // CORS headers
+  // CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
-  // Preflight
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
   }
 
-  // Apenas POST permitido
+  const { action } = req.query;
+
+  if (!action) {
+    return res.status(400).json({ 
+      success: false, 
+      error: 'Parâmetro "action" é obrigatório' 
+    });
+  }
+
+  // Inicializar Supabase
+  const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+  const supabaseKey = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY;
+
+  if (!supabaseUrl || !supabaseKey) {
+    return res.status(500).json({ success: false, error: 'Configuração do servidor incompleta' });
+  }
+
+  const supabase = createClient(supabaseUrl, supabaseKey);
+
+  // Roteamento
+  switch (action) {
+    case 'create-membership-payment':
+      return handleCreateMembershipPayment(req, res, supabase);
+    case 'create-subscription':
+      return handleCreateSubscription(req, res, supabase);
+    case 'cancel-subscription':
+      return handleCancelSubscription(req, res, supabase);
+    case 'get-history':
+      return handleGetHistory(req, res, supabase);
+    case 'get-receipt':
+      return handleGetReceipt(req, res, supabase);
+    default:
+      return res.status(404).json({ success: false, error: 'Action não encontrada' });
+  }
+}
+
+// ============================================
+// FUNÇÃO AUXILIAR: CALCULAR SPLIT
+// ============================================
+// REGRAS DE COMISSIONAMENTO (Taxas de Adesão e Mensalidades):
+// - Slim Quality: 10% (recebe automaticamente, NÃO entra no array de splits)
+// - N1: 15% (se ativo e com wallet)
+// - N2: 3% (se ativo e com wallet)
+// - N3: 2% (se ativo e com wallet)
+// - Renum e JB: Dividem 50/50 o restante dos 90% após pagar a rede
+// 
+// IMPORTANTE: Segundo documentação Asaas, a conta principal (Slim) recebe
+// automaticamente o que sobrar após os splits. NÃO incluir no array!
+// ============================================
+async function calculateSplit(supabase, affiliateId, paymentValue) {
+  // Buscar wallet IDs dos gestores (apenas Renum e JB)
+  const renumWalletId = process.env.ASAAS_WALLET_RENUM;
+  const jbWalletId = process.env.ASAAS_WALLET_JB;
+
+  if (!renumWalletId || !jbWalletId) {
+    throw new Error('Wallet IDs dos gestores (Renum e JB) não configuradas');
+  }
+
+  // Buscar afiliado N1 e sua rede
+  const { data: n1Affiliate } = await supabase
+    .from('affiliates')
+    .select('id, referred_by, wallet_id, payment_status')
+    .eq('id', affiliateId)
+    .is('deleted_at', null)
+    .single();
+
+  if (!n1Affiliate) {
+    throw new Error('Afiliado não encontrado');
+  }
+
+  const n1IsActive = n1Affiliate.payment_status === 'active' && n1Affiliate.wallet_id;
+
+  // Buscar N2 e N3
+  let n2Affiliate = null;
+  let n3Affiliate = null;
+  let n2IsActive = false;
+  let n3IsActive = false;
+
+  if (n1Affiliate.referred_by) {
+    const { data: n2Data } = await supabase
+      .from('affiliates')
+      .select('id, referred_by, wallet_id, payment_status')
+      .eq('id', n1Affiliate.referred_by)
+      .is('deleted_at', null)
+      .single();
+
+    n2Affiliate = n2Data;
+    n2IsActive = n2Affiliate?.payment_status === 'active' && n2Affiliate?.wallet_id;
+
+    if (n2Affiliate?.referred_by) {
+      const { data: n3Data } = await supabase
+        .from('affiliates')
+        .select('id, referred_by, wallet_id, payment_status')
+        .eq('id', n2Affiliate.referred_by)
+        .is('deleted_at', null)
+        .single();
+
+      n3Affiliate = n3Data;
+      n3IsActive = n3Affiliate?.payment_status === 'active' && n3Affiliate?.wallet_id;
+    }
+  }
+
+  // Calcular percentuais da rede de afiliados
+  const n1Percentage = n1IsActive ? COMMISSION_RATES.SELLER * 100 : 0; // 15% ou 0
+  const n2Percentage = n2IsActive ? COMMISSION_RATES.N1 * 100 : 0;      // 3% ou 0
+  const n3Percentage = n3IsActive ? COMMISSION_RATES.N2 * 100 : 0;      // 2% ou 0
+
+  // Calcular quanto da rede foi usado
+  const networkPercentage = n1Percentage + n2Percentage + n3Percentage;
+
+  // Calcular quanto sobra dos 90% para Renum e JB
+  // Total disponível para split: 90% (Slim fica com 10% automaticamente)
+  // Após pagar a rede, o restante vai para Renum e JB (50/50)
+  const remainingPercentage = 90 - networkPercentage;
+  const renumPercentage = remainingPercentage / 2;
+  const jbPercentage = remainingPercentage / 2;
+
+  // Montar array de splits (apenas quem entra no split do Asaas)
+  const splits = [];
+
+  // N1 (apenas se ativo e com wallet)
+  if (n1IsActive) {
+    splits.push({
+      walletId: n1Affiliate.wallet_id,
+      percentualValue: Math.round(n1Percentage * 100) / 100
+    });
+  }
+
+  // N2 (apenas se ativo e com wallet)
+  if (n2IsActive) {
+    splits.push({
+      walletId: n2Affiliate.wallet_id,
+      percentualValue: Math.round(n2Percentage * 100) / 100
+    });
+  }
+
+  // N3 (apenas se ativo e com wallet)
+  if (n3IsActive) {
+    splits.push({
+      walletId: n3Affiliate.wallet_id,
+      percentualValue: Math.round(n3Percentage * 100) / 100
+    });
+  }
+
+  // Renum (sempre recebe)
+  splits.push({
+    walletId: renumWalletId,
+    percentualValue: Math.round(renumPercentage * 100) / 100
+  });
+
+  // JB (sempre recebe)
+  splits.push({
+    walletId: jbWalletId,
+    percentualValue: Math.round(jbPercentage * 100) / 100
+  });
+
+  // Validar que soma = 90% (não 100%, pois Slim recebe 10% automaticamente)
+  const totalPercentage = splits.reduce((sum, s) => sum + s.percentualValue, 0);
+  const expectedTotal = 90;
+  const diff = Math.abs(totalPercentage - expectedTotal);
+
+  if (diff > 0.01) {
+    // Ajustar último split (JB) para compensar arredondamento
+    const lastSplit = splits[splits.length - 1];
+    lastSplit.percentualValue += (expectedTotal - totalPercentage);
+    lastSplit.percentualValue = Math.round(lastSplit.percentualValue * 100) / 100;
+  }
+
+  return splits;
+}
+
+// ============================================
+// HANDLER: CREATE MEMBERSHIP PAYMENT
+// Task 3.2: Criar cobrança de taxa de adesão
+// ============================================
+async function handleCreateMembershipPayment(req, res, supabase) {
   if (req.method !== 'POST') {
     return res.status(405).json({ 
       success: false, 
-      error: 'Método não permitido' 
+      error: 'Método não permitido. Use POST.' 
     });
   }
 
   try {
-    // Verificar variáveis de ambiente
-    const ASAAS_API_KEY = process.env.ASAAS_API_KEY;
-    const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
-    const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
+    const { affiliate_id, billing_type = 'PIX' } = req.body;
 
-    if (!ASAAS_API_KEY || !SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
-      return res.status(500).json({
-        success: false,
-        error: 'Configuração do servidor incompleta'
+    if (!affiliate_id) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'affiliate_id é obrigatório' 
       });
     }
 
-    // Detectar ambiente
-    const trimmedKey = ASAAS_API_KEY.trim();
-    const isProduction = trimmedKey.includes('_prod_');
-    const asaasBaseUrl = isProduction
-      ? 'https://api.asaas.com/v3'
-      : 'https://api-sandbox.asaas.com/v3';
+    // Buscar afiliado
+    const { data: affiliate, error: affiliateError } = await supabase
+      .from('affiliates')
+      .select('*')
+      .eq('id', affiliate_id)
+      .single();
 
-    // Parse e validação do body
-    const {
-      userId,
-      planId,
-      amount,
-      orderItems,
-      customerData,
-      paymentMethod,
-      affiliateData
-    } = req.body;
-
-    // Validações obrigatórias
-    if (!userId || !planId || !amount || !orderItems || !customerData || !paymentMethod) {
-      return res.status(400).json({
-        success: false,
-        error: 'Dados obrigatórios faltando',
-        details: [
-          { field: 'userId', required: !userId },
-          { field: 'planId', required: !planId },
-          { field: 'amount', required: !amount },
-          { field: 'orderItems', required: !orderItems },
-          { field: 'customerData', required: !customerData },
-          { field: 'paymentMethod', required: !paymentMethod }
-        ]
+    if (affiliateError || !affiliate) {
+      return res.status(404).json({ 
+        success: false, 
+        error: 'Afiliado não encontrado' 
       });
     }
 
-    // Validar Order Items (CRÍTICO para detecção IA)
-    if (!Array.isArray(orderItems) || orderItems.length === 0) {
-      return res.status(400).json({
-        success: false,
-        error: 'Order Items é obrigatório - necessário para detecção de produtos IA e cálculo de comissões'
+    // Buscar produto de adesão conforme tipo de afiliado
+    const { data: product, error: productError } = await supabase
+      .from('products')
+      .select('*')
+      .eq('category', 'adesao_afiliado')
+      .eq('eligible_affiliate_type', affiliate.affiliate_type)
+      .eq('is_active', true)
+      .single();
+
+    if (productError || !product) {
+      return res.status(404).json({ 
+        success: false, 
+        error: `Produto de adesão para ${affiliate.affiliate_type} não encontrado` 
       });
     }
 
-    // Validar CPF
-    const cleanCpf = customerData.cpf?.replace(/\D/g, '');
-    if (!cleanCpf || cleanCpf.length !== 11) {
-      return res.status(400).json({
-        success: false,
-        error: 'CPF inválido - deve ter 11 dígitos'
+    if (!product.has_entry_fee || !product.entry_fee_cents) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Produto não possui taxa de adesão configurada' 
       });
     }
 
-    // Headers para Asaas
-    const asaasHeaders = {
-      'Content-Type': 'application/json',
-      'access_token': trimmedKey
-    };
+    // Criar customer no Asaas se não existir
+    let asaasCustomerId = affiliate.asaas_customer_id;
 
-    console.log('🚀 Iniciando fluxo Payment First para assinatura:', {
-      userId,
-      planId,
-      amount,
-      paymentMethod: paymentMethod.type,
-      orderItemsCount: orderItems.length,
-      hasAffiliate: !!affiliateData
-    });
-
-    // 1. CRIAR CLIENTE NO ASAAS
-    console.log('👤 Criando cliente no Asaas...');
-    
-    // Buscar cliente existente primeiro
-    let asaasCustomerId = null;
-    const searchRes = await fetch(
-      `${asaasBaseUrl}/customers?email=${encodeURIComponent(customerData.email)}`,
-      { method: 'GET', headers: asaasHeaders }
-    );
-
-    if (searchRes.ok) {
-      const searchData = await searchRes.json();
-      if (searchData.data && searchData.data.length > 0) {
-        asaasCustomerId = searchData.data[0].id;
-        console.log('👤 Cliente existente encontrado:', asaasCustomerId);
-      }
-    }
-
-    // Criar cliente se não existir
     if (!asaasCustomerId) {
-      const createCustomerRes = await fetch(`${asaasBaseUrl}/customers`, {
+      const customerData = {
+        name: affiliate.name,
+        email: affiliate.email,
+        phone: affiliate.phone,
+        cpfCnpj: affiliate.document,
+        notificationDisabled: false
+      };
+
+      const asaasResponse = await fetch('https://api.asaas.com/v3/customers', {
         method: 'POST',
-        headers: asaasHeaders,
-        body: JSON.stringify({
-          name: customerData.name,
-          email: customerData.email,
-          phone: customerData.phone?.replace(/\D/g, ''),
-          cpfCnpj: cleanCpf,
-          postalCode: customerData.address?.zipCode?.replace(/\D/g, ''),
-          address: customerData.address?.street,
-          addressNumber: customerData.address?.number,
-          complement: customerData.address?.complement,
-          province: customerData.address?.neighborhood,
-          city: customerData.address?.city,
-          state: customerData.address?.state
-        })
+        headers: {
+          'Content-Type': 'application/json',
+          'access_token': process.env.ASAAS_API_KEY
+        },
+        body: JSON.stringify(customerData)
       });
 
-      const customerResult = await createCustomerRes.json();
-
-      if (!createCustomerRes.ok) {
-        console.error('❌ Erro ao criar cliente:', customerResult);
-        return res.status(500).json({
-          success: false,
-          error: 'Erro ao criar cliente no Asaas',
-          details: customerResult
+      if (!asaasResponse.ok) {
+        const errorData = await asaasResponse.json();
+        console.error('Erro ao criar customer no Asaas:', errorData);
+        return res.status(500).json({ 
+          success: false, 
+          error: 'Erro ao criar customer no Asaas',
+          details: errorData
         });
       }
 
-      asaasCustomerId = customerResult.id;
-      console.log('👤 Cliente criado:', asaasCustomerId);
+      const asaasCustomer = await asaasResponse.json();
+      asaasCustomerId = asaasCustomer.id;
+
+      // Salvar asaas_customer_id no afiliado
+      await supabase
+        .from('affiliates')
+        .update({ asaas_customer_id: asaasCustomerId })
+        .eq('id', affiliate_id);
     }
 
-    // 2. CRIAR PAGAMENTO INICIAL (PRIMEIRA MENSALIDADE)
-    console.log('💰 Criando pagamento inicial...');
+    // Criar cobrança no Asaas
+    const dueDate = new Date();
+    dueDate.setDate(dueDate.getDate() + 3); // Vencimento em 3 dias
 
-    const paymentPayload = {
+    // Calcular split
+    const splits = await calculateSplit(supabase, affiliate_id, product.entry_fee_cents / 100);
+
+    const paymentData = {
       customer: asaasCustomerId,
-      billingType: paymentMethod.type,
-      value: amount,
-      dueDate: new Date().toISOString().split('T')[0], // HOJE para processamento imediato
-      description: `Primeira mensalidade - ${orderItems[0].name}`,
-      externalReference: `subscription_${userId}_${Date.now()}`,
-      orderItems: orderItems.map(item => ({
-        id: item.id,
-        description: item.name,
-        value: item.value,
-        quantity: item.quantity
-      }))
+      billingType: billing_type,
+      value: product.entry_fee_cents / 100,
+      dueDate: dueDate.toISOString().split('T')[0],
+      description: `Taxa de Adesão - ${product.name}`,
+      externalReference: `affiliate_${affiliate_id}`,
+      split: splits
     };
 
-    // Adicionar dados do cartão se necessário
-    if (paymentMethod.type === 'CREDIT_CARD' && paymentMethod.creditCard) {
-      paymentPayload.creditCard = {
-        holderName: paymentMethod.creditCard.holderName,
-        number: paymentMethod.creditCard.number,
-        expiryMonth: paymentMethod.creditCard.expiryMonth,
-        expiryYear: paymentMethod.creditCard.expiryYear,
-        ccv: paymentMethod.creditCard.ccv
-      };
-
-      paymentPayload.creditCardHolderInfo = {
-        name: customerData.name,
-        email: customerData.email,
-        cpfCnpj: cleanCpf,
-        postalCode: customerData.address?.zipCode?.replace(/\D/g, '') || '30112000',
-        addressNumber: customerData.address?.number || 'S/N',
-        phone: customerData.phone?.replace(/\D/g, '') || '11999999999'
-      };
-    }
-
-    // Criar pagamento usando /v3/payments (não /v3/subscriptions)
-    const paymentRes = await fetch(`${asaasBaseUrl}/payments`, {
+    const paymentResponse = await fetch('https://api.asaas.com/v3/payments', {
       method: 'POST',
-      headers: asaasHeaders,
-      body: JSON.stringify(paymentPayload)
+      headers: {
+        'Content-Type': 'application/json',
+        'access_token': process.env.ASAAS_API_KEY
+      },
+      body: JSON.stringify(paymentData)
     });
 
-    const paymentResult = await paymentRes.json();
-
-    if (!paymentRes.ok) {
-      console.error('❌ Erro ao criar pagamento:', paymentResult);
-      return res.status(500).json({
-        success: false,
-        error: 'Erro ao criar pagamento no Asaas',
-        details: paymentResult
+    if (!paymentResponse.ok) {
+      const errorData = await paymentResponse.json();
+      console.error('Erro ao criar cobrança no Asaas:', errorData);
+      return res.status(500).json({ 
+        success: false, 
+        error: 'Erro ao criar cobrança no Asaas',
+        details: errorData
       });
     }
 
-    console.log('✅ Pagamento criado:', {
-      id: paymentResult.id,
-      status: paymentResult.status,
-      value: paymentResult.value
-    });
+    const payment = await paymentResponse.json();
 
-    // 3. SALVAR NO BANCO DE DADOS
-    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
+    // Registrar pagamento em affiliate_payments
+    const { data: affiliatePayment, error: paymentError } = await supabase
+      .from('affiliate_payments')
+      .insert({
+        affiliate_id: affiliate_id,
+        payment_type: 'membership_fee',
+        amount_cents: product.entry_fee_cents,
+        status: 'pending',
+        asaas_payment_id: payment.id,
+        due_date: dueDate.toISOString().split('T')[0]
+      })
+      .select()
+      .single();
 
-    const subscriptionRecord = {
-      user_id: userId,
-      asaas_payment_id: paymentResult.id,
-      asaas_customer_id: asaasCustomerId,
-      status: 'payment_processing',
-      amount: amount,
-      order_items: orderItems,
-      payment_method: paymentMethod.type,
-      affiliate_data: affiliateData || null,
-      correlation_id: paymentPayload.externalReference
-    };
-
-    const { error: dbError } = await supabase
-      .from('subscription_orders')
-      .insert(subscriptionRecord);
-
-    if (dbError) {
-      console.error('❌ Erro ao salvar no banco:', dbError);
-      // Não falhar a requisição por erro de banco
+    if (paymentError) {
+      console.error('Erro ao registrar pagamento:', paymentError);
+      return res.status(500).json({ 
+        success: false, 
+        error: 'Erro ao registrar pagamento no banco' 
+      });
     }
 
-    // 4. RETORNAR DADOS PARA POLLING
-    const correlationId = paymentPayload.externalReference;
-    
+    // Retornar dados da cobrança
     return res.status(200).json({
       success: true,
-      data: {
-        paymentId: paymentResult.id,
-        status: paymentResult.status,
-        amount: amount,
-        correlationId: correlationId,
-        pollingUrl: `/api/subscriptions/status/${paymentResult.id}`
+      payment: {
+        id: affiliatePayment.id,
+        asaas_payment_id: payment.id,
+        amount: product.entry_fee_cents / 100,
+        due_date: dueDate.toISOString().split('T')[0],
+        billing_type: billing_type,
+        status: 'pending',
+        // Dados específicos do tipo de pagamento
+        pix_qr_code: payment.encodedImage,
+        pix_copy_paste: payment.payload,
+        invoice_url: payment.invoiceUrl,
+        bank_slip_url: payment.bankSlipUrl
       }
     });
 
   } catch (error) {
-    console.error('❌ Erro interno na API de assinaturas:', error);
-    return res.status(500).json({
-      success: false,
+    console.error('Erro em create-membership-payment:', error);
+    return res.status(500).json({ 
+      success: false, 
       error: 'Erro interno do servidor',
-      details: error.message
+      details: error.message 
+    });
+  }
+}
+
+// ============================================
+// HANDLER: CREATE SUBSCRIPTION
+// Task 3.3: Criar assinatura mensal (Logista)
+// ============================================
+async function handleCreateSubscription(req, res, supabase) {
+  if (req.method !== 'POST') {
+    return res.status(405).json({ 
+      success: false, 
+      error: 'Método não permitido. Use POST.' 
+    });
+  }
+
+  try {
+    const { affiliate_id, billing_type = 'CREDIT_CARD' } = req.body;
+
+    if (!affiliate_id) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'affiliate_id é obrigatório' 
+      });
+    }
+
+    // Buscar afiliado
+    const { data: affiliate, error: affiliateError } = await supabase
+      .from('affiliates')
+      .select('*')
+      .eq('id', affiliate_id)
+      .single();
+
+    if (affiliateError || !affiliate) {
+      return res.status(404).json({ 
+        success: false, 
+        error: 'Afiliado não encontrado' 
+      });
+    }
+
+    // Validar que é Logista
+    if (affiliate.affiliate_type !== 'logista') {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Apenas Logistas podem criar assinaturas mensais' 
+      });
+    }
+
+    // Buscar produto de adesão Logista
+    const { data: product, error: productError } = await supabase
+      .from('products')
+      .select('*')
+      .eq('category', 'adesao_afiliado')
+      .eq('eligible_affiliate_type', 'logista')
+      .eq('is_active', true)
+      .single();
+
+    if (productError || !product) {
+      return res.status(404).json({ 
+        success: false, 
+        error: 'Produto de adesão Logista não encontrado' 
+      });
+    }
+
+    if (!product.monthly_fee_cents) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Produto não possui mensalidade configurada' 
+      });
+    }
+
+    // Criar customer no Asaas se não existir
+    let asaasCustomerId = affiliate.asaas_customer_id;
+
+    if (!asaasCustomerId) {
+      const customerData = {
+        name: affiliate.name,
+        email: affiliate.email,
+        phone: affiliate.phone,
+        cpfCnpj: affiliate.document,
+        notificationDisabled: false
+      };
+
+      const asaasResponse = await fetch('https://api.asaas.com/v3/customers', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'access_token': process.env.ASAAS_API_KEY
+        },
+        body: JSON.stringify(customerData)
+      });
+
+      if (!asaasResponse.ok) {
+        const errorData = await asaasResponse.json();
+        console.error('Erro ao criar customer no Asaas:', errorData);
+        return res.status(500).json({ 
+          success: false, 
+          error: 'Erro ao criar customer no Asaas',
+          details: errorData
+        });
+      }
+
+      const asaasCustomer = await asaasResponse.json();
+      asaasCustomerId = asaasCustomer.id;
+
+      // Salvar asaas_customer_id no afiliado
+      await supabase
+        .from('affiliates')
+        .update({ asaas_customer_id: asaasCustomerId })
+        .eq('id', affiliate_id);
+    }
+
+    // Criar assinatura no Asaas
+    // Primeira cobrança é IMEDIATA (sem carência)
+    const nextDueDate = new Date().toISOString().split('T')[0];
+
+    // Calcular split
+    const splits = await calculateSplit(supabase, affiliate_id, product.monthly_fee_cents / 100);
+
+    const subscriptionData = {
+      customer: asaasCustomerId,
+      billingType: billing_type,
+      value: product.monthly_fee_cents / 100,
+      cycle: product.billing_cycle?.toUpperCase() || 'MONTHLY',
+      nextDueDate: nextDueDate,
+      description: `Mensalidade - ${product.name}`,
+      externalReference: `affiliate_${affiliate_id}`,
+      split: splits
+    };
+
+    const subscriptionResponse = await fetch('https://api.asaas.com/v3/subscriptions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'access_token': process.env.ASAAS_API_KEY
+      },
+      body: JSON.stringify(subscriptionData)
+    });
+
+    if (!subscriptionResponse.ok) {
+      const errorData = await subscriptionResponse.json();
+      console.error('Erro ao criar assinatura no Asaas:', errorData);
+      return res.status(500).json({ 
+        success: false, 
+        error: 'Erro ao criar assinatura no Asaas',
+        details: errorData
+      });
+    }
+
+    const subscription = await subscriptionResponse.json();
+
+    // Registrar assinatura em affiliate_payments
+    const { data: affiliatePayment, error: paymentError } = await supabase
+      .from('affiliate_payments')
+      .insert({
+        affiliate_id: affiliate_id,
+        payment_type: 'monthly_subscription',
+        amount_cents: product.monthly_fee_cents,
+        status: 'pending',
+        asaas_subscription_id: subscription.id,
+        due_date: nextDueDate
+      })
+      .select()
+      .single();
+
+    if (paymentError) {
+      console.error('Erro ao registrar assinatura:', paymentError);
+      return res.status(500).json({ 
+        success: false, 
+        error: 'Erro ao registrar assinatura no banco' 
+      });
+    }
+
+    // Retornar dados da assinatura
+    return res.status(200).json({
+      success: true,
+      subscription: {
+        id: affiliatePayment.id,
+        asaas_subscription_id: subscription.id,
+        amount: product.monthly_fee_cents / 100,
+        cycle: product.billing_cycle || 'monthly',
+        next_due_date: nextDueDate,
+        status: 'active'
+      }
+    });
+
+  } catch (error) {
+    console.error('Erro em create-subscription:', error);
+    return res.status(500).json({ 
+      success: false, 
+      error: 'Erro interno do servidor',
+      details: error.message 
+    });
+  }
+}
+
+// ============================================
+// HANDLER: CANCEL SUBSCRIPTION
+// Task 3.4: Cancelar assinatura mensal
+// ============================================
+async function handleCancelSubscription(req, res, supabase) {
+  if (req.method !== 'POST') {
+    return res.status(405).json({ 
+      success: false, 
+      error: 'Método não permitido. Use POST.' 
+    });
+  }
+
+  try {
+    const { affiliate_id } = req.body;
+
+    if (!affiliate_id) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'affiliate_id é obrigatório' 
+      });
+    }
+
+    // Buscar afiliado
+    const { data: affiliate, error: affiliateError } = await supabase
+      .from('affiliates')
+      .select('*')
+      .eq('id', affiliate_id)
+      .single();
+
+    if (affiliateError || !affiliate) {
+      return res.status(404).json({ 
+        success: false, 
+        error: 'Afiliado não encontrado' 
+      });
+    }
+
+    // Validar que é Logista
+    if (affiliate.affiliate_type !== 'logista') {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Apenas Logistas possuem assinaturas mensais' 
+      });
+    }
+
+    // Buscar assinatura ativa
+    const { data: payment, error: paymentError } = await supabase
+      .from('affiliate_payments')
+      .select('*')
+      .eq('affiliate_id', affiliate_id)
+      .eq('payment_type', 'monthly_subscription')
+      .not('asaas_subscription_id', 'is', null)
+      .in('status', ['pending', 'paid'])
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single();
+
+    if (paymentError || !payment) {
+      return res.status(404).json({ 
+        success: false, 
+        error: 'Assinatura ativa não encontrada' 
+      });
+    }
+
+    // Cancelar assinatura no Asaas
+    const cancelResponse = await fetch(`https://api.asaas.com/v3/subscriptions/${payment.asaas_subscription_id}`, {
+      method: 'DELETE',
+      headers: {
+        'access_token': process.env.ASAAS_API_KEY
+      }
+    });
+
+    if (!cancelResponse.ok) {
+      const errorData = await cancelResponse.json();
+      console.error('Erro ao cancelar assinatura no Asaas:', errorData);
+      return res.status(500).json({ 
+        success: false, 
+        error: 'Erro ao cancelar assinatura no Asaas',
+        details: errorData
+      });
+    }
+
+    // Atualizar status no banco
+    await supabase
+      .from('affiliate_payments')
+      .update({ status: 'cancelled' })
+      .eq('id', payment.id);
+
+    // Desativar switch "Aparecer na Vitrine"
+    await supabase
+      .from('affiliates')
+      .update({ is_visible_in_showcase: false })
+      .eq('id', affiliate_id);
+
+    await supabase
+      .from('store_profiles')
+      .update({ is_visible_in_showcase: false })
+      .eq('affiliate_id', affiliate_id);
+
+    return res.status(200).json({
+      success: true,
+      message: 'Assinatura cancelada com sucesso'
+    });
+
+  } catch (error) {
+    console.error('Erro em cancel-subscription:', error);
+    return res.status(500).json({ 
+      success: false, 
+      error: 'Erro interno do servidor',
+      details: error.message 
+    });
+  }
+}
+
+// ============================================
+// HANDLER: GET HISTORY
+// Task 3.5: Obter histórico de pagamentos
+// ============================================
+async function handleGetHistory(req, res, supabase) {
+  if (req.method !== 'GET') {
+    return res.status(405).json({ 
+      success: false, 
+      error: 'Método não permitido. Use GET.' 
+    });
+  }
+
+  try {
+    const { affiliate_id, type, status } = req.query;
+
+    if (!affiliate_id) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'affiliate_id é obrigatório' 
+      });
+    }
+
+    // Construir query
+    let query = supabase
+      .from('affiliate_payments')
+      .select('*')
+      .eq('affiliate_id', affiliate_id)
+      .order('created_at', { ascending: false });
+
+    // Filtros opcionais
+    if (type) {
+      query = query.eq('payment_type', type);
+    }
+
+    if (status) {
+      query = query.eq('status', status);
+    }
+
+    const { data: payments, error } = await query;
+
+    if (error) {
+      console.error('Erro ao buscar histórico:', error);
+      return res.status(500).json({ 
+        success: false, 
+        error: 'Erro ao buscar histórico de pagamentos' 
+      });
+    }
+
+    // Formatar dados
+    const formattedPayments = payments.map(payment => ({
+      id: payment.id,
+      type: payment.payment_type,
+      amount: payment.amount_cents / 100,
+      status: payment.status,
+      due_date: payment.due_date,
+      paid_at: payment.paid_at,
+      created_at: payment.created_at,
+      asaas_payment_id: payment.asaas_payment_id,
+      asaas_subscription_id: payment.asaas_subscription_id
+    }));
+
+    return res.status(200).json({
+      success: true,
+      payments: formattedPayments,
+      total: formattedPayments.length
+    });
+
+  } catch (error) {
+    console.error('Erro em get-history:', error);
+    return res.status(500).json({ 
+      success: false, 
+      error: 'Erro interno do servidor',
+      details: error.message 
+    });
+  }
+}
+
+// ============================================
+// HANDLER: GET RECEIPT
+// Task 3.5: Obter comprovante de pagamento
+// ============================================
+async function handleGetReceipt(req, res, supabase) {
+  if (req.method !== 'GET') {
+    return res.status(405).json({ 
+      success: false, 
+      error: 'Método não permitido. Use GET.' 
+    });
+  }
+
+  try {
+    const { payment_id, affiliate_id } = req.query;
+
+    if (!payment_id || !affiliate_id) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'payment_id e affiliate_id são obrigatórios' 
+      });
+    }
+
+    // Buscar pagamento
+    const { data: payment, error } = await supabase
+      .from('affiliate_payments')
+      .select('*')
+      .eq('id', payment_id)
+      .eq('affiliate_id', affiliate_id)
+      .single();
+
+    if (error || !payment) {
+      return res.status(404).json({ 
+        success: false, 
+        error: 'Pagamento não encontrado' 
+      });
+    }
+
+    // Validar que pagamento foi pago
+    if (payment.status !== 'paid') {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Comprovante disponível apenas para pagamentos confirmados' 
+      });
+    }
+
+    // Retornar dados do comprovante
+    return res.status(200).json({
+      success: true,
+      receipt: {
+        id: payment.id,
+        type: payment.payment_type,
+        amount: payment.amount_cents / 100,
+        paid_at: payment.paid_at,
+        due_date: payment.due_date,
+        asaas_payment_id: payment.asaas_payment_id
+      }
+    });
+
+  } catch (error) {
+    console.error('Erro em get-receipt:', error);
+    return res.status(500).json({ 
+      success: false, 
+      error: 'Erro interno do servidor',
+      details: error.message 
     });
   }
 }
