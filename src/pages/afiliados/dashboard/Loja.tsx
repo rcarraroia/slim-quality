@@ -15,6 +15,7 @@ import { storeFrontendService, StoreProfile, BusinessHours } from '@/services/fr
 import { affiliateFrontendService } from '@/services/frontend/affiliate.service';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/config/supabase';
+import ImageUpload from '@/components/shared/ImageUpload';
 
 const BRAZILIAN_STATES = [
   'AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA',
@@ -601,35 +602,29 @@ export default function Loja() {
             <CardHeader>
               <CardTitle>Imagens da Loja</CardTitle>
               <CardDescription>
-                Logo e banner para sua vitrine
+                Faça upload do logo e banner para sua vitrine
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="logo_url">URL do Logo</Label>
-                <Input
-                  id="logo_url"
-                  value={formData.logo_url || ''}
-                  onChange={(e) => setFormData({ ...formData, logo_url: e.target.value })}
-                  placeholder="https://"
-                />
-                <p className="text-xs text-muted-foreground">
-                  Recomendado: 200x200px, formato quadrado
-                </p>
-              </div>
+            <CardContent className="space-y-6">
+              <ImageUpload
+                label="Logo da Loja"
+                currentImageUrl={formData.logo_url}
+                onImageUploaded={(url) => setFormData({ ...formData, logo_url: url })}
+                folder="stores/logos"
+                maxSizeMB={2}
+                recommendedSize="200x200px, formato quadrado"
+                aspectRatio="1:1"
+              />
 
-              <div className="space-y-2">
-                <Label htmlFor="banner_url">URL do Banner</Label>
-                <Input
-                  id="banner_url"
-                  value={formData.banner_url || ''}
-                  onChange={(e) => setFormData({ ...formData, banner_url: e.target.value })}
-                  placeholder="https://"
-                />
-                <p className="text-xs text-muted-foreground">
-                  Recomendado: 1200x400px, formato horizontal
-                </p>
-              </div>
+              <ImageUpload
+                label="Banner da Loja"
+                currentImageUrl={formData.banner_url}
+                onImageUploaded={(url) => setFormData({ ...formData, banner_url: url })}
+                folder="stores/banners"
+                maxSizeMB={3}
+                recommendedSize="1200x400px, formato horizontal"
+                aspectRatio="3:1"
+              />
             </CardContent>
           </Card>
         </TabsContent>
