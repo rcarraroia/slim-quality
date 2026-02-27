@@ -126,140 +126,54 @@ CREATE TABLE show_room_purchases (
 
 ---
 
-### FASE 1: CONTROLE DE COMPRAS POR LOGISTA (3-4h)
+### FASE 1: CONTROLE DE COMPRAS POR LOGISTA (3-4h) ✅ CONCLUÍDA
 
-#### Task 1.1: Validação no Frontend - ShowRow.tsx
+#### Task 1.1: Validação no Frontend - ShowRow.tsx ✅
 **Arquivo:** `src/pages/afiliados/dashboard/ShowRow.tsx`
 
 **Checklist:**
-- [ ] Criar função `checkIfAlreadyPurchased(productId)`
-- [ ] Buscar compras do logista em `show_room_purchases`
-- [ ] Desabilitar botão "Comprar" se já comprou
-- [ ] Adicionar badge "Já adquirido" se já comprou
-- [ ] Adicionar tooltip explicativo
-- [ ] Testar com produtos já comprados
+- [x] Criar função `checkIfAlreadyPurchased(productId)`
+- [x] Buscar compras do logista em `show_room_purchases`
+- [x] Desabilitar botão "Comprar" se já comprou
+- [x] Adicionar badge "Já adquirido" se já comprou
+- [x] Adicionar tooltip explicativo
+- [x] Testar com produtos já comprados
 
 **Critério de Aceitação:**
-- Botão desabilitado se já comprou
-- Badge "Já adquirido" visível
-- Tooltip explicativo presente
+- ✅ Botão desabilitado se já comprou
+- ✅ Badge "Já adquirido" visível
+- ✅ Tooltip explicativo presente
 
-**Código de Referência:**
-```typescript
-const checkIfAlreadyPurchased = async (productId: string) => {
-  const { data: affiliate } = await supabase
-    .from('affiliates')
-    .select('id')
-    .eq('user_id', user.id)
-    .single();
-
-  const { data: purchase } = await supabase
-    .from('show_room_purchases')
-    .select('id')
-    .eq('affiliate_id', affiliate.id)
-    .eq('product_id', productId)
-    .single();
-
-  return !!purchase;
-};
-```
-
-#### Task 1.2: Validação no Backend - checkout.js
+#### Task 1.2: Validação no Backend - checkout.js ✅
 **Arquivo:** `api/checkout.js` (action: `create-order`)
 
 **Checklist:**
-- [ ] Detectar se produto é categoria `show_row`
-- [ ] Buscar afiliado do usuário
-- [ ] Verificar se já comprou em `show_room_purchases`
-- [ ] Retornar erro 400 se já comprou
-- [ ] Limitar quantidade a 1
-- [ ] Adicionar logs de validação
+- [x] Detectar se produto é categoria `show_row`
+- [x] Buscar afiliado do usuário
+- [x] Verificar se já comprou em `show_room_purchases`
+- [x] Retornar erro 400 se já comprou
+- [x] Limitar quantidade a 1
+- [x] Adicionar logs de validação
 
 **Critério de Aceitação:**
-- Retorna erro 400 se já comprou
-- Retorna erro 400 se quantidade > 1
-- Logs registrados corretamente
+- ✅ Retorna erro 400 se já comprou
+- ✅ Retorna erro 400 se quantidade > 1
+- ✅ Logs registrados corretamente
 
-**Código de Referência:**
-```javascript
-if (product.category === 'show_row') {
-  const { data: affiliate } = await supabase
-    .from('affiliates')
-    .select('id')
-    .eq('user_id', userId)
-    .single();
-
-  const { data: existingPurchase } = await supabase
-    .from('show_room_purchases')
-    .select('id')
-    .eq('affiliate_id', affiliate.id)
-    .eq('product_id', productId)
-    .single();
-
-  if (existingPurchase) {
-    return res.status(400).json({ 
-      error: 'Você já comprou este modelo Show Room' 
-    });
-  }
-
-  if (quantity > 1) {
-    return res.status(400).json({ 
-      error: 'Apenas 1 unidade disponível por logista' 
-    });
-  }
-}
-```
-
-#### Task 1.3: Registro de Compra no Webhook
+#### Task 1.3: Registro de Compra no Webhook ✅
 **Arquivo:** `api/webhook-asaas.js`
 
 **Checklist:**
-- [ ] Detectar produtos Show Room no pedido
-- [ ] Buscar afiliado do pedido
-- [ ] Inserir registro em `show_room_purchases`
-- [ ] Adicionar logs de registro
-- [ ] Tratar erros de duplicação
+- [x] Detectar produtos Show Room no pedido
+- [x] Buscar afiliado do pedido
+- [x] Inserir registro em `show_room_purchases`
+- [x] Adicionar logs de registro
+- [x] Tratar erros de duplicação
 
 **Critério de Aceitação:**
-- Compra registrada quando pagamento confirmado
-- Logs registrados corretamente
-- Erros tratados adequadamente
-
-**Código de Referência:**
-```javascript
-if (orderStatus === 'paid') {
-  const { data: orderItems } = await supabase
-    .from('order_items')
-    .select('product_id, products(category)')
-    .eq('order_id', orderId);
-
-  for (const item of orderItems) {
-    if (item.products.category === 'show_row') {
-      const { data: order } = await supabase
-        .from('orders')
-        .select('customer_id')
-        .eq('id', orderId)
-        .single();
-
-      const { data: affiliate } = await supabase
-        .from('affiliates')
-        .select('id')
-        .eq('user_id', order.customer_id)
-        .single();
-
-      await supabase
-        .from('show_room_purchases')
-        .insert({
-          affiliate_id: affiliate.id,
-          product_id: item.product_id,
-          order_id: orderId
-        });
-
-      console.log(`✅ Compra Show Room registrada`);
-    }
-  }
-}
-```
+- ✅ Compra registrada quando pagamento confirmado
+- ✅ Logs registrados corretamente
+- ✅ Erros tratados adequadamente
 
 ---
 

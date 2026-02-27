@@ -21,16 +21,37 @@ inclusion: always
 - **Índices:** 5 índices criados para performance
 - **RLS:** 4 políticas criadas (logistas, admins, system, delete)
 - **Validações:** Todas passaram ✅
-- **Commit:** Pendente (migration aplicada via MCP)
+- **Commit:** `5759c83`
 
-### Próxima Fase: Fase 1 - Controle de Compras por Logista
+### Fase 1: Controle de Compras por Logista ✅ CONCLUÍDA (27/02/2026)
 
-**Objetivo:** Implementar validações frontend e backend para impedir compras duplicadas
+**Task 1.1 - Frontend (ShowRow.tsx):**
+- ✅ Função `checkIfAlreadyPurchased()` implementada
+- ✅ Badge "Já adquirido" para produtos comprados
+- ✅ Botão desabilitado se já comprou
+- ✅ Tooltip explicativo
+
+**Task 1.2 - Backend (checkout.js):**
+- ✅ Validação de produtos Show Room
+- ✅ Verificação de compras anteriores
+- ✅ Limite de 1 unidade por produto
+- ✅ Retorna erro 400 se já comprou
+
+**Task 1.3 - Webhook (webhook-asaas.js):**
+- ✅ Função `registerShowRoomPurchase()`
+- ✅ Registro automático ao confirmar pagamento
+- ✅ Tratamento de duplicações
+- ✅ Logs detalhados
+
+**Commit:** `2ee54fe`
+
+### Próxima Fase: Fase 2 - Comissionamento Diferenciado
+
+**Objetivo:** Calcular comissões diferenciadas para produtos Show Room (90% Fábrica + 5% Renum + 5% JB)
 
 **Tasks:**
-1. Validação no Frontend - ShowRow.tsx
-2. Validação no Backend - checkout.js
-3. Registro de Compra no Webhook - webhook-asaas.js
+1. Atualizar função `processCommissions()` no webhook
+2. Atualizar função SQL `calculate_commission_split()` (se necessário)
 
 **Documento de Tasks:** `.spec/tasks/show-room-regras-especiais.md`
 
