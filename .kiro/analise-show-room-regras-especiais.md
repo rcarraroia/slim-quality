@@ -482,14 +482,306 @@ $ LANGUAGE plpgsql;
 
 ---
 
-## ❓ PERGUNTAS PARA O USUÁRIO
+## ✅ RESPOSTAS DO USUÁRIO (27/02/2026)
 
-1. **Preços dos produtos Show Room:** Serão os mesmos dos colchões normais ou terão desconto?
-2. **Reposição de estoque:** Quando um logista comprar, o estoque será reposto automaticamente ou manualmente?
-3. **Limite por logista:** É 1 unidade de CADA modelo ou 1 unidade TOTAL?
-4. **Frete:** Produtos Show Room terão frete diferenciado?
-5. **Prazo de entrega:** Será diferente dos produtos normais?
+1. **Preços dos produtos Show Room:** ✅ Valores diferentes, já cadastrados no banco
+2. **Reposição de estoque:** ✅ SEM reposição - cada logista pode comprar 1 peça de cada modelo e pronto
+3. **Limite por logista:** ✅ 1 unidade de CADA modelo (não total)
+4. **Frete:** ✅ FRETE GRÁTIS
+5. **Prazo de entrega:** ✅ Mesmo prazo dos produtos normais
 
 ---
 
-**ANÁLISE CONCLUÍDA - AGUARDANDO APROVAÇÃO PARA IMPLEMENTAÇÃO** ✅
+## 🎯 REGRAS FINAIS CONFIRMADAS
+
+### CONTROLE DE ESTOQUE
+- ✅ Cada logista pode comprar 1 unidade de CADA modelo Show Room
+- ✅ Sem reposição de estoque
+- ✅ Após compra, aquele modelo fica indisponível para aquele logista
+- ✅ Precisa rastrear compras por logista + produto
+
+### COMISSIONAMENTO
+- ✅ 90% Fábrica (Slim Quality)
+- ✅ 5% Renum
+- ✅ 5% JB
+- ✅ 0% para N1, N2, N3
+
+### FRETE
+- ✅ Frete grátis para produtos Show Room
+- ✅ Prazo de entrega: mesmo dos produtos normais
+
+---
+
+## 🔄 AJUSTES NA IMPLEMENTAÇÃO
+
+### NOVA NECESSIDADE: RASTREAMENTO DE COMPRAS POR LOGISTA
+
+**Problema:** Precisa controlar que cada logista comprou 1 unidade de cada modelo.
+
+**Solução:** Criar tabela `show_room_purchases` para rastrear compras.
+
+#### Nova Migration Necessária:
+
+```sql
+-- Migration: Rastreamento de Compras Show Room
+CREATE TABLE IF NOT EXISTS show_room_purchases (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  
+  -- Relacionamentos
+  affiliate_id UUID NOT NULL REFERENCES affiliates(id) ON DELETE CASCADE,
+  product_id UUID NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+  order_id UUID NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+  
+  -- Metadados
+  purchased_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
+  
+  -- Constraint: 1 compra por logista por produto
+  UNIQUE(affiliate_id, product_id)
+);
+
+-- Índices
+CREATE INDEX idx_show_room_purchases_affiliate ON show_room_purchases(affiliate_id);
+CREATE INDEX idx_show_room_purchases_product ON show_room_purchases(product_id);
+
+-- RLS
+ALTER TABLE show_room_purchases ENABLE ROW LEVEL SECURITY;
+
+-- Política: Logista vê apenas suas compras
+CREATE POLICY "Logistas can view own purchases"
+  ON show_room_purchases FOR SELECT
+  USING (
+    affiliate_id IN (
+      SELECT id FROM affiliates WHERE user_id = auth.uid()
+    )
+  );
+
+-- Política: Sistema pode inserir
+CREATE POLICY "System can insert purchases"
+  ON show_room_purchases FOR INSERT
+  WITH CHECK (true);
+
+COMMENT ON TABLE show_room_purchases IS 'Rastreamento de compras Show Room por logista (1 por produto)';
+```
+
+#### Validação Atualizada no Frontend:
+
+```typescript
+// ShowRow.tsx
+const checkIfAlreadyPurchased = async (productId: string) => {
+  const { data: affiliate } = await supabase
+    .from('affiliates')
+    .select('id')
+    .eq('user_id', user.id)
+    .single();
+
+  const { data: purchase } = await supabase
+    .from('show_room_purchases')
+    .select('id')
+    .eq('affiliate_id', affiliate.id)
+    .eq('product_id', productId)
+    .single();
+
+  return !!purchase;
+};
+
+// Antes de adicionar ao carrinho
+const alreadyPurchased = await checkIfAlreadyPurchased(productId);
+if (alreadyPurchased) {
+  toast.error('Você já comprou este modelo Show Room');
+  return;
+}
+```
+
+#### Validação Atualizada no Backend:
+
+```javascript
+// api/checkout.js
+if (product.category === 'show_row') {
+  // Buscar afiliado
+  const { data: affiliate } = await supabase
+    .from('affiliates')
+    .select('id')
+    .eq('user_id', userId)
+    .single();
+
+  // Verificar se já comprou este produto
+  const { data: existingPurchase } = await supabase
+    .from('show_room_purchases')
+    .select('id')
+    .eq('affiliate_id', affiliate.id)
+    .eq('product_id', productId)
+    .single();
+
+  if (existingPurchase) {
+    return res.status(400).json({ 
+      error: 'Você já comprou este modelo Show Room' 
+    });
+  }
+
+  // Limitar quantidade a 1
+  if (quantity > 1) {
+    return res.status(400).json({ 
+      error: 'Apenas 1 unidade disponível por logista' 
+    });
+  }
+}
+```
+
+#### Registro de Compra no Webhook:
+
+```javascript
+// api/webhook-asaas.js
+if (orderStatus === 'paid') {
+  // Verificar se é Show Room
+  const { data: orderItems } = await supabase
+    .from('order_items')
+    .select('product_id, products(category)')
+    .eq('order_id', orderId);
+
+  for (const item of orderItems) {
+    if (item.products.category === 'show_row') {
+      // Buscar afiliado do pedido
+      const { data: order } = await supabase
+        .from('orders')
+        .select('customer_id')
+        .eq('id', orderId)
+        .single();
+
+      const { data: affiliate } = await supabase
+        .from('affiliates')
+        .select('id')
+        .eq('user_id', order.customer_id)
+        .single();
+
+      // Registrar compra Show Room
+      await supabase
+        .from('show_room_purchases')
+        .insert({
+          affiliate_id: affiliate.id,
+          product_id: item.product_id,
+          order_id: orderId
+        });
+
+      console.log(`✅ Compra Show Room registrada: Logista ${affiliate.id}, Produto ${item.product_id}`);
+    }
+  }
+}
+```
+
+---
+
+## 📋 CHECKLIST DE IMPLEMENTAÇÃO ATUALIZADO
+
+### FASE 0: PREPARAÇÃO DO BANCO
+- [ ] Criar migration `show_room_purchases`
+- [ ] Aplicar migration no Supabase
+- [ ] Validar que tabela foi criada
+- [ ] Validar políticas RLS
+
+### FASE 1: CONTROLE DE COMPRAS POR LOGISTA
+- [ ] Adicionar validação no frontend (`ShowRow.tsx`)
+  - [ ] Verificar se logista já comprou o produto
+  - [ ] Desabilitar botão "Comprar" se já comprou
+  - [ ] Mostrar badge "Já adquirido" se já comprou
+- [ ] Adicionar validação no backend (`api/checkout.js`)
+  - [ ] Verificar se logista já comprou o produto
+  - [ ] Retornar erro 400 se já comprou
+  - [ ] Limitar quantidade a 1
+- [ ] Adicionar registro de compra no webhook (`api/webhook-asaas.js`)
+  - [ ] Inserir em `show_room_purchases` quando pagamento confirmado
+  - [ ] Registrar log de compra
+
+### FASE 2: COMISSIONAMENTO DIFERENCIADO
+- [ ] Atualizar função `processCommissions()` em `api/webhook-asaas.js`
+  - [ ] Detectar produtos Show Room
+  - [ ] Calcular 90% fábrica + 5% Renum + 5% JB
+  - [ ] Não calcular comissões para N1/N2/N3
+  - [ ] Adicionar flag `is_show_room` nos logs
+- [ ] Criar migration para atualizar função SQL `calculate_commission_split()`
+  - [ ] Adicionar lógica Show Room
+  - [ ] Testar função SQL
+
+### FASE 3: FRETE GRÁTIS
+- [ ] Atualizar cálculo de frete no checkout
+  - [ ] Detectar produtos Show Room
+  - [ ] Zerar valor do frete
+  - [ ] Mostrar "Frete Grátis" na UI
+
+### FASE 4: TESTES E VALIDAÇÃO
+- [ ] Criar cenário de teste completo
+  - [ ] Logista compra produto Show Room
+  - [ ] Validar que compra foi registrada
+  - [ ] Validar que não pode comprar novamente
+  - [ ] Validar comissões (apenas Renum e JB)
+  - [ ] Validar frete grátis
+- [ ] Testar com múltiplos produtos
+  - [ ] Logista compra modelo A
+  - [ ] Logista compra modelo B
+  - [ ] Validar que pode comprar ambos
+  - [ ] Validar que não pode comprar A novamente
+
+### FASE 5: DOCUMENTAÇÃO
+- [ ] Atualizar `.kiro/steering/product.md` com regras Show Room
+- [ ] Documentar tabela `show_room_purchases`
+- [ ] Atualizar STATUS.md com implementação
+
+---
+
+## 💰 EXEMPLO DE CÁLCULO ATUALIZADO
+
+### PRODUTO SHOW ROOM (Colchão King - R$ 4.890,00)
+
+**Split:**
+- 90% Fábrica: R$ 4.401,00
+- 5% Renum: R$ 244,50
+- 5% JB: R$ 244,50
+- **Total comissão: 10% (R$ 489,00)**
+- **Frete: R$ 0,00 (GRÁTIS)**
+
+**Diferença vs Produto Normal:**
+- Fábrica recebe 20% a mais (90% vs 70%)
+- Sem comissão para afiliados (N1/N2/N3)
+- Frete grátis
+
+---
+
+## 🎯 RECOMENDAÇÃO FINAL
+
+### ✅ VIABILIDADE: ALTA
+
+**Implementação clara e bem definida:**
+1. ✅ Criar tabela `show_room_purchases` para rastrear compras
+2. ✅ Validar compras duplicadas (frontend + backend)
+3. ✅ Comissionamento diferenciado (90% + 5% + 5%)
+4. ✅ Frete grátis automático
+5. ✅ Não quebra funcionalidades existentes
+
+### 📅 ESTIMATIVA ATUALIZADA
+
+**Fase 0 (Preparação):** 30 min
+- Migration: 20 min
+- Aplicar e validar: 10 min
+
+**Fase 1 (Controle de Compras):** 3-4 horas
+- Frontend: 1 hora
+- Backend: 1 hora
+- Webhook: 1 hora
+- Testes: 1 hora
+
+**Fase 2 (Comissões):** 3-4 horas
+- Webhook: 1 hora
+- Migration SQL: 1 hora
+- Testes: 2 horas
+
+**Fase 3 (Frete Grátis):** 1 hora
+- Lógica de frete: 30 min
+- UI: 30 min
+
+**Total:** 7-9 horas de desenvolvimento + testes
+
+---
+
+## 🚀 PRONTO PARA IMPLEMENTAR
+
+**Todas as dúvidas esclarecidas!**  
+**Aguardando sua autorização para iniciar a implementação.** ✅
