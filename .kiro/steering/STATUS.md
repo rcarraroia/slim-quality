@@ -60,6 +60,19 @@ inclusion: always
 - **Commit:** `a452635`
 - **getDiagnostics:** 0 erros
 
+#### 5. ✅ Investigação de imagens não aparecendo na home e /produtos
+- **Problema:** Após padronização, imagens não apareciam nas páginas públicas
+- **Causa Raiz:** Quando produto King Size foi clonado, o sistema copiou a URL da imagem mas não duplicou o arquivo físico no Supabase Storage
+- **Investigação:** Adicionados logs de debug para validar query e formato dos dados
+- **Validação:** 
+  - Query do Supabase funcionando perfeitamente
+  - `product_images` vindo como array corretamente
+  - URLs sendo extraídas corretamente
+- **Solução:** Usuário fez upload da imagem novamente no módulo de produtos
+- **Resultado:** Imagens agora aparecem em todas as páginas (home, /produtos, Show Room)
+- **Commits:** `510839e` (debug), logs removidos após resolução
+- **Arquivo:** `src/hooks/useProducts.ts`
+
 ---
 
 ## TAREFAS ANTERIORES CONCLUÍDAS (27/02/2026)

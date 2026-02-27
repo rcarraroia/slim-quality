@@ -489,3 +489,76 @@ WHERE product_id = '1e75c634-6b1a-4d35-b72f-2f81800f50f9';
 **Instruções para o usuário:**
 - Recarregue a página (Ctrl+F5 ou Cmd+Shift+R) para limpar o cache
 - As imagens devem aparecer normalmente
+
+
+---
+
+## ✅ RESOLUÇÃO FINAL (27/02/2026)
+
+### 🔍 INVESTIGAÇÃO COM LOGS DE DEBUG
+
+Após a implementação da OPÇÃO 1, as imagens ainda não apareciam na home e `/produtos`. Adicionamos logs de debug no hook `useProducts.ts` para investigar:
+
+**Logs adicionados:**
+```typescript
+console.log('🔍 DEBUG - Dados retornados do Supabase:', data);
+console.log('🔍 DEBUG - Primeiro produto:', data?.[0]);
+console.log('🔍 DEBUG - product_images do primeiro produto:', data?.[0]?.product_images);
+console.log('🔍 DEBUG - Formatando produto:', product.name);
+console.log('🔍 DEBUG - product_images:', product.product_images);
+console.log('🔍 DEBUG - image_url extraída:', product.product_images?.[0]?.image_url);
+```
+
+**Resultado dos logs:**
+- ✅ Query do Supabase funcionando perfeitamente
+- ✅ `product_images` vindo como array corretamente: `[{…}]`
+- ✅ URLs sendo extraídas corretamente: `https://vtynmmtuvxreiwcxxlma.supabase.co/storage/v1/object/public/product-images/king/main.jpg`
+
+### 🎯 CAUSA RAIZ IDENTIFICADA
+
+O problema NÃO era no código, mas sim nos dados:
+
+**Quando o produto King Size foi clonado:**
+1. O sistema copiou a referência da imagem (URL no banco de dados)
+2. Mas a imagem física NÃO foi duplicada no Supabase Storage
+3. A URL antiga apontava para um arquivo que não existia mais ou estava corrompido
+4. Por isso a imagem não carregava (mesmo com a URL correta no banco)
+
+### ✅ SOLUÇÃO APLICADA
+
+O usuário fez upload da imagem novamente no módulo de produtos:
+- Criou um novo arquivo válido no Supabase Storage
+- A nova URL passou a apontar para um arquivo existente
+- As imagens voltaram a aparecer em todas as páginas
+
+### 📊 VALIDAÇÃO FINAL
+
+**Páginas testadas e funcionando:**
+- ✅ Home (`/`) - Imagens aparecendo
+- ✅ Produtos (`/produtos`) - Imagens aparecendo
+- ✅ Show Room (painel do logista) - Imagens aparecendo
+
+**Commits:**
+- `510839e` - Adicionados logs de debug
+- Logs removidos após resolução (código limpo)
+
+### 🎓 LIÇÃO APRENDIDA
+
+**Problema:** Ao clonar produtos, o sistema copia apenas a referência da imagem (URL), não o arquivo físico.
+
+**Solução futura:** Implementar lógica de clonagem que:
+1. Detecta se o produto tem imagens em `product_images`
+2. Copia os arquivos físicos no Supabase Storage
+3. Cria novos registros em `product_images` com as novas URLs
+4. Associa ao produto clonado
+
+**Arquivo a modificar:** `src/pages/dashboard/Produtos.tsx` (função `handleDuplicate`)
+
+---
+
+## 📝 CONCLUSÃO
+
+O problema foi resolvido com sucesso! O sistema agora usa APENAS `product_images` de forma consistente em todos os componentes, e as imagens aparecem corretamente em todas as páginas.
+
+**Status:** ✅ CONCLUÍDO
+**Data:** 27/02/2026
