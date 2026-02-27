@@ -5,6 +5,10 @@
 
 import { createClient } from '@supabase/supabase-js';
 
+// Inicializar Supabase
+const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY;
+
 export default async function handler(req, res) {
   // CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -153,6 +157,103 @@ export default async function handler(req, res) {
         hint: 'Use POST /api/subscriptions/create-payment para produtos IA',
         documentation: 'Consulte .spec/subscription-payment-flow/ para detalhes'
       });
+    }
+
+    // ============================================================
+    // GUARD: Validar compras Show Room (1 unidade por logista por modelo)
+    // ============================================================
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    
+    // Verificar se há produtos Show Room no pedido
+    const hasShowRoomProduct = orderItems.some(item => 
+      item.category === 'show_row' || item.product_category === 'show_row'
+    );
+
+    if (hasShowRoomProduct) {
+      console.log('[Checkout] 🔍 Detectado produto Show Room - validando compras anteriores');
+
+      // Buscar usuário autenticado
+      const authHeader = req.headers.authorization;
+      if (!authHeader) {
+        return res.status(401).json({
+          success: false,
+          error: 'Autenticação necessária para comprar produtos Show Room'
+        });
+      }
+
+      const token = authHeader.replace('Bearer ', '');
+      const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+
+      if (authError || !user) {
+        return res.status(401).json({
+          success: false,
+          error: 'Token inválido ou expirado'
+        });
+      }
+
+      // Buscar afiliado do usuário
+      const { data: affiliate, error: affiliateError } = await supabase
+        .from('affiliates')
+        .select('id, affiliate_type')
+        .eq('user_id', user.id)
+        .single();
+
+      if (affiliateError || !affiliate) {
+        return res.status(403).json({
+          success: false,
+          error: 'Apenas logistas podem comprar produtos Show Room'
+        });
+      }
+
+      if (affiliate.affiliate_type !== 'logista') {
+        return res.status(403).json({
+          success: false,
+          error: 'Apenas logistas podem comprar produtos Show Room'
+        });
+      }
+
+      // Validar cada produto Show Room
+      for (const item of orderItems) {
+        if (item.category === 'show_row' || item.product_category === 'show_row') {
+          // Verificar quantidade
+          if (item.quantity > 1) {
+            return res.status(400).json({
+              success: false,
+              error: `Apenas 1 unidade disponível por logista para o produto "${item.name || item.product_name}"`,
+              productId: item.product_id || item.id
+            });
+          }
+
+          // Verificar se já comprou este produto
+          const { data: existingPurchase, error: purchaseError } = await supabase
+            .from('show_room_purchases')
+            .select('id, purchased_at')
+            .eq('affiliate_id', affiliate.id)
+            .eq('product_id', item.product_id || item.id)
+            .maybeSingle();
+
+          if (purchaseError) {
+            console.error('[Checkout] Erro ao verificar compra Show Room:', purchaseError);
+            return res.status(500).json({
+              success: false,
+              error: 'Erro ao validar compra Show Room'
+            });
+          }
+
+          if (existingPurchase) {
+            console.log('[Checkout] ❌ Logista já comprou este produto Show Room');
+            return res.status(400).json({
+              success: false,
+              error: `Você já comprou o modelo "${item.name || item.product_name}" em ${new Date(existingPurchase.purchased_at).toLocaleDateString('pt-BR')}`,
+              hint: 'Cada logista pode comprar apenas 1 unidade de cada modelo Show Room',
+              productId: item.product_id || item.id,
+              purchasedAt: existingPurchase.purchased_at
+            });
+          }
+        }
+      }
+
+      console.log('[Checkout] ✅ Validação Show Room passou - logista pode comprar');
     }
 
     const { customer, orderId, amount, billingType, description, installments, creditCard, creditCardHolderInfo, referralCode } = body;

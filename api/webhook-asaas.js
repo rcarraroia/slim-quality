@@ -183,6 +183,9 @@ export default async function handler(req, res) {
     // 4. Se pagamento confirmado, calcular comissões (se houver afiliado)
     if (orderStatus === 'paid') {
       await processCommissions(supabase, orderId, payment.value);
+
+      // 5. Registrar compra Show Room (se aplicável)
+      await registerShowRoomPurchase(supabase, orderId);
     }
 
     // Atualizar log como processado
@@ -606,6 +609,108 @@ async function saveCalculationLog(supabase, logData) {
   } catch (error) {
     console.error('⚠️ Erro ao salvar log de cálculo:', error);
     // Não falhar por causa do log
+  }
+}
+
+/**
+ * Registra compra de produtos Show Room
+ * Fase 1 - Task 1.3: Registro de Compra no Webhook
+ */
+async function registerShowRoomPurchase(supabase, orderId) {
+  try {
+    console.log(`🏪 Verificando produtos Show Room no pedido ${orderId}`);
+
+    // Buscar itens do pedido
+    const { data: orderItems, error: itemsError } = await supabase
+      .from('order_items')
+      .select(`
+        product_id,
+        products!inner(category)
+      `)
+      .eq('order_id', orderId);
+
+    if (itemsError) {
+      console.error('❌ Erro ao buscar itens do pedido:', itemsError);
+      return;
+    }
+
+    if (!orderItems || orderItems.length === 0) {
+      console.log('ℹ️ Pedido sem itens');
+      return;
+    }
+
+    // Filtrar produtos Show Room
+    const showRoomItems = orderItems.filter(item => 
+      item.products?.category === 'show_row'
+    );
+
+    if (showRoomItems.length === 0) {
+      console.log('ℹ️ Pedido não contém produtos Show Room');
+      return;
+    }
+
+    console.log(`✅ Encontrados ${showRoomItems.length} produtos Show Room`);
+
+    // Buscar customer_id do pedido
+    const { data: order, error: orderError } = await supabase
+      .from('orders')
+      .select('customer_id')
+      .eq('id', orderId)
+      .single();
+
+    if (orderError || !order) {
+      console.error('❌ Erro ao buscar pedido:', orderError);
+      return;
+    }
+
+    // Buscar afiliado do customer
+    const { data: affiliate, error: affiliateError } = await supabase
+      .from('affiliates')
+      .select('id, affiliate_type')
+      .eq('user_id', order.customer_id)
+      .single();
+
+    if (affiliateError || !affiliate) {
+      console.error('❌ Erro ao buscar afiliado:', affiliateError);
+      return;
+    }
+
+    if (affiliate.affiliate_type !== 'logista') {
+      console.warn('⚠️ Compra Show Room por não-logista detectada');
+      return;
+    }
+
+    // Registrar cada produto Show Room
+    for (const item of showRoomItems) {
+      try {
+        const { error: insertError } = await supabase
+          .from('show_room_purchases')
+          .insert({
+            affiliate_id: affiliate.id,
+            product_id: item.product_id,
+            order_id: orderId,
+            purchased_at: new Date().toISOString()
+          });
+
+        if (insertError) {
+          // Se erro for de duplicação (constraint UNIQUE), apenas logar
+          if (insertError.code === '23505') {
+            console.log(`ℹ️ Compra Show Room já registrada: product_id=${item.product_id}`);
+          } else {
+            console.error('❌ Erro ao registrar compra Show Room:', insertError);
+          }
+        } else {
+          console.log(`✅ Compra Show Room registrada: product_id=${item.product_id}, affiliate_id=${affiliate.id}`);
+        }
+      } catch (error) {
+        console.error('❌ Erro ao processar item Show Room:', error);
+      }
+    }
+
+    console.log(`🏪 Registro de compras Show Room concluído para pedido ${orderId}`);
+  } catch (error) {
+    console.error('❌ Erro ao registrar compras Show Room:', error);
+    // Não falhar o webhook por causa do registro Show Room
   }
 }
 

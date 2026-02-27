@@ -2,8 +2,10 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { supabase } from "@/config/supabase";
-import { Loader2, Package, AlertCircle, ShoppingCart } from "lucide-react";
+import { Loader2, Package, AlertCircle, ShoppingCart, CheckCircle } from "lucide-react";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import AffiliateAwareCheckout from "@/components/checkout/AffiliateAwareCheckout";
@@ -17,6 +19,7 @@ interface Product {
   description: string;
   price_cents: number;
   image_url?: string;
+  alreadyPurchased?: boolean; // Flag para indicar se já foi comprado
 }
 
 export default function ShowRow() {
@@ -25,6 +28,7 @@ export default function ShowRow() {
   const [products, setProducts] = useState<Product[]>([]);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
+  const [affiliateId, setAffiliateId] = useState<string | null>(null);
 
   useEffect(() => {
     validateAccess();
@@ -44,6 +48,11 @@ export default function ShowRow() {
         navigate('/afiliados/dashboard');
         return;
       }
+
+      // Armazenar ID do afiliado para verificações posteriores
+      if (affiliate?.id) {
+        setAffiliateId(affiliate.id);
+      }
     } catch (error) {
       console.error('Erro ao validar acesso:', error);
       navigate('/afiliados/dashboard');
@@ -51,7 +60,33 @@ export default function ShowRow() {
   };
 
   /**
-   * Carrega produtos Show Row ativos
+   * Verifica se o logista já comprou um produto específico
+   */
+  const checkIfAlreadyPurchased = async (productId: string): Promise<boolean> => {
+    if (!affiliateId) return false;
+
+    try {
+      const { data, error } = await supabase
+        .from('show_room_purchases')
+        .select('id')
+        .eq('affiliate_id', affiliateId)
+        .eq('product_id', productId)
+        .maybeSingle();
+
+      if (error) {
+        console.error('Erro ao verificar compra:', error);
+        return false;
+      }
+
+      return !!data;
+    } catch (error) {
+      console.error('Erro ao verificar compra:', error);
+      return false;
+    }
+  };
+
+  /**
+   * Carrega produtos Show Row ativos e verifica quais já foram comprados
    */
   const loadProducts = async () => {
     try {
@@ -81,7 +116,18 @@ export default function ShowRow() {
         image_url: product.product_images?.[0]?.image_url || null
       }));
       
-      setProducts(productsWithImages);
+      // Verificar quais produtos já foram comprados
+      if (affiliateId) {
+        const productsWithPurchaseStatus = await Promise.all(
+          productsWithImages.map(async (product) => ({
+            ...product,
+            alreadyPurchased: await checkIfAlreadyPurchased(product.id)
+          }))
+        );
+        setProducts(productsWithPurchaseStatus);
+      } else {
+        setProducts(productsWithImages);
+      }
     } catch (error) {
       console.error('Erro ao carregar produtos:', error);
       toast.error('Não foi possível carregar os produtos.');
@@ -154,6 +200,15 @@ export default function ShowRow() {
                 <div className={`absolute inset-0 flex items-center justify-center ${product.image_url ? 'hidden' : ''}`}>
                   <Package className="h-16 w-16 text-muted-foreground opacity-50" />
                 </div>
+                {/* Badge "Já adquirido" */}
+                {product.alreadyPurchased && (
+                  <div className="absolute top-2 right-2">
+                    <Badge variant="secondary" className="gap-1 bg-green-100 text-green-800 border-green-200">
+                      <CheckCircle className="h-3 w-3" />
+                      Já adquirido
+                    </Badge>
+                  </div>
+                )}
               </div>
               <CardTitle>{product.name}</CardTitle>
               <CardDescription>{product.description}</CardDescription>
@@ -166,16 +221,33 @@ export default function ShowRow() {
               </div>
             </CardContent>
             <CardFooter>
-              <Button
-                className="w-full gap-2"
-                onClick={() => {
-                  setSelectedProduct(product);
-                  setIsCheckoutOpen(true);
-                }}
-              >
-                <ShoppingCart className="h-4 w-4" />
-                Ver Detalhes
-              </Button>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className="w-full">
+                      <Button
+                        className="w-full gap-2"
+                        disabled={product.alreadyPurchased}
+                        onClick={() => {
+                          setSelectedProduct(product);
+                          setIsCheckoutOpen(true);
+                        }}
+                      >
+                        <ShoppingCart className="h-4 w-4" />
+                        {product.alreadyPurchased ? 'Produto já adquirido' : 'Ver Detalhes'}
+                      </Button>
+                    </div>
+                  </TooltipTrigger>
+                  {product.alreadyPurchased && (
+                    <TooltipContent>
+                      <p>Você já comprou este modelo Show Room.</p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Cada logista pode comprar apenas 1 unidade de cada modelo.
+                      </p>
+                    </TooltipContent>
+                  )}
+                </Tooltip>
+              </TooltipProvider>
             </CardFooter>
           </Card>
         ))}
