@@ -257,7 +257,9 @@ export default function Produtos() {
         name: formData.name,
         sku: formData.sku || `COL-${Date.now().toString(36).toUpperCase()}`,
         description: formData.description || null,
-        price_cents: Math.round(parseFloat(formData.price) * 100),
+        price_cents: isAdesaoAfiliado 
+          ? (formData.entry_fee ? Math.round(parseFloat(formData.entry_fee) * 100) : 0)
+          : Math.round(parseFloat(formData.price) * 100),
         // Se for digital ou adesão, força valores nulos para físicos e tipo service
         width_cm: (isDigital || isAdesaoAfiliado) ? null : parseFloat(formData.width_cm),
         length_cm: (isDigital || isAdesaoAfiliado) ? null : parseFloat(formData.length_cm),
@@ -543,15 +545,18 @@ export default function Produtos() {
               </div>
             </div>
 
-            <div className="space-y-2">
-              <Label>Preço (R$) *</Label>
-              <Input
-                type="number"
-                placeholder="3690"
-                value={formData.price}
-                onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-              />
-            </div>
+            {/* Campo Preço - Apenas se NÃO for Adesão de Afiliado */}
+            {!isAdesaoAfiliado && (
+              <div className="space-y-2">
+                <Label>Preço (R$) *</Label>
+                <Input
+                  type="number"
+                  placeholder="3690"
+                  value={formData.price}
+                  onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                />
+              </div>
+            )}
 
             {/* Campos de Assinatura - Apenas para adesao_afiliado */}
             {isAdesaoAfiliado && (
@@ -642,8 +647,8 @@ export default function Produtos() {
               </div>
             )}
 
-            {/* Campos Físicos - Apenas se não for Digital */}
-            {!isDigital && (
+            {/* Campos Físicos - Apenas se não for Digital NEM Adesão de Afiliado */}
+            {!isDigital && !isAdesaoAfiliado && (
               <div className="space-y-4 border-l-2 border-muted pl-4">
                 <div className="space-y-2">
                   <Label>Dimensões do Produto *</Label>
@@ -846,9 +851,14 @@ export default function Produtos() {
               disabled={
                 uploading || 
                 !formData.name || 
-                !formData.price || 
+                // Preço obrigatório apenas se NÃO for Adesão de Afiliado
+                (!isAdesaoAfiliado && !formData.price) ||
+                // Dimensões obrigatórias apenas para produtos físicos
                 (!isDigital && !isAdesaoAfiliado && (!formData.width_cm || !formData.length_cm || !formData.height_cm)) ||
-                (isAdesaoAfiliado && formData.has_entry_fee && !formData.entry_fee)
+                // Para Adesão: Taxa de Adesão obrigatória se checkbox marcado
+                (isAdesaoAfiliado && formData.has_entry_fee && !formData.entry_fee) ||
+                // Para Adesão: Pelo menos uma taxa deve estar preenchida
+                (isAdesaoAfiliado && !formData.entry_fee && !formData.monthly_fee)
               }
             >
               {uploading ? 'Salvando...' : 'Salvar'}
