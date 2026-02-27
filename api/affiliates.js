@@ -50,6 +50,8 @@ export default async function handler(req, res) {
   switch (action) {
     case 'register':
       return handleRegister(req, res, supabase);
+    case 'payment-first-validate':
+      return handlePaymentFirstValidate(req, res, supabase);
     case 'balance':
       return handleBalance(req, res, supabase);
     case 'export':
@@ -296,6 +298,162 @@ async function handleRegister(req, res, supabase) {
 
   } catch (error) {
     console.error('Erro inesperado no registro:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Erro interno do servidor',
+      details: error.message
+    });
+  }
+}
+
+// ============================================
+// HANDLER: PAYMENT FIRST VALIDATE
+// ============================================
+async function handlePaymentFirstValidate(req, res, supabase) {
+  if (req.method !== 'POST') {
+    return res.status(405).json({ 
+      success: false, 
+      error: 'Method not allowed' 
+    });
+  }
+
+  try {
+    const { email, name, phone, document, affiliate_type, referral_code, password } = req.body;
+
+    // Validação de campos obrigatórios
+    if (!email || !name || !phone || !document || !affiliate_type || !password) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Campos obrigatórios faltando',
+        required: ['email', 'name', 'phone', 'document', 'affiliate_type', 'password']
+      });
+    }
+
+    // Validar tipo de afiliado
+    if (!['individual', 'logista'].includes(affiliate_type)) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Tipo de afiliado inválido' 
+      });
+    }
+
+    // Remover formatação do documento
+    const cleanDocument = document.replace(/[^\d]/g, '');
+
+    // Determinar tipo de documento
+    const document_type = cleanDocument.length === 11 ? 'CPF' : 'CNPJ';
+
+    // Validar CPF/CNPJ
+    const isValidDocument = document_type === 'CPF' 
+      ? validateCPF(cleanDocument) 
+      : validateCNPJ(cleanDocument);
+      
+    if (!isValidDocument) {
+      return res.status(400).json({ 
+        success: false,
+        error: document_type === 'CPF' ? 'CPF inválido' : 'CNPJ inválido' 
+      });
+    }
+
+    // Verificar duplicatas de email
+    const { data: existingEmail } = await supabase
+      .from('affiliates')
+      .select('id')
+      .eq('email', email)
+      .is('deleted_at', null)
+      .maybeSingle();
+
+    if (existingEmail) {
+      return res.status(409).json({ 
+        success: false,
+        error: 'Email já cadastrado' 
+      });
+    }
+
+    // Verificar duplicatas de document
+    const { data: existingDocument } = await supabase
+      .from('affiliates')
+      .select('id')
+      .eq('document', cleanDocument)
+      .is('deleted_at', null)
+      .maybeSingle();
+
+    if (existingDocument) {
+      return res.status(409).json({ 
+        success: false,
+        error: document_type === 'CPF' ? 'CPF já cadastrado' : 'CNPJ já cadastrado' 
+      });
+    }
+
+    // Validar referral_code (se fornecido)
+    let referred_by = null;
+    if (referral_code) {
+      const { data: parent } = await supabase
+        .from('affiliates')
+        .select('id')
+        .eq('referral_code', referral_code)
+        .eq('status', 'active')
+        .is('deleted_at', null)
+        .maybeSingle();
+
+      if (!parent) {
+        return res.status(404).json({ 
+          success: false,
+          error: 'Código de indicação inválido' 
+        });
+      }
+      referred_by = parent.id;
+    }
+
+    // Criptografar senha (bcrypt)
+    const bcrypt = await import('bcryptjs');
+    const password_hash = await bcrypt.hash(password, 10);
+
+    // Criar sessão temporária
+    const { data: session, error: sessionError } = await supabase
+      .from('payment_sessions')
+      .insert({
+        email,
+        name,
+        phone,
+        document: cleanDocument,
+        document_type,
+        affiliate_type,
+        referred_by,
+        referral_code: referral_code || null,
+        password_hash,
+        expires_at: new Date(Date.now() + 30 * 60 * 1000).toISOString() // 30 minutos
+      })
+      .select('session_token')
+      .single();
+
+    if (sessionError) {
+      console.error('Erro ao criar sessão:', sessionError);
+      return res.status(500).json({ 
+        success: false,
+        error: 'Erro ao criar sessão temporária',
+        details: sessionError.message
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      session_token: session.session_token,
+      message: 'Dados validados com sucesso',
+      data: {
+        email,
+        name,
+        phone,
+        document: cleanDocument,
+        document_type,
+        affiliate_type,
+        referral_code: referral_code || null,
+        referred_by
+      }
+    });
+
+  } catch (error) {
+    console.error('Erro inesperado na validação:', error);
     return res.status(500).json({
       success: false,
       error: 'Erro interno do servidor',

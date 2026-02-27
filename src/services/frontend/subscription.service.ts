@@ -575,6 +575,42 @@ export class SubscriptionFrontendService {
     
     return digit1 === parseInt(cleanCPF.charAt(9)) && digit2 === parseInt(cleanCPF.charAt(10));
   }
+
+  /**
+   * Cria pagamento de taxa de adesão para afiliado (Payment First)
+   * ETAPA: Payment First + Afiliados Existentes - Phase B7
+   * 
+   * @param data - Dados do pagamento (session_token e payment_method)
+   * @returns Resultado da criação do pagamento com QR code ou link de cartão
+   */
+  async createAffiliateMembership(data: {
+    session_token: string;
+    payment_method: 'pix' | 'credit_card';
+  }) {
+    try {
+      const response = await fetch(
+        '/api/subscriptions/create-payment?action=create-affiliate-membership',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(data)
+        }
+      );
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Erro ao criar pagamento');
+      }
+
+      return result;
+    } catch (error) {
+      console.error('Erro ao criar pagamento de adesão:', error);
+      throw error;
+    }
+  }
 }
 
 // Instância singleton

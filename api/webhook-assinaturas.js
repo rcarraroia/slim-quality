@@ -39,7 +39,16 @@ export default async function handler(req, res) {
     const externalRef = payment?.externalReference || '';
     
     // ============================================================
-    // ROTEAMENTO 1: EVENTOS DE AFILIADOS (NOVO)
+    // ROTEAMENTO 1: PRÉ-CADASTRO DE AFILIADOS (PAYMENT FIRST)
+    // ============================================================
+    if (externalRef.startsWith('affiliate_pre_')) {
+      console.log('[WH-Afiliados] 🚀 Processando pré-cadastro:', externalRef);
+      await handlePreRegistrationPayment(supabase, payment);
+      return res.status(200).json({ success: true, type: 'affiliate_pre_registration' });
+    }
+    
+    // ============================================================
+    // ROTEAMENTO 2: EVENTOS DE AFILIADOS EXISTENTES
     // ============================================================
     if (externalRef.startsWith('affiliate_')) {
       console.log('[WH-Assinaturas] 🔄 Enfileirando evento de afiliado:', externalRef);
@@ -278,6 +287,524 @@ async function enqueueAffiliateWebhook(supabase, event) {
     });
     throw error;
   }
+}
+
+/**
+ * Processa pagamento de pré-cadastro de afiliado (Payment First)
+ * Cria conta Supabase Auth + registro em affiliates + rede genealógica
+ * 
+ * CRÍTICO: Segue padrão idêntico ao sistema Comademig (subscription-payment-flow)
+ * - Usa password_hash diretamente da tabela payment_sessions
+ * - NÃO envia senha temporária nem email de redefinição
+ * - Usa email_confirm: true para confirmar email automaticamente
+ */
+async function handlePreRegistrationPayment(supabase, payment) {
+  const startTime = Date.now();
+  console.log('[WH-PreReg] 🚀 Iniciando processamento de pré-cadastro:', {
+    paymentId: payment.id,
+    externalRef: payment.externalReference,
+    value: payment.value,
+    status: payment.status
+  });
+
+  try {
+    // ============================================================
+    // ETAPA 1: IDEMPOTÊNCIA - Verificar se evento já foi processado
+    // ============================================================
+    const { data: existingEvent } = await supabase
+      .from('subscription_webhook_events')
+      .select('id, processed_at, user_id')
+      .eq('asaas_event_id', payment.id)
+      .eq('event_type', 'PAYMENT_CONFIRMED')
+      .single();
+
+    if (existingEvent) {
+      console.log('[WH-PreReg] ⚠️ Evento já processado anteriormente:', {
+        eventId: existingEvent.id,
+        processedAt: existingEvent.processed_at,
+        userId: existingEvent.user_id
+      });
+      return { 
+        success: true, 
+        duplicate: true, 
+        userId: existingEvent.user_id,
+        message: 'Evento já processado' 
+      };
+    }
+
+    // ============================================================
+    // ETAPA 2: Buscar sessão temporária
+    // ============================================================
+    // Extrair session_token do externalReference: "affiliate_pre_{session_token}"
+    const sessionToken = payment.externalReference.replace('affiliate_pre_', '');
+    
+    const { data: session, error: sessionError } = await supabase
+      .from('payment_sessions')
+      .select('*')
+      .eq('session_token', sessionToken)
+      .single();
+
+    if (sessionError || !session) {
+      console.error('[WH-PreReg] ❌ Sessão temporária não encontrada:', {
+        sessionToken,
+        error: sessionError
+      });
+      throw new Error(`Sessão temporária não encontrada: ${sessionToken}`);
+    }
+
+    console.log('[WH-PreReg] ✅ Sessão temporária encontrada:', {
+      sessionId: session.id,
+      email: session.email,
+      name: session.name,
+      affiliateType: session.affiliate_type,
+      hasReferralCode: !!session.referral_code
+    });
+
+    // ============================================================
+    // ETAPA 3: Criar usuário no Supabase Auth
+    // CRÍTICO: Usar password_hash diretamente (padrão Comademig)
+    // ============================================================
+    const { data: authUser, error: authError } = await supabase.auth.admin.createUser({
+      email: session.email,
+      password: session.password_hash, // Hash recuperado da tabela payment_sessions
+      email_confirm: true, // Confirmar email automaticamente (sem envio de email)
+      user_metadata: {
+        name: session.name,
+        phone: session.phone,
+        affiliate_type: session.affiliate_type
+      }
+    });
+
+    if (authError) {
+      console.error('[WH-PreReg] ❌ Erro ao criar usuário Supabase Auth:', authError);
+      throw new Error(`Falha ao criar usuário: ${authError.message}`);
+    }
+
+    const userId = authUser.user.id;
+    console.log('[WH-PreReg] ✅ Usuário Supabase Auth criado:', {
+      userId,
+      email: session.email
+    });
+
+    // ============================================================
+    // ETAPA 4: Gerar referral_code único
+    // ============================================================
+    const referralCode = await generateUniqueReferralCode(supabase);
+    console.log('[WH-PreReg] ✅ Referral code gerado:', referralCode);
+
+    // ============================================================
+    // ETAPA 5: Resolver referred_by (se houver referral_code)
+    // ============================================================
+    let referredBy = null;
+    if (session.referral_code) {
+      const { data: referrer } = await supabase
+        .from('affiliates')
+        .select('id')
+        .eq('referral_code', session.referral_code)
+        .single();
+
+      if (referrer) {
+        referredBy = referrer.id;
+        console.log('[WH-PreReg] ✅ Afiliado indicador encontrado:', {
+          referralCode: session.referral_code,
+          referrerId: referredBy
+        });
+      } else {
+        console.warn('[WH-PreReg] ⚠️ Código de indicação não encontrado:', session.referral_code);
+      }
+    }
+
+    // ============================================================
+    // ETAPA 6: Criar registro em affiliates
+    // ============================================================
+    const { data: affiliate, error: affiliateError } = await supabase
+      .from('affiliates')
+      .insert({
+        user_id: userId,
+        name: session.name,
+        email: session.email,
+        phone: session.phone,
+        document: session.document,
+        document_type: session.document_type,
+        affiliate_type: session.affiliate_type,
+        referral_code: referralCode,
+        payment_status: 'active', // Pagamento confirmado
+        status: 'active', // Afiliado ativo
+        wallet_id: null, // Será configurado depois pelo afiliado
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
+      .select('id')
+      .single();
+
+    if (affiliateError) {
+      console.error('[WH-PreReg] ❌ Erro ao criar registro em affiliates:', affiliateError);
+      throw new Error(`Falha ao criar afiliado: ${affiliateError.message}`);
+    }
+
+    const affiliateId = affiliate.id;
+    console.log('[WH-PreReg] ✅ Registro em affiliates criado:', {
+      affiliateId,
+      referralCode
+    });
+
+    // ============================================================
+    // ETAPA 7: Criar rede genealógica (se houver indicador)
+    // ============================================================
+    if (referredBy) {
+      // Buscar rede do indicador
+      const { data: referrerNetwork } = await supabase
+        .from('affiliate_network')
+        .select('parent_id, level')
+        .eq('affiliate_id', referredBy)
+        .order('level', { ascending: true });
+
+      const networkToInsert = [];
+
+      // N1: Indicador direto
+      networkToInsert.push({
+        affiliate_id: affiliateId,
+        parent_id: referredBy,
+        level: 1,
+        created_at: new Date().toISOString()
+      });
+
+      // N2 e N3: Ascendentes do indicador
+      if (referrerNetwork && referrerNetwork.length > 0) {
+        // N2: Pai do indicador
+        networkToInsert.push({
+          affiliate_id: affiliateId,
+          parent_id: referrerNetwork[0].parent_id,
+          level: 2,
+          created_at: new Date().toISOString()
+        });
+
+        // N3: Avô do indicador
+        if (referrerNetwork.length > 1) {
+          networkToInsert.push({
+            affiliate_id: affiliateId,
+            parent_id: referrerNetwork[1].parent_id,
+            level: 3,
+            created_at: new Date().toISOString()
+          });
+        }
+      }
+
+      const { error: networkError } = await supabase
+        .from('affiliate_network')
+        .insert(networkToInsert);
+
+      if (networkError) {
+        console.error('[WH-PreReg] ❌ Erro ao criar rede genealógica:', networkError);
+        // NÃO bloqueia - rede pode ser criada manualmente depois
+      } else {
+        console.log('[WH-PreReg] ✅ Rede genealógica criada:', {
+          affiliateId,
+          levels: networkToInsert.length
+        });
+      }
+    }
+
+    // ============================================================
+    // ETAPA 8: Registrar pagamento em affiliate_payments
+    // ============================================================
+    const { error: paymentError } = await supabase
+      .from('affiliate_payments')
+      .insert({
+        affiliate_id: affiliateId,
+        asaas_payment_id: payment.id,
+        payment_type: session.affiliate_type === 'individual' ? 'membership_fee' : 'membership_fee',
+        amount_cents: Math.round(payment.value * 100),
+        status: 'confirmed',
+        confirmed_at: new Date().toISOString(),
+        created_at: new Date().toISOString()
+      });
+
+    if (paymentError) {
+      console.error('[WH-PreReg] ❌ Erro ao registrar pagamento:', paymentError);
+      // NÃO bloqueia - pagamento pode ser registrado manualmente
+    } else {
+      console.log('[WH-PreReg] ✅ Pagamento registrado em affiliate_payments');
+    }
+
+    // ============================================================
+    // ETAPA 9: Calcular e salvar comissões
+    // ============================================================
+    try {
+      await calculateAndSaveCommissions(supabase, affiliateId, Math.round(payment.value * 100), 'membership_fee');
+      console.log('[WH-PreReg] ✅ Comissões calculadas e salvas');
+    } catch (commError) {
+      console.error('[WH-PreReg] ⚠️ Erro ao calcular comissões (não fatal):', commError);
+      // NÃO bloqueia - comissões podem ser calculadas manualmente
+    }
+
+    // ============================================================
+    // ETAPA 10: Deletar sessão temporária
+    // ============================================================
+    const { error: deleteError } = await supabase
+      .from('payment_sessions')
+      .delete()
+      .eq('session_token', sessionToken);
+
+    if (deleteError) {
+      console.error('[WH-PreReg] ⚠️ Erro ao deletar sessão temporária (não fatal):', deleteError);
+      // NÃO bloqueia - sessão expira automaticamente em 30 minutos
+    } else {
+      console.log('[WH-PreReg] ✅ Sessão temporária deletada');
+    }
+
+    // ============================================================
+    // ETAPA 11: Registrar evento processado (idempotência)
+    // ============================================================
+    const { error: eventError } = await supabase
+      .from('subscription_webhook_events')
+      .insert({
+        asaas_event_id: payment.id,
+        event_type: 'PAYMENT_CONFIRMED',
+        payload: JSON.stringify(payment),
+        processed_at: new Date().toISOString(),
+        processing_time_ms: Date.now() - startTime,
+        user_id: userId
+      });
+
+    if (eventError) {
+      console.error('[WH-PreReg] ⚠️ Erro ao registrar evento (não fatal):', eventError);
+      // NÃO bloqueia - evento foi processado com sucesso
+    }
+
+    // ============================================================
+    // ETAPA 12: Enviar notificação de boas-vindas
+    // ============================================================
+    try {
+      await supabase.from('notifications').insert({
+        affiliate_id: affiliateId,
+        type: 'welcome',
+        title: 'Bem-vindo ao Slim Quality!',
+        message: `Olá ${session.name}! Sua conta foi ativada com sucesso. Seu código de indicação é: ${referralCode}`,
+        read: false,
+        created_at: new Date().toISOString()
+      });
+      console.log('[WH-PreReg] ✅ Notificação de boas-vindas enviada');
+    } catch (notifError) {
+      console.error('[WH-PreReg] ⚠️ Erro ao enviar notificação (não fatal):', notifError);
+      // NÃO bloqueia
+    }
+
+    // ============================================================
+    // ETAPA 13: Sucesso final
+    // ============================================================
+    const processingTime = Date.now() - startTime;
+    console.log('[WH-PreReg] ✅ Processamento concluído com sucesso:', {
+      paymentId: payment.id,
+      userId,
+      affiliateId,
+      referralCode,
+      hasNetwork: !!referredBy,
+      processingTimeMs: processingTime
+    });
+
+    return {
+      success: true,
+      userId,
+      affiliateId,
+      referralCode,
+      processingTimeMs: processingTime
+    };
+
+  } catch (error) {
+    const processingTime = Date.now() - startTime;
+    console.error('[WH-PreReg] 💥 ERRO FATAL:', {
+      error: error.message,
+      stack: error.stack,
+      paymentId: payment.id,
+      processingTimeMs: processingTime
+    });
+
+    // Registrar erro para auditoria
+    await supabase.from('subscription_webhook_events').insert({
+      asaas_event_id: payment.id,
+      event_type: 'PAYMENT_CONFIRMED',
+      payload: JSON.stringify(payment),
+      error_message: error.message,
+      processed_at: new Date().toISOString(),
+      processing_time_ms: processingTime
+    }).catch(err => {
+      console.error('[WH-PreReg] ❌ Falha ao registrar erro:', err);
+    });
+
+    throw error; // Re-lançar para tratamento upstream
+  }
+}
+
+/**
+ * Gera código de indicação único (6 caracteres alfanuméricos)
+ * Formato: ABC123 (3 letras + 3 números)
+ */
+async function generateUniqueReferralCode(supabase) {
+  const maxAttempts = 10;
+  
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    // Gerar código: 3 letras + 3 números
+    const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    const numbers = '0123456789';
+    
+    let code = '';
+    for (let i = 0; i < 3; i++) {
+      code += letters.charAt(Math.floor(Math.random() * letters.length));
+    }
+    for (let i = 0; i < 3; i++) {
+      code += numbers.charAt(Math.floor(Math.random() * numbers.length));
+    }
+
+    // Verificar se já existe
+    const { data: existing } = await supabase
+      .from('affiliates')
+      .select('id')
+      .eq('referral_code', code)
+      .single();
+
+    if (!existing) {
+      return code;
+    }
+
+    console.log('[generateReferralCode] ⚠️ Código duplicado, tentando novamente:', code);
+  }
+
+  throw new Error('Falha ao gerar código de indicação único após 10 tentativas');
+}
+
+/**
+ * Calcula e salva comissões para pagamento de afiliado
+ * Comissões: 10% Slim + N1(15%) + N2(3%) + N3(2%) + Renum/JB (restante 50/50)
+ */
+async function calculateAndSaveCommissions(supabase, affiliate_id, amount_cents, payment_type) {
+  console.log('[calculateCommissions] 🔄 Calculando comissões:', {
+    affiliateId: affiliate_id,
+    amountCents: amount_cents,
+    paymentType: payment_type
+  });
+
+  // Buscar rede genealógica
+  const { data: network } = await supabase
+    .from('affiliate_network')
+    .select('parent_id, level')
+    .eq('affiliate_id', affiliate_id)
+    .order('level', { ascending: true });
+
+  const amount = amount_cents / 100;
+
+  // Comissões: 10% Slim + N1(15%) + N2(3%) + N3(2%) + Renum/JB (restante 50/50)
+  const commissions = {
+    slim: amount * 0.10,
+    n1: amount * 0.15,
+    n2: amount * 0.03,
+    n3: amount * 0.02,
+    renum: amount * 0.05, // Base 5%
+    jb: amount * 0.05     // Base 5%
+  };
+
+  // Calcular redistribuição
+  let available = amount * 0.20; // 20% para N1+N2+N3
+  let used = 0;
+
+  const commissionsToSave = [];
+
+  if (network && network.length > 0) {
+    // N1 existe e está ativo
+    const { data: n1Affiliate } = await supabase
+      .from('affiliates')
+      .select('payment_status')
+      .eq('id', network[0].parent_id)
+      .single();
+
+    if (n1Affiliate && n1Affiliate.payment_status === 'active') {
+      used += commissions.n1;
+      commissionsToSave.push({
+        affiliate_id: network[0].parent_id,
+        order_id: null,
+        payment_id: affiliate_id,
+        level: 1,
+        amount_cents: Math.round(commissions.n1 * 100),
+        status: 'pending',
+        created_at: new Date().toISOString()
+      });
+    }
+
+    // N2 existe e está ativo
+    if (network.length > 1) {
+      const { data: n2Affiliate } = await supabase
+        .from('affiliates')
+        .select('payment_status')
+        .eq('id', network[1].parent_id)
+        .single();
+
+      if (n2Affiliate && n2Affiliate.payment_status === 'active') {
+        used += commissions.n2;
+        commissionsToSave.push({
+          affiliate_id: network[1].parent_id,
+          order_id: null,
+          payment_id: affiliate_id,
+          level: 2,
+          amount_cents: Math.round(commissions.n2 * 100),
+          status: 'pending',
+          created_at: new Date().toISOString()
+        });
+      }
+    }
+
+    // N3 existe e está ativo
+    if (network.length > 2) {
+      const { data: n3Affiliate } = await supabase
+        .from('affiliates')
+        .select('payment_status')
+        .eq('id', network[2].parent_id)
+        .single();
+
+      if (n3Affiliate && n3Affiliate.payment_status === 'active') {
+        used += commissions.n3;
+        commissionsToSave.push({
+          affiliate_id: network[2].parent_id,
+          order_id: null,
+          payment_id: affiliate_id,
+          level: 3,
+          amount_cents: Math.round(commissions.n3 * 100),
+          status: 'pending',
+          created_at: new Date().toISOString()
+        });
+      }
+    }
+  }
+
+  // Redistribuir o que não foi usado para Renum e JB
+  const remaining = available - used;
+  commissions.renum += remaining / 2;
+  commissions.jb += remaining / 2;
+
+  // Salvar comissões
+  if (commissionsToSave.length > 0) {
+    const { error: commError } = await supabase
+      .from('commissions')
+      .insert(commissionsToSave);
+
+    if (commError) {
+      console.error('[calculateCommissions] ❌ Erro ao salvar comissões:', commError);
+      throw commError;
+    }
+
+    console.log('[calculateCommissions] ✅ Comissões salvas:', {
+      count: commissionsToSave.length,
+      totalCents: commissionsToSave.reduce((sum, c) => sum + c.amount_cents, 0)
+    });
+  } else {
+    console.log('[calculateCommissions] ℹ️ Nenhuma comissão a salvar (rede vazia ou inativa)');
+  }
+
+  // Registrar comissões de gestores (Renum e JB)
+  // TODO: Implementar quando houver tabela de gestores ou wallet_ids configurados
+  console.log('[calculateCommissions] ℹ️ Comissões de gestores:', {
+    renum: commissions.renum,
+    jb: commissions.jb
+  });
 }
 
 /**

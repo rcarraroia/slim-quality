@@ -31,7 +31,7 @@ export default function AfiliadosCadastro() {
 
   // Estado para paywall
   const [showPaywall, setShowPaywall] = useState(false);
-  const [registeredAffiliateId, setRegisteredAffiliateId] = useState<string | null>(null);
+  const [sessionToken, setSessionToken] = useState<string | null>(null);
 
   // Form data - Campos essenciais + senha + tipo de afiliado
   const [formData, setFormData] = useState({
@@ -154,10 +154,10 @@ export default function AfiliadosCadastro() {
     }
 
     // Validar senha
-    if (formData.password.length < 6) {
+    if (formData.password.length < 8) {
       toast({
         title: "Senha fraca",
-        description: "A senha deve ter pelo menos 6 caracteres",
+        description: "A senha deve ter pelo menos 8 caracteres",
         variant: "destructive"
       });
       return;
@@ -174,8 +174,8 @@ export default function AfiliadosCadastro() {
 
     setLoading(true);
     try {
-      // Chamar API de registro com tipo de afiliado e documento
-      const response = await fetch('/api/affiliates?action=register', {
+      // Chamar API de validação prévia (Payment First)
+      const response = await fetch('/api/affiliates?action=payment-first-validate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -185,29 +185,29 @@ export default function AfiliadosCadastro() {
           password: formData.password,
           affiliate_type: formData.affiliateType,
           document: parseDocument(formData.document),
-          referral_code: referralCode || undefined
+          referred_by: referralCode || undefined
         })
       });
 
       const result = await response.json();
 
       if (result.success) {
-        // Armazenar ID do afiliado registrado
-        setRegisteredAffiliateId(result.affiliate.id);
+        // Armazenar token de sessão
+        setSessionToken(result.session_token);
         
-        // Exibir paywall ao invés de modal de sucesso
+        // Exibir paywall
         setShowPaywall(true);
       } else {
         toast({
-          title: "Erro no cadastro",
-          description: result.error || "Não foi possível criar sua conta",
+          title: "Erro na validação",
+          description: result.error || "Não foi possível validar seus dados",
           variant: "destructive"
         });
       }
     } catch (error) {
-      console.error('Erro ao cadastrar afiliado:', error);
+      console.error('Erro ao validar dados:', error);
       toast({
-        title: "Erro no cadastro",
+        title: "Erro na validação",
         description: "Ocorreu um erro inesperado. Tente novamente.",
         variant: "destructive"
       });
@@ -230,24 +230,27 @@ export default function AfiliadosCadastro() {
     navigate("/afiliados/dashboard");
   };
 
-  const handlePaywallCancel = () => {
-    // Usuário cancelou o pagamento
+  const handlePaywallBack = () => {
+    // Usuário voltou do paywall - limpar estado
+    setShowPaywall(false);
+    setSessionToken(null);
     toast({
-      title: "Cadastro pendente",
-      description: "Você pode finalizar o pagamento depois nas configurações da sua conta.",
+      title: "Cadastro cancelado",
+      description: "Você pode tentar novamente quando quiser.",
       variant: "default"
     });
-    navigate("/afiliados/dashboard");
   };
 
   // Se paywall está ativo, renderizar apenas o paywall
-  if (showPaywall && registeredAffiliateId) {
+  if (showPaywall && sessionToken) {
     return (
       <PaywallCadastro
-        affiliateId={registeredAffiliateId}
+        sessionToken={sessionToken}
         affiliateType={formData.affiliateType}
+        email={formData.email}
+        password={formData.password}
         onPaymentConfirmed={handlePaymentConfirmed}
-        onCancel={handlePaywallCancel}
+        onBack={handlePaywallBack}
       />
     );
   }
@@ -426,11 +429,14 @@ export default function AfiliadosCadastro() {
                   </Label>
                   <PasswordInput
                     id="password"
-                    placeholder="Mínimo 6 caracteres"
+                    placeholder="Mínimo 8 caracteres"
                     value={formData.password}
                     onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
                     required
                   />
+                  <p className="text-xs text-muted-foreground">
+                    Mínimo 8 caracteres
+                  </p>
                 </div>
 
                 {/* Confirmar Senha */}
@@ -489,10 +495,10 @@ export default function AfiliadosCadastro() {
                   {loading ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Criando Conta...
+                      Validando Dados...
                     </>
                   ) : (
-                    "Criar Minha Conta"
+                    "Continuar para Pagamento"
                   )}
                 </Button>
               </div>

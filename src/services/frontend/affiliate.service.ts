@@ -1528,6 +1528,44 @@ export class AffiliateFrontendService {
     }
   }
 
+  /**
+   * Valida dados de pré-cadastro para Payment First
+   * ETAPA: Payment First + Afiliados Existentes - Phase B7
+   * 
+   * @param data - Dados do formulário de cadastro
+   * @returns Resultado da validação com session_token se sucesso
+   */
+  async paymentFirstValidate(data: {
+    email: string;
+    name: string;
+    phone: string;
+    document: string;
+    affiliate_type: 'individual' | 'logista';
+    referral_code: string | null;
+    password: string;
+  }) {
+    try {
+      const response = await fetch(`${this.baseUrl}?action=payment-first-validate`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(data)
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Erro ao validar dados');
+      }
+
+      return result;
+    } catch (error) {
+      console.error('Erro ao validar dados de pré-cadastro:', error);
+      throw error;
+    }
+  }
+
 }
 
 // Instância singleton

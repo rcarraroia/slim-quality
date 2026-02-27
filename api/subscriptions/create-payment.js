@@ -63,6 +63,8 @@ export default async function handler(req, res) {
       return handleGetHistory(req, res, supabase);
     case 'get-receipt':
       return handleGetReceipt(req, res, supabase);
+    case 'create-affiliate-membership':
+      return handleCreateAffiliateMembership(req, res, supabase);
     default:
       return res.status(404).json({ success: false, error: 'Action não encontrada' });
   }
@@ -765,6 +767,190 @@ async function handleGetHistory(req, res, supabase) {
 
   } catch (error) {
     console.error('Erro em get-history:', error);
+    return res.status(500).json({ 
+      success: false, 
+      error: 'Erro interno do servidor',
+      details: error.message 
+    });
+  }
+}
+
+// ============================================
+// HANDLER: CREATE AFFILIATE MEMBERSHIP (PAYMENT FIRST)
+// Phase B3: Criar pagamento de taxa de adesão para pré-cadastro
+// ============================================
+async function handleCreateAffiliateMembership(req, res, supabase) {
+  if (req.method !== 'POST') {
+    return res.status(405).json({ 
+      success: false, 
+      error: 'Método não permitido. Use POST.' 
+    });
+  }
+
+  try {
+    const { session_token, payment_method = 'PIX' } = req.body;
+
+    if (!session_token) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'session_token é obrigatório' 
+      });
+    }
+
+    if (!['PIX', 'CREDIT_CARD'].includes(payment_method)) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'payment_method deve ser PIX ou CREDIT_CARD' 
+      });
+    }
+
+    // Buscar sessão temporária
+    const { data: session, error: sessionError } = await supabase
+      .from('payment_sessions')
+      .select('*')
+      .eq('session_token', session_token)
+      .gt('expires_at', new Date().toISOString())
+      .single();
+
+    if (sessionError || !session) {
+      return res.status(404).json({ 
+        success: false, 
+        error: 'Sessão inválida ou expirada. Por favor, preencha o formulário novamente.' 
+      });
+    }
+
+    // Buscar produto de adesão conforme tipo de afiliado
+    const { data: product, error: productError } = await supabase
+      .from('products')
+      .select('*')
+      .eq('category', 'adesao_afiliado')
+      .eq('eligible_affiliate_type', session.affiliate_type)
+      .eq('is_active', true)
+      .single();
+
+    if (productError || !product) {
+      return res.status(404).json({ 
+        success: false, 
+        error: `Produto de adesão para ${session.affiliate_type} não encontrado` 
+      });
+    }
+
+    if (!product.has_entry_fee || !product.entry_fee_cents) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Produto não possui taxa de adesão configurada' 
+      });
+    }
+
+    const amount = product.entry_fee_cents / 100; // Converter para reais
+
+    // Criar customer no Asaas (se não existir)
+    let asaasCustomerId;
+    try {
+      const customerResponse = await fetch('https://api.asaas.com/v3/customers', {
+        method: 'POST',
+        headers: {
+          'access_token': process.env.ASAAS_API_KEY,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          name: session.name,
+          email: session.email,
+          phone: session.phone,
+          cpfCnpj: session.document,
+          notificationDisabled: false
+        })
+      });
+
+      const customerData = await customerResponse.json();
+      
+      if (!customerResponse.ok) {
+        // Se customer já existe, buscar pelo CPF/CNPJ
+        if (customerData.errors?.[0]?.code === 'already_exists') {
+          const searchResponse = await fetch(
+            `https://api.asaas.com/v3/customers?cpfCnpj=${session.document}`,
+            {
+              headers: { 'access_token': process.env.ASAAS_API_KEY }
+            }
+          );
+          const searchData = await searchResponse.json();
+          asaasCustomerId = searchData.data[0]?.id;
+          
+          if (!asaasCustomerId) {
+            throw new Error('Customer já existe mas não foi encontrado na busca');
+          }
+        } else {
+          throw new Error(customerData.errors?.[0]?.description || 'Erro ao criar customer');
+        }
+      } else {
+        asaasCustomerId = customerData.id;
+      }
+    } catch (error) {
+      console.error('Erro ao criar customer Asaas:', error);
+      return res.status(500).json({ 
+        success: false, 
+        error: 'Erro ao criar customer no Asaas',
+        details: error.message 
+      });
+    }
+
+    // Criar pagamento no Asaas
+    const externalReference = `affiliate_pre_${session_token}`;
+    const dueDate = new Date().toISOString().split('T')[0]; // Hoje
+    
+    try {
+      const paymentResponse = await fetch('https://api.asaas.com/v3/payments', {
+        method: 'POST',
+        headers: {
+          'access_token': process.env.ASAAS_API_KEY,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          customer: asaasCustomerId,
+          billingType: payment_method,
+          value: amount,
+          dueDate: dueDate,
+          description: `Taxa de Adesão - ${product.name}`,
+          externalReference: externalReference
+          // Split será calculado no webhook após confirmação
+        })
+      });
+
+      const paymentData = await paymentResponse.json();
+
+      if (!paymentResponse.ok) {
+        throw new Error(paymentData.errors?.[0]?.description || 'Erro ao criar pagamento');
+      }
+
+      // Retornar dados do pagamento
+      return res.status(200).json({
+        success: true,
+        payment: {
+          id: paymentData.id,
+          payment_method: payment_method,
+          amount: amount,
+          due_date: dueDate,
+          status: 'pending',
+          external_reference: externalReference,
+          // Dados específicos do tipo de pagamento
+          qr_code: payment_method === 'PIX' ? paymentData.payload : null,
+          qr_code_image: payment_method === 'PIX' ? paymentData.encodedImage : null,
+          invoice_url: paymentData.invoiceUrl,
+          bank_slip_url: paymentData.bankSlipUrl
+        }
+      });
+
+    } catch (error) {
+      console.error('Erro ao criar pagamento Asaas:', error);
+      return res.status(500).json({ 
+        success: false, 
+        error: 'Erro ao criar pagamento no Asaas',
+        details: error.message 
+      });
+    }
+
+  } catch (error) {
+    console.error('Erro em create-affiliate-membership:', error);
     return res.status(500).json({ 
       success: false, 
       error: 'Erro interno do servidor',
