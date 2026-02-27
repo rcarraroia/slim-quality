@@ -160,7 +160,8 @@ export default function AffiliateDashboardInicio() {
     <div className="space-y-6">
       {/* Banner de Status Financeiro */}
       <AffiliateStatusBanner 
-        financialStatus={affiliate.financial_status || 'financeiro_pendente'}
+        paymentStatus={affiliate.payment_status || 'pending'}
+        hasWalletId={!!affiliate.walletId}
         onConfigureWallet={() => navigate('/afiliados/dashboard/configuracoes')}
       />
 
@@ -206,8 +207,8 @@ export default function AffiliateDashboardInicio() {
         />
       </div>
 
-      {/* Link de Indicação - ETAPA 2: Restrição por Status Financeiro */}
-      {affiliate.financial_status === 'ativo' ? (
+      {/* Link de Indicação - ETAPA 2: Restrição por Wallet ID */}
+      {affiliate.walletId ? (
         <Card className="border-2 border-primary/20 shadow-lg">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
