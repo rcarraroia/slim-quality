@@ -46,10 +46,6 @@ export const useProducts = () => {
         throw fetchError;
       }
 
-      console.log('🔍 DEBUG - Dados retornados do Supabase:', data);
-      console.log('🔍 DEBUG - Primeiro produto:', data?.[0]);
-      console.log('🔍 DEBUG - product_images do primeiro produto:', data?.[0]?.product_images);
-
       setProducts(data || []);
     } catch (err) {
       console.error('Erro ao carregar produtos:', err);
@@ -79,10 +75,6 @@ export const useProducts = () => {
   // Função para formatar produto para exibição na home
   const formatProductForHome = (product: Product) => {
     const priceInReais = product.price_cents / 100;
-
-    console.log('🔍 DEBUG - Formatando produto:', product.name);
-    console.log('🔍 DEBUG - product_images:', product.product_images);
-    console.log('🔍 DEBUG - image_url extraída:', product.product_images?.[0]?.image_url);
 
     return {
       id: product.id,
