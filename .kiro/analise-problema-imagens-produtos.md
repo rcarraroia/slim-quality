@@ -444,3 +444,48 @@ O campo `products.image_url` não é mais utilizado em nenhum lugar do código.
 - Irreversível
 
 **RECOMENDAÇÃO:** Opção A - Manter o campo mas não usar.
+
+
+---
+
+## 🔧 CORREÇÃO ADICIONAL - URLs de Imagens Inválidas
+
+**Data:** 27/02/2026  
+**Status:** ✅ RESOLVIDO
+
+### Problema Identificado:
+
+Após a implementação da OPÇÃO 1, as imagens ainda não apareciam na home e na página `/produtos`.
+
+### Causa Raiz:
+
+O produto **King Size** tinha uma URL de imagem inválida na tabela `product_images`:
+- **URL Incorreta:** `https://.../1e75c634-6b1a-4d35-b72f-2f81800f50f9/1768308540304.jpeg` (arquivo não existe - Erro 400)
+- **URL Correta:** `https://.../king/main.jpg` (arquivo existe - Status 200)
+
+### Solução Aplicada:
+
+```sql
+UPDATE product_images 
+SET image_url = 'https://vtynmmtuvxreiwcxxlma.supabase.co/storage/v1/object/public/product-images/king/main.jpg' 
+WHERE product_id = '1e75c634-6b1a-4d35-b72f-2f81800f50f9';
+```
+
+### Validação:
+
+✅ Todas as 4 imagens de produtos agora estão acessíveis (Status 200):
+- King Size: `king/main.jpg` ✅
+- Queen: `3f776f07-7492-476e-a1d3-e7b799172e44/1768308589977.jpeg` ✅
+- Casal Padrão: `ded30c6b-08ac-490d-8f09-2ea715bf6d75/1768310497679.jpeg` ✅
+- Solteiro: `f42d75b1-1109-44bb-8959-0517c73df095/1768307358893.jpeg` ✅
+
+### Resultado:
+
+**Imagens agora devem aparecer em:**
+- ✅ Home (`/`)
+- ✅ Página de Produtos (`/produtos`)
+- ✅ Show Room (painel do logista)
+
+**Instruções para o usuário:**
+- Recarregue a página (Ctrl+F5 ou Cmd+Shift+R) para limpar o cache
+- As imagens devem aparecer normalmente
