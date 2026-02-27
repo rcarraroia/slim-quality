@@ -37,6 +37,12 @@ export function Header() {
               Tecnologias
             </Link>
             <Link 
+              to="/lojas" 
+              className="text-sm font-medium transition-colors hover:text-primary"
+            >
+              Vitrine
+            </Link>
+            <Link 
               to="/afiliados" 
               className="text-sm font-medium transition-colors hover:text-primary"
             >
@@ -90,6 +96,13 @@ export function Header() {
                   onClick={() => setMobileMenuOpen(false)}
                 >
                   Tecnologias
+                </Link>
+                <Link 
+                  to="/lojas" 
+                  className="block py-3 text-lg font-medium border-b hover:text-primary transition-colors"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  Vitrine
                 </Link>
                 <Link 
                   to="/afiliados" 
