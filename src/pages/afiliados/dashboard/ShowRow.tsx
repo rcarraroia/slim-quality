@@ -120,21 +120,25 @@ export default function ShowRow() {
         {products.map((product) => (
           <Card key={product.id} className="border-2 hover:border-primary/50 transition-colors">
             <CardHeader>
-              {product.image_url ? (
-                <img
-                  src={product.image_url}
-                  alt={product.name}
-                  className="w-full h-48 object-cover rounded-lg mb-4"
-                  onError={(e) => {
-                    console.error('Erro ao carregar imagem:', product.image_url);
-                    e.currentTarget.style.display = 'none';
-                  }}
-                />
-              ) : (
-                <div className="w-full h-48 bg-muted rounded-lg mb-4 flex items-center justify-center">
+              <div className="relative w-full h-48 bg-muted rounded-lg mb-4 overflow-hidden">
+                {product.image_url ? (
+                  <img
+                    src={product.image_url}
+                    alt={product.name}
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      console.error('Erro ao carregar imagem:', product.image_url);
+                      // Mostrar fallback
+                      e.currentTarget.style.display = 'none';
+                      const fallback = e.currentTarget.nextElementSibling;
+                      if (fallback) fallback.classList.remove('hidden');
+                    }}
+                  />
+                ) : null}
+                <div className={`absolute inset-0 flex items-center justify-center ${product.image_url ? 'hidden' : ''}`}>
                   <Package className="h-16 w-16 text-muted-foreground opacity-50" />
                 </div>
-              )}
+              </div>
               <CardTitle>{product.name}</CardTitle>
               <CardDescription>{product.description}</CardDescription>
             </CardHeader>
