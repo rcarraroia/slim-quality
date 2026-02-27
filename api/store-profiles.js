@@ -186,17 +186,17 @@ async function handleSaveProfile(req, res, supabase, user) {
       .eq('affiliate_id', affiliate.id)
       .single();
 
+    // Remover campos que não existem na tabela store_profiles
+    const { affiliate_name, affiliate_email, referral_code, ...cleanProfileData } = profileData;
+
     let result;
     if (existingProfile) {
       // Atualizar
       const { data, error } = await supabase
         .from('store_profiles')
         .update({
-          ...profileData,
+          ...cleanProfileData,
           affiliate_id: affiliate.id,
-          affiliate_name: affiliate.name,
-          affiliate_email: affiliate.email,
-          referral_code: affiliate.referral_code,
           updated_at: new Date().toISOString()
         })
         .eq('id', existingProfile.id)
@@ -210,11 +210,8 @@ async function handleSaveProfile(req, res, supabase, user) {
       const { data, error } = await supabase
         .from('store_profiles')
         .insert({
-          ...profileData,
-          affiliate_id: affiliate.id,
-          affiliate_name: affiliate.name,
-          affiliate_email: affiliate.email,
-          referral_code: affiliate.referral_code
+          ...cleanProfileData,
+          affiliate_id: affiliate.id
         })
         .select()
         .single();
