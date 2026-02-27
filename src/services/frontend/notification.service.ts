@@ -28,7 +28,7 @@ class NotificationService {
       throw new Error('Usuário não autenticado');
     }
 
-    const response = await fetch('/api/notifications?action=list', {
+    const response = await fetch('/api/admin?action=list', {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${session.access_token}`,
@@ -58,7 +58,7 @@ class NotificationService {
       throw new Error('Usuário não autenticado');
     }
 
-    const response = await fetch('/api/notifications?action=mark-read', {
+    const response = await fetch('/api/admin?action=mark-read', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${session.access_token}`,
@@ -85,7 +85,7 @@ class NotificationService {
       throw new Error('Usuário não autenticado');
     }
 
-    const response = await fetch('/api/notifications?action=mark-all-read', {
+    const response = await fetch('/api/admin?action=mark-all-read', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${session.access_token}`,
