@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Edit, Trash2, Plus, Package, Upload, X } from 'lucide-react';
+import { Edit, Trash2, Plus, Package, Upload, X, Copy } from 'lucide-react';
 import { supabase } from '@/config/supabase';
 import { toast } from 'sonner';
 import {
@@ -331,6 +331,90 @@ export default function Produtos() {
     }
   };
 
+  const handleDuplicate = async (produto: Product) => {
+    try {
+      setUploading(true);
+
+      // Gerar nome único
+      const copyName = `${produto.name} (Cópia)`;
+      
+      // Gerar SKU único com timestamp
+      const timestamp = Date.now().toString(36).toUpperCase();
+      const copySku = `${produto.sku}-COPY-${timestamp}`;
+      
+      // Gerar slug único baseado no novo nome
+      const copySlug = copyName
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '');
+
+      // Dados do produto duplicado
+      const duplicatedProduct = {
+        // Campos copiados
+        name: copyName,
+        description: produto.description,
+        width_cm: produto.width_cm,
+        length_cm: produto.length_cm,
+        height_cm: produto.height_cm,
+        weight_kg: produto.weight_kg,
+        price_cents: produto.price_cents,
+        is_active: false, // Criar como inativo por segurança
+        is_featured: false, // Não duplicar destaque
+        display_order: produto.display_order,
+        product_type: produto.product_type,
+        image_url: produto.image_url,
+        product_page_url: produto.product_page_url,
+        magnetic_count: (produto as any).magnetic_count,
+        warranty_years: (produto as any).warranty_years,
+        therapeutic_technologies: (produto as any).therapeutic_technologies,
+        category: produto.category,
+        is_subscription: (produto as any).is_subscription,
+        entry_fee_cents: (produto as any).entry_fee_cents,
+        monthly_fee_cents: (produto as any).monthly_fee_cents,
+        has_entry_fee: (produto as any).has_entry_fee,
+        billing_cycle: (produto as any).billing_cycle,
+        eligible_affiliate_type: (produto as any).eligible_affiliate_type,
+        
+        // Campos únicos/resetados
+        sku: copySku,
+        slug: copySlug,
+        // id, created_at, updated_at, deleted_at são gerados automaticamente
+      };
+
+      // Inserir produto duplicado no banco
+      const { data: newProduct, error } = await supabase
+        .from('products')
+        .insert(duplicatedProduct)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      // Duplicar imagens do produto original
+      if (produto.product_images && produto.product_images.length > 0) {
+        const imagePromises = produto.product_images.map(async (img) => {
+          return supabase.from('product_images').insert({
+            product_id: newProduct.id,
+            image_url: img.image_url,
+            is_primary: produto.product_images?.indexOf(img) === 0
+          });
+        });
+
+        await Promise.all(imagePromises);
+      }
+
+      toast.success(`Produto "${copyName}" duplicado com sucesso!`);
+      loadProdutos();
+    } catch (error) {
+      console.error('Erro ao duplicar produto:', error);
+      toast.error('Erro ao duplicar produto');
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const handleDelete = async (id: string) => {
     if (!confirm('Tem certeza que deseja excluir este produto?')) return;
 
@@ -470,6 +554,16 @@ export default function Produtos() {
                   >
                     <Edit className="h-4 w-4" />
                     Editar
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex-1 gap-2 text-primary hover:text-primary"
+                    onClick={() => handleDuplicate(produto)}
+                    disabled={uploading}
+                  >
+                    <Copy className="h-4 w-4" />
+                    Duplicar
                   </Button>
                   <Button
                     variant="outline"
