@@ -510,6 +510,11 @@ $ LANGUAGE plpgsql;
 - ✅ Frete grátis para produtos Show Room
 - ✅ Prazo de entrega: mesmo dos produtos normais
 
+### UI/UX
+- ✅ **OCULTAR card "Compra via indicação" no checkout** (produtos Show Room não geram comissão para rede)
+- ✅ Mostrar badge "Frete Grátis" no checkout
+- ✅ Mostrar badge "Já adquirido" se logista já comprou o produto
+
 ---
 
 ## 🔄 AJUSTES NA IMPLEMENTAÇÃO
@@ -670,6 +675,67 @@ if (orderStatus === 'paid') {
 
 ---
 
+### FASE 3: UI/UX - OCULTAR CARD "COMPRA VIA INDICAÇÃO"
+
+#### Problema Identificado:
+No checkout de produtos Show Room, aparece o card "Compra via indicação" mostrando o nome do indicador. Isso pode confundir o logista, pois **produtos Show Room não geram comissão para a rede de afiliados**.
+
+#### Solução:
+Detectar se o carrinho contém produtos Show Room e ocultar o card "Compra via indicação".
+
+#### Implementação no Componente de Checkout:
+
+**Arquivo:** `src/components/checkout/AffiliateAwareCheckout.tsx` (ou similar)
+
+```typescript
+// Verificar se carrinho tem produtos Show Room
+const hasShowRoomProducts = cartItems.some(item => 
+  item.product?.category === 'show_row'
+);
+
+// Renderização condicional do card
+{!hasShowRoomProducts && referralCode && (
+  <Card className="border-primary/20 bg-primary/5">
+    <CardContent className="p-4">
+      <div className="flex items-center gap-3">
+        <Users className="h-5 w-5 text-primary" />
+        <div>
+          <p className="text-sm font-medium">Compra via indicação</p>
+          <p className="text-xs text-muted-foreground">
+            Código: {referralCode}
+          </p>
+          <p className="text-xs text-muted-foreground">
+            Sua compra ajudará quem te indicou a ganhar comissão!
+          </p>
+        </div>
+      </div>
+    </CardContent>
+  </Card>
+)}
+
+{/* Adicionar comentário explicativo */}
+{hasShowRoomProducts && (
+  <div className="text-xs text-muted-foreground italic">
+    * Produtos Show Room não geram comissão para rede de afiliados
+  </div>
+)}
+```
+
+#### Badge "Frete Grátis":
+
+```typescript
+{hasShowRoomProducts && (
+  <div className="flex items-center gap-2 text-sm">
+    <Badge variant="secondary" className="bg-success/10 text-success">
+      <Truck className="h-3 w-3 mr-1" />
+      Frete Grátis
+    </Badge>
+  </div>
+)}
+```
+
+---
+
 ## 📋 CHECKLIST DE IMPLEMENTAÇÃO ATUALIZADO
 
 ### FASE 0: PREPARAÇÃO DO BANCO
@@ -701,11 +767,18 @@ if (orderStatus === 'paid') {
   - [ ] Adicionar lógica Show Room
   - [ ] Testar função SQL
 
-### FASE 3: FRETE GRÁTIS
+### FASE 3: FRETE GRÁTIS E UI/UX
 - [ ] Atualizar cálculo de frete no checkout
   - [ ] Detectar produtos Show Room
   - [ ] Zerar valor do frete
   - [ ] Mostrar "Frete Grátis" na UI
+- [ ] **Ocultar card "Compra via indicação" no checkout**
+  - [ ] Detectar se carrinho tem produtos Show Room
+  - [ ] Ocultar card se for Show Room
+  - [ ] Adicionar comentário explicativo no código
+- [ ] Adicionar badges visuais
+  - [ ] Badge "Frete Grátis" no checkout
+  - [ ] Badge "Já adquirido" na lista de produtos (se já comprou)
 
 ### FASE 4: TESTES E VALIDAÇÃO
 - [ ] Criar cenário de teste completo
@@ -773,11 +846,13 @@ if (orderStatus === 'paid') {
 - Migration SQL: 1 hora
 - Testes: 2 horas
 
-**Fase 3 (Frete Grátis):** 1 hora
+**Fase 3 (Frete Grátis + UI/UX):** 2 horas
 - Lógica de frete: 30 min
-- UI: 30 min
+- Ocultar card "Compra via indicação": 30 min
+- Badges visuais: 30 min
+- Testes: 30 min
 
-**Total:** 7-9 horas de desenvolvimento + testes
+**Total:** 8-10 horas de desenvolvimento + testes
 
 ---
 
