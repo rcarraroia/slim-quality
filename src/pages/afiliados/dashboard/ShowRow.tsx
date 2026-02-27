@@ -88,7 +88,7 @@ export default function ShowRow() {
     return (
       <div className="space-y-6 animate-fade-in">
         <div className="flex flex-col gap-2">
-          <h2 className="text-3xl font-bold tracking-tight">Show Row</h2>
+          <h2 className="text-3xl font-bold tracking-tight">Show Room</h2>
           <p className="text-muted-foreground">
             Produtos exclusivos para Logistas parceiros.
           </p>
@@ -97,7 +97,7 @@ export default function ShowRow() {
         <Card>
           <CardContent className="py-10 text-center text-muted-foreground">
             <AlertCircle className="h-12 w-12 mx-auto mb-4 opacity-50" />
-            <p>Nenhum produto Show Row disponível no momento.</p>
+            <p>Nenhum produto Show Room disponível no momento.</p>
             <p className="text-sm mt-2">Novos produtos serão adicionados em breve.</p>
           </CardContent>
         </Card>
@@ -109,7 +109,7 @@ export default function ShowRow() {
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex flex-col gap-2">
-        <h2 className="text-3xl font-bold tracking-tight">Show Row</h2>
+        <h2 className="text-3xl font-bold tracking-tight">Show Room</h2>
         <p className="text-muted-foreground">
           Produtos exclusivos para Logistas parceiros da Slim Quality.
         </p>
@@ -120,12 +120,20 @@ export default function ShowRow() {
         {products.map((product) => (
           <Card key={product.id} className="border-2 hover:border-primary/50 transition-colors">
             <CardHeader>
-              {product.image_url && (
+              {product.image_url ? (
                 <img
                   src={product.image_url}
                   alt={product.name}
                   className="w-full h-48 object-cover rounded-lg mb-4"
+                  onError={(e) => {
+                    console.error('Erro ao carregar imagem:', product.image_url);
+                    e.currentTarget.style.display = 'none';
+                  }}
                 />
+              ) : (
+                <div className="w-full h-48 bg-muted rounded-lg mb-4 flex items-center justify-center">
+                  <Package className="h-16 w-16 text-muted-foreground opacity-50" />
+                </div>
               )}
               <CardTitle>{product.name}</CardTitle>
               <CardDescription>{product.description}</CardDescription>
@@ -171,7 +179,7 @@ export default function ShowRow() {
                   sku: selectedProduct.sku,
                   price_cents: selectedProduct.price_cents
                 }}
-                isDigital={false} // Produtos Show Row são físicos
+                isDigital={false} // Produtos Show Room são físicos
                 onClose={() => setIsCheckoutOpen(false)}
                 onOrderComplete={(orderId) => {
                   setIsCheckoutOpen(false);

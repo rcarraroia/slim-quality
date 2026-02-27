@@ -632,7 +632,7 @@ export default function Produtos() {
                     <SelectItem value="accessory">Acessório</SelectItem>
                     <SelectItem value="ferramenta_ia">Agente IA (Digital)</SelectItem>
                     <SelectItem value="servico_digital">Serviço Digital</SelectItem>
-                    <SelectItem value="show_row">Show Row</SelectItem>
+                    <SelectItem value="show_row">Show Room</SelectItem>
                     <SelectItem value="adesao_afiliado">Adesão de Afiliado</SelectItem>
                   </SelectContent>
                 </Select>
