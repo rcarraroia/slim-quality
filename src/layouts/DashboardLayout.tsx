@@ -23,7 +23,8 @@ import {
   Lightbulb,
   ShoppingCart,
   Megaphone,
-  Plug // Fix: Adicionado Plug que estava faltando
+  Plug, // Fix: Adicionado Plug que estava faltando
+  Bell
 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
