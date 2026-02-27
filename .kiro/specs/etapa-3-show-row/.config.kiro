@@ -1,0 +1,15 @@
+{
+  "name": "etapa-3-show-row",
+  "version": "1.0.0",
+  "description": "ETAPA 3: Produtos Show Row - Categoria exclusiva para Logistas",
+  "status": "pending_approval",
+  "created_at": "2026-02-24",
+  "dependencies": [
+    "etapa-1-tipos-afiliados"
+  ],
+  "reference_pattern": {
+    "layout": "src/layouts/AffiliateDashboardLayout.tsx",
+    "page": "src/pages/afiliados/dashboard/FerramentasIA.tsx",
+    "category": "ferramenta_ia"
+  }
+}

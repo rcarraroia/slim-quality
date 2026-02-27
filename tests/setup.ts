@@ -3,6 +3,7 @@
  */
 
 import { vi } from 'vitest';
+import '@testing-library/jest-dom/vitest';
 
 // Configurar variáveis de ambiente básicas
 process.env.NODE_ENV = 'test';

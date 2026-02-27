@@ -18,7 +18,7 @@ export function interpolateMaterial(
 ): string {
     if (!text) return "";
 
-    let processedCheck = text;
+    const processedCheck = text;
 
     // 1. Construir o Link do Afiliado
     // Prioridade: Slug > Referral Code

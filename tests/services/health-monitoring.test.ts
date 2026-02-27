@@ -120,8 +120,9 @@ describe('HealthMonitoringService', () => {
       const healthStatus = await healthService.checkSystemHealth();
       const report = healthService.generateHealthReport(healthStatus);
 
-      // Verificar se inclui ícones de status
-      expect(report).toMatch(/[✅⚠️❌]/);
+      // Verificar se inclui ícones de status (usando includes ao invés de regex)
+      const hasStatusIcons = report.includes('✅') || report.includes('⚠️') || report.includes('❌');
+      expect(hasStatusIcons).toBe(true);
       
       // Verificar se inclui informações de duração
       expect(report).toMatch(/\d+ms/);

@@ -227,7 +227,7 @@ describe('Subscription API Integration Tests', () => {
 
       // Verify no subscription route is just a direct API route
       const noDirectApiRoutes = subscriptionRoutes.every(route => 
-        !route.match(/^\/api\/[^\/]+$/)
+        !route.match(/^\/api\/[^/]+$/)
       );
 
       expect(allRoutesHaveNamespace).toBe(true);

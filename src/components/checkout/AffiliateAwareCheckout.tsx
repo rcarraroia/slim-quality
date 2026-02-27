@@ -210,7 +210,7 @@ export default function AffiliateAwareCheckout({
           return;
         }
 
-        userId = userId; // Mantém o ID encontrado ou criado
+        // userId já está definido (encontrado ou criado)
       }
 
       // Se for digital e ainda não tivermos userId, erro crítico

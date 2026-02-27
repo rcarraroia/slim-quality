@@ -195,8 +195,9 @@ describe('DocumentUtils', () => {
       expect(documentUtils.detectType('12345678901')).toBe('CPF');
     });
 
-    it('deve exportar funções individuais', () => {
-      const { detectType, normalize, format } = require('../../src/utils/document-utils');
+    it('deve exportar funções individuais', async () => {
+      const documentUtilsModule = await import('../../src/utils/document-utils');
+      const { detectType, normalize, format } = documentUtilsModule;
       
       expect(typeof detectType).toBe('function');
       expect(typeof normalize).toBe('function');

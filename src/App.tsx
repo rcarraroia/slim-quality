@@ -48,12 +48,18 @@ import AffiliateDashboardRede from "./pages/afiliados/dashboard/MinhaRede";
 import AffiliateDashboardComissoes from "./pages/afiliados/dashboard/Comissoes";
 import AffiliateDashboardVendas from "./pages/afiliados/dashboard/Vendas";
 import AffiliateDashboardRecebimentos from "./pages/afiliados/dashboard/Recebimentos";
+import AffiliateDashboardPagamentos from "./pages/afiliados/dashboard/Pagamentos";
 import AffiliateDashboardEstatisticas from "./pages/afiliados/dashboard/Estatisticas";
 import FerramentasIA from "./pages/afiliados/dashboard/FerramentasIA";
+import ShowRow from "./pages/afiliados/dashboard/ShowRow";
+import Loja from "./pages/afiliados/dashboard/Loja";
 import AffiliateDashboardConfiguracoes from "./pages/afiliados/dashboard/Configuracoes";
 import NotificacoesAfiliado from "./pages/afiliados/dashboard/Notificacoes";
 import TermosAfiliados from "./pages/afiliados/TermosAfiliados";
+import Showcase from "./pages/lojas/Showcase";
+import StoreDetail from "./pages/lojas/StoreDetail";
 import Notificacoes from "./pages/dashboard/Notificacoes";
+import NotificacoesAdmin from "./pages/dashboard/NotificacoesAdmin";
 import CustomerInicio from "./pages/minha-conta/Inicio";
 import CustomerPedidos from "./pages/minha-conta/Pedidos";
 import CustomerDados from "./pages/minha-conta/Dados";
@@ -89,6 +95,8 @@ const App = () => (
                 <Route path="/tecnologias" element={<Sobre />} />
                 <Route path="/afiliados" element={<AfiliadosLanding />} />
                 <Route path="/termos-afiliados" element={<TermosAfiliados />} />
+                <Route path="/lojas" element={<Showcase />} />
+                <Route path="/lojas/:slug" element={<StoreDetail />} />
               </Route>
 
               {/* Auth routes without header/footer */}
@@ -137,6 +145,7 @@ const App = () => (
                 
                 {/* Notificações Admin */}
                 <Route path="notificacoes" element={<Notificacoes />} />
+                <Route path="notificacoes-admin" element={<NotificacoesAdmin />} />
               </Route>
 
               {/* 3. CONTEXTO AFILIADO (Dashboard do Afiliado) */}
@@ -146,8 +155,11 @@ const App = () => (
                 <Route path="comissoes" element={<AffiliateDashboardComissoes />} />
                 <Route path="vendas" element={<AffiliateDashboardVendas />} />
                 <Route path="recebimentos" element={<AffiliateDashboardRecebimentos />} />
+                <Route path="pagamentos" element={<AffiliateDashboardPagamentos />} />
                 <Route path="estatisticas" element={<AffiliateDashboardEstatisticas />} />
                 <Route path="ferramentas-ia" element={<FerramentasIA />} />
+                <Route path="show-row" element={<ShowRow />} />
+                <Route path="loja" element={<Loja />} />
                 <Route path="materiais" element={<AffiliateMaterials />} /> {/* Rota de Materiais */}
                 <Route path="notificacoes" element={<NotificacoesAfiliado />} />
                 <Route path="configuracoes" element={<AffiliateDashboardConfiguracoes />} />

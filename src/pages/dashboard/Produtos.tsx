@@ -68,11 +68,18 @@ export default function Produtos() {
     category: 'mattress', // Default
     status: 'active',
     featured: false,
-    display_order: '0'
+    display_order: '0',
+    // Campos de assinatura (Task 2.2)
+    entry_fee: '',
+    monthly_fee: '',
+    has_entry_fee: false,
+    billing_cycle: 'monthly',
+    eligible_affiliate_type: 'individual'
   });
 
   // Derivado para facilitar lógica na UI
   const isDigital = formData.category === 'ferramenta_ia';
+  const isAdesaoAfiliado = formData.category === 'adesao_afiliado';
 
   useEffect(() => {
     loadProdutos();
@@ -118,7 +125,13 @@ export default function Produtos() {
       category: produto.category || 'colchao',
       status: produto.is_active ? 'active' : 'inactive',
       featured: produto.is_featured,
-      display_order: produto.display_order?.toString() ?? '0'
+      display_order: produto.display_order?.toString() ?? '0',
+      // Campos de assinatura
+      entry_fee: (produto as any).entry_fee_cents ? ((produto as any).entry_fee_cents / 100).toString() : '',
+      monthly_fee: (produto as any).monthly_fee_cents ? ((produto as any).monthly_fee_cents / 100).toString() : '',
+      has_entry_fee: (produto as any).has_entry_fee ?? false,
+      billing_cycle: (produto as any).billing_cycle || 'monthly',
+      eligible_affiliate_type: (produto as any).eligible_affiliate_type || 'individual'
     });
     // Limpar imagens do modal anterior
     setImageFiles([]);
@@ -144,7 +157,13 @@ export default function Produtos() {
       category: 'colchao',
       status: 'active',
       featured: false,
-      display_order: '0'
+      display_order: '0',
+      // Campos de assinatura
+      entry_fee: '',
+      monthly_fee: '',
+      has_entry_fee: false,
+      billing_cycle: 'monthly',
+      eligible_affiliate_type: 'individual'
     });
     setImageFiles([]);
     setImagePreviews([]);
@@ -239,18 +258,25 @@ export default function Produtos() {
         sku: formData.sku || `COL-${Date.now().toString(36).toUpperCase()}`,
         description: formData.description || null,
         price_cents: Math.round(parseFloat(formData.price) * 100),
-        // Se for digital, força valores nulos para físicos e tipo service
-        width_cm: isDigital ? null : parseFloat(formData.width_cm),
-        length_cm: isDigital ? null : parseFloat(formData.length_cm),
-        height_cm: isDigital ? null : parseFloat(formData.height_cm),
-        weight_kg: isDigital ? null : (formData.weight ? parseFloat(formData.weight) : null),
-        product_type: isDigital ? 'service' : formData.product_type,
+        // Se for digital ou adesão, força valores nulos para físicos e tipo service
+        width_cm: (isDigital || isAdesaoAfiliado) ? null : parseFloat(formData.width_cm),
+        length_cm: (isDigital || isAdesaoAfiliado) ? null : parseFloat(formData.length_cm),
+        height_cm: (isDigital || isAdesaoAfiliado) ? null : parseFloat(formData.height_cm),
+        weight_kg: (isDigital || isAdesaoAfiliado) ? null : (formData.weight ? parseFloat(formData.weight) : null),
+        product_type: (isDigital || isAdesaoAfiliado) ? 'service' : formData.product_type,
         category: formData.category,
 
-        // Campos opcionais de colchão zerados se for digital
-        magnetic_count: isDigital ? null : (formData.magnetic_count ? parseInt(formData.magnetic_count) : null),
-        warranty_years: isDigital ? null : (formData.warranty_years ? parseInt(formData.warranty_years) : null),
-        therapeutic_technologies: isDigital ? null : (formData.therapeutic_technologies ? parseInt(formData.therapeutic_technologies) : null),
+        // Campos opcionais de colchão zerados se for digital ou adesão
+        magnetic_count: (isDigital || isAdesaoAfiliado) ? null : (formData.magnetic_count ? parseInt(formData.magnetic_count) : null),
+        warranty_years: (isDigital || isAdesaoAfiliado) ? null : (formData.warranty_years ? parseInt(formData.warranty_years) : null),
+        therapeutic_technologies: (isDigital || isAdesaoAfiliado) ? null : (formData.therapeutic_technologies ? parseInt(formData.therapeutic_technologies) : null),
+
+        // Campos de assinatura (apenas para adesao_afiliado)
+        entry_fee_cents: isAdesaoAfiliado && formData.entry_fee ? Math.round(parseFloat(formData.entry_fee) * 100) : null,
+        monthly_fee_cents: isAdesaoAfiliado && formData.monthly_fee ? Math.round(parseFloat(formData.monthly_fee) * 100) : null,
+        has_entry_fee: isAdesaoAfiliado ? formData.has_entry_fee : null,
+        billing_cycle: isAdesaoAfiliado ? formData.billing_cycle : null,
+        eligible_affiliate_type: isAdesaoAfiliado ? formData.eligible_affiliate_type : null,
 
         is_active: formData.status === 'active',
         is_featured: formData.featured,
@@ -497,8 +523,8 @@ export default function Produtos() {
                   onValueChange={(value) => setFormData({
                     ...formData,
                     category: value,
-                    // Se mudar para IA, já ajusta o tipo para service
-                    product_type: value === 'ferramenta_ia' ? 'service' : 'mattress'
+                    // Se mudar para IA ou adesão, já ajusta o tipo para service
+                    product_type: (value === 'ferramenta_ia' || value === 'adesao_afiliado') ? 'service' : 'mattress'
                   })}
                 >
                   <SelectTrigger>
@@ -509,6 +535,9 @@ export default function Produtos() {
                     <SelectItem value="pillow">Travesseiro</SelectItem>
                     <SelectItem value="accessory">Acessório</SelectItem>
                     <SelectItem value="ferramenta_ia">Agente IA (Digital)</SelectItem>
+                    <SelectItem value="servico_digital">Serviço Digital</SelectItem>
+                    <SelectItem value="show_row">Show Row</SelectItem>
+                    <SelectItem value="adesao_afiliado">Adesão de Afiliado</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -523,6 +552,95 @@ export default function Produtos() {
                 onChange={(e) => setFormData({ ...formData, price: e.target.value })}
               />
             </div>
+
+            {/* Campos de Assinatura - Apenas para adesao_afiliado */}
+            {isAdesaoAfiliado && (
+              <div className="space-y-4 border-l-2 border-primary pl-4 bg-primary/5 p-4 rounded-r-lg">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-sm font-semibold text-primary">Configurações de Assinatura</span>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Tipo de Afiliado Elegível *</Label>
+                  <Select
+                    value={formData.eligible_affiliate_type}
+                    onValueChange={(value) => setFormData({ ...formData, eligible_affiliate_type: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="individual">Individual</SelectItem>
+                      <SelectItem value="logista">Logista</SelectItem>
+                      <SelectItem value="ambos">Ambos</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    Define qual tipo de afiliado pode adquirir este produto
+                  </p>
+                </div>
+
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    id="has_entry_fee"
+                    checked={formData.has_entry_fee}
+                    onChange={(e) => setFormData({ ...formData, has_entry_fee: e.target.checked })}
+                    className="rounded border-gray-300"
+                  />
+                  <Label htmlFor="has_entry_fee">Cobrar Taxa de Adesão</Label>
+                </div>
+
+                {formData.has_entry_fee && (
+                  <div className="space-y-2">
+                    <Label>Valor da Taxa de Adesão (R$) *</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      placeholder="297.00"
+                      value={formData.entry_fee}
+                      onChange={(e) => setFormData({ ...formData, entry_fee: e.target.value })}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Taxa única cobrada no momento do cadastro
+                    </p>
+                  </div>
+                )}
+
+                <div className="space-y-2">
+                  <Label>Valor da Mensalidade (R$)</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    placeholder="97.00"
+                    value={formData.monthly_fee}
+                    onChange={(e) => setFormData({ ...formData, monthly_fee: e.target.value })}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Deixe vazio se não houver mensalidade recorrente
+                  </p>
+                </div>
+
+                {formData.monthly_fee && (
+                  <div className="space-y-2">
+                    <Label>Ciclo de Cobrança</Label>
+                    <Select
+                      value={formData.billing_cycle}
+                      onValueChange={(value) => setFormData({ ...formData, billing_cycle: value })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="monthly">Mensal</SelectItem>
+                        <SelectItem value="quarterly">Trimestral</SelectItem>
+                        <SelectItem value="yearly">Anual</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Campos Físicos - Apenas se não for Digital */}
             {!isDigital && (
@@ -725,7 +843,13 @@ export default function Produtos() {
             </Button>
             <Button
               onClick={handleSave}
-              disabled={uploading || !formData.name || !formData.price || (!isDigital && (!formData.width_cm || !formData.length_cm || !formData.height_cm))}
+              disabled={
+                uploading || 
+                !formData.name || 
+                !formData.price || 
+                (!isDigital && !isAdesaoAfiliado && (!formData.width_cm || !formData.length_cm || !formData.height_cm)) ||
+                (isAdesaoAfiliado && formData.has_entry_fee && !formData.entry_fee)
+              }
             >
               {uploading ? 'Salvando...' : 'Salvar'}
             </Button>

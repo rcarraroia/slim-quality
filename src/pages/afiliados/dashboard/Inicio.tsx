@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { StatusBadge } from "@/components/dashboard/StatusBadge";
+import { AffiliateStatusBanner } from "@/components/affiliates/AffiliateStatusBanner";
 import {
   Users,
   DollarSign,
@@ -157,6 +158,12 @@ export default function AffiliateDashboardInicio() {
 
   return (
     <div className="space-y-6">
+      {/* Banner de Status Financeiro */}
+      <AffiliateStatusBanner 
+        financialStatus={affiliate.financial_status || 'financeiro_pendente'}
+        onConfigureWallet={() => navigate('/afiliados/dashboard/configuracoes')}
+      />
+
       {/* Aviso se usando dados de fallback */}
       {error && (
         <Card className="border-orange-200 bg-orange-50 dark:bg-orange-950 dark:border-orange-800">
@@ -199,141 +206,163 @@ export default function AffiliateDashboardInicio() {
         />
       </div>
 
-      {/* Link de Indicação */}
-      <Card className="border-2 border-primary/20 shadow-lg">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <LinkIcon className="h-5 w-5 text-primary" />
-            Seus Links de Indicação
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {/* Link de Vendas */}
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-muted-foreground">
-              LINK DE VENDAS:
-            </label>
-            <div className="flex gap-2">
-              <Input 
-                value={referralLink || "Carregando..."} 
-                readOnly 
-                className="font-mono text-sm"
-              />
-              <Button onClick={handleCopyLink} variant="outline" size="icon" disabled={!referralLink} title="Copiar link">
-                <Copy className="h-4 w-4" />
-              </Button>
-              <Button onClick={handleShare} variant="outline" size="icon" disabled={!referralLink} title="Compartilhar">
-                <Share2 className="h-4 w-4" />
-              </Button>
-              <Button 
-                onClick={() => setShowQRCode(!showQRCode)} 
-                variant="outline"
-                size="icon"
-                disabled={!referralLink}
-                title="QR Code"
-              >
-                <QrCode className="h-4 w-4" />
-              </Button>
+      {/* Link de Indicação - ETAPA 2: Restrição por Status Financeiro */}
+      {affiliate.financial_status === 'ativo' ? (
+        <Card className="border-2 border-primary/20 shadow-lg">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <LinkIcon className="h-5 w-5 text-primary" />
+              Seus Links de Indicação
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {/* Link de Vendas */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-muted-foreground">
+                LINK DE VENDAS:
+              </label>
+              <div className="flex gap-2">
+                <Input 
+                  value={referralLink || "Carregando..."} 
+                  readOnly 
+                  className="font-mono text-sm"
+                />
+                <Button onClick={handleCopyLink} variant="outline" size="icon" disabled={!referralLink} title="Copiar link">
+                  <Copy className="h-4 w-4" />
+                </Button>
+                <Button onClick={handleShare} variant="outline" size="icon" disabled={!referralLink} title="Compartilhar">
+                  <Share2 className="h-4 w-4" />
+                </Button>
+                <Button 
+                  onClick={() => setShowQRCode(!showQRCode)} 
+                  variant="outline"
+                  size="icon"
+                  disabled={!referralLink}
+                  title="QR Code"
+                >
+                  <QrCode className="h-4 w-4" />
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Use este link para divulgar os produtos e gerar vendas
+              </p>
             </div>
-            <p className="text-xs text-muted-foreground">
-              Use este link para divulgar os produtos e gerar vendas
-            </p>
-          </div>
 
-          {/* Link de Cadastro Direto */}
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-muted-foreground">
-              LINK DE CADASTRO DIRETO:
-            </label>
-            <div className="flex gap-2">
-              <Input 
-                value={referralLink ? `https://slimquality.com.br/afiliados/cadastro?ref=${referralLink.split('?ref=')[1]}` : "Carregando..."} 
-                readOnly 
-                className="font-mono text-sm"
-              />
-              <Button 
-                onClick={() => {
-                  const cadastroLink = `https://slimquality.com.br/afiliados/cadastro?ref=${referralLink.split('?ref=')[1]}`;
-                  navigator.clipboard.writeText(cadastroLink);
-                  toast({
-                    title: "Link copiado!",
-                    description: "Link de cadastro direto copiado para a área de transferência.",
-                  });
-                }} 
-                variant="outline" 
-                size="icon" 
-                disabled={!referralLink}
-                title="Copiar link"
-              >
-                <Copy className="h-4 w-4" />
-              </Button>
-              <Button 
-                onClick={() => {
-                  const cadastroLink = `https://slimquality.com.br/afiliados/cadastro?ref=${referralLink.split('?ref=')[1]}`;
-                  if (navigator.share) {
-                    navigator.share({
-                      title: "Seja um Afiliado Slim Quality",
-                      text: "Cadastre-se como afiliado e comece a ganhar comissões!",
-                      url: cadastroLink
-                    });
-                  } else {
+            {/* Link de Cadastro Direto */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-muted-foreground">
+                LINK DE CADASTRO DIRETO:
+              </label>
+              <div className="flex gap-2">
+                <Input 
+                  value={referralLink ? `https://slimquality.com.br/afiliados/cadastro?ref=${referralLink.split('?ref=')[1]}` : "Carregando..."} 
+                  readOnly 
+                  className="font-mono text-sm"
+                />
+                <Button 
+                  onClick={() => {
+                    const cadastroLink = `https://slimquality.com.br/afiliados/cadastro?ref=${referralLink.split('?ref=')[1]}`;
                     navigator.clipboard.writeText(cadastroLink);
                     toast({
                       title: "Link copiado!",
                       description: "Link de cadastro direto copiado para a área de transferência.",
                     });
-                  }
-                }} 
-                variant="outline" 
-                size="icon" 
-                disabled={!referralLink}
-                title="Compartilhar"
-              >
-                <Share2 className="h-4 w-4" />
-              </Button>
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Use este link para recrutar novos afiliados diretamente
-            </p>
-          </div>
-
-          {showQRCode && referralLink && (
-            <div className="flex flex-col items-center gap-3 p-6 bg-muted rounded-lg">
-              <div className="w-48 h-48 bg-white p-4 rounded-lg border-2 flex items-center justify-center">
-                {/* QR Code usando API externa gratuita */}
-                <img 
-                  src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(referralLink)}`}
-                  alt="QR Code do link de indicação"
-                  className="w-full h-full object-contain"
-                  onError={(e) => {
-                    // Fallback se API externa falhar
-                    const target = e.target as HTMLImageElement;
-                    target.style.display = 'none';
-                    target.nextElementSibling!.classList.remove('hidden');
-                  }}
-                />
-                <div className="hidden w-full h-full bg-foreground/10 flex items-center justify-center text-xs text-center">
-                  QR Code
-                  <br />
-                  {referralLink}
-                </div>
+                  }} 
+                  variant="outline" 
+                  size="icon" 
+                  disabled={!referralLink}
+                  title="Copiar link"
+                >
+                  <Copy className="h-4 w-4" />
+                </Button>
+                <Button 
+                  onClick={() => {
+                    const cadastroLink = `https://slimquality.com.br/afiliados/cadastro?ref=${referralLink.split('?ref=')[1]}`;
+                    if (navigator.share) {
+                      navigator.share({
+                        title: "Seja um Afiliado Slim Quality",
+                        text: "Cadastre-se como afiliado e comece a ganhar comissões!",
+                        url: cadastroLink
+                      });
+                    } else {
+                      navigator.clipboard.writeText(cadastroLink);
+                      toast({
+                        title: "Link copiado!",
+                        description: "Link de cadastro direto copiado para a área de transferência.",
+                      });
+                    }
+                  }} 
+                  variant="outline" 
+                  size="icon" 
+                  disabled={!referralLink}
+                  title="Compartilhar"
+                >
+                  <Share2 className="h-4 w-4" />
+                </Button>
               </div>
-              <p className="text-sm text-muted-foreground text-center">
-                Escaneie o QR Code para acessar seu link de vendas
+              <p className="text-xs text-muted-foreground">
+                Use este link para recrutar novos afiliados diretamente
               </p>
             </div>
-          )}
 
-          <div className="flex gap-3 pt-2">
-            <Button variant="outline" className="flex-1">
-              Compartilhar no WhatsApp
+            {showQRCode && referralLink && (
+              <div className="flex flex-col items-center gap-3 p-6 bg-muted rounded-lg">
+                <div className="w-48 h-48 bg-white p-4 rounded-lg border-2 flex items-center justify-center">
+                  {/* QR Code usando API externa gratuita */}
+                  <img 
+                    src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(referralLink)}`}
+                    alt="QR Code do link de indicação"
+                    className="w-full h-full object-contain"
+                    onError={(e) => {
+                      // Fallback se API externa falhar
+                      const target = e.target as HTMLImageElement;
+                      target.style.display = 'none';
+                      target.nextElementSibling!.classList.remove('hidden');
+                    }}
+                  />
+                  <div className="hidden w-full h-full bg-foreground/10 flex items-center justify-center text-xs text-center">
+                    QR Code
+                    <br />
+                    {referralLink}
+                  </div>
+                </div>
+                <p className="text-sm text-muted-foreground text-center">
+                  Escaneie o QR Code para acessar seu link de vendas
+                </p>
+              </div>
+            )}
+
+            <div className="flex gap-3 pt-2">
+              <Button variant="outline" className="flex-1">
+                Compartilhar no WhatsApp
+              </Button>
+              <Button variant="outline" className="flex-1">
+                Baixar Materiais
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      ) : (
+        <Card className="border-2 border-orange-200 bg-orange-50 dark:bg-orange-950 dark:border-orange-800">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-orange-900 dark:text-orange-200">
+              <AlertCircle className="h-5 w-5" />
+              Link de Indicação Bloqueado
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-orange-800 dark:text-orange-300">
+              Configure sua carteira digital para liberar seu link de indicação e começar a receber comissões.
+            </p>
+            <Button 
+              onClick={() => navigate('/afiliados/dashboard/configuracoes')}
+              className="w-full"
+            >
+              Configurar Wallet Agora
             </Button>
-            <Button variant="outline" className="flex-1">
-              Baixar Materiais
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Comissões Recentes */}

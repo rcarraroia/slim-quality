@@ -1,0 +1,7 @@
+{
+  "name": "etapa-4-vitrine-publica",
+  "version": "1.0.0",
+  "status": "draft",
+  "created": "2026-02-25",
+  "dependencies": ["etapa-1-tipos-afiliados"]
+}

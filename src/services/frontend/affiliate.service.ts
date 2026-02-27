@@ -25,6 +25,8 @@ export interface AffiliateData {
   referralCode: string;
   slug?: string;  // ✅ NOVO - Slug personalizado
   walletId: string;
+  affiliate_type?: 'individual' | 'logista'; // ✅ NOVO - Tipo de afiliado (ETAPA 1)
+  payment_status?: 'active' | 'overdue' | 'suspended'; // ✅ CRÍTICO - ETAPA 5: Status de pagamento
   status: 'pending' | 'active' | 'inactive' | 'suspended' | 'rejected';
   totalClicks: number;
   totalConversions: number;
@@ -288,6 +290,7 @@ export class AffiliateFrontendService {
         referralCode: affiliateData.referral_code,
         slug: affiliateData.slug,
         walletId: affiliateData.wallet_id,
+        affiliate_type: affiliateData.affiliate_type, // ✅ NOVO - ETAPA 1
         status: affiliateData.status,
         totalClicks: affiliateData.total_clicks || 0,
         totalConversions: affiliateData.total_conversions || 0,
@@ -796,7 +799,7 @@ export class AffiliateFrontendService {
         return { isAffiliate: false };
       }
 
-      // Buscar afiliado pelo user_id
+      // Buscar afiliado pelo user_id - INCLUINDO payment_status
       const { data: affiliateData, error } = await supabase
         .from('affiliates')
         .select('*')
@@ -821,6 +824,8 @@ export class AffiliateFrontendService {
         referralCode: affiliateData.referral_code,
         slug: affiliateData.slug,
         walletId: affiliateData.wallet_id,
+        affiliate_type: affiliateData.affiliate_type, // ✅ NOVO - ETAPA 1
+        payment_status: affiliateData.payment_status, // ✅ CRÍTICO - ETAPA 5: Campo para banner de inadimplência
         status: affiliateData.status,
         totalClicks: affiliateData.total_clicks || 0,
         totalConversions: affiliateData.total_conversions || 0,

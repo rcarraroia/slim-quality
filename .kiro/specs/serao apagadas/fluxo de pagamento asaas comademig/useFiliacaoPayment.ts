@@ -748,12 +748,8 @@ export function useFiliacaoPayment({ selectedMemberType, affiliateInfo, usePayme
   });
 
   const processarFiliacaoComPagamento = async (data: FiliacaoPaymentData) => {
-    try {
-      const result = await processFiliacaoPaymentMutation.mutateAsync(data);
-      return result;
-    } catch (error) {
-      throw error;
-    }
+    const result = await processFiliacaoPaymentMutation.mutateAsync(data);
+    return result;
   };
 
   return {

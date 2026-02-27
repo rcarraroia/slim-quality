@@ -196,7 +196,8 @@ describe('DocumentUtils', () => {
     });
 
     it('deve exportar funções individuais', () => {
-      const { detectType, normalize, format } = require('../document-utils');
+      const documentUtilsModule = await import('../document-utils');
+      const { detectType, normalize, format } = documentUtilsModule;
       
       expect(typeof detectType).toBe('function');
       expect(typeof normalize).toBe('function');

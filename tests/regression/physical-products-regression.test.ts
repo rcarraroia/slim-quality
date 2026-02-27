@@ -63,10 +63,10 @@ describe('🔄 REGRESSÃO: Sistema de Produtos Físicos', () => {
   
   describe('🛒 APIs e Rotas', () => {
     
-    it('deve verificar que estrutura de APIs não foi afetada', () => {
+    it('deve verificar que estrutura de APIs não foi afetada', async () => {
       // Verificar que arquivos de API existem (se implementados)
-      const fs = require('fs');
-      const path = require('path');
+      const fs = await import('fs');
+      const path = await import('path');
       
       const possiveisAPIs = [
         'src/api/routes/products.ts',
@@ -86,10 +86,10 @@ describe('🔄 REGRESSÃO: Sistema de Produtos Físicos', () => {
       expect(true).toBe(true);
     });
     
-    it('deve verificar que rotas de assinaturas são isoladas', () => {
+    it('deve verificar que rotas de assinaturas são isoladas', async () => {
       // Verificar que rotas de assinaturas não conflitam
-      const fs = require('fs');
-      const path = require('path');
+      const fs = await import('fs');
+      const path = await import('path');
       
       const rotasAssinaturas = 'src/api/routes/subscriptions.ts';
       const fullPath = path.join(process.cwd(), rotasAssinaturas);
@@ -109,9 +109,9 @@ describe('🔄 REGRESSÃO: Sistema de Produtos Físicos', () => {
   
   describe('🔗 Webhooks e Integrações', () => {
     
-    it('deve verificar que webhook de assinaturas não conflita com produtos físicos', () => {
-      const fs = require('fs');
-      const path = require('path');
+    it('deve verificar que webhook de assinaturas não conflita com produtos físicos', async () => {
+      const fs = await import('fs');
+      const path = await import('path');
       
       // Verificar que webhook de assinaturas usa rota isolada
       const webhookAssinaturas = 'supabase/functions/process-webhook/index.ts';
@@ -180,10 +180,10 @@ describe('🔄 REGRESSÃO: Sistema de Produtos Físicos', () => {
   
   describe('📱 Frontend e Componentes', () => {
     
-    it('deve manter componentes de produtos físicos funcionando', () => {
+    it('deve manter componentes de produtos físicos funcionando', async () => {
       // Verificar que arquivos de componentes existem
-      const fs = require('fs');
-      const path = require('path');
+      const fs = await import('fs');
+      const path = await import('path');
       
       const componentesEssenciais = [
         'src/components/products/',

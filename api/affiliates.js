@@ -3,6 +3,7 @@
  * Reduz de 7 para 1 Serverless Function
  * 
  * Rotas:
+ * - POST ?action=register
  * - GET  ?action=balance
  * - POST ?action=export
  * - GET  ?action=referral-link
@@ -47,6 +48,8 @@ export default async function handler(req, res) {
 
   // Roteamento
   switch (action) {
+    case 'register':
+      return handleRegister(req, res, supabase);
     case 'balance':
       return handleBalance(req, res, supabase);
     case 'export':
@@ -61,9 +64,345 @@ export default async function handler(req, res) {
       return handleWithdrawals(req, res, supabase);
     case 'notifications':
       return handleNotifications(req, res, supabase);
+    case 'create-asaas-account':
+      return handleCreateAsaasAccount(req, res, supabase);
+    case 'configure-wallet':
+      return handleConfigureWallet(req, res, supabase);
     default:
       return res.status(404).json({ success: false, error: 'Action não encontrada' });
   }
+}
+
+// ============================================
+// HANDLER: REGISTER
+// ============================================
+async function handleRegister(req, res, supabase) {
+  if (req.method !== 'POST') {
+    return res.status(405).json({ 
+      success: false, 
+      error: 'Método não permitido. Use POST.' 
+    });
+  }
+
+  try {
+    const { 
+      name, 
+      email, 
+      phone, 
+      password, 
+      affiliate_type, 
+      document, 
+      referral_code 
+    } = req.body;
+
+    // ============================================
+    // VALIDAÇÕES DE CAMPOS OBRIGATÓRIOS
+    // ============================================
+    
+    if (!name || !email || !password || !affiliate_type) {
+      return res.status(400).json({
+        success: false,
+        error: 'Campos obrigatórios: name, email, password, affiliate_type',
+        field: !name ? 'name' : !email ? 'email' : !password ? 'password' : 'affiliate_type'
+      });
+    }
+
+    // ============================================
+    // VALIDAÇÃO DE AFFILIATE_TYPE
+    // ============================================
+    
+    if (!['individual', 'logista'].includes(affiliate_type)) {
+      return res.status(400).json({
+        success: false,
+        error: 'affiliate_type deve ser "individual" ou "logista"',
+        field: 'affiliate_type'
+      });
+    }
+
+    // ============================================
+    // VALIDAÇÃO DE DOCUMENT
+    // ============================================
+    
+    // Remover formatação do documento
+    const cleanDocument = document ? document.replace(/\D/g, '') : '';
+
+    // Validar comprimento baseado no tipo
+    if (affiliate_type === 'individual') {
+      if (cleanDocument.length !== 11) {
+        return res.status(400).json({
+          success: false,
+          error: 'CPF deve ter 11 dígitos',
+          field: 'document'
+        });
+      }
+
+      // Validar dígitos verificadores do CPF
+      if (!validateCPF(cleanDocument)) {
+        return res.status(400).json({
+          success: false,
+          error: 'CPF inválido. Verifique os dígitos.',
+          field: 'document'
+        });
+      }
+    } else if (affiliate_type === 'logista') {
+      if (!cleanDocument || cleanDocument.length === 0) {
+        return res.status(400).json({
+          success: false,
+          error: 'CNPJ é obrigatório para Logistas',
+          field: 'document'
+        });
+      }
+
+      if (cleanDocument.length !== 14) {
+        return res.status(400).json({
+          success: false,
+          error: 'CNPJ deve ter 14 dígitos',
+          field: 'document'
+        });
+      }
+
+      // Validar dígitos verificadores do CNPJ
+      if (!validateCNPJ(cleanDocument)) {
+        return res.status(400).json({
+          success: false,
+          error: 'CNPJ inválido. Verifique os dígitos.',
+          field: 'document'
+        });
+      }
+    }
+
+    // ============================================
+    // VERIFICAR DUPLICATAS
+    // ============================================
+    
+    // Verificar se email já existe
+    const { data: existingEmail } = await supabase
+      .from('affiliates')
+      .select('id')
+      .eq('email', email)
+      .single();
+
+    if (existingEmail) {
+      return res.status(409).json({
+        success: false,
+        error: 'Email já cadastrado',
+        field: 'email'
+      });
+    }
+
+    // Verificar se document já existe
+    if (cleanDocument) {
+      const { data: existingDocument } = await supabase
+        .from('affiliates')
+        .select('id')
+        .eq('document', cleanDocument)
+        .single();
+
+      if (existingDocument) {
+        return res.status(409).json({
+          success: false,
+          error: affiliate_type === 'individual' ? 'CPF já cadastrado' : 'CNPJ já cadastrado',
+          field: 'document'
+        });
+      }
+    }
+
+    // ============================================
+    // CRIAR USUÁRIO NO SUPABASE AUTH
+    // ============================================
+    
+    const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true,
+      user_metadata: {
+        name,
+        affiliate_type
+      }
+    });
+
+    if (authError) {
+      console.error('Erro ao criar usuário:', authError);
+      return res.status(500).json({
+        success: false,
+        error: 'Erro ao criar usuário. Tente novamente.',
+        details: authError.message
+      });
+    }
+
+    const userId = authData.user.id;
+
+    // ============================================
+    // GERAR REFERRAL CODE ÚNICO
+    // ============================================
+    
+    const referralCode = generateReferralCode();
+
+    // ============================================
+    // CRIAR REGISTRO NA TABELA AFFILIATES
+    // ============================================
+    
+    const { data: affiliate, error: affiliateError } = await supabase
+      .from('affiliates')
+      .insert({
+        user_id: userId,
+        name,
+        email,
+        phone: phone || null,
+        document: cleanDocument,
+        document_type: affiliate_type === 'individual' ? 'CPF' : 'CNPJ',
+        affiliate_type,
+        financial_status: 'financeiro_pendente',
+        referral_code: referralCode,
+        referred_by: referral_code ? await getReferredBy(supabase, referral_code) : null,
+        status: 'pending'
+      })
+      .select()
+      .single();
+
+    if (affiliateError) {
+      console.error('Erro ao criar afiliado:', affiliateError);
+      
+      // Cleanup: deletar usuário criado no Auth
+      try {
+        await supabase.auth.admin.deleteUser(userId);
+      } catch (cleanupError) {
+        console.error('Erro ao fazer cleanup do usuário:', cleanupError);
+      }
+
+      return res.status(500).json({
+        success: false,
+        error: 'Erro ao criar registro de afiliado. Tente novamente.',
+        details: affiliateError.message
+      });
+    }
+
+    // ============================================
+    // RETORNAR SUCESSO
+    // ============================================
+    
+    return res.status(201).json({
+      success: true,
+      data: {
+        id: affiliate.id,
+        name: affiliate.name,
+        email: affiliate.email,
+        affiliate_type: affiliate.affiliate_type,
+        financial_status: affiliate.financial_status,
+        referral_code: affiliate.referral_code,
+        status: affiliate.status
+      }
+    });
+
+  } catch (error) {
+    console.error('Erro inesperado no registro:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Erro interno do servidor',
+      details: error.message
+    });
+  }
+}
+
+// ============================================
+// FUNÇÕES AUXILIARES PARA REGISTRO
+// ============================================
+
+/**
+ * Valida CPF brasileiro
+ */
+function validateCPF(cpf) {
+  // Verificar se todos os dígitos são iguais
+  if (/^(\d)\1{10}$/.test(cpf)) {
+    return false;
+  }
+
+  // Calcular primeiro dígito verificador
+  let sum = 0;
+  for (let i = 0; i < 9; i++) {
+    sum += parseInt(cpf.charAt(i)) * (10 - i);
+  }
+  let digit1 = 11 - (sum % 11);
+  if (digit1 >= 10) digit1 = 0;
+
+  // Calcular segundo dígito verificador
+  sum = 0;
+  for (let i = 0; i < 10; i++) {
+    sum += parseInt(cpf.charAt(i)) * (11 - i);
+  }
+  let digit2 = 11 - (sum % 11);
+  if (digit2 >= 10) digit2 = 0;
+
+  // Verificar se os dígitos calculados correspondem aos informados
+  return (
+    parseInt(cpf.charAt(9)) === digit1 &&
+    parseInt(cpf.charAt(10)) === digit2
+  );
+}
+
+/**
+ * Valida CNPJ brasileiro
+ */
+function validateCNPJ(cnpj) {
+  // Verificar se todos os dígitos são iguais
+  if (/^(\d)\1{13}$/.test(cnpj)) {
+    return false;
+  }
+
+  // Pesos para cálculo do primeiro dígito
+  const weights1 = [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
+
+  // Calcular primeiro dígito verificador
+  let sum = 0;
+  for (let i = 0; i < 12; i++) {
+    sum += parseInt(cnpj.charAt(i)) * weights1[i];
+  }
+  let digit1 = sum % 11;
+  digit1 = digit1 < 2 ? 0 : 11 - digit1;
+
+  // Pesos para cálculo do segundo dígito
+  const weights2 = [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
+
+  // Calcular segundo dígito verificador
+  sum = 0;
+  for (let i = 0; i < 13; i++) {
+    sum += parseInt(cnpj.charAt(i)) * weights2[i];
+  }
+  let digit2 = sum % 11;
+  digit2 = digit2 < 2 ? 0 : 11 - digit2;
+
+  // Verificar se os dígitos calculados correspondem aos informados
+  return (
+    parseInt(cnpj.charAt(12)) === digit1 &&
+    parseInt(cnpj.charAt(13)) === digit2
+  );
+}
+
+/**
+ * Gera um código de indicação único
+ */
+function generateReferralCode() {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  let code = '';
+  for (let i = 0; i < 8; i++) {
+    code += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return code;
+}
+
+/**
+ * Busca o ID do afiliado que indicou (referred_by)
+ */
+async function getReferredBy(supabase, referralCode) {
+  if (!referralCode) return null;
+
+  const { data } = await supabase
+    .from('affiliates')
+    .select('id')
+    .eq('referral_code', referralCode)
+    .single();
+
+  return data ? data.id : null;
 }
 
 // ============================================
@@ -185,9 +524,18 @@ async function handleReferralLink(req, res, supabase) {
 
     const { data: affiliateData } = await supabase
       .from('affiliates')
-      .select('slug, referral_code')
+      .select('slug, referral_code, financial_status')
       .eq('id', affiliate.id)
       .single();
+
+    // ETAPA 2: Verificar se afiliado tem status financeiro ativo
+    if (affiliateData.financial_status !== 'ativo') {
+      return res.status(403).json({
+        success: false,
+        error: 'Configure sua carteira digital para gerar link de indicação',
+        code: 'FINANCIAL_STATUS_PENDING'
+      });
+    }
 
     const identifier = affiliateData.slug || affiliateData.referral_code;
     const baseUrl = 'https://slimquality.com.br';
@@ -922,4 +1270,371 @@ async function generateNetworkCSV(supabase, affiliateId) {
   }).join('\n');
 
   return { csv: header + rows };
+}
+
+// ============================================
+// HANDLER: CREATE ASAAS ACCOUNT (ETAPA 2)
+// ============================================
+async function handleCreateAsaasAccount(req, res, supabase) {
+  if (req.method !== 'POST') {
+    return res.status(405).json({ 
+      success: false, 
+      error: 'Método não permitido. Use POST.' 
+    });
+  }
+
+  try {
+    // Autenticar afiliado
+    const { user, affiliate } = await authenticateAffiliate(req, supabase);
+    if (!affiliate) {
+      return res.status(404).json({ 
+        success: false, 
+        error: 'Afiliado não encontrado' 
+      });
+    }
+
+    // Buscar dados completos do afiliado
+    const { data: affiliateData, error: affiliateError } = await supabase
+      .from('affiliates')
+      .select('*')
+      .eq('id', affiliate.id)
+      .single();
+
+    if (affiliateError || !affiliateData) {
+      return res.status(404).json({ 
+        success: false, 
+        error: 'Dados do afiliado não encontrados' 
+      });
+    }
+
+    // Verificar se já tem wallet configurada
+    if (affiliateData.wallet_id) {
+      return res.status(400).json({
+        success: false,
+        error: 'Você já possui uma wallet configurada. Entre em contato com o suporte para alterações.'
+      });
+    }
+
+    // Extrair dados do body
+    const { 
+      name, 
+      email, 
+      cpfCnpj, 
+      mobilePhone, 
+      incomeValue, 
+      address, 
+      addressNumber, 
+      province, 
+      postalCode 
+    } = req.body;
+
+    // ============================================
+    // VALIDAÇÕES DE CAMPOS OBRIGATÓRIOS
+    // ============================================
+    
+    if (!name || !email || !cpfCnpj || !mobilePhone || !incomeValue || 
+        !address || !addressNumber || !province || !postalCode) {
+      return res.status(400).json({
+        success: false,
+        error: 'Todos os campos são obrigatórios',
+        field: !name ? 'name' : !email ? 'email' : !cpfCnpj ? 'cpfCnpj' : 
+               !mobilePhone ? 'mobilePhone' : !incomeValue ? 'incomeValue' :
+               !address ? 'address' : !addressNumber ? 'addressNumber' :
+               !province ? 'province' : 'postalCode'
+      });
+    }
+
+    // Validar formato de CPF/CNPJ
+    const cleanDocument = cpfCnpj.replace(/\D/g, '');
+    if (cleanDocument.length !== 11 && cleanDocument.length !== 14) {
+      return res.status(400).json({
+        success: false,
+        error: 'CPF deve ter 11 dígitos ou CNPJ deve ter 14 dígitos',
+        field: 'cpfCnpj'
+      });
+    }
+
+    // Validar formato de CEP
+    const cleanPostalCode = postalCode.replace(/\D/g, '');
+    if (cleanPostalCode.length !== 8) {
+      return res.status(400).json({
+        success: false,
+        error: 'CEP deve ter 8 dígitos',
+        field: 'postalCode'
+      });
+    }
+
+    // Validar incomeValue
+    const income = parseFloat(incomeValue);
+    if (isNaN(income) || income <= 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Renda/Faturamento deve ser um valor positivo',
+        field: 'incomeValue'
+      });
+    }
+
+    // ============================================
+    // INTEGRAÇÃO COM API ASAAS
+    // ============================================
+    
+    const asaasApiKey = process.env.ASAAS_API_KEY;
+    if (!asaasApiKey) {
+      console.error('[CreateAsaasAccount] ASAAS_API_KEY não configurada');
+      return res.status(500).json({
+        success: false,
+        error: 'Configuração do servidor incompleta'
+      });
+    }
+
+    // Montar payload para API Asaas
+    const asaasPayload = {
+      name,
+      email,
+      cpfCnpj: cleanDocument,
+      mobilePhone,
+      incomeValue: income,
+      address,
+      addressNumber,
+      province,
+      postalCode: cleanPostalCode
+    };
+
+    console.log('[CreateAsaasAccount] Enviando requisição para Asaas:', { email, cpfCnpj: cleanDocument });
+
+    // Fazer requisição para API Asaas
+    const asaasResponse = await fetch('https://api.asaas.com/v3/accounts', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'access_token': asaasApiKey
+      },
+      body: JSON.stringify(asaasPayload)
+    });
+
+    const asaasData = await asaasResponse.json();
+
+    // Tratar erros da API Asaas
+    if (!asaasResponse.ok) {
+      console.error('[CreateAsaasAccount] Erro da API Asaas:', asaasData);
+
+      // Erro 409: Email ou CPF/CNPJ já cadastrado
+      if (asaasResponse.status === 409) {
+        return res.status(409).json({
+          success: false,
+          error: 'Email ou CPF/CNPJ já cadastrado no Asaas. Use a opção "Já tenho conta".'
+        });
+      }
+
+      // Erro 400: Validação de campos
+      if (asaasResponse.status === 400) {
+        const errorMessage = asaasData.errors?.[0]?.description || 'Dados inválidos';
+        return res.status(400).json({
+          success: false,
+          error: errorMessage,
+          field: asaasData.errors?.[0]?.field
+        });
+      }
+
+      // Outros erros
+      return res.status(500).json({
+        success: false,
+        error: 'Erro ao criar conta no Asaas. Tente novamente.',
+        details: asaasData.errors?.[0]?.description
+      });
+    }
+
+    // Extrair walletId (UUID) e apiKey da resposta
+    const walletId = asaasData.walletId;
+    const apiKey = asaasData.apiKey;
+
+    if (!walletId) {
+      console.error('[CreateAsaasAccount] walletId não retornado pela API Asaas:', asaasData);
+      return res.status(500).json({
+        success: false,
+        error: 'Erro ao obter Wallet ID da conta criada'
+      });
+    }
+
+    console.log('[CreateAsaasAccount] Conta criada com sucesso:', { 
+      walletId, 
+      accountId: asaasData.id,
+      hasApiKey: !!apiKey 
+    });
+
+    // ============================================
+    // RETORNAR SUCESSO
+    // ============================================
+    
+    return res.status(201).json({
+      success: true,
+      data: {
+        walletId,
+        accountId: asaasData.id,
+        apiKey: apiKey || undefined,
+        message: 'Conta criada com sucesso'
+      }
+    });
+
+  } catch (error) {
+    console.error('[CreateAsaasAccount] Erro inesperado:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Erro interno do servidor',
+      details: error.message
+    });
+  }
+}
+
+// ============================================
+// HANDLER: CONFIGURE WALLET (ETAPA 2)
+// ============================================
+async function handleConfigureWallet(req, res, supabase) {
+  if (req.method !== 'POST') {
+    return res.status(405).json({ 
+      success: false, 
+      error: 'Método não permitido. Use POST.' 
+    });
+  }
+
+  try {
+    // Autenticar afiliado
+    const { user, affiliate } = await authenticateAffiliate(req, supabase);
+    if (!affiliate) {
+      return res.status(404).json({ 
+        success: false, 
+        error: 'Afiliado não encontrado' 
+      });
+    }
+
+    // Buscar dados completos do afiliado
+    const { data: affiliateData, error: affiliateError } = await supabase
+      .from('affiliates')
+      .select('*')
+      .eq('id', affiliate.id)
+      .single();
+
+    if (affiliateError || !affiliateData) {
+      return res.status(404).json({ 
+        success: false, 
+        error: 'Dados do afiliado não encontrados' 
+      });
+    }
+
+    // Verificar se já tem wallet configurada
+    if (affiliateData.wallet_id) {
+      return res.status(400).json({
+        success: false,
+        error: 'Você já possui uma wallet configurada. Entre em contato com o suporte para alterações.'
+      });
+    }
+
+    // Extrair walletId do body
+    const { walletId } = req.body;
+
+    if (!walletId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Wallet ID é obrigatório',
+        field: 'walletId'
+      });
+    }
+
+    // ============================================
+    // VALIDAÇÃO DE FORMATO UUID
+    // ============================================
+    
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+    
+    if (!uuidRegex.test(walletId)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Formato de Wallet ID inválido. Use formato UUID: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
+        field: 'walletId'
+      });
+    }
+
+    // ============================================
+    // VERIFICAR DUPLICAÇÃO (CONSTRAINT UNIQUE)
+    // ============================================
+    
+    const { data: existingWallet } = await supabase
+      .from('affiliates')
+      .select('id')
+      .eq('wallet_id', walletId)
+      .is('deleted_at', null)
+      .single();
+
+    if (existingWallet) {
+      return res.status(409).json({
+        success: false,
+        error: 'Esta wallet já está cadastrada para outro afiliado.'
+      });
+    }
+
+    // ============================================
+    // ATUALIZAR AFILIADO (TRANSAÇÃO ATÔMICA)
+    // ============================================
+    
+    const now = new Date().toISOString();
+    
+    const { data: updatedAffiliate, error: updateError } = await supabase
+      .from('affiliates')
+      .update({
+        wallet_id: walletId,
+        financial_status: 'ativo',
+        wallet_configured_at: now,
+        onboarding_completed: true,
+        updated_at: now
+      })
+      .eq('id', affiliate.id)
+      .select()
+      .single();
+
+    if (updateError) {
+      console.error('[ConfigureWallet] Erro ao atualizar afiliado:', updateError);
+      
+      // Verificar se é erro de constraint UNIQUE
+      if (updateError.code === '23505') {
+        return res.status(409).json({
+          success: false,
+          error: 'Esta wallet já está cadastrada para outro afiliado.'
+        });
+      }
+      
+      return res.status(500).json({
+        success: false,
+        error: 'Erro ao configurar wallet. Tente novamente.',
+        details: updateError.message
+      });
+    }
+
+    console.log('[ConfigureWallet] Wallet configurada com sucesso:', {
+      affiliateId: affiliate.id,
+      walletId,
+      financial_status: 'ativo'
+    });
+
+    // ============================================
+    // RETORNAR SUCESSO
+    // ============================================
+    
+    return res.status(200).json({
+      success: true,
+      data: {
+        affiliateId: updatedAffiliate.id,
+        walletId: updatedAffiliate.wallet_id,
+        financial_status: updatedAffiliate.financial_status,
+        message: 'Wallet configurada com sucesso'
+      }
+    });
+
+  } catch (error) {
+    console.error('[ConfigureWallet] Erro inesperado:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Erro interno do servidor',
+      details: error.message
+    });
+  }
 }

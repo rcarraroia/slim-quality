@@ -35,21 +35,37 @@ export default async function handler(req, res) {
     const event = req.body;
     const { event: eventType, payment, subscription: subscriptionData } = event;
     
+    // Extrair externalReference para roteamento
+    const externalRef = payment?.externalReference || '';
+    
+    // ============================================================
+    // ROTEAMENTO 1: EVENTOS DE AFILIADOS (NOVO)
+    // ============================================================
+    if (externalRef.startsWith('affiliate_')) {
+      console.log('[WH-Assinaturas] 🔄 Enfileirando evento de afiliado:', externalRef);
+      await enqueueAffiliateWebhook(supabase, event);
+      return res.status(200).json({ success: true, type: 'affiliate_queued' });
+    }
+    
+    // ============================================================
+    // ROTEAMENTO 2: PAYMENT FIRST (EXISTENTE)
+    // ============================================================
+    if (externalRef.startsWith('subscription_')) {
+      console.log('[WH-Assinaturas] 🔄 Processando Payment First:', externalRef);
+      await handlePaymentFirstConfirmed(supabase, payment);
+      return res.status(200).json({ success: true, type: 'payment_first' });
+    }
+    
+    // ============================================================
+    // ROTEAMENTO 3: ASSINATURAS RECORRENTES (EXISTENTE)
+    // ============================================================
     // Extrair ID da assinatura (pode vir no campo subscription do pagamento ou no objeto subscription direto)
     const asaasSubscriptionId = subscriptionData?.id || payment?.subscription;
 
     console.log(`[WH-Assinaturas] 🔔 Evento ${eventType} recebido para Assinatura ${asaasSubscriptionId}`);
 
     if (!asaasSubscriptionId) {
-      // Verificar se é Payment First via externalReference
-      const externalRef = payment?.externalReference;
-      if (externalRef && externalRef.startsWith('subscription_')) {
-        console.log('[WH-Assinaturas] 🔄 Processando Payment First:', externalRef);
-        await handlePaymentFirstConfirmed(supabase, payment);
-        return res.status(200).json({ success: true, type: 'payment_first' });
-      }
-      
-      console.log('[WH-Assinaturas] ⚠️ Evento ignorado: não é assinatura nem Payment First');
+      console.log('[WH-Assinaturas] ⚠️ Evento ignorado: não é assinatura recorrente');
       return res.status(200).json({ received: true, message: 'Sem ID de assinatura' });
     }
 
@@ -179,6 +195,88 @@ async function handleSubscriptionDeleted(supabase, asaasSubscriptionId) {
         suspended_at: new Date().toISOString()
       })
       .eq('id', sub.tenant_id);
+  }
+}
+
+/**
+ * Enfileira evento de afiliado para processamento assíncrono
+ * Usa tabela subscription_webhook_events (já existe)
+ * Será processado pela Edge Function process-affiliate-webhooks
+ */
+async function enqueueAffiliateWebhook(supabase, event) {
+  const startTime = Date.now();
+  const { payment } = event;
+  
+  console.log('[WH-Afiliados] 📥 Enfileirando evento:', {
+    eventType: event.event,
+    paymentId: payment.id,
+    externalRef: payment.externalReference,
+    value: payment.value,
+    status: payment.status
+  });
+
+  try {
+    // ============================================================
+    // ETAPA 1: IDEMPOTÊNCIA - Verificar se evento já foi enfileirado
+    // ============================================================
+    const { data: existing } = await supabase
+      .from('subscription_webhook_events')
+      .select('id, processed')
+      .eq('asaas_event_id', payment.id)
+      .eq('event_type', event.event)
+      .single();
+
+    if (existing) {
+      console.log('[WH-Afiliados] ⚠️ Evento já enfileirado:', {
+        queueId: existing.id,
+        processed: existing.processed
+      });
+      return { success: true, duplicate: true, queueId: existing.id };
+    }
+
+    // ============================================================
+    // ETAPA 2: ENFILEIRAR EVENTO
+    // ============================================================
+    const { data: queued, error } = await supabase
+      .from('subscription_webhook_events')
+      .insert({
+        asaas_event_id: payment.id,
+        event_type: event.event,
+        payload: event,
+        processed: false, // Marca como não processado
+        created_at: new Date().toISOString()
+      })
+      .select('id')
+      .single();
+
+    if (error) {
+      console.error('[WH-Afiliados] ❌ Erro ao enfileirar:', error);
+      throw error;
+    }
+
+    const processingTime = Date.now() - startTime;
+    console.log('[WH-Afiliados] ✅ Evento enfileirado com sucesso:', {
+      queueId: queued.id,
+      paymentId: payment.id,
+      eventType: event.event,
+      processingTimeMs: processingTime
+    });
+
+    return { 
+      success: true, 
+      queueId: queued.id,
+      processingTimeMs: processingTime
+    };
+
+  } catch (error) {
+    const processingTime = Date.now() - startTime;
+    console.error('[WH-Afiliados] 💥 ERRO ao enfileirar:', {
+      error: error.message,
+      stack: error.stack,
+      paymentId: payment.id,
+      processingTimeMs: processingTime
+    });
+    throw error;
   }
 }
 

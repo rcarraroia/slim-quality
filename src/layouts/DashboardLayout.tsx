@@ -86,7 +86,8 @@ export function DashboardLayout() {
     { label: 'Minha Rede', path: '/dashboard/afiliados/minha-rede', icon: Users },
     { label: 'Comissões', path: '/dashboard/afiliados/comissoes', icon: DollarSign },
     { label: 'Solicitações', path: '/dashboard/afiliados/solicitacoes', icon: CreditCard },
-    { label: 'Materiais', path: '/dashboard/afiliados/materiais', icon: Megaphone }, // Movido para cá
+    { label: 'Materiais', path: '/dashboard/afiliados/materiais', icon: Megaphone },
+    { label: 'Notificações', path: '/dashboard/notificacoes-admin', icon: Bell },
   ];
 
   const agentSubmenu = [

@@ -6,18 +6,21 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { CheckCircle2, Loader2, UserCheck } from "lucide-react";
+import { CheckCircle2, Loader2, UserCheck, AlertCircle } from "lucide-react";
 import { useCustomerAuth } from "@/hooks/useCustomerAuth";
 import { supabase } from "@/config/supabase";
 import { STORAGE_KEYS } from "@/constants/storage-keys";
 import { PasswordInput } from "@/components/ui/password-input";
+import { validateCPF, validateCNPJ, formatCPF, formatCNPJ, parseDocument } from "@/utils/validators";
+import PaywallCadastro from "@/components/PaywallCadastro";
 
 export default function AfiliadosCadastro() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [searchParams] = useSearchParams();
-  const { registerWithAffiliate, isAuthenticated } = useCustomerAuth();
+  const { isAuthenticated } = useCustomerAuth();
   const [showSuccess, setShowSuccess] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -26,15 +29,23 @@ export default function AfiliadosCadastro() {
   const [referrerName, setReferrerName] = useState<string | null>(null);
   const [referralCode, setReferralCode] = useState<string | null>(null);
 
-  // Form data - Campos essenciais + senha
+  // Estado para paywall
+  const [showPaywall, setShowPaywall] = useState(false);
+  const [registeredAffiliateId, setRegisteredAffiliateId] = useState<string | null>(null);
+
+  // Form data - Campos essenciais + senha + tipo de afiliado
   const [formData, setFormData] = useState({
     name: "",
-    cpf: "",
+    affiliateType: "individual" as "individual" | "logista",
+    document: "",
     email: "",
     phone: "",
     password: "",
     confirmPassword: ""
   });
+
+  // Estado para erros de validação
+  const [documentError, setDocumentError] = useState<string | null>(null);
 
   // Redirecionar se já autenticado
   useEffect(() => {
@@ -95,13 +106,51 @@ export default function AfiliadosCadastro() {
     }
 
     // Validar campos obrigatórios
-    if (!formData.name || !formData.email || !formData.phone || !formData.password) {
+    if (!formData.name || !formData.email || !formData.phone || !formData.password || !formData.document) {
       toast({
         title: "Campos obrigatórios",
         description: "Preencha todos os campos obrigatórios",
         variant: "destructive"
       });
       return;
+    }
+
+    // Validar documento baseado no tipo
+    const cleanDoc = parseDocument(formData.document);
+    if (formData.affiliateType === 'individual') {
+      if (cleanDoc.length !== 11) {
+        toast({
+          title: "CPF inválido",
+          description: "O CPF deve ter 11 dígitos",
+          variant: "destructive"
+        });
+        return;
+      }
+      if (!validateCPF(cleanDoc)) {
+        toast({
+          title: "CPF inválido",
+          description: "Verifique os dígitos do CPF informado",
+          variant: "destructive"
+        });
+        return;
+      }
+    } else {
+      if (cleanDoc.length !== 14) {
+        toast({
+          title: "CNPJ inválido",
+          description: "O CNPJ deve ter 14 dígitos",
+          variant: "destructive"
+        });
+        return;
+      }
+      if (!validateCNPJ(cleanDoc)) {
+        toast({
+          title: "CNPJ inválido",
+          description: "Verifique os dígitos do CNPJ informado",
+          variant: "destructive"
+        });
+        return;
+      }
     }
 
     // Validar senha
@@ -125,17 +174,29 @@ export default function AfiliadosCadastro() {
 
     setLoading(true);
     try {
-      // Usar customerAuthService.registerWithAffiliate
-      const result = await registerWithAffiliate({
-        name: formData.name,
-        email: formData.email,
-        phone: formData.phone,
-        password: formData.password,
-        referralCode: referralCode || undefined
+      // Chamar API de registro com tipo de afiliado e documento
+      const response = await fetch('/api/affiliates?action=register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: formData.name,
+          email: formData.email,
+          phone: formData.phone,
+          password: formData.password,
+          affiliate_type: formData.affiliateType,
+          document: parseDocument(formData.document),
+          referral_code: referralCode || undefined
+        })
       });
 
+      const result = await response.json();
+
       if (result.success) {
-        setShowSuccess(true);
+        // Armazenar ID do afiliado registrado
+        setRegisteredAffiliateId(result.affiliate.id);
+        
+        // Exibir paywall ao invés de modal de sucesso
+        setShowPaywall(true);
       } else {
         toast({
           title: "Erro no cadastro",
@@ -160,6 +221,38 @@ export default function AfiliadosCadastro() {
     navigate("/afiliados/dashboard");
   };
 
+  const handlePaymentConfirmed = () => {
+    // Pagamento confirmado - redirecionar para dashboard
+    toast({
+      title: "Pagamento confirmado!",
+      description: "Sua conta foi ativada com sucesso. Bem-vindo!",
+    });
+    navigate("/afiliados/dashboard");
+  };
+
+  const handlePaywallCancel = () => {
+    // Usuário cancelou o pagamento
+    toast({
+      title: "Cadastro pendente",
+      description: "Você pode finalizar o pagamento depois nas configurações da sua conta.",
+      variant: "default"
+    });
+    navigate("/afiliados/dashboard");
+  };
+
+  // Se paywall está ativo, renderizar apenas o paywall
+  if (showPaywall && registeredAffiliateId) {
+    return (
+      <PaywallCadastro
+        affiliateId={registeredAffiliateId}
+        affiliateType={formData.affiliateType}
+        onPaymentConfirmed={handlePaymentConfirmed}
+        onCancel={handlePaywallCancel}
+      />
+    );
+  }
+
+  // Caso contrário, renderizar formulário de cadastro
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5 py-12 px-4">
       <div className="max-w-2xl mx-auto">
@@ -205,18 +298,96 @@ export default function AfiliadosCadastro() {
                   />
                 </div>
 
-                {/* CPF - Largura Total */}
+                {/* Tipo de Afiliado */}
                 <div className="space-y-2">
-                  <Label htmlFor="cpf">
-                    CPF <span className="text-destructive">*</span>
+                  <Label htmlFor="affiliateType">
+                    Tipo de Afiliado <span className="text-destructive">*</span>
+                  </Label>
+                  <Select
+                    value={formData.affiliateType}
+                    onValueChange={(value: "individual" | "logista") => {
+                      setFormData(prev => ({ ...prev, affiliateType: value, document: "" }));
+                      setDocumentError(null);
+                    }}
+                  >
+                    <SelectTrigger id="affiliateType">
+                      <SelectValue placeholder="Selecione o tipo" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="individual">Individual (Pessoa Física)</SelectItem>
+                      <SelectItem value="logista">Logista (Loja Física)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    {formData.affiliateType === 'individual' 
+                      ? 'Para pessoas físicas que desejam indicar produtos'
+                      : 'Para lojas físicas que desejam revender produtos'}
+                  </p>
+                </div>
+
+                {/* Documento (CPF ou CNPJ) - Condicional */}
+                <div className="space-y-2">
+                  <Label htmlFor="document">
+                    {formData.affiliateType === 'individual' ? 'CPF' : 'CNPJ'} <span className="text-destructive">*</span>
                   </Label>
                   <Input
-                    id="cpf"
-                    placeholder="000.000.000-00"
-                    value={formData.cpf}
-                    onChange={(e) => setFormData(prev => ({ ...prev, cpf: e.target.value }))}
+                    id="document"
+                    placeholder={formData.affiliateType === 'individual' ? '000.000.000-00' : '00.000.000/0000-00'}
+                    value={formData.document}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      const cleanValue = parseDocument(value);
+                      
+                      // Aplicar formatação
+                      let formatted = value;
+                      if (formData.affiliateType === 'individual' && cleanValue.length <= 11) {
+                        formatted = formatCPF(cleanValue);
+                      } else if (formData.affiliateType === 'logista' && cleanValue.length <= 14) {
+                        formatted = formatCNPJ(cleanValue);
+                      }
+                      
+                      setFormData(prev => ({ ...prev, document: formatted }));
+                      
+                      // Validar em tempo real
+                      if (cleanValue.length > 0) {
+                        if (formData.affiliateType === 'individual') {
+                          if (cleanValue.length === 11) {
+                            if (!validateCPF(cleanValue)) {
+                              setDocumentError('CPF inválido. Verifique os dígitos.');
+                            } else {
+                              setDocumentError(null);
+                            }
+                          } else if (cleanValue.length > 11) {
+                            setDocumentError('CPF deve ter 11 dígitos.');
+                          } else {
+                            setDocumentError(null);
+                          }
+                        } else {
+                          if (cleanValue.length === 14) {
+                            if (!validateCNPJ(cleanValue)) {
+                              setDocumentError('CNPJ inválido. Verifique os dígitos.');
+                            } else {
+                              setDocumentError(null);
+                            }
+                          } else if (cleanValue.length > 14) {
+                            setDocumentError('CNPJ deve ter 14 dígitos.');
+                          } else {
+                            setDocumentError(null);
+                          }
+                        }
+                      } else {
+                        setDocumentError(null);
+                      }
+                    }}
+                    className={documentError ? 'border-destructive' : ''}
                     required
                   />
+                  {documentError && (
+                    <div className="flex items-center gap-2 text-destructive text-sm">
+                      <AlertCircle className="h-4 w-4" />
+                      <span>{documentError}</span>
+                    </div>
+                  )}
                 </div>
 
                 {/* Email - Largura Total */}

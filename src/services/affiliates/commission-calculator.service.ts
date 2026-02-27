@@ -26,7 +26,7 @@ export interface CommissionResult {
   
   // Comissões calculadas (em centavos)
   n1: {
-    affiliateId: string;
+    affiliateId: string | null;
     percentage: number;
     value: number;
   };
@@ -77,7 +77,7 @@ export class CommissionCalculatorService {
       // 1. Buscar afiliado N1 (vendedor)
       const { data: n1Affiliate, error: n1Error } = await supabase
         .from('affiliates')
-        .select('id, referred_by, name')
+        .select('id, referred_by, name, financial_status')
         .eq('id', input.affiliateN1Id)
         .is('deleted_at', null)
         .single();
@@ -86,37 +86,55 @@ export class CommissionCalculatorService {
         throw new Error(`Afiliado N1 não encontrado: ${input.affiliateN1Id}`);
       }
 
+      // Verificar se N1 tem status financeiro ativo
+      const n1IsActive = n1Affiliate.financial_status === 'ativo';
+      if (!n1IsActive) {
+        console.log(`[CommissionCalculator] Afiliado N1 ${n1Affiliate.id} pulado (status: ${n1Affiliate.financial_status})`);
+      }
+
       // 2. Buscar ascendentes (N2 e N3) usando referred_by
       let n2Affiliate = null;
       let n3Affiliate = null;
+      let n2IsActive = false;
+      let n3IsActive = false;
 
       if (n1Affiliate.referred_by) {
         const { data: n2Data } = await supabase
           .from('affiliates')
-          .select('id, referred_by, name')
+          .select('id, referred_by, name, financial_status')
           .eq('id', n1Affiliate.referred_by)
           .is('deleted_at', null)
           .single();
 
         n2Affiliate = n2Data;
+        n2IsActive = n2Affiliate?.financial_status === 'ativo';
+        
+        if (n2Affiliate && !n2IsActive) {
+          console.log(`[CommissionCalculator] Afiliado N2 ${n2Affiliate.id} pulado (status: ${n2Affiliate.financial_status})`);
+        }
 
         // Se N2 existe, buscar N3
         if (n2Affiliate?.referred_by) {
           const { data: n3Data } = await supabase
             .from('affiliates')
-            .select('id, referred_by, name')
+            .select('id, referred_by, name, financial_status')
             .eq('id', n2Affiliate.referred_by)
             .is('deleted_at', null)
             .single();
 
           n3Affiliate = n3Data;
+          n3IsActive = n3Affiliate?.financial_status === 'ativo';
+          
+          if (n3Affiliate && !n3IsActive) {
+            console.log(`[CommissionCalculator] Afiliado N3 ${n3Affiliate.id} pulado (status: ${n3Affiliate.financial_status})`);
+          }
         }
       }
 
-      // 3. Calcular valores base
-      const n1Value = Math.round(input.orderValue * COMMISSION_RATES.SELLER);
-      const n2Value = n2Affiliate ? Math.round(input.orderValue * COMMISSION_RATES.N1) : 0;
-      const n3Value = n3Affiliate ? Math.round(input.orderValue * COMMISSION_RATES.N2) : 0;
+      // 3. Calcular valores base (apenas para afiliados ativos)
+      const n1Value = n1IsActive ? Math.round(input.orderValue * COMMISSION_RATES.SELLER) : 0;
+      const n2Value = (n2Affiliate && n2IsActive) ? Math.round(input.orderValue * COMMISSION_RATES.N1) : 0;
+      const n3Value = (n3Affiliate && n3IsActive) ? Math.round(input.orderValue * COMMISSION_RATES.N2) : 0;
 
       // 4. Calcular redistribuição para gestores
       let renumPercentage = COMMISSION_RATES.RENUM;
@@ -124,10 +142,10 @@ export class CommissionCalculatorService {
       let redistributionApplied = false;
       let redistributionDetails = undefined;
 
-      // Calcular percentual não utilizado
-      const usedPercentage = COMMISSION_RATES.SELLER +
-        (n2Affiliate ? COMMISSION_RATES.N1 : 0) +
-        (n3Affiliate ? COMMISSION_RATES.N2 : 0);
+      // Calcular percentual não utilizado (incluindo afiliados inativos)
+      const usedPercentage = (n1IsActive ? COMMISSION_RATES.SELLER : 0) +
+        (n2Affiliate && n2IsActive ? COMMISSION_RATES.N1 : 0) +
+        (n3Affiliate && n3IsActive ? COMMISSION_RATES.N2 : 0);
       
       const unusedPercentage = COMMISSION_RATES.SELLER + COMMISSION_RATES.N1 + COMMISSION_RATES.N2 - usedPercentage;
 
@@ -141,7 +159,8 @@ export class CommissionCalculatorService {
         redistributionDetails = {
           unusedPercentage,
           redistributedToRenum: redistributionPerGestor,
-          redistributedToJB: redistributionPerGestor
+          redistributedToJB: redistributionPerGestor,
+          reason: 'inactive_affiliates_or_missing_network'
         };
       }
 
@@ -149,16 +168,16 @@ export class CommissionCalculatorService {
       const jbValue = Math.round(input.orderValue * jbPercentage);
 
       // 5. Validar que soma = 30%
-      const totalPercentage = COMMISSION_RATES.SELLER +
-        (n2Affiliate ? COMMISSION_RATES.N1 : 0) +
-        (n3Affiliate ? COMMISSION_RATES.N2 : 0) +
+      const totalPercentage = (n1IsActive ? COMMISSION_RATES.SELLER : 0) +
+        (n2Affiliate && n2IsActive ? COMMISSION_RATES.N1 : 0) +
+        (n3Affiliate && n3IsActive ? COMMISSION_RATES.N2 : 0) +
         renumPercentage +
         jbPercentage;
 
       if (!validateCommissionTotal(
-        COMMISSION_RATES.SELLER,
-        n2Affiliate ? COMMISSION_RATES.N1 : 0,
-        n3Affiliate ? COMMISSION_RATES.N2 : 0,
+        n1IsActive ? COMMISSION_RATES.SELLER : 0,
+        n2Affiliate && n2IsActive ? COMMISSION_RATES.N1 : 0,
+        n3Affiliate && n3IsActive ? COMMISSION_RATES.N2 : 0,
         renumPercentage,
         jbPercentage
       )) {
@@ -167,26 +186,26 @@ export class CommissionCalculatorService {
         );
       }
 
-      // 6. Montar resultado
+      // 6. Montar resultado (apenas afiliados ativos recebem comissão)
       const result: CommissionResult = {
         orderId: input.orderId,
         orderValue: input.orderValue,
         
         n1: {
-          affiliateId: n1Affiliate.id,
-          percentage: COMMISSION_RATES.SELLER,
+          affiliateId: n1IsActive ? n1Affiliate.id : null,
+          percentage: n1IsActive ? COMMISSION_RATES.SELLER : 0,
           value: n1Value
         },
         
         n2: {
-          affiliateId: n2Affiliate?.id || null,
-          percentage: n2Affiliate ? COMMISSION_RATES.N1 : 0,
+          affiliateId: (n2Affiliate && n2IsActive) ? n2Affiliate.id : null,
+          percentage: (n2Affiliate && n2IsActive) ? COMMISSION_RATES.N1 : 0,
           value: n2Value
         },
         
         n3: {
-          affiliateId: n3Affiliate?.id || null,
-          percentage: n3Affiliate ? COMMISSION_RATES.N2 : 0,
+          affiliateId: (n3Affiliate && n3IsActive) ? n3Affiliate.id : null,
+          percentage: (n3Affiliate && n3IsActive) ? COMMISSION_RATES.N2 : 0,
           value: n3Value
         },
         
@@ -234,24 +253,26 @@ export class CommissionCalculatorService {
     try {
       const commissions = [];
 
-      // Comissão N1 (sempre existe)
-      commissions.push({
-        order_id: result.orderId,
-        affiliate_id: result.n1.affiliateId,
-        level: 1,
-        percentage: result.n1.percentage,
-        base_value_cents: result.orderValue,
-        commission_value_cents: result.n1.value,
-        original_percentage: COMMISSION_RATES.SELLER,
-        redistribution_applied: false,
-        status: 'pending',
-        calculation_details: {
-          orderValue: result.orderValue,
-          calculatedAt: new Date().toISOString()
-        }
-      });
+      // Comissão N1 (apenas se ativo)
+      if (result.n1.affiliateId) {
+        commissions.push({
+          order_id: result.orderId,
+          affiliate_id: result.n1.affiliateId,
+          level: 1,
+          percentage: result.n1.percentage,
+          base_value_cents: result.orderValue,
+          commission_value_cents: result.n1.value,
+          original_percentage: COMMISSION_RATES.SELLER,
+          redistribution_applied: false,
+          status: 'pending',
+          calculation_details: {
+            orderValue: result.orderValue,
+            calculatedAt: new Date().toISOString()
+          }
+        });
+      }
 
-      // Comissão N2 (se existir)
+      // Comissão N2 (apenas se ativo)
       if (result.n2.affiliateId) {
         commissions.push({
           order_id: result.orderId,
@@ -270,7 +291,7 @@ export class CommissionCalculatorService {
         });
       }
 
-      // Comissão N3 (se existir)
+      // Comissão N3 (apenas se ativo)
       if (result.n3.affiliateId) {
         commissions.push({
           order_id: result.orderId,

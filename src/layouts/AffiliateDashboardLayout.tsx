@@ -14,7 +14,9 @@ import {
   BarChart3,
   Bot, // Icone para IA
   Loader2,
-  Megaphone // Adicionado manualmente
+  Megaphone, // Adicionado manualmente
+  Package, // ETAPA 3: Ícone para Show Row
+  Store // ETAPA 4: Ícone para Loja
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -23,7 +25,8 @@ import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { affiliateFrontendService } from "@/services/frontend/affiliate.service";
 import { supabase } from "@/config/supabase";
-import { NotificationDropdown } from "@/components/notifications/NotificationDropdown";
+import NotificationBell from "@/components/NotificationBell";
+import PaymentBanner from "@/components/PaymentBanner";
 
 export function AffiliateDashboardLayout() {
   const navigate = useNavigate();
@@ -33,11 +36,13 @@ export function AffiliateDashboardLayout() {
   const [affiliate, setAffiliate] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [showIAMenu, setShowIAMenu] = useState(false); // Novo estado
+  const [showShowRowMenu, setShowShowRowMenu] = useState(false); // ETAPA 3: Estado para Show Row
 
   // Carregar dados do afiliado e verificar produto IA ao montar
   useEffect(() => {
     loadAffiliateData();
     checkIAAvailability();
+    checkShowRowAvailability(); // ETAPA 3: Verificar Show Row
   }, []);
 
   const checkIAAvailability = async () => {
@@ -51,6 +56,32 @@ export function AffiliateDashboardLayout() {
       setShowIAMenu(!!count && count > 0);
     } catch (error) {
       console.error('Erro ao verificar disponibilidade IA:', error);
+    }
+  };
+
+  // ETAPA 3: Verificar disponibilidade de produtos Show Row
+  const checkShowRowAvailability = async () => {
+    try {
+      // 1. Verificar tipo de afiliado
+      const { isAffiliate, affiliate: affiliateData } = 
+        await affiliateFrontendService.checkAffiliateStatus();
+      
+      if (!isAffiliate || affiliateData?.affiliate_type !== 'logista') {
+        setShowShowRowMenu(false);
+        return;
+      }
+      
+      // 2. Verificar existência de produtos ativos
+      const { count } = await supabase
+        .from('products')
+        .select('*', { count: 'exact', head: true })
+        .eq('category', 'show_row')
+        .eq('is_active', true);
+
+      setShowShowRowMenu(!!count && count > 0);
+    } catch (error) {
+      console.error('Erro ao verificar disponibilidade Show Row:', error);
+      setShowShowRowMenu(false);
     }
   };
 
@@ -96,11 +127,14 @@ export function AffiliateDashboardLayout() {
     { icon: Home, label: "Início", path: "/afiliados/dashboard" },
     // Item condicional
     ...(showIAMenu ? [{ icon: Bot, label: "Ferramentas IA", path: "/afiliados/dashboard/ferramentas-ia" }] : []),
+    ...(showShowRowMenu ? [{ icon: Package, label: "Show Row", path: "/afiliados/dashboard/show-row" }] : []), // ETAPA 3: Menu Show Row
+    ...(showShowRowMenu ? [{ icon: Store, label: "Minha Loja", path: "/afiliados/dashboard/loja" }] : []), // ETAPA 4: Menu Loja
     { icon: Megaphone, label: "Materiais", path: "/afiliados/dashboard/materiais" }, // Novo menu
     { icon: TreeDeciduous, label: "Minha Rede", path: "/afiliados/dashboard/rede" },
     { icon: ShoppingCart, label: "Vendas", path: "/afiliados/dashboard/vendas" },
     { icon: DollarSign, label: "Comissões", path: "/afiliados/dashboard/comissoes" },
     { icon: CreditCard, label: "Recebimentos", path: "/afiliados/dashboard/recebimentos" },
+    { icon: CreditCard, label: "Pagamentos", path: "/afiliados/dashboard/pagamentos" }, // ETAPA 5: Menu Pagamentos
     { icon: BarChart3, label: "Estatísticas", path: "/afiliados/dashboard/estatisticas" },
     { icon: Settings, label: "Configurações", path: "/afiliados/dashboard/configuracoes" },
   ];
@@ -236,7 +270,7 @@ export function AffiliateDashboardLayout() {
             </div>
 
             {/* Notifications */}
-            <NotificationDropdown dashboardPath="/afiliados/dashboard/notificacoes" />
+            <NotificationBell />
 
             {/* User Avatar */}
             <Avatar className="h-9 w-9 cursor-pointer" onClick={() => navigate('/afiliados/dashboard/configuracoes')}>
@@ -253,9 +287,22 @@ export function AffiliateDashboardLayout() {
 
         {/* Page Content */}
         <main className="flex-1 p-6">
+          {/* Payment Banner - Exibir quando inadimplente */}
+          {affiliate?.payment_status && affiliate.payment_status !== 'active' && (
+            <PaymentBanner
+              paymentStatus={affiliate.payment_status}
+              onClose={() => {
+                // Atualizar estado local para ocultar banner temporariamente
+                setAffiliate(prev => prev ? { ...prev, payment_status: 'active' } : null);
+              }}
+            />
+          )}
+          
           <Outlet />
         </main>
       </div>
     </div>
   );
 }
+
+export default AffiliateDashboardLayout;
