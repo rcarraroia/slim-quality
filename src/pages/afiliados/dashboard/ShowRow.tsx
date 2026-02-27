@@ -59,13 +59,29 @@ export default function ShowRow() {
 
       const { data, error } = await supabase
         .from('products')
-        .select('id, name, slug, sku, description, price_cents, image_url')
+        .select(`
+          id, 
+          name, 
+          slug, 
+          sku, 
+          description, 
+          price_cents,
+          product_images!inner(image_url, is_primary)
+        `)
         .eq('category', 'show_row')
         .eq('is_active', true)
+        .eq('product_images.is_primary', true)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setProducts(data || []);
+      
+      // Transformar dados para incluir image_url no nível do produto
+      const productsWithImages = (data || []).map(product => ({
+        ...product,
+        image_url: product.product_images?.[0]?.image_url || null
+      }));
+      
+      setProducts(productsWithImages);
     } catch (error) {
       console.error('Erro ao carregar produtos:', error);
       toast.error('Não foi possível carregar os produtos.');

@@ -139,7 +139,10 @@ export default function Loja() {
     try {
       const { data } = await supabase
         .from('products')
-        .select('*')
+        .select(`
+          *,
+          product_images(image_url, is_primary)
+        `)
         .eq('category', 'adesao_afiliado')
         .eq('eligible_affiliate_type', 'logista')
         .eq('is_active', true)

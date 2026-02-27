@@ -364,7 +364,7 @@ export default function Produtos() {
         is_featured: false, // Não duplicar destaque
         display_order: produto.display_order,
         product_type: produto.product_type,
-        image_url: produto.image_url,
+        // image_url: NÃO COPIAR - usar apenas product_images
         product_page_url: produto.product_page_url,
         magnetic_count: (produto as any).magnetic_count,
         warranty_years: (produto as any).warranty_years,

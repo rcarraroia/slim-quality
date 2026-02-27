@@ -61,7 +61,10 @@ export default function PaywallCadastro({
       try {
         const { data, error } = await supabase
           .from('products')
-          .select('*')
+          .select(`
+            *,
+            product_images(image_url, is_primary)
+          `)
           .eq('category', 'adesao_afiliado')
           .eq('eligible_affiliate_type', affiliateType)
           .eq('is_active', true)
