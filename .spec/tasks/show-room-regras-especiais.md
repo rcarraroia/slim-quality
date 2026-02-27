@@ -2,7 +2,7 @@
 
 **Data de Criação:** 27/02/2026  
 **Prioridade:** ALTA  
-**Status:** READY TO START  
+**Status:** IN PROGRESS - Fase 0 Concluída ✅  
 **Estimativa:** 8-10 horas  
 
 **Documento de Análise:** `.kiro/analise-show-room-regras-especiais.md`
@@ -93,24 +93,34 @@ CREATE TABLE show_room_purchases (
 
 ## 📋 TAREFAS DETALHADAS
 
-### FASE 0: PREPARAÇÃO DO BANCO (30 min)
+### FASE 0: PREPARAÇÃO DO BANCO (30 min) ✅ CONCLUÍDA
 
-#### Task 0.1: Criar Migration `show_room_purchases`
-**Arquivo:** `supabase/migrations/[timestamp]_create_show_room_purchases.sql`
+#### Task 0.1: Criar Migration `show_room_purchases` ✅
+**Arquivo:** `supabase/migrations/20260227120000_create_show_room_purchases.sql`
 
 **Checklist:**
-- [ ] Criar tabela `show_room_purchases`
-- [ ] Adicionar constraint UNIQUE(affiliate_id, product_id)
-- [ ] Criar índices (affiliate_id, product_id)
-- [ ] Habilitar RLS
-- [ ] Criar política "Logistas can view own purchases"
-- [ ] Criar política "System can insert purchases"
-- [ ] Adicionar comentários na tabela
+- [x] Criar tabela `show_room_purchases`
+- [x] Adicionar constraint UNIQUE(affiliate_id, product_id)
+- [x] Criar índices (affiliate_id, product_id)
+- [x] Habilitar RLS
+- [x] Criar política "Logistas can view own purchases"
+- [x] Criar política "System can insert purchases"
+- [x] Adicionar comentários na tabela
 
 **Critério de Aceitação:**
-- Tabela criada no Supabase
-- Políticas RLS funcionando
-- Índices criados
+- ✅ Tabela criada no Supabase
+- ✅ Políticas RLS funcionando (4 políticas criadas)
+- ✅ Índices criados (5 índices + 1 UNIQUE constraint)
+
+**Validações Realizadas:**
+- ✅ Tabela `show_room_purchases` existe
+- ✅ Constraint `unique_affiliate_product` criado
+- ✅ 7 índices criados (incluindo PK e UNIQUE)
+- ✅ 4 políticas RLS ativas:
+  - Logistas can view own purchases
+  - Admins can view all purchases
+  - System can insert purchases
+  - Admins can delete purchases
 
 **Arquivo de Referência:** `.kiro/analise-show-room-regras-especiais.md` (seção "Nova Migration Necessária")
 

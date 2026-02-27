@@ -11,9 +11,36 @@ inclusion: always
 
 ## TAREFA ATUAL
 
-**MELHORIAS NA VITRINE DE LOJAS: EM ANDAMENTO** 🚧
+**IMPLEMENTAÇÃO DE REGRAS ESPECIAIS SHOW ROOM: EM ANDAMENTO** 🚧
 
-### Tarefas Concluídas Hoje (27/02/2026):
+### Fase 0: Preparação do Banco ✅ CONCLUÍDA (27/02/2026)
+
+- **Migration criada:** `supabase/migrations/20260227120000_create_show_room_purchases.sql`
+- **Tabela:** `show_room_purchases` criada com sucesso
+- **Constraint:** `unique_affiliate_product` (garante 1 compra por logista por produto)
+- **Índices:** 5 índices criados para performance
+- **RLS:** 4 políticas criadas (logistas, admins, system, delete)
+- **Validações:** Todas passaram ✅
+- **Commit:** Pendente (migration aplicada via MCP)
+
+### Próxima Fase: Fase 1 - Controle de Compras por Logista
+
+**Objetivo:** Implementar validações frontend e backend para impedir compras duplicadas
+
+**Tasks:**
+1. Validação no Frontend - ShowRow.tsx
+2. Validação no Backend - checkout.js
+3. Registro de Compra no Webhook - webhook-asaas.js
+
+**Documento de Tasks:** `.spec/tasks/show-room-regras-especiais.md`
+
+---
+
+## TAREFAS ANTERIORES CONCLUÍDAS (27/02/2026)
+
+**MELHORIAS NA VITRINE DE LOJAS** ✅
+
+### Tarefas Concluídas:
 
 #### 1. ✅ Correção da imagem do produto no Show Room
 - **Problema:** Imagem do produto não aparecia no painel do logista
