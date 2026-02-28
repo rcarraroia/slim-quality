@@ -25,6 +25,7 @@ import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { affiliateFrontendService } from "@/services/frontend/affiliate.service";
 import { supabase } from "@/config/supabase";
+import { StorageHelper } from "@/utils/storage-helper";
 import NotificationBell from "@/components/NotificationBell";
 import PaymentBanner from "@/components/PaymentBanner";
 

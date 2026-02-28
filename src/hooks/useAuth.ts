@@ -6,6 +6,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { adminAuthService, AdminUser, LoginCredentials } from '@/services/admin-auth.service';
 import { useToast } from '@/hooks/use-toast';
+import { StorageHelper } from '@/utils/storage-helper';
 
 interface UseAuthReturn {
   user: AdminUser | null;
@@ -35,8 +36,8 @@ export const useAuth = (): UseAuthReturn => {
             const response = await adminAuthService.getCurrentUser();
             if (response.success && response.data) {
               setUser(response.data);
-              // Atualizar localStorage com dados atualizados
-              localStorage.setItem('admin_user', JSON.stringify(response.data));
+              // Atualizar storage com dados atualizados
+              StorageHelper.setItem('admin_user', JSON.stringify(response.data), 3600);
             } else {
               // Se falhou ao buscar usuário, usar dados do localStorage
               const storedUser = adminAuthService.getStoredUser();
@@ -154,7 +155,7 @@ export const useAuth = (): UseAuthReturn => {
       
       if (response.success && response.data) {
         setUser(response.data);
-        localStorage.setItem('admin_user', JSON.stringify(response.data));
+        StorageHelper.setItem('admin_user', JSON.stringify(response.data), 3600);
       }
     } catch (error) {
       console.error('Erro ao atualizar dados do usuário:', error);

@@ -309,7 +309,7 @@ class CustomerAuthService {
         affiliateStatus: affiliateData?.status
       };
 
-      localStorage.setItem('customer_user', JSON.stringify(updatedUser));
+      StorageHelper.setItem('customer_user', JSON.stringify(updatedUser), 3600);
 
       return {
         success: true,
@@ -419,10 +419,10 @@ class CustomerAuthService {
   }
 
   /**
-   * Obter usuário do localStorage
+   * Obter usuário do storage
    */
   getStoredUser(): CustomerUser | null {
-    const userStr = localStorage.getItem('customer_user');
+    const userStr = StorageHelper.getItem('customer_user');
     if (!userStr) return null;
     
     try {
@@ -433,12 +433,12 @@ class CustomerAuthService {
   }
 
   /**
-   * Atualizar dados do usuário no localStorage
+   * Atualizar dados do usuário no storage
    */
   updateStoredUser(updates: Partial<CustomerUser>): void {
     const user = this.getStoredUser();
     if (user) {
-      localStorage.setItem('customer_user', JSON.stringify({ ...user, ...updates }));
+      StorageHelper.setItem('customer_user', JSON.stringify({ ...user, ...updates }), 3600);
     }
   }
 
