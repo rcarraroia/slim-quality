@@ -32,6 +32,63 @@ Venda de colchões magnéticos terapêuticos com foco em resolver problemas de s
 7. Perfilado High-Tech
 8. Tratamento Sanitário
 
+### 🏪 SHOW ROOM (Produtos para Logistas)
+
+**Objetivo:** Permitir que logistas comprem produtos com preços diferenciados para exposição em suas lojas físicas.
+
+**Regras Especiais:**
+
+1. **Acesso Exclusivo:**
+   - Apenas afiliados do tipo "Logista" podem visualizar e comprar
+   - Produtos não aparecem no catálogo público
+
+2. **Limite de Compra:**
+   - 1 unidade de CADA modelo por logista
+   - Sem reposição (compra única)
+   - Sistema bloqueia compras duplicadas automaticamente
+
+3. **Preços Diferenciados:**
+   - Preços especiais para logistas (menores que varejo)
+   - Definidos individualmente por produto
+
+4. **Frete Grátis:**
+   - Frete grátis para TODOS os produtos Show Room
+   - Aplicado automaticamente no checkout
+
+5. **Comissionamento Diferenciado:**
+   - 90% → Fábrica (ao invés de 70%)
+   - 5% → Renum (gestor)
+   - 5% → JB (gestor)
+   - 0% → N1/N2/N3 (rede de afiliados NÃO recebe)
+   - Total: 10% de comissões (ao invés de 30%)
+
+6. **Controle de Estoque:**
+   - Tabela `show_room_purchases` registra todas as compras
+   - Constraint UNIQUE impede duplicação
+   - Frontend mostra badge "Já adquirido" para produtos comprados
+
+**Exemplo de Cálculo:**
+
+Colchão King Size Show Room - R$ 2.500,00
+
+| Participante | Percentual | Valor |
+|--------------|------------|-------|
+| Fábrica | 90% | R$ 2.250,00 |
+| Renum | 5% | R$ 125,00 |
+| JB | 5% | R$ 125,00 |
+| **Total Comissões** | **10%** | **R$ 250,00** |
+
+**Diferenças vs Produto Normal:**
+
+| Aspecto | Produto Normal | Show Room |
+|---------|----------------|-----------|
+| Frete | Calculado | Grátis |
+| Comissão Total | 30% | 10% |
+| Fábrica | 70% | 90% |
+| N1/N2/N3 | Recebem | Não recebem |
+| Limite | Ilimitado | 1 por modelo |
+| Reposição | Sim | Não |
+
 ---
 
 ## 💰 SISTEMA DE COMISSÕES

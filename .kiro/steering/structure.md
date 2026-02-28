@@ -159,7 +159,8 @@ affiliates
 │   └── N3 (terceiro nível)
 ├── referral_codes (1:N)
 ├── referral_clicks (1:N)
-└── referral_conversions (1:N)
+├── referral_conversions (1:N)
+└── show_room_purchases (1:N) ✨ NOVO
 
 commissions
 ├── commission_splits (1:N)
@@ -167,7 +168,22 @@ commissions
 └── commission_logs (1:N)
 
 asaas_wallets
+
+show_room_purchases ✨ NOVO
+├── affiliate_id (FK → affiliates)
+├── product_id (FK → products)
+├── order_id (FK → orders)
+├── purchased_at (timestamp)
+└── UNIQUE(affiliate_id, product_id) ← Impede duplicação
 ```
+
+**Tabela `show_room_purchases`:**
+- **Objetivo:** Controlar compras de produtos Show Room por logistas
+- **Regra:** 1 unidade de cada modelo por logista (sem reposição)
+- **Constraint:** UNIQUE(affiliate_id, product_id) garante unicidade
+- **RLS:** 4 políticas (logistas, admins, system, delete)
+- **Índices:** 5 índices para performance
+- **Migration:** `supabase/migrations/20260227120000_create_show_room_purchases.sql`
 
 #### 5. CRM
 ```
