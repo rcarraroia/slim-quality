@@ -36,12 +36,13 @@ export function Header() {
             >
               Tecnologias
             </Link>
-            <Link 
+            {/* Link Vitrine temporariamente oculto até definição do protocolo de indicação */}
+            {/* <Link 
               to="/lojas" 
               className="text-sm font-medium transition-colors hover:text-primary"
             >
               Vitrine
-            </Link>
+            </Link> */}
             <Link 
               to="/afiliados" 
               className="text-sm font-medium transition-colors hover:text-primary"
@@ -97,13 +98,14 @@ export function Header() {
                 >
                   Tecnologias
                 </Link>
-                <Link 
+                {/* Link Vitrine temporariamente oculto até definição do protocolo de indicação */}
+                {/* <Link 
                   to="/lojas" 
                   className="block py-3 text-lg font-medium border-b hover:text-primary transition-colors"
                   onClick={() => setMobileMenuOpen(false)}
                 >
                   Vitrine
-                </Link>
+                </Link> */}
                 <Link 
                   to="/afiliados" 
                   className="block py-3 text-lg font-medium border-b hover:text-primary transition-colors"
