@@ -269,7 +269,8 @@ export default function ShowRow() {
                   id: selectedProduct.id,
                   name: selectedProduct.name,
                   sku: selectedProduct.sku,
-                  price_cents: selectedProduct.price_cents
+                  price_cents: selectedProduct.price_cents,
+                  category: 'show_row' // ✅ CRÍTICO: Passar categoria para detecção correta
                 }}
                 isDigital={false} // Produtos Show Room são físicos
                 onClose={() => setIsCheckoutOpen(false)}

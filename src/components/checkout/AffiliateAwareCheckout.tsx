@@ -25,6 +25,7 @@ interface CheckoutProduct {
   sku: string;
   price_cents: number;
   image?: string;
+  category?: string; // ✅ ADICIONAR: categoria do produto
 }
 
 interface AffiliateAwareCheckoutProps {
@@ -66,8 +67,8 @@ export default function AffiliateAwareCheckout({
     postal_code: ''
   });
 
-  // ✅ NOVO: Detectar se produto é Show Room
-  const isShowRoomProduct = product.sku?.includes('SHOW-') || false;
+  // ✅ CORRIGIDO: Detectar se produto é Show Room pela categoria OU pelo SKU
+  const isShowRoomProduct = product.category === 'show_row' || product.sku?.includes('SHOW-') || false;
 
   // Pré-preencher dados se cliente já estiver logado
   useEffect(() => {
