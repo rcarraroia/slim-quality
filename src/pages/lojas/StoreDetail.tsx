@@ -7,11 +7,11 @@ import {
   Globe,
   Instagram,
   Facebook,
-  Clock,
   ArrowLeft,
   ExternalLink,
   Loader2,
-  AlertCircle
+  AlertCircle,
+  Package
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -22,6 +22,8 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { storeFrontendService, StoreProfile } from '@/services/frontend/store.service';
 import { SchemaOrg } from '@/components/seo/SchemaOrg';
 import { SEOHead } from '@/components/seo/SEOHead';
+import { sanitizeUrl, formatWhatsAppNumber, formatPrice } from '@/utils/url-helpers';
+import { useProducts } from '@/hooks/useProducts';
 
 export default function StoreDetail() {
   const { slug } = useParams<{ slug: string }>();
@@ -30,6 +32,9 @@ export default function StoreDetail() {
   const [store, setStore] = useState<StoreProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Hook de produtos
+  const { products, loading: productsLoading } = useProducts();
 
   useEffect(() => {
     if (slug) {
@@ -189,6 +194,61 @@ export default function StoreDetail() {
         <div className="grid lg:grid-cols-3 gap-6">
           {/* Main Content */}
           <div className="lg:col-span-2 space-y-6">
+            {/* Galeria de Produtos */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Produtos Disponíveis</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {productsLoading ? (
+                  // Loading state
+                  <div className="text-center py-8">
+                    <Loader2 className="h-8 w-8 animate-spin mx-auto mb-2 text-primary" />
+                    <p className="text-sm text-muted-foreground">Carregando produtos...</p>
+                  </div>
+                ) : products.length === 0 ? (
+                  // Empty state
+                  <div className="text-center py-8">
+                    <Package className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
+                    <p className="text-sm text-muted-foreground">Nenhum produto disponível no momento</p>
+                  </div>
+                ) : (
+                  // Grid de produtos (2x2)
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {products.slice(0, 4).map((product) => (
+                      <Card key={product.id} className="overflow-hidden hover:shadow-lg transition-shadow">
+                        <div className="relative aspect-[4/3] bg-muted flex items-center justify-center overflow-hidden">
+                          {product.image ? (
+                            <img 
+                              src={product.image} 
+                              alt={`Colchão ${product.name} - ${product.dimensions}`}
+                              className="w-full h-full object-cover"
+                              loading="lazy"
+                            />
+                          ) : (
+                            <div className="text-center text-muted-foreground">
+                              <div className="text-4xl mb-1">🛏️</div>
+                              <p className="text-xs px-2">Sem imagem</p>
+                            </div>
+                          )}
+                        </div>
+                        <CardContent className="p-4">
+                          <h4 className="font-semibold text-sm mb-1">{product.name}</h4>
+                          <p className="text-xs text-muted-foreground mb-2">{product.dimensions}</p>
+                          <p className="text-lg font-bold text-primary">
+                            {formatPrice(product.price * 100)}
+                          </p>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Sidebar */}
+          <div className="space-y-6">
             {/* Endereço */}
             <Card>
               <CardHeader>
@@ -220,108 +280,113 @@ export default function StoreDetail() {
               </CardContent>
             </Card>
 
-            {/* Horário de Funcionamento */}
-            {businessHours.length > 0 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Clock className="h-5 w-5" />
-                    Horário de Funcionamento
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-2">
-                    {businessHours.map((schedule, index) => (
-                      <div key={index} className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">{schedule.split(':')[0]}</span>
-                        <span className="font-medium">{schedule.split(':').slice(1).join(':').trim()}</span>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-          </div>
-
-          {/* Sidebar */}
-          <div className="space-y-6">
             {/* Contato */}
             <Card>
               <CardHeader>
                 <CardTitle>Contato</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                {store.phone && (
-                  <a
-                    href={`tel:${store.phone}`}
-                    className="flex items-center gap-3 text-sm hover:text-primary transition-colors"
-                  >
-                    <Phone className="h-4 w-4" />
-                    <span>{store.phone}</span>
-                  </a>
-                )}
-
+                {/* Primário: WhatsApp em destaque */}
                 {store.whatsapp && (
-                  <a
-                    href={`https://wa.me/${store.whatsapp.replace(/\D/g, '')}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-3 text-sm hover:text-primary transition-colors"
+                  <Button 
+                    className="w-full bg-green-600 hover:bg-green-700 text-white" 
+                    size="lg"
+                    asChild
                   >
-                    <Phone className="h-4 w-4" />
-                    <span>WhatsApp: {store.whatsapp}</span>
-                  </a>
+                    <a
+                      href={`https://wa.me/${formatWhatsAppNumber(store.whatsapp)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <Phone className="h-5 w-5 mr-2" />
+                      WhatsApp: {store.whatsapp}
+                    </a>
+                  </Button>
                 )}
 
-                {store.email && (
-                  <a
-                    href={`mailto:${store.email}`}
-                    className="flex items-center gap-3 text-sm hover:text-primary transition-colors"
-                  >
-                    <Mail className="h-4 w-4" />
-                    <span>{store.email}</span>
-                  </a>
+                {/* Separador se houver WhatsApp e outros contatos */}
+                {store.whatsapp && (store.phone || store.email || store.website || store.instagram || store.facebook || store.tiktok) && (
+                  <Separator />
                 )}
 
-                {store.website && (
-                  <a
-                    href={store.website}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-3 text-sm hover:text-primary transition-colors"
-                  >
-                    <Globe className="h-4 w-4" />
-                    <span>Website</span>
-                    <ExternalLink className="h-3 w-3 ml-auto" />
-                  </a>
-                )}
-
-                <Separator />
-
-                {/* Redes Sociais */}
+                {/* Secundário: Lista de contatos */}
                 <div className="space-y-3">
+                  {store.phone && (
+                    <a
+                      href={`tel:${store.phone}`}
+                      className="flex items-center gap-3 text-sm hover:text-primary transition-colors"
+                    >
+                      <Phone className="h-4 w-4" />
+                      <span>{store.phone}</span>
+                    </a>
+                  )}
+
+                  {store.email && (
+                    <a
+                      href={`mailto:${store.email}`}
+                      className="flex items-center gap-3 text-sm hover:text-primary transition-colors"
+                    >
+                      <Mail className="h-4 w-4" />
+                      <span>{store.email}</span>
+                    </a>
+                  )}
+
+                  {store.website && (
+                    <a
+                      href={sanitizeUrl(store.website, 'website')}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-3 text-sm hover:text-primary transition-colors"
+                    >
+                      <Globe className="h-4 w-4" />
+                      <span>Website</span>
+                      <ExternalLink className="h-3 w-3 ml-auto" />
+                    </a>
+                  )}
+
                   {store.instagram && (
                     <a
-                      href={`https://instagram.com/${store.instagram.replace('@', '')}`}
+                      href={sanitizeUrl(store.instagram, 'instagram')}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="flex items-center gap-3 text-sm hover:text-primary transition-colors"
                     >
                       <Instagram className="h-4 w-4" />
-                      <span>@{store.instagram.replace('@', '')}</span>
+                      <span>@{store.instagram.replace(/^@/, '').replace(/^https?:\/\/(www\.)?instagram\.com\//, '')}</span>
                       <ExternalLink className="h-3 w-3 ml-auto" />
                     </a>
                   )}
 
                   {store.facebook && (
                     <a
-                      href={`https://facebook.com/${store.facebook}`}
+                      href={sanitizeUrl(store.facebook, 'facebook')}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="flex items-center gap-3 text-sm hover:text-primary transition-colors"
                     >
                       <Facebook className="h-4 w-4" />
-                      <span>{store.facebook}</span>
+                      <span>{store.facebook.replace(/^https?:\/\/(www\.)?facebook\.com\//, '')}</span>
+                      <ExternalLink className="h-3 w-3 ml-auto" />
+                    </a>
+                  )}
+
+                  {store.tiktok && (
+                    <a
+                      href={sanitizeUrl(store.tiktok, 'tiktok')}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-3 text-sm hover:text-primary transition-colors"
+                    >
+                      {/* TikTok Icon (SVG customizado) */}
+                      <svg
+                        className="h-4 w-4"
+                        viewBox="0 0 24 24"
+                        fill="currentColor"
+                        xmlns="http://www.w3.org/2000/svg"
+                      >
+                        <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z"/>
+                      </svg>
+                      <span>@{store.tiktok.replace(/^@/, '').replace(/^https?:\/\/(www\.)?tiktok\.com\/@?/, '')}</span>
                       <ExternalLink className="h-3 w-3 ml-auto" />
                     </a>
                   )}

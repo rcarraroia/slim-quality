@@ -20,6 +20,7 @@ export interface StoreProfile {
   website?: string;
   instagram?: string;
   facebook?: string;
+  tiktok?: string;
   logo_url?: string;
   banner_url?: string;
   business_hours?: BusinessHours;
