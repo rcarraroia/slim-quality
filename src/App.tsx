@@ -20,6 +20,12 @@ import CustomerLogin from "./pages/CustomerLogin";
 import AffiliateMaterials from '@/pages/affiliates/AffiliateMaterials';
 import AfiliadosLanding from "./pages/afiliados/AfiliadosLanding";
 import AfiliadosCadastro from "./pages/afiliados/AfiliadosCadastro";
+import FAQPage from "./pages/FAQ";
+import BlogIndex from "./pages/blog/BlogIndex";
+import BlogPost from "./pages/blog/BlogPost";
+import DorNasCostas from "./pages/solucoes/DorNasCostas";
+import Insonia from "./pages/solucoes/Insonia";
+import Magnetoterapia from "./pages/tecnologia/Magnetoterapia";
 import Dashboard from "./pages/dashboard/Dashboard";
 import Conversas from "./pages/dashboard/Conversas";
 import ConversaDetalhes from "./pages/dashboard/ConversaDetalhes";
@@ -97,6 +103,12 @@ const App = () => (
                 <Route path="/termos-afiliados" element={<TermosAfiliados />} />
                 <Route path="/lojas" element={<Showcase />} />
                 <Route path="/lojas/:slug" element={<StoreDetail />} />
+                <Route path="/faq" element={<FAQPage />} />
+                <Route path="/blog" element={<BlogIndex />} />
+                <Route path="/blog/:slug" element={<BlogPost />} />
+                <Route path="/solucoes/dor-nas-costas" element={<DorNasCostas />} />
+                <Route path="/solucoes/insonia" element={<Insonia />} />
+                <Route path="/tecnologia/magnetoterapia" element={<Magnetoterapia />} />
               </Route>
 
               {/* Auth routes without header/footer */}

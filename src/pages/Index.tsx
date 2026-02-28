@@ -215,8 +215,9 @@ const Index = () => {
             <div className="relative rounded-2xl bg-background flex items-center justify-center shadow-lg overflow-hidden">
               <img 
                 src="/images/infografico-magnetoterapia.png" 
-                alt="Infográfico: 240 ímãs + 7 tecnologias = alívio comprovado" 
+                alt="Infográfico mostrando sistema magnético com 240 ímãs de 800 Gauss combinado com 7 tecnologias terapêuticas para alívio comprovado de dores" 
                 className="w-full h-full object-contain"
+                loading="lazy"
               />
             </div>
           </div>
@@ -271,8 +272,9 @@ const Index = () => {
                     {product.image ? (
                       <img 
                         src={product.image} 
-                        alt={`Slim Quality ${product.name}`}
+                        alt={`Colchão magnético terapêutico Slim Quality ${product.name} - ${product.dimensions} com 240 ímãs e 8 tecnologias`}
                         className="w-full h-full object-cover"
+                        loading="lazy"
                       />
                     ) : (
                       <div className="text-center text-muted-foreground">
@@ -313,23 +315,37 @@ const Index = () => {
           </h2>
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-8 max-w-7xl mx-auto">
             {testimonials.map((testimonial, index) => (
-              <Card key={index} className="border-l-4 border-l-primary transition-all duration-300 hover:shadow-xl">
-                <CardContent className="p-6 space-y-4">
-                  <div className="flex items-center gap-3">
-                    <div className="h-12 w-12 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-bold text-sm flex-shrink-0">
-                      {testimonial.avatar}
+              <>
+                {/* Schema.org Review para cada depoimento */}
+                <SchemaOrg 
+                  type="review" 
+                  data={{
+                    productName: "Colchão Magnético Slim Quality",
+                    authorName: testimonial.name,
+                    rating: "5",
+                    reviewText: testimonial.text,
+                    date: "2026-02-01"
+                  }}
+                />
+                
+                <Card key={index} className="border-l-4 border-l-primary transition-all duration-300 hover:shadow-xl">
+                  <CardContent className="p-6 space-y-4">
+                    <div className="flex items-center gap-3">
+                      <div className="h-12 w-12 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-bold text-sm flex-shrink-0">
+                        {testimonial.avatar}
+                      </div>
+                      <div>
+                        <p className="font-semibold">{testimonial.name}</p>
+                        <p className="text-sm text-muted-foreground">{testimonial.age}</p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="font-semibold">{testimonial.name}</p>
-                      <p className="text-sm text-muted-foreground">{testimonial.age}</p>
-                    </div>
-                  </div>
-                  <p className="text-base leading-relaxed italic">"{testimonial.text}"</p>
-                  <Badge variant="secondary" className="bg-success/10 text-success border-success/20">
-                    {testimonial.problem}
-                  </Badge>
-                </CardContent>
-              </Card>
+                    <p className="text-base leading-relaxed italic">"{testimonial.text}"</p>
+                    <Badge variant="secondary" className="bg-success/10 text-success border-success/20">
+                      {testimonial.problem}
+                    </Badge>
+                  </CardContent>
+                </Card>
+              </>
             ))}
           </div>
         </div>

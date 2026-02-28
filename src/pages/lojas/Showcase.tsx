@@ -14,6 +14,7 @@ import {
   PaginationPrevious,
 } from '@/components/ui/pagination';
 import { storeFrontendService, StoreProfile } from '@/services/frontend/store.service';
+import { SEOHead } from '@/components/seo/SEOHead';
 
 export default function Showcase() {
   const navigate = useNavigate();
@@ -100,7 +101,16 @@ export default function Showcase() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <>
+      <SEOHead 
+        title="Lojas Parceiras Slim Quality | Encontre uma Loja Perto de Você"
+        description="Visite uma de nossas lojas parceiras e experimente nossos colchões magnéticos pessoalmente. Encontre a loja Slim Quality mais próxima de você."
+        keywords="loja colchão magnético, onde comprar colchão magnético, loja slim quality, revendedor colchão terapêutico, loja física colchão"
+        canonical="https://slimquality.com.br/lojas"
+        type="website"
+      />
+      
+      <div className="min-h-screen bg-background">
       {/* Header */}
       <div className="border-b bg-card">
         <div className="container py-8">
@@ -253,6 +263,7 @@ export default function Showcase() {
           </main>
         </div>
       </div>
-    </div>
+      </div>
+    </>
   );
 }

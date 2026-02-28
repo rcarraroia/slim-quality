@@ -8,6 +8,8 @@ import { useProducts } from "@/hooks/useProducts";
 import { AffiliateAwareCheckout } from "@/components/checkout/AffiliateAwareCheckout";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useState, useEffect } from "react";
+import { SchemaOrg } from "@/components/seo/SchemaOrg";
+import { SEOHead } from "@/components/seo/SEOHead";
 
 export default function ProdutoDetalhe() {
   const { slug } = useParams<{ slug: string }>();
@@ -89,8 +91,41 @@ export default function ProdutoDetalhe() {
     "Qualidade Premium"
   ].filter(Boolean);
 
+  // Breadcrumb data
+  const breadcrumbData = [
+    {
+      "@type": "ListItem",
+      "position": 1,
+      "name": "Home",
+      "item": "https://slimquality.com.br"
+    },
+    {
+      "@type": "ListItem",
+      "position": 2,
+      "name": "Produtos",
+      "item": "https://slimquality.com.br/produtos"
+    },
+    {
+      "@type": "ListItem",
+      "position": 3,
+      "name": `Colchão ${displayProduct.name}`,
+      "item": `https://slimquality.com.br/produtos/${displayProduct.slug}`
+    }
+  ];
+
   return (
-    <div className="container px-4 py-24">
+    <>
+      <SEOHead 
+        title={`Colchão Magnético ${displayProduct.name} | ${displayProduct.dimensions} | Slim Quality`}
+        description={`Colchão magnético terapêutico ${displayProduct.name} (${displayProduct.dimensions}) com 240 ímãs de 800 Gauss, infravermelho longo e vibromassagem. ${displayProduct.price}. Entrega grátis.`}
+        keywords={`colchão magnético ${displayProduct.name.toLowerCase()}, colchão ${displayProduct.dimensions.toLowerCase()}, comprar colchão ${displayProduct.name.toLowerCase()}, preço colchão magnético`}
+        canonical={`https://slimquality.com.br/produtos/${displayProduct.slug}`}
+        type="product"
+      />
+      
+      <SchemaOrg type="breadcrumb" data={breadcrumbData} />
+      
+      <div className="container px-4 py-24">
       <div className="max-w-4xl mx-auto space-y-12">
         <div className="text-center space-y-4">
           <h1 className="text-5xl font-bold">Slim Quality {displayProduct.name}</h1>
@@ -107,8 +142,9 @@ export default function ProdutoDetalhe() {
             {displayProduct.image ? (
               <img
                 src={displayProduct.image}
-                alt={`Slim Quality ${displayProduct.name}`}
+                alt={`Colchão magnético terapêutico Slim Quality ${displayProduct.name} - ${displayProduct.dimensions} - 8 tecnologias terapêuticas incluídas`}
                 className="w-full h-full object-cover"
+                loading="eager"
               />
             ) : (
               <div className="text-center text-muted-foreground">
@@ -253,6 +289,7 @@ export default function ProdutoDetalhe() {
           onClose={() => setShowChatWidget(false)}
         />
       )}
-    </div>
+      </div>
+    </>
   );
 }

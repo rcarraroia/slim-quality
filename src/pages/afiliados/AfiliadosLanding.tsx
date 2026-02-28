@@ -14,6 +14,7 @@ import {
   Clock
 } from "lucide-react";
 import { ChatWidget } from "@/components/chat/ChatWidget";
+import { SEOHead } from "@/components/seo/SEOHead";
 
 export default function AfiliadosLanding() {
   const [nivel1, setNivel1] = useState([10]);
@@ -42,7 +43,16 @@ export default function AfiliadosLanding() {
   const ganhos = calcularGanhos();
 
   return (
-    <div className="min-h-screen">
+    <>
+      <SEOHead 
+        title="Seja um Afiliado Slim Quality | Ganhe Comissões Vendendo Colchões"
+        description="Torne-se um afiliado Slim Quality e ganhe comissões de até 15% vendendo colchões magnéticos terapêuticos. Cadastro gratuito e suporte completo."
+        keywords="afiliado slim quality, programa de afiliados colchão, ganhar dinheiro vendendo colchão, comissão colchão magnético, revenda colchão"
+        canonical="https://slimquality.com.br/afiliados"
+        type="website"
+      />
+      
+      <div className="min-h-screen">
       {/* Hero Section */}
       <section className="relative overflow-hidden bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-primary/20 via-background to-secondary/10 py-24">
         <div className="absolute inset-0 bg-grid-white/[0.02] bg-[size:20px_20px]" />
@@ -519,6 +529,7 @@ export default function AfiliadosLanding() {
           onClose={() => setShowChatWidget(false)}
         />
       )}
-    </div>
+      </div>
+    </>
   );
 }

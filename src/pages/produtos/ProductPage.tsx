@@ -7,13 +7,23 @@ import { ChatWidget } from "@/components/chat/ChatWidget";
 import { Link } from "react-router-dom";
 import { useProducts } from "@/hooks/useProducts";
 import { Package } from "lucide-react";
+import { SEOHead } from "@/components/seo/SEOHead";
 
 const ProductPage = () => {
   const [showChatWidget, setShowChatWidget] = useState(false);
   const { products, loading, error } = useProducts();
 
   return (
-    <div className="flex flex-col">
+    <>
+      <SEOHead 
+        title="Colchões Magnéticos Terapêuticos | Todos os Tamanhos | Slim Quality"
+        description="Escolha o tamanho ideal: Solteiro, Casal, Queen ou King. Colchões magnéticos com 240 ímãs, infravermelho longo e vibromassagem. A partir de R$ 3.190. Entrega grátis."
+        keywords="colchão magnético solteiro, colchão magnético casal, colchão magnético queen, colchão magnético king, preço colchão magnético, comprar colchão terapêutico"
+        canonical="https://slimquality.com.br/produtos"
+        type="website"
+      />
+      
+      <div className="flex flex-col">
       {/* Hero */}
       <section className="container px-4 py-16">
         <div className="text-center mb-12 space-y-4">
@@ -68,8 +78,9 @@ const ProductPage = () => {
                     {product.image ? (
                       <img 
                         src={product.image} 
-                        alt={`Slim Quality ${product.name}`}
+                        alt={`Colchão magnético terapêutico Slim Quality ${product.name} - ${product.dimensions} - 240 ímãs de 800 Gauss`}
                         className="w-full h-full object-cover"
+                        loading="lazy"
                       />
                     ) : (
                       <div className="text-center text-muted-foreground">
@@ -136,7 +147,8 @@ const ProductPage = () => {
           onClose={() => setShowChatWidget(false)} 
         />
       )}
-    </div>
+      </div>
+    </>
   );
 };
 

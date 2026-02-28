@@ -13,7 +13,7 @@ interface SEOHeadProps {
 export function SEOHead({
   title = "Colchão Magnético Terapêutico Slim Quality - Alívio de Dores e Melhor Sono",
   description = "Colchão magnético terapêutico com 240 ímãs, infravermelho longo e vibromassagem. Alívio de dores, melhora da circulação e sono profundo. Entrega em todo Brasil.",
-  keywords = "colchão magnético, colchão terapêutico, magnetoterapia, alívio dores, insônia, circulação sanguínea, colchão ortopédico",
+  keywords = "colchão magnético, colchão terapêutico, magnetoterapia, alívio dores nas costas, insônia tratamento, circulação sanguínea, colchão ortopédico, infravermelho longo, vibromassagem, colchão para dor lombar, melhor colchão terapêutico",
   ogImage = "https://slimquality.com.br/og-image.jpg",
   ogUrl = "https://slimquality.com.br",
   canonical = "https://slimquality.com.br",

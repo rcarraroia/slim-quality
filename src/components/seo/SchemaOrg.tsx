@@ -1,5 +1,5 @@
 interface SchemaOrgProps {
-  type: 'product' | 'organization' | 'faq';
+  type: 'product' | 'organization' | 'faq' | 'breadcrumb' | 'localbusiness' | 'review';
   data?: any;
 }
 
@@ -64,6 +64,60 @@ export function SchemaOrg({ type, data }: SchemaOrgProps) {
           "@context": "https://schema.org",
           "@type": "FAQPage",
           "mainEntity": []
+        };
+
+      case 'breadcrumb':
+        return {
+          "@context": "https://schema.org",
+          "@type": "BreadcrumbList",
+          "itemListElement": data || []
+        };
+
+      case 'localbusiness':
+        return {
+          "@context": "https://schema.org",
+          "@type": "LocalBusiness",
+          "name": data.name,
+          "image": data.logo,
+          "address": {
+            "@type": "PostalAddress",
+            "streetAddress": data.address,
+            "addressLocality": data.city,
+            "addressRegion": data.state,
+            "postalCode": data.zipCode,
+            "addressCountry": "BR"
+          },
+          ...(data.latitude && data.longitude && {
+            "geo": {
+              "@type": "GeoCoordinates",
+              "latitude": data.latitude,
+              "longitude": data.longitude
+            }
+          }),
+          "url": data.url,
+          "telephone": data.phone,
+          ...(data.hours && { "openingHoursSpecification": data.hours })
+        };
+
+      case 'review':
+        return {
+          "@context": "https://schema.org",
+          "@type": "Review",
+          "itemReviewed": {
+            "@type": "Product",
+            "name": data.productName || "Colchão Magnético Slim Quality"
+          },
+          "author": {
+            "@type": "Person",
+            "name": data.authorName
+          },
+          "reviewRating": {
+            "@type": "Rating",
+            "ratingValue": data.rating,
+            "bestRating": "5"
+          },
+          "reviewBody": data.reviewText,
+          "datePublished": data.date
         };
 
       default:

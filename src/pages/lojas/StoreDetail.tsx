@@ -20,6 +20,8 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { storeFrontendService, StoreProfile } from '@/services/frontend/store.service';
+import { SchemaOrg } from '@/components/seo/SchemaOrg';
+import { SEOHead } from '@/components/seo/SEOHead';
 
 export default function StoreDetail() {
   const { slug } = useParams<{ slug: string }>();
@@ -98,8 +100,31 @@ export default function StoreDetail() {
     );
   }
 
+  // Schema LocalBusiness data
+  const localBusinessData = {
+    name: store.store_name,
+    logo: store.logo_url,
+    address: store.address,
+    city: store.city,
+    state: store.state,
+    zipCode: store.zip_code,
+    url: `https://slimquality.com.br/lojas/${store.slug}`,
+    phone: store.phone
+  };
+
   return (
-    <div className="min-h-screen bg-background">
+    <>
+      <SEOHead 
+        title={`${store.store_name} | Loja Parceira Slim Quality em ${store.city}`}
+        description={`Visite ${store.store_name} em ${store.city} - ${store.state}. Loja parceira Slim Quality com colchões magnéticos terapêuticos. ${store.address}.`}
+        keywords={`loja slim quality ${store.city.toLowerCase()}, colchão magnético ${store.city.toLowerCase()}, ${store.store_name.toLowerCase()}, loja ${store.state.toLowerCase()}`}
+        canonical={`https://slimquality.com.br/lojas/${store.slug}`}
+        type="website"
+      />
+      
+      <SchemaOrg type="localbusiness" data={localBusinessData} />
+      
+      <div className="min-h-screen bg-background">
       {/* Hero Section */}
       <div className="relative">
         {/* Banner */}
@@ -333,6 +358,7 @@ export default function StoreDetail() {
           </div>
         </div>
       </div>
-    </div>
+      </div>
+    </>
   );
 }
