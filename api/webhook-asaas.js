@@ -330,15 +330,137 @@ async function processCommissions(supabase, orderId, paymentValue) {
       item.product_sku === 'COL-707D80' || item.product_name?.toLowerCase().includes('agente ia')
     ) || false;
 
+    // ✅ NOVO: Verificar se é Show Room
+    const isShowRoomProduct = await checkIfShowRoomOrder(supabase, orderId);
+
     // Registrar input
     logData.input_data = {
       orderValue: baseValue,
       isIAProduct: isIAProduct,
+      isShowRoomProduct: isShowRoomProduct,
       affiliateN1Id: order.affiliate_n1_id,
       affiliateN2Id: order.affiliate_n2_id,
       affiliateN3Id: order.affiliate_n3_id,
       referralCode: order.referral_code
     };
+
+    // ============================================================
+    // SHOW ROOM: Comissionamento diferenciado (90% + 5% + 5%)
+    // ============================================================
+    if (isShowRoomProduct) {
+      console.log('🏪 Produto Show Room detectado - aplicando comissionamento diferenciado');
+      
+      // Calcular valores
+      const renumValue = Math.round(baseValue * 0.05); // 5%
+      const jbValue = Math.round(baseValue * 0.05);    // 5%
+      const totalCommission = renumValue + jbValue;     // 10% total
+      
+      console.log(`✅ Comissões Show Room calculadas:`, {
+        orderId,
+        total: totalCommission,
+        renum: renumValue,
+        jb: jbValue,
+        fabricaRecebe: baseValue - totalCommission // 90%
+      });
+
+      // Registrar output
+      logData.output_data = {
+        n1Value: 0,
+        n2Value: 0,
+        n3Value: 0,
+        renumValue: renumValue,
+        jbValue: jbValue,
+        totalCommission: totalCommission,
+        renumPercentage: 0.05,
+        jbPercentage: 0.05,
+        isShowRoom: true
+      };
+
+      // Inserir apenas comissões dos gestores
+      const commissions = [];
+
+      if (renumValue > 0) {
+        commissions.push({
+          order_id: orderId,
+          affiliate_id: null,
+          level: 0,
+          percentage: 0.05,
+          base_value_cents: baseValue,
+          commission_value_cents: renumValue,
+          original_percentage: 0.05,
+          redistribution_applied: false,
+          status: 'pending',
+          metadata: {
+            level: 'manager_renum',
+            is_show_room: true,
+            manager_name: 'Renum'
+          },
+          calculation_details: {
+            orderValue: baseValue,
+            calculatedAt: new Date().toISOString(),
+            isShowRoom: true,
+            note: 'Comissão Show Room - sem rede de afiliados'
+          }
+        });
+      }
+
+      if (jbValue > 0) {
+        commissions.push({
+          order_id: orderId,
+          affiliate_id: null,
+          level: 0,
+          percentage: 0.05,
+          base_value_cents: baseValue,
+          commission_value_cents: jbValue,
+          original_percentage: 0.05,
+          redistribution_applied: false,
+          status: 'pending',
+          metadata: {
+            level: 'manager_jb',
+            is_show_room: true,
+            manager_name: 'JB'
+          },
+          calculation_details: {
+            orderValue: baseValue,
+            calculatedAt: new Date().toISOString(),
+            isShowRoom: true,
+            note: 'Comissão Show Room - sem rede de afiliados'
+          }
+        });
+      }
+
+      // Registrar split para log
+      logData.split_data = commissions.map(c => ({
+        affiliateId: c.affiliate_id,
+        level: c.level,
+        percentage: c.percentage,
+        value: c.commission_value_cents,
+        isShowRoom: true
+      }));
+
+      // Inserir comissões
+      const { error: insertError } = await supabase
+        .from('commissions')
+        .insert(commissions);
+
+      if (insertError) {
+        console.error('Erro ao inserir comissões Show Room:', insertError);
+        logData.error_message = insertError.message;
+        await saveCalculationLog(supabase, logData);
+        return;
+      }
+
+      logData.success = true;
+      await saveCalculationLog(supabase, logData);
+
+      const duration = Date.now() - startTime;
+      console.log(`✅ Comissões Show Room processadas em ${duration}ms`);
+      return;
+    }
+
+    // ============================================================
+    // FLUXO NORMAL: Produtos regulares e IA
+    // ============================================================
 
     // Calcular comissões com redistribuição
     const result = await calculateCommissionsWithRedistribution(
@@ -711,6 +833,36 @@ async function registerShowRoomPurchase(supabase, orderId) {
   } catch (error) {
     console.error('❌ Erro ao registrar compras Show Room:', error);
     // Não falhar o webhook por causa do registro Show Room
+  }
+}
+
+/**
+ * Verifica se o pedido contém produtos Show Room
+ * Fase 2 - Task 2.1: Detecção de produtos Show Room
+ */
+async function checkIfShowRoomOrder(supabase, orderId) {
+  try {
+    const { data: orderItems, error } = await supabase
+      .from('order_items')
+      .select(`
+        product_id,
+        products!inner(category)
+      `)
+      .eq('order_id', orderId);
+
+    if (error || !orderItems) {
+      console.error('Erro ao verificar produtos Show Room:', error);
+      return false;
+    }
+
+    const hasShowRoom = orderItems.some(item => 
+      item.products?.category === 'show_row'
+    );
+
+    return hasShowRoom;
+  } catch (error) {
+    console.error('Erro ao verificar produtos Show Room:', error);
+    return false;
   }
 }
 
