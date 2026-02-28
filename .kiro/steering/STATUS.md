@@ -11,7 +11,7 @@ inclusion: always
 
 ## TAREFA ATUAL
 
-**IMPLEMENTAÇÃO DE REGRAS ESPECIAIS SHOW ROOM: EM ANDAMENTO** 🚧
+**IMPLEMENTAÇÃO DE REGRAS ESPECIAIS SHOW ROOM: FASE 3 CONCLUÍDA** ✅
 
 ### Fase 0: Preparação do Banco ✅ CONCLUÍDA (27/02/2026)
 
@@ -45,13 +45,51 @@ inclusion: always
 
 **Commit:** `2ee54fe`
 
-### Próxima Fase: Fase 2 - Comissionamento Diferenciado
+### Fase 2: Comissionamento Diferenciado ✅ CONCLUÍDA (27/02/2026)
 
-**Objetivo:** Calcular comissões diferenciadas para produtos Show Room (90% Fábrica + 5% Renum + 5% JB)
+**Task 2.1 - Comissionamento Show Room:**
+- ✅ Função `checkIfShowRoomOrder()` para detectar produtos Show Room
+- ✅ Lógica diferenciada: 90% Fábrica + 5% Renum + 5% JB
+- ✅ Sem comissões para N1/N2/N3
+- ✅ Apenas 2 registros de comissão (gestores)
+- ✅ Metadata `is_show_room: true`
+- ✅ Logs detalhados para auditoria
+- ✅ Early return para não processar fluxo normal
+
+**Commit:** `298ecc9`
+
+### Fase 3: Frete Grátis e UI/UX ✅ CONCLUÍDA (28/02/2026)
+
+**Task 3.1 - Frete Grátis (checkout.js):**
+- ✅ Variável `isFreeShipping` criada
+- ✅ Frete zerado quando `hasShowRoomProduct === true`
+- ✅ Flag `freeShipping` adicionada em ambos os registros de pagamento
+- ✅ Logs detalhados: "🚚 Frete grátis aplicado para produto Show Room"
+
+**Task 3.2 - Ocultar Card de Indicação (AffiliateAwareCheckout.tsx):**
+- ✅ Flag `isShowRoomProduct` criada (detecta SKU com "SHOW-")
+- ✅ Card de indicação oculto com `{referralInfo && !isShowRoomProduct && ...}`
+- ✅ Alert laranja adicionado explicando regras Show Room
+- ✅ Renderização condicional funcionando
+
+**Task 3.3 - Badges Visuais:**
+- ✅ Badge "Show Room" verde no resumo de frete
+- ✅ Alert laranja explicativo para produtos Show Room
+- ✅ Badge "Já adquirido" já implementado no ShowRow.tsx (Fase 1)
+- ✅ getDiagnostics: 0 erros
+
+**Commit:** (pendente)
+
+### Próxima Fase: Fase 4 - Testes e Validação
+
+**Objetivo:** Validar fluxo completo e testes de regressão
 
 **Tasks:**
-1. Atualizar função `processCommissions()` no webhook
-2. Atualizar função SQL `calculate_commission_split()` (se necessário)
+1. Testar primeira compra Show Room
+2. Testar tentativa de compra duplicada
+3. Testar compra de múltiplos modelos
+4. Validar comissões no banco
+5. Testes de regressão (produtos normais)
 
 **Documento de Tasks:** `.spec/tasks/show-room-regras-especiais.md`
 

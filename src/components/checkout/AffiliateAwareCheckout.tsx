@@ -66,6 +66,9 @@ export default function AffiliateAwareCheckout({
     postal_code: ''
   });
 
+  // ✅ NOVO: Detectar se produto é Show Room
+  const isShowRoomProduct = product.sku?.includes('SHOW-') || false;
+
   // Pré-preencher dados se cliente já estiver logado
   useEffect(() => {
     if (isAuthenticated && loggedUser) {
@@ -636,8 +639,8 @@ export default function AffiliateAwareCheckout({
             </div>
           )}
 
-          {/* Informações do Afiliado */}
-          {referralInfo && (
+          {/* Informações do Afiliado - Ocultar se for Show Room */}
+          {referralInfo && !isShowRoomProduct && (
             <Alert className="border-primary/20 bg-primary/5">
               <Users className="h-4 w-4 text-primary" />
               <AlertDescription className="space-y-2">
@@ -657,6 +660,16 @@ export default function AffiliateAwareCheckout({
             </Alert>
           )}
 
+          {/* Nota explicativa para Show Room */}
+          {isShowRoomProduct && (
+            <Alert className="border-orange-200 bg-orange-50">
+              <AlertDescription className="text-sm text-orange-700">
+                <strong>Produto Show Room:</strong> Este produto não gera comissão para rede de afiliados. 
+                Frete grátis aplicado automaticamente.
+              </AlertDescription>
+            </Alert>
+          )}
+
           {/* Resumo do Pedido */}
           <div className="space-y-3 pt-4 border-t">
             <div className="flex justify-between text-sm">
@@ -665,7 +678,14 @@ export default function AffiliateAwareCheckout({
             </div>
             <div className="flex justify-between text-sm">
               <span>Frete:</span>
-              <span className="text-green-600">Grátis</span>
+              <div className="flex items-center gap-2">
+                <span className="text-green-600">Grátis</span>
+                {isShowRoomProduct && (
+                  <Badge variant="secondary" className="text-xs bg-green-100 text-green-700 border-green-300">
+                    Show Room
+                  </Badge>
+                )}
+              </div>
             </div>
             <div className="flex justify-between font-bold text-lg pt-2 border-t">
               <span>Total:</span>

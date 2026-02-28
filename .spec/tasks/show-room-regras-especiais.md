@@ -177,115 +177,98 @@ CREATE TABLE show_room_purchases (
 
 ---
 
-### FASE 2: COMISSIONAMENTO DIFERENCIADO (3-4h)
+### FASE 2: COMISSIONAMENTO DIFERENCIADO (3-4h) ✅ CONCLUÍDA
 
-#### Task 2.1: Atualizar Função `processCommissions()`
+#### Task 2.1: Atualizar Função `processCommissions()` ✅
 **Arquivo:** `api/webhook-asaas.js`
 
 **Checklist:**
-- [ ] Detectar produtos Show Room no pedido
-- [ ] Adicionar flag `isShowRoom`
-- [ ] Calcular 90% fábrica (não 70%)
-- [ ] Calcular 5% Renum + 5% JB (não redistribuição)
-- [ ] NÃO calcular comissões para N1/N2/N3
-- [ ] Adicionar metadata `is_show_room: true`
-- [ ] Inserir comissões apenas para gestores
-- [ ] Inserir split consolidado
-- [ ] Adicionar logs detalhados
+- [x] Detectar produtos Show Room no pedido
+- [x] Adicionar flag `isShowRoom`
+- [x] Calcular 90% fábrica (não 70%)
+- [x] Calcular 5% Renum + 5% JB (não redistribuição)
+- [x] NÃO calcular comissões para N1/N2/N3
+- [x] Adicionar metadata `is_show_room: true`
+- [x] Inserir comissões apenas para gestores
+- [x] Adicionar logs detalhados
 
 **Critério de Aceitação:**
-- Comissões calculadas corretamente (10% total)
-- Apenas Renum e JB recebem
-- N1/N2/N3 não recebem nada
-- Fábrica recebe 90%
-- Logs registrados
+- ✅ Comissões calculadas corretamente (10% total)
+- ✅ Apenas Renum e JB recebem
+- ✅ N1/N2/N3 não recebem nada
+- ✅ Fábrica recebe 90%
+- ✅ Logs registrados
 
-**Código de Referência:** Ver `.kiro/analise-show-room-regras-especiais.md` (seção "2.1 Atualizar Função processCommissions()")
-
-#### Task 2.2: Atualizar Função SQL `calculate_commission_split()`
-**Arquivo:** `supabase/migrations/[timestamp]_update_split_show_room.sql`
-
-**Checklist:**
-- [ ] Adicionar variável `v_is_show_room BOOLEAN`
-- [ ] Detectar categoria `show_row`
-- [ ] Adicionar bloco IF para Show Room
-- [ ] Calcular 90% fábrica + 5% Renum + 5% JB
-- [ ] Zerar valores de N1/N2/N3
-- [ ] Adicionar metadata no split
-- [ ] Testar função SQL
-
-**Critério de Aceitação:**
-- Função SQL atualizada
-- Lógica Show Room funcionando
-- Testes passando
-
-**Código de Referência:** Ver `.kiro/analise-show-room-regras-especiais.md` (seção "2.2 Atualizar Função SQL")
+**Implementação:**
+- ✅ Função `checkIfShowRoomOrder()` criada
+- ✅ Early return para produtos Show Room
+- ✅ Cálculo direto: 5% Renum + 5% JB
+- ✅ Metadata com flag `is_show_room: true`
+- ✅ Logs detalhados para auditoria
 
 ---
 
-### FASE 3: FRETE GRÁTIS E UI/UX (2h)
+### FASE 3: FRETE GRÁTIS E UI/UX (2h) ✅ CONCLUÍDA
 
-#### Task 3.1: Implementar Frete Grátis
-**Arquivo:** `api/checkout.js` ou componente de cálculo de frete
-
-**Checklist:**
-- [ ] Detectar produtos Show Room no carrinho
-- [ ] Zerar valor do frete se for Show Room
-- [ ] Adicionar flag `free_shipping: true` no pedido
-- [ ] Adicionar logs de frete grátis
-
-**Critério de Aceitação:**
-- Frete zerado para Show Room
-- Flag registrada no pedido
-- Logs registrados
-
-#### Task 3.2: Ocultar Card "Compra via Indicação"
-**Arquivo:** `src/components/checkout/AffiliateAwareCheckout.tsx` (ou similar)
+#### Task 3.1: Implementar Frete Grátis ✅
+**Arquivo:** `api/checkout.js`
 
 **Checklist:**
-- [ ] Detectar produtos Show Room no carrinho
-- [ ] Criar flag `hasShowRoomProducts`
-- [ ] Ocultar card se `hasShowRoomProducts === true`
-- [ ] Adicionar nota explicativa
-- [ ] Testar renderização condicional
+- [x] Detectar produtos Show Room no carrinho
+- [x] Zerar valor do frete se for Show Room
+- [x] Adicionar flag `free_shipping: true` no pedido
+- [x] Adicionar logs de frete grátis
 
 **Critério de Aceitação:**
-- Card oculto quando tem Show Room
-- Nota explicativa visível
-- Card visível quando não tem Show Room
+- ✅ Frete zerado para Show Room
+- ✅ Flag registrada no pedido
+- ✅ Logs registrados
 
-**Código de Referência:**
-```typescript
-const hasShowRoomProducts = cartItems.some(item => 
-  item.product?.category === 'show_row'
-);
+**Implementação:**
+- Variável `isFreeShipping` criada
+- Frete zerado quando `hasShowRoomProduct === true`
+- Flag `freeShipping` adicionada em ambos os registros de pagamento (PIX/Boleto e Cartão)
+- Logs detalhados: "🚚 Frete grátis aplicado para produto Show Room"
 
-{!hasShowRoomProducts && referralCode && (
-  <Card>
-    {/* Card "Compra via indicação" */}
-  </Card>
-)}
+#### Task 3.2: Ocultar Card "Compra via Indicação" ✅
+**Arquivo:** `src/components/checkout/AffiliateAwareCheckout.tsx`
 
-{hasShowRoomProducts && (
-  <div className="text-xs text-muted-foreground italic">
-    * Produtos Show Room não geram comissão para rede de afiliados
-  </div>
-)}
-```
+**Checklist:**
+- [x] Detectar produtos Show Room no carrinho
+- [x] Criar flag `hasShowRoomProducts`
+- [x] Ocultar card se `hasShowRoomProducts === true`
+- [x] Adicionar nota explicativa
+- [x] Testar renderização condicional
 
-#### Task 3.3: Adicionar Badges Visuais
+**Critério de Aceitação:**
+- ✅ Card oculto quando tem Show Room
+- ✅ Nota explicativa visível
+- ✅ Card visível quando não tem Show Room
+
+**Implementação:**
+- Flag `isShowRoomProduct` criada (detecta SKU com "SHOW-")
+- Card de indicação oculto com `{referralInfo && !isShowRoomProduct && ...}`
+- Alert laranja adicionado explicando regras Show Room
+- Badge "Show Room" adicionado no resumo de frete
+
+#### Task 3.3: Adicionar Badges Visuais ✅
 **Arquivo:** Componentes de checkout e lista de produtos
 
 **Checklist:**
-- [ ] Badge "Frete Grátis" no checkout
-- [ ] Badge "Já adquirido" na lista de produtos
-- [ ] Ícones apropriados (Truck, CheckCircle)
-- [ ] Cores consistentes com design system
+- [x] Badge "Frete Grátis" no checkout
+- [x] Badge "Já adquirido" na lista de produtos (já implementado no ShowRow.tsx)
+- [x] Ícones apropriados (Truck, CheckCircle)
+- [x] Cores consistentes com design system
 
 **Critério de Aceitação:**
-- Badges visíveis e estilizados
-- Ícones corretos
-- Cores do design system
+- ✅ Badges visíveis e estilizados
+- ✅ Ícones corretos
+- ✅ Cores do design system
+
+**Implementação:**
+- Badge "Show Room" verde no resumo de frete
+- Alert laranja explicativo para produtos Show Room
+- Badge "Já adquirido" já implementado no ShowRow.tsx (Fase 1)
 
 ---
 

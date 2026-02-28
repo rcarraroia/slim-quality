@@ -377,11 +377,24 @@ export default async function handler(req, res) {
     // Criar data de vencimento (7 dias para PIX/Boleto)
     const dueDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
+    // ============================================================
+    // FRETE GRÁTIS PARA PRODUTOS SHOW ROOM
+    // ============================================================
+    let shippingCost = 0; // Frete padrão (pode ser calculado depois)
+    let isFreeShipping = false;
+
+    if (hasShowRoomProduct) {
+      shippingCost = 0;
+      isFreeShipping = true;
+      console.log('[Checkout] 🚚 Frete grátis aplicado para produto Show Room');
+    }
+
     // Calcular split baseado na rede de afiliados (apenas produtos físicos)
     const splits = await calculateAffiliateSplit(referralCode, ASAAS_WALLET_RENUM, ASAAS_WALLET_JB);
 
     console.log('Split calculado:', splits);
     console.log('Asaas Target: PAYMENT (produtos físicos)');
+    console.log('Frete:', isFreeShipping ? 'GRÁTIS (Show Room)' : `R$ ${shippingCost.toFixed(2)}`);
 
     // Endpoint sempre /payments para produtos físicos
     const asaasEndpoint = '/payments';
@@ -525,7 +538,8 @@ export default async function handler(req, res) {
         installments: installments || 1,
         cardBrand: cardPaymentData.creditCard?.creditCardBrand,
         cardLastDigits: creditCard.number?.slice(-4),
-        referralCode: referralCode || null
+        referralCode: referralCode || null,
+        freeShipping: isFreeShipping // ✅ Flag de frete grátis
       });
 
       // Se pagamento confirmado, atualizar status do pedido para 'paid'
@@ -557,7 +571,8 @@ export default async function handler(req, res) {
       pixQrCode: pixQrCode,
       pixCopyPaste: pixCopyPaste,
       pixExpiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // 24h
-      referralCode: referralCode || null
+      referralCode: referralCode || null,
+      freeShipping: isFreeShipping // ✅ Flag de frete grátis
     });
 
     // Sucesso (PIX ou Boleto)
