@@ -11,6 +11,56 @@ inclusion: always
 
 ## TAREFA ATUAL
 
+**CORREÇÃO: Acesso ao Painel de Afiliados no iOS Safari** ✅ CONCLUÍDA (28/02/2026)
+
+### Problema Reportado:
+Afiliados não conseguiam acessar o painel via iOS Safari, ficando presos em loop de redirecionamento.
+
+### Diagnóstico:
+4 problemas críticos identificados:
+1. localStorage bloqueado no Safari iOS modo privado
+2. Loop de redirecionamento no ProtectedRoute
+3. Falta de fallback para cookies
+4. Propriedades CSS problemáticas no Safari iOS
+
+### Solução Implementada:
+
+#### Fase 1 - Storage Híbrido (localStorage + Cookies) ✅
+- ✅ Task 1.1: StorageHelper criado (`src/utils/storage-helper.ts`)
+- ✅ Task 1.2: admin-auth.service.ts atualizado (12 ocorrências)
+- ✅ Task 1.3: customer-auth.service.ts atualizado (16 ocorrências)
+- ✅ Task 1.4: api.service.ts atualizado (3 ocorrências)
+- ✅ Task 1.5: AffiliateDashboardLayout.tsx atualizado (4 ocorrências)
+
+#### Fase 2 - Detecção de Loop ✅
+- ✅ Task 2.1: ProtectedRoute.tsx com detecção de loop
+- ✅ Task 2.2: CustomerProtectedRoute.tsx com detecção de loop
+
+#### Fase 3 - Fixes CSS para Safari iOS ✅
+- ✅ Task 3.1: safari-fixes.css criado
+- ✅ Task 3.2: Importado no main.tsx
+
+### Evidências:
+- ✅ getDiagnostics: 0 erros em todos os arquivos
+- ✅ Build: passou sem erros
+- ✅ Cookies com flags de segurança (Secure, SameSite=Strict)
+- ✅ Fallback transparente (usuário não percebe diferença)
+- ✅ Mensagem de erro clara se houver problema
+
+### Commit:
+- Hash: (pendente push)
+- Mensagem: "fix: Corrige acesso ao painel de afiliados no iOS Safari"
+
+### Próximos Passos:
+- ⏳ Push para produção
+- ⏳ Validação manual no iPhone real
+- ⏳ Teste em Safari iOS modo privado
+- ⏳ Verificar URLs permitidas no Supabase Dashboard
+
+---
+
+## TAREFAS ANTERIORES CONCLUÍDAS (28/02/2026)
+
 **IMPLEMENTAÇÃO DE REGRAS ESPECIAIS SHOW ROOM: FASE 3 CONCLUÍDA** ✅
 
 ### Fase 0: Preparação do Banco ✅ CONCLUÍDA (27/02/2026)

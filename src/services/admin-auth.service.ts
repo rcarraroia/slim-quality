@@ -4,6 +4,7 @@
  */
 
 import { supabase } from '@/config/supabase';
+import { StorageHelper } from '@/utils/storage-helper';
 
 export interface AdminUser {
   id: string;
@@ -98,13 +99,14 @@ class AdminAuthService {
         .update({ last_login_at: new Date().toISOString() })
         .eq('id', adminData.id);
 
-      // Salvar dados no localStorage
-      localStorage.setItem('admin_token', authData.session.access_token);
-      localStorage.setItem('admin_refresh_token', authData.session.refresh_token);
-      localStorage.setItem('admin_user', JSON.stringify(adminUser));
+      // Salvar dados no storage (localStorage com fallback para cookies)
+      const expiresIn = authData.session.expires_in || 3600;
+      StorageHelper.setItem('admin_token', authData.session.access_token, expiresIn);
+      StorageHelper.setItem('admin_refresh_token', authData.session.refresh_token, expiresIn);
+      StorageHelper.setItem('admin_user', JSON.stringify(adminUser), expiresIn);
       
-      const expirationTime = Date.now() + (authData.session.expires_in || 3600) * 1000;
-      localStorage.setItem('admin_token_expires', expirationTime.toString());
+      const expirationTime = Date.now() + (expiresIn * 1000);
+      StorageHelper.setItem('admin_token_expires', expirationTime.toString(), expiresIn);
 
       return {
         success: true,
@@ -169,12 +171,13 @@ class AdminAuthService {
         };
       }
 
-      // Atualizar tokens no localStorage
-      localStorage.setItem('admin_token', data.session.access_token);
-      localStorage.setItem('admin_refresh_token', data.session.refresh_token);
+      // Atualizar tokens no storage (localStorage com fallback para cookies)
+      const expiresIn = data.session.expires_in || 3600;
+      StorageHelper.setItem('admin_token', data.session.access_token, expiresIn);
+      StorageHelper.setItem('admin_refresh_token', data.session.refresh_token, expiresIn);
       
-      const expirationTime = Date.now() + (data.session.expires_in || 3600) * 1000;
-      localStorage.setItem('admin_token_expires', expirationTime.toString());
+      const expirationTime = Date.now() + (expiresIn * 1000);
+      StorageHelper.setItem('admin_token_expires', expirationTime.toString(), expiresIn);
 
       return {
         success: true,
@@ -249,8 +252,8 @@ class AdminAuthService {
    * Verificar se está autenticado
    */
   isAuthenticated(): boolean {
-    const token = localStorage.getItem('admin_token');
-    const expiresAt = localStorage.getItem('admin_token_expires');
+    const token = StorageHelper.getItem('admin_token');
+    const expiresAt = StorageHelper.getItem('admin_token_expires');
     
     if (!token || !expiresAt) {
       return false;
@@ -269,10 +272,10 @@ class AdminAuthService {
   }
 
   /**
-   * Obter usuário do localStorage
+   * Obter usuário do storage
    */
   getStoredUser(): AdminUser | null {
-    const userStr = localStorage.getItem('admin_user');
+    const userStr = StorageHelper.getItem('admin_user');
     if (!userStr) return null;
     
     try {
@@ -283,17 +286,17 @@ class AdminAuthService {
   }
 
   /**
-   * Obter token do localStorage
+   * Obter token do storage
    */
   getToken(): string | null {
-    return localStorage.getItem('admin_token');
+    return StorageHelper.getItem('admin_token');
   }
 
   /**
    * Verificar se token está próximo do vencimento (5 minutos)
    */
   isTokenExpiringSoon(): boolean {
-    const expiresAt = localStorage.getItem('admin_token_expires');
+    const expiresAt = StorageHelper.getItem('admin_token_expires');
     if (!expiresAt) return true;
     
     const now = Date.now();
@@ -307,10 +310,10 @@ class AdminAuthService {
    * Limpar dados de autenticação
    */
   clearAuthData(): void {
-    localStorage.removeItem('admin_token');
-    localStorage.removeItem('admin_refresh_token');
-    localStorage.removeItem('admin_user');
-    localStorage.removeItem('admin_token_expires');
+    StorageHelper.removeItem('admin_token');
+    StorageHelper.removeItem('admin_refresh_token');
+    StorageHelper.removeItem('admin_user');
+    StorageHelper.removeItem('admin_token_expires');
   }
 
   /**

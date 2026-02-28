@@ -1,0 +1,205 @@
+/**
+ * Fixes para Safari iOS
+ * Resolve problemas de viewport height, overflow e zoom
+ */
+
+/* ========================================
+   VIEWPORT HEIGHT FIXES
+   ======================================== */
+
+/* Usar dvh (dynamic viewport height) ao invés de vh */
+@supports (height: 100dvh) {
+  .min-h-screen {
+    min-height: 100dvh !important;
+  }
+  
+  .h-screen {
+    height: 100dvh !important;
+  }
+}
+
+/* Fallback para navegadores antigos */
+@supports not (height: 100dvh) {
+  .min-h-screen {
+    min-height: 100vh;
+    min-height: -webkit-fill-available;
+  }
+  
+  .h-screen {
+    height: 100vh;
+    height: -webkit-fill-available;
+  }
+}
+
+/* ========================================
+   OVERFLOW E SCROLL FIXES
+   ======================================== */
+
+/* Corrigir overflow em modais no iOS */
+.modal-content,
+[role="dialog"] {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+/* Corrigir overflow em tabelas */
+.overflow-x-auto {
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Corrigir overflow-y em containers */
+.overflow-y-auto {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+/* ========================================
+   INPUT ZOOM PREVENTION
+   ======================================== */
+
+/* Prevenir zoom em inputs no iOS (fonte mínima 16px) */
+input,
+select,
+textarea {
+  font-size: 16px !important;
+}
+
+/* Manter tamanho de fonte em inputs pequenos */
+input[type="search"],
+input[type="email"],
+input[type="tel"],
+input[type="text"],
+input[type="password"] {
+  font-size: 16px !important;
+}
+
+/* ========================================
+   STICKY POSITION FIXES
+   ======================================== */
+
+/* Melhorar comportamento de position: sticky no Safari */
+.sticky {
+  position: -webkit-sticky;
+  position: sticky;
+}
+
+/* ========================================
+   FLEXBOX FIXES
+   ======================================== */
+
+/* Corrigir flex shrink no Safari */
+.flex-shrink-0 {
+  -webkit-flex-shrink: 0;
+  flex-shrink: 0;
+}
+
+/* ========================================
+   TRANSFORM E ANIMATION FIXES
+   ======================================== */
+
+/* Melhorar performance de animações no iOS */
+.transition-all,
+.transition-colors,
+.transition-transform {
+  -webkit-transform: translateZ(0);
+  transform: translateZ(0);
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+}
+
+/* ========================================
+   SAFE AREA INSETS (iPhone X+)
+   ======================================== */
+
+/* Respeitar safe area em telas com notch */
+@supports (padding: max(0px)) {
+  .safe-top {
+    padding-top: max(env(safe-area-inset-top), 0px);
+  }
+  
+  .safe-bottom {
+    padding-bottom: max(env(safe-area-inset-bottom), 0px);
+  }
+  
+  .safe-left {
+    padding-left: max(env(safe-area-inset-left), 0px);
+  }
+  
+  .safe-right {
+    padding-right: max(env(safe-area-inset-right), 0px);
+  }
+}
+
+/* ========================================
+   TOUCH ACTION FIXES
+   ======================================== */
+
+/* Melhorar responsividade de touch no iOS */
+button,
+a,
+[role="button"] {
+  -webkit-tap-highlight-color: rgba(0, 0, 0, 0.1);
+  touch-action: manipulation;
+}
+
+/* Remover highlight azul padrão do iOS */
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Restaurar highlight em elementos interativos */
+button:active,
+a:active,
+[role="button"]:active {
+  -webkit-tap-highlight-color: rgba(0, 0, 0, 0.1);
+}
+
+/* ========================================
+   SCROLL BEHAVIOR FIXES
+   ======================================== */
+
+/* Melhorar scroll suave no iOS */
+html {
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Prevenir bounce scroll em containers específicos */
+.no-bounce {
+  overscroll-behavior: none;
+}
+
+/* ========================================
+   MODAL E DIALOG FIXES
+   ======================================== */
+
+/* Garantir que modais sejam roláveis no iOS */
+[data-radix-dialog-content],
+[data-radix-popover-content] {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  max-height: 90vh;
+  max-height: 90dvh;
+}
+
+/* ========================================
+   CUSTOM SCROLLBAR (opcional)
+   ======================================== */
+
+/* Scrollbar customizada para iOS (quando visível) */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.3);
+}

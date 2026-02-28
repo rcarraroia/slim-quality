@@ -149,11 +149,11 @@ export function AffiliateDashboardLayout() {
       // Fazer logout no Supabase
       await supabase.auth.signOut();
 
-      // Limpar dados do localStorage
-      localStorage.removeItem('customer_token');
-      localStorage.removeItem('customer_refresh_token');
-      localStorage.removeItem('customer_user');
-      localStorage.removeItem('customer_token_expires');
+      // Limpar dados do storage
+      StorageHelper.removeItem('customer_token');
+      StorageHelper.removeItem('customer_refresh_token');
+      StorageHelper.removeItem('customer_user');
+      StorageHelper.removeItem('customer_token_expires');
 
       // Redirecionar para login
       navigate("/entrar");

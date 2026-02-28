@@ -4,6 +4,7 @@
  */
 
 import axios, { AxiosInstance, AxiosRequestConfig } from 'axios';
+import { StorageHelper } from '@/utils/storage-helper';
 
 export interface ApiResponse<T = any> {
   success: boolean;
@@ -27,7 +28,7 @@ class ApiService {
     // Interceptor para adicionar token JWT
     this.client.interceptors.request.use(
       (config) => {
-        const token = localStorage.getItem('admin_token');
+        const token = StorageHelper.getItem('admin_token');
         if (token) {
           config.headers.Authorization = `Bearer ${token}`;
         }
@@ -46,8 +47,8 @@ class ApiService {
       (error) => {
         // Se token expirou, redirecionar para login
         if (error.response?.status === 401) {
-          localStorage.removeItem('admin_token');
-          localStorage.removeItem('admin_refresh_token');
+          StorageHelper.removeItem('admin_token');
+          StorageHelper.removeItem('admin_refresh_token');
           window.location.href = '/admin/login';
         }
         return Promise.reject(error);

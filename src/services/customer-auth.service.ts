@@ -4,6 +4,7 @@
  */
 
 import { supabase } from '@/config/supabase';
+import { StorageHelper } from '@/utils/storage-helper';
 
 export interface CustomerUser {
   id: string;
@@ -106,13 +107,14 @@ class CustomerAuthService {
         affiliateStatus: affiliateData?.status
       };
 
-      // Salvar no localStorage
-      localStorage.setItem('customer_token', authData.session.access_token);
-      localStorage.setItem('customer_refresh_token', authData.session.refresh_token);
-      localStorage.setItem('customer_user', JSON.stringify(customerUser));
+      // Salvar no storage (localStorage com fallback para cookies)
+      const expiresIn = authData.session.expires_in || 3600;
+      StorageHelper.setItem('customer_token', authData.session.access_token, expiresIn);
+      StorageHelper.setItem('customer_refresh_token', authData.session.refresh_token, expiresIn);
+      StorageHelper.setItem('customer_user', JSON.stringify(customerUser), expiresIn);
       
-      const expirationTime = Date.now() + (authData.session.expires_in || 3600) * 1000;
-      localStorage.setItem('customer_token_expires', expirationTime.toString());
+      const expirationTime = Date.now() + (expiresIn * 1000);
+      StorageHelper.setItem('customer_token_expires', expirationTime.toString(), expiresIn);
 
       return {
         success: true,
@@ -221,12 +223,13 @@ class CustomerAuthService {
           isAffiliate: false
         };
 
-        localStorage.setItem('customer_token', authData.session.access_token);
-        localStorage.setItem('customer_refresh_token', authData.session.refresh_token);
-        localStorage.setItem('customer_user', JSON.stringify(customerUser));
+        const expiresIn = authData.session.expires_in || 3600;
+        StorageHelper.setItem('customer_token', authData.session.access_token, expiresIn);
+        StorageHelper.setItem('customer_refresh_token', authData.session.refresh_token, expiresIn);
+        StorageHelper.setItem('customer_user', JSON.stringify(customerUser), expiresIn);
         
-        const expirationTime = Date.now() + (authData.session.expires_in || 3600) * 1000;
-        localStorage.setItem('customer_token_expires', expirationTime.toString());
+        const expirationTime = Date.now() + (expiresIn * 1000);
+        StorageHelper.setItem('customer_token_expires', expirationTime.toString(), expiresIn);
 
         return {
           success: true,
@@ -360,8 +363,8 @@ class CustomerAuthService {
    * Verificar se está autenticado
    */
   isAuthenticated(): boolean {
-    const token = localStorage.getItem('customer_token');
-    const expiresAt = localStorage.getItem('customer_token_expires');
+    const token = StorageHelper.getItem('customer_token');
+    const expiresAt = StorageHelper.getItem('customer_token_expires');
     
     if (!token || !expiresAt) return false;
     
@@ -493,11 +496,12 @@ class CustomerAuthService {
         return false;
       }
 
-      localStorage.setItem('customer_token', data.session.access_token);
-      localStorage.setItem('customer_refresh_token', data.session.refresh_token);
+      const expiresIn = data.session.expires_in || 3600;
+      StorageHelper.setItem('customer_token', data.session.access_token, expiresIn);
+      StorageHelper.setItem('customer_refresh_token', data.session.refresh_token, expiresIn);
       
-      const expirationTime = Date.now() + (data.session.expires_in || 3600) * 1000;
-      localStorage.setItem('customer_token_expires', expirationTime.toString());
+      const expirationTime = Date.now() + (expiresIn * 1000);
+      StorageHelper.setItem('customer_token_expires', expirationTime.toString(), expiresIn);
 
       return true;
     } catch (error) {
@@ -511,17 +515,17 @@ class CustomerAuthService {
    * Limpar dados de autenticação
    */
   clearAuthData(): void {
-    localStorage.removeItem('customer_token');
-    localStorage.removeItem('customer_refresh_token');
-    localStorage.removeItem('customer_user');
-    localStorage.removeItem('customer_token_expires');
+    StorageHelper.removeItem('customer_token');
+    StorageHelper.removeItem('customer_refresh_token');
+    StorageHelper.removeItem('customer_user');
+    StorageHelper.removeItem('customer_token_expires');
   }
 
   /**
    * Obter token
    */
   getToken(): string | null {
-    return localStorage.getItem('customer_token');
+    return StorageHelper.getItem('customer_token');
   }
 }
 

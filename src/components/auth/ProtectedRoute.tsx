@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Loader2 } from 'lucide-react';
@@ -16,11 +16,43 @@ export function ProtectedRoute({
 }: ProtectedRouteProps) {
   const { user, profile, loading, isAdmin, isSuperAdmin } = useAuth();
   const navigate = useNavigate();
+  
+  // Detecção de loop de redirecionamento
+  const redirectCount = useRef(0);
+  const lastRedirect = useRef(0);
 
   useEffect(() => {
     if (!loading) {
       // Se não está logado, redirecionar para login admin
       if (!user) {
+        const now = Date.now();
+        
+        // Detectar loop: mais de 3 redirecionamentos em 10 segundos
+        if (now - lastRedirect.current < 10000) {
+          redirectCount.current++;
+          
+          if (redirectCount.current > 3) {
+            // LOOP DETECTADO!
+            console.error('Loop de redirecionamento detectado - possível problema com Safari iOS');
+            
+            // Mostrar mensagem de erro ao usuário
+            alert(
+              'Problema de autenticação detectado.\n\n' +
+              'Se você está usando Safari no iOS em modo privado, ' +
+              'tente usar o modo normal ou outro navegador.\n\n' +
+              'Caso o problema persista, entre em contato com o suporte.'
+            );
+            
+            // Resetar contador
+            redirectCount.current = 0;
+            return;
+          }
+        } else {
+          // Resetar contador se passou mais de 10 segundos
+          redirectCount.current = 1;
+        }
+        
+        lastRedirect.current = now;
         navigate('/admin/login');
         return;
       }
