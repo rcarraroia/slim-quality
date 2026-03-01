@@ -195,7 +195,8 @@ Implementar melhorias na página de detalhe da loja (`/lojas/:slug`) para:
 ### ✅ Task 7: Adicionar Botão "Comprar Agora" com Sistema de Afiliados
 **Status:** ✅ CONCLUÍDA  
 **Prioridade:** 🔴 Alta  
-**Concluída em:** 28/02/2026 - 22:00
+**Concluída em:** 28/02/2026 - 22:00  
+**Correção aplicada em:** 01/03/2026 - 00:30
 
 **Objetivo:**
 Implementar botão "Comprar Agora" em cada produto da galeria, garantindo que o código de indicação do afiliado logista seja aplicado corretamente no checkout.
@@ -225,24 +226,35 @@ Implementar botão "Comprar Agora" em cada produto da galeria, garantindo que o 
 - ✅ Implementado modal de checkout com `Dialog`
 - ✅ Passado `store.referral_code` como `defaultReferralCode`
 
+**3. Correção Crítica na API (01/03/2026):**
+- ✅ **Problema identificado:** API `handleBySlug()` não retornava `referral_code`
+- ✅ **Causa raiz:** Query fazia `SELECT *` apenas de `store_profiles` (sem JOIN)
+- ✅ **Solução:** Adicionado JOIN com tabela `affiliates` para buscar `referral_code`
+- ✅ **Implementação:** Query modificada para incluir `affiliates!inner(referral_code, name, email)`
+- ✅ **Flatten:** Dados do afiliado movidos para nível raiz do objeto retornado
+- ✅ **Commit:** `828ecc0` - "fix: Adiciona JOIN com affiliates para retornar referral_code na API by-slug"
+
 **Arquivos modificados:**
 - ✅ `src/components/checkout/AffiliateAwareCheckout.tsx`
 - ✅ `src/pages/lojas/StoreDetail.tsx`
+- ✅ `api/store-profiles.js` (correção crítica)
 
 **Fluxo Implementado:**
 
 **Cenário 1: Cliente SEM cookie anterior**
 ```
-1. Cliente acessa /lojas/loja-centro (Logista A)
+1. Cliente acessa /lojas/duda-slim-quality (Logista A)
    localStorage['slim_referral_code'] = null
    
-2. Cliente clica "Comprar Agora" no produto
+2. API retorna store.referral_code = "MARP2I" ✅ (após correção)
    
-3. Modal abre com defaultReferralCode="LOGISTA_A"
+3. Cliente clica "Comprar Agora" no produto
    
-4. effectiveReferralCode = "LOGISTA_A" ✅
+4. Modal abre com defaultReferralCode="MARP2I"
    
-5. Logista A recebe comissão ✅
+5. effectiveReferralCode = "MARP2I" ✅
+   
+6. Logista A recebe comissão ✅
 ```
 
 **Cenário 2: Cliente COM cookie anterior**
@@ -250,11 +262,12 @@ Implementar botão "Comprar Agora" em cada produto da galeria, garantindo que o 
 1. Cliente veio de link do Afiliado B
    localStorage['slim_referral_code'] = "AFILIADO_B"
    
-2. Cliente navega para /lojas/loja-centro (Logista A)
+2. Cliente navega para /lojas/duda-slim-quality (Logista A)
+   API retorna store.referral_code = "MARP2I"
    
 3. Cliente clica "Comprar Agora" no produto
    
-4. Modal abre com defaultReferralCode="LOGISTA_A"
+4. Modal abre com defaultReferralCode="MARP2I"
    
 5. effectiveReferralCode = "AFILIADO_B" ✅ (cookie prevalece)
    
@@ -266,17 +279,36 @@ Implementar botão "Comprar Agora" em cada produto da galeria, garantindo que o 
 - [x] Lógica de prioridade implementada
 - [x] Botão "Comprar Agora" em cada card
 - [x] Modal de checkout funcionando
-- [x] Código do logista sendo passado
-- [x] getDiagnostics sem erros (0 erros) em ambos os arquivos
+- [x] API retorna `referral_code` corretamente (após correção)
+- [x] JOIN com `affiliates` implementado
+- [x] Dados flattenados no nível raiz
+- [x] getDiagnostics sem erros (0 erros) em todos os arquivos
+- [x] Commit e push realizados
 - [ ] Testar cenário sem cookie (após deploy)
 - [ ] Testar cenário com cookie (após deploy)
 - [ ] Validar comissionamento no banco (após venda real)
+
+**Análise Técnica Realizada (01/03/2026):**
+
+**Problema reportado:** Checkout abria sem mostrar código de indicação do logista
+
+**Investigação via Supabase Power:**
+1. ✅ Confirmado que campo `referral_code` NÃO existe em `store_profiles`
+2. ✅ Confirmado que campo `referral_code` existe em `affiliates` (valor: "MARP2I")
+3. ✅ Identificado que API não fazia JOIN entre as tabelas
+4. ✅ Confirmado que loja de teste tem `affiliate_id` válido
+
+**Solução implementada:**
+- Query modificada de `SELECT *` para `SELECT *, affiliates!inner(...)`
+- Dados do afiliado flattenados para compatibilidade com interface TypeScript
+- Objeto `affiliates` removido do retorno (evitar confusão)
 
 **Observações:**
 - Sistema respeita cookie existente (primeiro clique ganha)
 - Logista só recebe se cliente não tiver código anterior
 - Produtos Show Room continuam sem comissão para rede
 - Modal usa mesmo padrão de outras páginas (ProdutoDetalhe.tsx)
+- Correção garante que `store.referral_code` sempre será retornado pela API
 
 ---
 

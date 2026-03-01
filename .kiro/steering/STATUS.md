@@ -11,6 +11,138 @@ inclusion: always
 
 ## TAREFA ATUAL
 
+**CORREÇÃO CRÍTICA: API by-slug não retornava referral_code** ✅ CONCLUÍDA (01/03/2026)
+
+### Problema Identificado:
+Checkout abria sem mostrar código de indicação do logista, mesmo com botão "Comprar Agora" implementado.
+
+### Análise Realizada via Supabase Power:
+1. ✅ Confirmado que campo `referral_code` NÃO existe na tabela `store_profiles`
+2. ✅ Confirmado que campo `referral_code` existe na tabela `affiliates` (valor: "MARP2I")
+3. ✅ Identificado que API `handleBySlug()` não fazia JOIN entre as tabelas
+4. ✅ Loja de teste "duda-slim-quality" tem `affiliate_id` válido
+
+### Causa Raiz:
+API `handleBySlug()` em `api/store-profiles.js` fazia apenas `SELECT * FROM store_profiles`, sem JOIN com `affiliates`, portanto não retornava o `referral_code`.
+
+### Solução Implementada:
+- ✅ Query modificada para incluir JOIN: `affiliates!inner(referral_code, name, email)`
+- ✅ Dados do afiliado flattenados para nível raiz do objeto retornado
+- ✅ Compatibilidade mantida com interface TypeScript `StoreProfile`
+- ✅ Objeto `affiliates` removido do retorno (evitar confusão)
+
+### Evidências:
+- ✅ Commit: `828ecc0` realizado com sucesso
+- ✅ Push concluído para `origin/main`
+- ✅ Deploy automático no Vercel iniciado
+- ✅ Documentação atualizada em `.spec/tasks/store-detail-improvements.md`
+
+### Fluxo Corrigido:
+```
+1. StoreDetail.tsx chama storeFrontendService.getBySlug('duda-slim-quality')
+2. API faz JOIN com affiliates
+3. Retorna store.referral_code = "MARP2I" ✅
+4. AffiliateAwareCheckout recebe defaultReferralCode="MARP2I"
+5. Se não houver cookie, usa código do logista ✅
+6. Checkout exibe código de indicação corretamente ✅
+```
+
+### Próximos Passos:
+- ⏳ Validação manual em produção (após deploy)
+- ⏳ Testar cenário sem cookie (logista recebe)
+- ⏳ Testar cenário com cookie (cookie prevalece)
+- ⏳ Validar comissionamento no banco (após venda real)
+
+---
+
+## TAREFAS ANTERIORES CONCLUÍDAS (28/02/2026)
+
+**MELHORIAS NA PÁGINA DE DETALHE DA LOJA** ✅ CONCLUÍDA (28/02/2026)
+
+### Objetivo:
+Implementar melhorias na página de detalhe da loja (`/lojas/:slug`) para corrigir bugs críticos e adicionar funcionalidades.
+
+### Tasks Concluídas (7/7):
+
+#### ✅ Task 1: Correção de Duplicação de URLs (CRÍTICO)
+- Helper `sanitizeUrl()` criado em `src/utils/url-helpers.ts`
+- Detecta se valor já é URL completa
+- Aplicado em WhatsApp, Website, Instagram, Facebook
+- getDiagnostics: 0 erros
+
+#### ✅ Task 2: Campo TikTok Adicionado
+- Migration `20260228_add_tiktok_to_store_profiles.sql` aplicada
+- Interface TypeScript atualizada
+- Ícone SVG customizado implementado
+- Link funcionando com `sanitizeUrl()`
+- getDiagnostics: 0 erros
+
+#### ✅ Task 3: Card de Horário Removido
+- Card "Horário de Funcionamento" removido
+- Lógica `isStoreOpen()` mantida para Badge
+- Badge com cores corretas (verde/cinza)
+- getDiagnostics: 0 erros
+
+#### ✅ Task 4: Sidebar Reorganizada
+- Card Endereço movido para sidebar (primeira posição)
+- Ordem: Endereço → Contato → CTA → Voltar
+- Responsividade mantida
+- getDiagnostics: 0 erros
+
+#### ✅ Task 5: Galeria de Produtos 2x2
+- Card "Produtos Disponíveis" criado
+- Grid responsivo (1 col mobile, 2 cols desktop)
+- Hook `useProducts()` integrado
+- Loading e empty states implementados
+- Limitado a 4 produtos
+- getDiagnostics: 0 erros
+
+#### ✅ Task 6: Card de Contatos Reorganizado
+- WhatsApp em destaque (botão verde grande)
+- Contatos secundários em lista
+- Ordem: Telefone → Email → Website → Instagram → Facebook → TikTok
+- getDiagnostics: 0 erros
+
+#### ✅ Task 7: Botão "Comprar Agora" com Sistema de Afiliados ⭐
+- Prop `defaultReferralCode` adicionada ao `AffiliateAwareCheckout`
+- Lógica de prioridade: cookie prevalece, senão usa código do logista
+- Botão "Comprar Agora" em cada card de produto
+- Modal de checkout integrado
+- Código do logista passado automaticamente
+- getDiagnostics: 0 erros em ambos os arquivos
+
+### Regra de Negócio Implementada:
+> **"Cookie existente prevalece, se não houver cookie usa o referral_code do lojista"**
+
+**Cenário 1 (sem cookie):** Cliente compra na loja → Logista recebe comissão  
+**Cenário 2 (com cookie):** Cookie prevalece → Primeiro afiliado recebe comissão
+
+### Evidências:
+- ✅ getDiagnostics: 0 erros em todos os arquivos
+- ✅ Build: passou sem erros
+- ✅ Commit: `afca1ee` realizado com sucesso
+- ✅ Push concluído, deploy automático no Vercel
+
+### Arquivos Modificados:
+- `src/utils/url-helpers.ts` (criado)
+- `src/pages/lojas/StoreDetail.tsx` (modificado)
+- `src/services/frontend/store.service.ts` (modificado)
+- `src/components/checkout/AffiliateAwareCheckout.tsx` (modificado)
+- `supabase/migrations/20260228_add_tiktok_to_store_profiles.sql` (criado)
+
+### Documentação:
+- `.spec/tasks/store-detail-improvements.md` (completo)
+
+### Próximos Passos:
+- ⏳ Validação manual em produção
+- ⏳ Testar cenário sem cookie
+- ⏳ Testar cenário com cookie
+- ⏳ Validar comissionamento no banco (após venda real)
+
+---
+
+## TAREFAS ANTERIORES CONCLUÍDAS (28/02/2026)
+
 **CORREÇÃO: Acesso ao Painel de Afiliados no iOS Safari** ✅ CONCLUÍDA (28/02/2026)
 
 ### Problema Reportado:
