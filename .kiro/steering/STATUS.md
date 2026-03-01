@@ -11,6 +11,101 @@ inclusion: always
 
 ## TAREFA ATUAL
 
+**FASE 2 - PERSONALITY AND CONTEXT LOADING (AGENTE BIA MULTI-TENANT)** ✅ CONCLUÍDA (01/03/2026)
+
+### Objetivo:
+Implementar carregamento de personality customizada por tenant com fallback para personality padrão e adaptar MemoryService para multi-tenant.
+
+### Problemas Identificados e Corrigidos:
+
+#### ✅ Problema 1: Campo `agent_personality` vs `personality`
+- **Causa:** `personality.py` usava coluna `agent_personality` mas a coluna real é `personality`
+- **Solução:** Corrigido linhas 138 e 145-165 de `agent/src/config/personality.py`
+- **Status:** CORRIGIDO
+
+#### ✅ Problema 2: RPCs Faltando no Banco
+- **Causa:** `memory_service.py` chamava 3 RPCs que não existiam no banco
+- **Análise:** Validado schema real via Supabase Power
+  - `tenant_id` é UUID (não INT)
+  - `embedding` é vector(384) do pgvector
+  - `deleted_at` é timestamptz (soft delete)
+- **Solução:** Criadas 3 funções RPC no Supabase:
+  1. `search_similar_memories_mt()` - Busca vetorial com filtro tenant_id
+  2. `search_memories_hybrid_mt()` - Busca híbrida (vetorial + textual) com filtro tenant_id
+  3. `cleanup_memories_intelligent_mt()` - Limpeza inteligente com filtro tenant_id
+- **Status:** CORRIGIDO
+
+#### ✅ Problema 3: `webhooks.py` no Estado Single-Tenant
+- **Análise:** Arquivo está no estado single-tenant original
+- **Conclusão:** CORRETO - Fase 3 é responsável por adaptar o webhook
+- **Status:** CONFIRMADO CORRETO
+
+### Evidências:
+- ✅ Personality loading com fallback implementado
+- ✅ Cache de personality (TTL 5 min) implementado
+- ✅ MemoryService adaptado para multi-tenant
+- ✅ 4 RPCs validadas no banco (3 criadas + 1 existente)
+- ✅ Schema real validado via Supabase Power
+- ✅ getDiagnostics: 0 erros
+- ✅ Documentação completa em `.kiro/specs/agente-bia-multi-tenant/FASE_2_CORRECOES.md`
+
+### Arquivos Modificados:
+- `agent/src/config/personality.py` (corrigido campo personality)
+- Supabase: 3 funções RPC criadas (migration aplicada)
+
+### Próximos Passos:
+- ⏳ Fase 3: Webhook Evolution Adaptation
+- ⏳ Adaptar `agent/src/api/webhooks.py` para multi-tenant
+- ⏳ Extrair tenant_id do instanceName
+- ⏳ Validar connection_status ativa
+- ⏳ Processar mensagens com contexto do tenant
+
+---
+
+## TAREFAS ANTERIORES CONCLUÍDAS (01/03/2026)
+
+**CORREÇÕES VISUAIS FINAIS NA PÁGINA DA LOJA** ✅ CONCLUÍDA (01/03/2026)
+
+### Objetivo:
+Ajustar elementos visuais da página da loja após implementação dos botões "Comprar Agora".
+
+### Correções Realizadas:
+
+#### 1. Badge Aberto/Fechado - Cores Corretas ✅
+- **Antes:** Badge roxo (variant default) para ambos os estados
+- **Depois:** 
+  - Aberto = Verde (`bg-green-600 hover:bg-green-700`)
+  - Fechado = Cinza neutro (`bg-muted text-muted-foreground`)
+- **Motivo:** Cores semânticas corretas (verde = disponível, cinza = indisponível)
+
+#### 2. Card "Ver Produtos" Removido ✅
+- **Antes:** Card CTA no rodapé com texto "Compre com este logista e ganhe benefícios exclusivos" + botão "Ver Produtos"
+- **Depois:** Card completamente removido
+- **Motivo:** Redundante após implementação dos botões "Comprar Agora" na galeria de produtos
+
+### Evidências:
+- ✅ Badge com cores corretas implementado
+- ✅ Card CTA removido (13 linhas deletadas)
+- ✅ getDiagnostics: 0 erros
+- ✅ Commit: `79d6a79` realizado com sucesso
+- ✅ Push concluído para `origin/main`
+- ✅ Deploy automático no Vercel iniciado
+- ✅ Documentação atualizada
+
+### Impacto UX:
+- ✅ Badge mais intuitivo (verde = pode visitar agora)
+- ✅ Layout mais limpo sem redundância
+- ✅ Foco nos botões "Comprar Agora" da galeria
+- ✅ Sidebar mais enxuta e objetiva
+
+### Arquivos Modificados:
+- `src/pages/lojas/StoreDetail.tsx` (correções visuais)
+- `.spec/tasks/store-detail-improvements.md` (documentação)
+
+---
+
+## TAREFAS ANTERIORES CONCLUÍDAS (01/03/2026)
+
 **CORREÇÃO CRÍTICA: API by-slug não retornava referral_code** ✅ CONCLUÍDA (01/03/2026)
 
 ### Problema Identificado:

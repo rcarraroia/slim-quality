@@ -7,7 +7,7 @@ from langgraph.graph import StateGraph, END
 from .state import AgentState
 from .nodes import discovery_node, sales_node, support_node
 from .edges import route_intent
-from .checkpointer import SupabaseCheckpointer
+from .checkpointer import MultiTenantCheckpointer
 
 logger = structlog.get_logger(__name__)
 
@@ -71,7 +71,7 @@ def build_graph() -> StateGraph:
     workflow.add_edge("supervisor_approve", END)
     
     # Compilar com checkpointer
-    checkpointer = SupabaseCheckpointer()
+    checkpointer = MultiTenantCheckpointer()
     graph = workflow.compile(checkpointer=checkpointer)
     
     logger.info("build_graph: StateGraph compilado com sucesso (SICC integrado, sem Router)")

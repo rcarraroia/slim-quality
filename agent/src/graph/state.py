@@ -7,9 +7,21 @@ from langchain_core.messages import BaseMessage
 
 class AgentState(TypedDict):
     """
-    Estado global da conversação do agente.
+    Estado global da conversação do agente com suporte multi-tenant.
+    
+    MUDANÇAS vs versão single-tenant:
+    - Adicionado: tenant_id (obrigatório) - ID do tenant no sistema multi-tenant
+    - Adicionado: conversation_id (obrigatório) - ID da conversa específica
+    - Adicionado: personality (obrigatório) - Personality do tenant ou fallback
+    - Mantido: Todos os campos existentes (messages, lead_id, context, etc.)
     
     Attributes:
+        # === NOVOS CAMPOS MULTI-TENANT (OBRIGATÓRIOS) ===
+        tenant_id: ID do tenant (afiliado lojista) - OBRIGATÓRIO
+        conversation_id: ID da conversa específica - OBRIGATÓRIO
+        personality: Personality do tenant (custom ou fallback) - OBRIGATÓRIO
+        
+        # === CAMPOS EXISTENTES (INALTERADOS) ===
         messages: Histórico completo de mensagens da conversação
         lead_id: Identificador único do lead (phone number)
         context: Contexto adicional flexível
@@ -25,6 +37,12 @@ class AgentState(TypedDict):
         sicc_approved: Status de aprovação dos aprendizados
         customer_context: Contexto do cliente (histórico, compras, etc)
     """
+    # === NOVOS CAMPOS MULTI-TENANT ===
+    tenant_id: int  # ID do tenant (obrigatório)
+    conversation_id: int  # ID da conversa (obrigatório)
+    personality: str  # Personality do tenant ou fallback (obrigatório)
+    
+    # === CAMPOS EXISTENTES ===
     messages: List[BaseMessage]
     lead_id: Optional[str]
     context: Dict[str, Any]

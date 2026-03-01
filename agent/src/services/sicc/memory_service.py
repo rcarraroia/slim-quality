@@ -151,7 +151,8 @@ class MemoryService:
             raise RuntimeError(f"Falha na geração de embedding: {e}")
     
     async def store_memory(self, conversation_id: str, content: str, 
-                          metadata: Optional[Dict[str, Any]] = None) -> Memory:
+                          metadata: Optional[Dict[str, Any]] = None,
+                          tenant_id: Optional[int] = None) -> Memory:
         """
         Armazena fragmento de conversa como embedding vetorial
         
@@ -159,6 +160,7 @@ class MemoryService:
             conversation_id: ID da conversa de origem
             content: Conteúdo textual para armazenar
             metadata: Metadados contextuais opcionais
+            tenant_id: ID do tenant (obrigatório para multi-tenant)
             
         Returns:
             Objeto Memory criado
@@ -170,12 +172,16 @@ class MemoryService:
         if not conversation_id or not content:
             raise ValueError("conversation_id e content são obrigatórios")
         
+        if tenant_id is None:
+            raise ValueError("tenant_id é obrigatório para multi-tenant")
+        
         try:
             # Gerar embedding
             embedding = await self.generate_embedding(content)
             
             # Preparar dados
             memory_data = {
+                "tenant_id": tenant_id,
                 "conversation_id": conversation_id,
                 "content": content.strip(),
                 "embedding": embedding,
@@ -185,8 +191,8 @@ class MemoryService:
                 "updated_at": datetime.utcnow().isoformat()
             }
             
-            # Inserir no banco
-            result = self.supabase.table("memory_chunks").insert(memory_data).execute()
+            # Inserir no banco (tabela multi-tenant)
+            result = self.supabase.table("sicc_memory_chunks").insert(memory_data).execute()
             
             if not result.data or len(result.data) == 0:
                 raise RuntimeError("Falha ao inserir memória no banco")
@@ -215,7 +221,8 @@ class MemoryService:
             raise RuntimeError(f"Falha no armazenamento: {e}")
     
     async def search_similar(self, query: str, limit: int = 5, 
-                           filters: Optional[Dict[str, Any]] = None) -> List[Memory]:
+                           filters: Optional[Dict[str, Any]] = None,
+                           tenant_id: Optional[int] = None) -> List[Memory]:
         """
         Busca memórias similares usando pgvector
         
@@ -223,6 +230,7 @@ class MemoryService:
             query: Texto de consulta
             limit: Número máximo de resultados (padrão: 5)
             filters: Filtros opcionais por metadados
+            tenant_id: ID do tenant (obrigatório para multi-tenant)
             
         Returns:
             Lista de memórias ordenadas por similaridade
@@ -237,6 +245,9 @@ class MemoryService:
         if limit <= 0 or limit > 100:
             raise ValueError("Limit deve estar entre 1 e 100")
         
+        if tenant_id is None:
+            raise ValueError("tenant_id é obrigatório para multi-tenant")
+        
         try:
             # Gerar embedding da query
             query_embedding = await self.generate_embedding(query)
@@ -250,11 +261,12 @@ class MemoryService:
                 if "metadata" in filters:
                     metadata_filter = filters["metadata"]
             
-            # Executar busca vetorial usando função RPC
-            result = self.supabase.rpc("search_similar_memories", {
+            # Executar busca vetorial usando função RPC (multi-tenant)
+            result = self.supabase.rpc("search_similar_memories_mt", {
                 "query_embedding": query_embedding,
                 "similarity_threshold": 0.1,
                 "max_results": limit,
+                "tenant_filter": tenant_id,
                 "conversation_filter": conversation_filter,
                 "metadata_filter": metadata_filter
             }).execute()
@@ -294,7 +306,8 @@ class MemoryService:
     
     async def search_hybrid(self, query: str, limit: int = 5,
                           text_weight: float = 0.3, vector_weight: float = 0.7,
-                          filters: Optional[Dict[str, Any]] = None) -> List[Memory]:
+                          filters: Optional[Dict[str, Any]] = None,
+                          tenant_id: Optional[int] = None) -> List[Memory]:
         """
         Busca híbrida combinando similaridade vetorial e busca textual
         
@@ -304,12 +317,16 @@ class MemoryService:
             text_weight: Peso da busca textual (0.0-1.0)
             vector_weight: Peso da busca vetorial (0.0-1.0)
             filters: Filtros opcionais
+            tenant_id: ID do tenant (obrigatório para multi-tenant)
             
         Returns:
             Lista de memórias ordenadas por score combinado
         """
         if not query or not query.strip():
             raise ValueError("Query não pode estar vazia")
+        
+        if tenant_id is None:
+            raise ValueError("tenant_id é obrigatório para multi-tenant")
         
         try:
             # Gerar embedding da query
@@ -320,14 +337,15 @@ class MemoryService:
             if filters and "conversation_id" in filters:
                 conversation_filter = filters["conversation_id"]
             
-            # Executar busca híbrida
-            result = self.supabase.rpc("search_memories_hybrid", {
+            # Executar busca híbrida (multi-tenant)
+            result = self.supabase.rpc("search_memories_hybrid_mt", {
                 "query_text": query.strip(),
                 "query_embedding": query_embedding,
                 "similarity_threshold": 0.05,
                 "text_weight": text_weight,
                 "vector_weight": vector_weight,
                 "max_results": limit,
+                "tenant_filter": tenant_id,
                 "conversation_filter": conversation_filter
             }).execute()
             
@@ -364,30 +382,37 @@ class MemoryService:
             return []
     
     async def get_relevant_context(self, conversation_id: str, 
-                                 current_message: str) -> List[Memory]:
+                                 current_message: str,
+                                 tenant_id: Optional[int] = None) -> List[Memory]:
         """
         Recupera contexto relevante para conversa atual
         
         Args:
             conversation_id: ID da conversa atual
             current_message: Mensagem atual para buscar contexto
+            tenant_id: ID do tenant (obrigatório para multi-tenant)
             
         Returns:
             Lista de memórias relevantes para o contexto
         """
+        if tenant_id is None:
+            raise ValueError("tenant_id é obrigatório para multi-tenant")
+        
         try:
             # Buscar memórias da própria conversa
             conversation_memories = await self.search_similar(
                 current_message,
                 limit=3,
-                filters={"conversation_id": conversation_id}
+                filters={"conversation_id": conversation_id},
+                tenant_id=tenant_id
             )
             
-            # Buscar memórias similares de outras conversas
+            # Buscar memórias similares de outras conversas (mesmo tenant)
             global_memories = await self.search_similar(
                 current_message,
                 limit=2,
-                filters={}
+                filters={},
+                tenant_id=tenant_id
             )
             
             # Filtrar memórias globais que não sejam da conversa atual
@@ -407,22 +432,25 @@ class MemoryService:
             logger.error(f"Erro ao obter contexto relevante: {e}")
             return []  # Retornar lista vazia em caso de erro
     
-    async def cleanup_old_memories(self, retention_days: int = 90) -> int:
+    async def cleanup_old_memories(self, retention_days: int = 90,
+                                 tenant_id: Optional[int] = None) -> int:
         """
         Remove memórias antigas baseado em estratégia de retenção
         
         Args:
             retention_days: Dias para manter memórias (padrão: 90)
+            tenant_id: ID do tenant (opcional, limpa todos se None)
             
         Returns:
             Número de memórias removidas
         """
         try:
-            # Usar função RPC para limpeza inteligente
-            result = self.supabase.rpc("cleanup_memories_intelligent", {
+            # Usar função RPC para limpeza inteligente (multi-tenant)
+            result = self.supabase.rpc("cleanup_memories_intelligent_mt", {
                 "retention_days": retention_days,
                 "min_relevance_score": 0.3,
-                "max_memories_per_conversation": self.max_memories_per_conversation
+                "max_memories_per_conversation": self.max_memories_per_conversation,
+                "tenant_filter": tenant_id
             }).execute()
             
             total_deleted = 0
@@ -442,18 +470,25 @@ class MemoryService:
             logger.error(f"Erro na limpeza de memórias antigas: {e}")
             return 0
     
-    async def _cleanup_conversation_memories(self, conversation_id: str) -> None:
+    async def _cleanup_conversation_memories(self, conversation_id: str,
+                                           tenant_id: Optional[int] = None) -> None:
         """
         Limpa memórias em excesso de uma conversa específica
         
         Args:
             conversation_id: ID da conversa para limpar
+            tenant_id: ID do tenant (opcional)
         """
         try:
-            # Contar memórias da conversa
-            count_result = self.supabase.table("memory_chunks").select(
+            # Contar memórias da conversa (multi-tenant)
+            query = self.supabase.table("sicc_memory_chunks").select(
                 "id", count="exact"
-            ).eq("conversation_id", conversation_id).is_("deleted_at", "null").execute()
+            ).eq("conversation_id", conversation_id).is_("deleted_at", "null")
+            
+            if tenant_id is not None:
+                query = query.eq("tenant_id", tenant_id)
+            
+            count_result = query.execute()
             
             total_memories = count_result.count or 0
             
@@ -461,16 +496,21 @@ class MemoryService:
                 # Remover memórias mais antigas com menor relevância
                 excess = total_memories - self.max_memories_per_conversation
                 
-                old_memories = self.supabase.table("memory_chunks").select("id").eq(
+                old_query = self.supabase.table("sicc_memory_chunks").select("id").eq(
                     "conversation_id", conversation_id
-                ).is_("deleted_at", "null").order(
+                ).is_("deleted_at", "null")
+                
+                if tenant_id is not None:
+                    old_query = old_query.eq("tenant_id", tenant_id)
+                
+                old_memories = old_query.order(
                     "relevance_score", desc=False
                 ).order("created_at", desc=False).limit(excess).execute()
                 
                 if old_memories.data:
                     memory_ids = [m["id"] for m in old_memories.data]
                     
-                    self.supabase.table("memory_chunks").update({
+                    self.supabase.table("sicc_memory_chunks").update({
                         "deleted_at": datetime.utcnow().isoformat()
                     }).in_("id", memory_ids).execute()
                     

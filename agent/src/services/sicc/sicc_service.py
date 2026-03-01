@@ -25,6 +25,9 @@ if TYPE_CHECKING:
     from .metrics_service import MetricsService, MetricType
     from .async_processor_service import AsyncProcessorService
 
+# Import do módulo de personality (Task 2.4 - Multi-Tenant)
+from ...config.personality import load_personality, get_system_prompt, get_agent_name
+
 logger = structlog.get_logger(__name__)
 
 
@@ -178,7 +181,8 @@ class SICCService:
         self,
         conversation_id: str,
         user_context: Dict[str, Any],
-        sub_agent_type: Optional[str] = None
+        sub_agent_type: Optional[str] = None,
+        tenant_id: Optional[int] = None
     ) -> Dict[str, Any]:
         """
         Processa início de conversa e busca contexto relevante
@@ -187,6 +191,7 @@ class SICCService:
             conversation_id: ID único da conversa
             user_context: Contexto do usuário (mensagem, histórico, etc.)
             sub_agent_type: Tipo de sub-agente especializado
+            tenant_id: ID do tenant (obrigatório para multi-tenant)
             
         Returns:
             Contexto relevante e padrões aplicáveis
@@ -195,19 +200,35 @@ class SICCService:
             if not self.is_initialized:
                 await self.initialize()
             
+            # Carregar personality do tenant (Task 2.4 - Multi-Tenant)
+            personality = None
+            if tenant_id is not None:
+                try:
+                    personality = await load_personality(tenant_id)
+                    logger.info("Personality carregada para tenant", 
+                               tenant_id=tenant_id, 
+                               agent_name=get_agent_name(personality))
+                except Exception as e:
+                    logger.warning("Erro ao carregar personality, usando fallback", 
+                                 tenant_id=tenant_id, error=str(e))
+                    # personality permanece None, usará fallback no prompt
+            
             # Registrar início da conversa
             self.active_conversations[conversation_id] = {
                 "start_time": datetime.now(),
                 "sub_agent_type": sub_agent_type or self.config.default_sub_agent,
                 "user_context": user_context,
                 "patterns_applied": [],
-                "memories_retrieved": []
+                "memories_retrieved": [],
+                "tenant_id": tenant_id,  # Task 2.4 - Multi-Tenant
+                "personality": personality  # Task 2.4 - Multi-Tenant
             }
             
-            # Buscar contexto relevante das memórias
+            # Buscar contexto relevante das memórias (Task 2.4 - Multi-Tenant)
             relevant_context = await self.memory_service.get_relevant_context(
                 conversation_id=conversation_id,
-                current_message=user_context.get("message", "")
+                current_message=user_context.get("message", ""),
+                tenant_id=tenant_id
             )
             
             # Buscar padrões aplicáveis
@@ -235,12 +256,15 @@ class SICCService:
                 "conversation_id": conversation_id,
                 "relevant_context": relevant_context,
                 "applicable_patterns": applicable_patterns,
-                "sub_agent_type": sub_agent_type or self.config.default_sub_agent
+                "sub_agent_type": sub_agent_type or self.config.default_sub_agent,
+                "tenant_id": tenant_id,  # Task 2.4 - Multi-Tenant
+                "personality": personality  # Task 2.4 - Multi-Tenant
             }
             
             logger.debug(f"Conversa {conversation_id} iniciada", 
                         memories=len(relevant_context), 
-                        patterns=len(applicable_patterns))
+                        patterns=len(applicable_patterns),
+                        tenant_id=tenant_id)
             
             return result
             
@@ -526,7 +550,8 @@ class SICCService:
         self,
         message: Union[str, Dict[str, Any]],
         user_id: str,
-        context: Optional[Dict[str, Any]] = None
+        context: Optional[Dict[str, Any]] = None,
+        tenant_id: Optional[int] = None
     ) -> Dict[str, Any]:
         """
         Processa uma mensagem usando o sistema SICC completo
@@ -594,22 +619,24 @@ class SICCService:
                 # Enviar imagem do produto em paralelo (não bloquear resposta)
                 asyncio.create_task(self._send_product_image_async(user_id, product_requested, message_text))
             
-            # Preparar contexto da mensagem
+            # Preparar contexto da mensagem (Task 2.4 - Multi-Tenant)
             user_context = {
                 "message": message_text,
                 "user_id": user_id,
                 "platform": context.get("platform", "whatsapp") if context else "whatsapp",
                 "timestamp": datetime.now().isoformat(),
                 "customer_context": customer_context,  # Adicionar contexto do cliente
-                "original_type": original_type  # Adicionar tipo original (text/audio)
+                "original_type": original_type,  # Adicionar tipo original (text/audio)
+                "tenant_id": tenant_id  # Task 2.4 - Multi-Tenant
             }
             
-            # Se é uma nova conversa, inicializar
+            # Se é uma nova conversa, inicializar (Task 2.4 - Multi-Tenant)
             if conversation_id not in self.active_conversations:
                 await self.process_conversation_start(
                     conversation_id=conversation_id,
                     user_context=user_context,
-                    sub_agent_type="sales_consultant"  # Tipo específico para vendas
+                    sub_agent_type="sales_consultant",  # Tipo específico para vendas
+                    tenant_id=tenant_id  # Task 2.4 - Multi-Tenant
                 )
             
             # Buscar padrões aplicáveis para a mensagem atual
@@ -622,14 +649,16 @@ class SICCService:
             from ..ai_service import get_ai_service
             ai_service = get_ai_service()
             
-            # Construir prompt com contexto SICC
+            # Construir prompt com contexto SICC (Task 2.4 - Multi-Tenant)
             relevant_memories = self.active_conversations[conversation_id].get("memories_retrieved", [])
+            personality = self.active_conversations[conversation_id].get("personality")
             
             prompt = self._build_sicc_prompt(
                 message=message_text,
                 user_context=user_context,
                 memories=relevant_memories,
-                patterns=applicable_patterns
+                patterns=applicable_patterns,
+                personality=personality  # Task 2.4 - Multi-Tenant
             )
             
             # Gerar resposta
@@ -772,7 +801,8 @@ Seja empática, educativa e focada em ajudar o cliente com problemas de saúde e
         message: str,
         user_context: Dict[str, Any],
         memories: List[Dict[str, Any]],
-        patterns: List[Dict[str, Any]]
+        patterns: List[Dict[str, Any]],
+        personality: Optional[Dict[str, Any]] = None
     ) -> str:
         """
         Constrói prompt inteligente usando contexto SICC
@@ -782,6 +812,7 @@ Seja empática, educativa e focada em ajudar o cliente com problemas de saúde e
             user_context: Contexto do usuário
             memories: Memórias relevantes recuperadas
             patterns: Padrões aplicáveis
+            personality: Personality customizada do tenant (Task 2.4 - Multi-Tenant)
             
         Returns:
             Prompt otimizado para IA
@@ -792,8 +823,15 @@ Seja empática, educativa e focada em ajudar o cliente com problemas de saúde e
         is_returning = customer_context.get("is_returning_customer", False)
         customer_name = customer_context.get("customer_name")
         
-        # Base do prompt - identidade da BIA
-        prompt = """Você é a BIA, consultora especializada em colchões magnéticos terapêuticos da Slim Quality.
+        # Base do prompt - usar personality customizada ou fallback (Task 2.4 - Multi-Tenant)
+        if personality:
+            # Usar system prompt da personality customizada
+            prompt = get_system_prompt(personality)
+            agent_name = get_agent_name(personality)
+            logger.debug("Usando personality customizada no prompt", agent_name=agent_name)
+        else:
+            # Fallback para personality padrão da Slim Quality (BIA)
+            prompt = """Você é a BIA, consultora especializada em colchões magnéticos terapêuticos da Slim Quality.
 
 PRODUTOS DISPONÍVEIS:
 {dynamic_prices}
@@ -816,6 +854,8 @@ ABORDAGEM:
 - Seja empática e educativa
 
 """
+            agent_name = "BIA"
+            logger.debug("Usando personality fallback (BIA) no prompt")
         
         # Adicionar contexto do cliente se for retornando
         if is_returning and customer_name:
