@@ -414,9 +414,17 @@ async function handleBySlug(req, res, supabase) {
       });
     }
 
+    // ✅ CORREÇÃO: Adicionar JOIN com affiliates para retornar referral_code
     const { data: store, error } = await supabase
       .from('store_profiles')
-      .select('*')
+      .select(`
+        *,
+        affiliates!inner(
+          referral_code,
+          name,
+          email
+        )
+      `)
       .eq('slug', slug)
       .eq('is_visible_in_showcase', true)
       .single();
@@ -430,9 +438,18 @@ async function handleBySlug(req, res, supabase) {
 
     if (error) throw error;
 
+    // ✅ Flatten: Mover dados do afiliado para o nível raiz
+    const flattenedStore = {
+      ...store,
+      affiliate_name: store.affiliates?.name,
+      affiliate_email: store.affiliates?.email,
+      referral_code: store.affiliates?.referral_code,
+      affiliates: undefined // Remover objeto aninhado
+    };
+
     return res.status(200).json({ 
       success: true, 
-      data: store 
+      data: flattenedStore 
     });
   } catch (error) {
     console.error('Erro ao buscar loja:', error);
