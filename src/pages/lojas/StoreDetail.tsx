@@ -189,7 +189,11 @@ export default function StoreDetail() {
                         </div>
                       </div>
 
-                      <Badge variant={isOpen ? 'default' : 'secondary'} className="text-sm">
+                      {/* ✅ CORREÇÃO: Badge com cores corretas - Verde para Aberto, Cinza para Fechado */}
+                      <Badge 
+                        variant={isOpen ? 'default' : 'secondary'} 
+                        className={`text-sm ${isOpen ? 'bg-green-600 hover:bg-green-700' : 'bg-muted text-muted-foreground'}`}
+                      >
                         {isOpen ? 'Aberto agora' : 'Fechado'}
                       </Badge>
                     </div>
@@ -419,23 +423,6 @@ export default function StoreDetail() {
                 </div>
               </CardContent>
             </Card>
-
-            {/* CTA */}
-            {store.referral_code && (
-              <Card className="bg-primary/5 border-primary/20">
-                <CardContent className="pt-6 text-center space-y-4">
-                  <p className="text-sm text-muted-foreground">
-                    Compre com este logista e ganhe benefícios exclusivos
-                  </p>
-                  <Button
-                    className="w-full"
-                    onClick={() => navigate(`/produtos?ref=${store.referral_code}`)}
-                  >
-                    Ver Produtos
-                  </Button>
-                </CardContent>
-              </Card>
-            )}
 
             {/* Voltar */}
             <Button
