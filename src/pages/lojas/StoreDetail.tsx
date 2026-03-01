@@ -11,7 +11,8 @@ import {
   ExternalLink,
   Loader2,
   AlertCircle,
-  Package
+  Package,
+  ShoppingCart
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -19,11 +20,13 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { storeFrontendService, StoreProfile } from '@/services/frontend/store.service';
 import { SchemaOrg } from '@/components/seo/SchemaOrg';
 import { SEOHead } from '@/components/seo/SEOHead';
 import { sanitizeUrl, formatWhatsAppNumber, formatPrice } from '@/utils/url-helpers';
 import { useProducts } from '@/hooks/useProducts';
+import { AffiliateAwareCheckout } from '@/components/checkout/AffiliateAwareCheckout';
 
 export default function StoreDetail() {
   const { slug } = useParams<{ slug: string }>();
@@ -32,6 +35,7 @@ export default function StoreDetail() {
   const [store, setStore] = useState<StoreProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [checkoutProduct, setCheckoutProduct] = useState<any | null>(null); // ✅ NOVO: Estado para modal de checkout
 
   // Hook de produtos
   const { products, loading: productsLoading } = useProducts();
@@ -64,6 +68,18 @@ export default function StoreDetail() {
       .join('')
       .toUpperCase()
       .slice(0, 2);
+  };
+
+  // ✅ NOVO: Função para abrir checkout
+  const handleOpenCheckout = (product: any) => {
+    setCheckoutProduct(product);
+  };
+
+  // ✅ NOVO: Callback após pedido criado
+  const handleOrderComplete = (orderId: string) => {
+    console.log('Pedido criado:', orderId);
+    setCheckoutProduct(null);
+    // Aqui pode adicionar toast de sucesso ou redirecionar
   };
 
   const isOpen = store ? storeFrontendService.isStoreOpen(store.business_hours) : false;
@@ -235,9 +251,19 @@ export default function StoreDetail() {
                         <CardContent className="p-4">
                           <h4 className="font-semibold text-sm mb-1">{product.name}</h4>
                           <p className="text-xs text-muted-foreground mb-2">{product.dimensions}</p>
-                          <p className="text-lg font-bold text-primary">
+                          <p className="text-lg font-bold text-primary mb-3">
                             {formatPrice(product.price * 100)}
                           </p>
+                          
+                          {/* ✅ NOVO: Botão Comprar Agora */}
+                          <Button 
+                            className="w-full"
+                            size="sm"
+                            onClick={() => handleOpenCheckout(product)}
+                          >
+                            <ShoppingCart className="h-4 w-4 mr-2" />
+                            Comprar Agora
+                          </Button>
                         </CardContent>
                       </Card>
                     ))}
@@ -423,6 +449,29 @@ export default function StoreDetail() {
           </div>
         </div>
       </div>
+
+      {/* ✅ NOVO: Modal de Checkout */}
+      <Dialog open={!!checkoutProduct} onOpenChange={() => setCheckoutProduct(null)}>
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Finalizar Compra</DialogTitle>
+          </DialogHeader>
+          {checkoutProduct && store && (
+            <AffiliateAwareCheckout
+              product={{
+                id: checkoutProduct.id,
+                name: checkoutProduct.name,
+                sku: checkoutProduct.slug, // Usando slug como SKU temporariamente
+                price_cents: checkoutProduct.price * 100,
+                image: checkoutProduct.image
+              }}
+              defaultReferralCode={store.referral_code} // ✅ CÓDIGO DO LOGISTA
+              onOrderComplete={handleOrderComplete}
+              onClose={() => setCheckoutProduct(null)}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
       </div>
     </>
   );

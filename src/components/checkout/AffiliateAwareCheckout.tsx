@@ -30,6 +30,7 @@ interface CheckoutProduct {
 
 interface AffiliateAwareCheckoutProps {
   product: CheckoutProduct;
+  defaultReferralCode?: string; // ✅ NOVO: Código de referência padrão (ex: código do logista)
   onOrderComplete?: (orderId: string) => void;
   onClose?: () => void;
   className?: string;
@@ -38,6 +39,7 @@ interface AffiliateAwareCheckoutProps {
 
 export default function AffiliateAwareCheckout({
   product,
+  defaultReferralCode, // ✅ NOVO: Código padrão (ex: logista)
   onOrderComplete,
   onClose,
   className,
@@ -69,6 +71,17 @@ export default function AffiliateAwareCheckout({
 
   // ✅ CORRIGIDO: Detectar se produto é Show Room pela categoria OU pelo SKU
   const isShowRoomProduct = product.category === 'show_row' || product.sku?.includes('SHOW-') || false;
+
+  // ✅ NOVA LÓGICA: Prioridade de código de referência
+  // Regra: Cookie existente prevalece, se não houver cookie usa defaultReferralCode
+  const effectiveReferralCode = getCurrentReferralCode() || defaultReferralCode || null;
+  
+  // ✅ NOVO: Criar referralInfo efetivo (sintético se vier de defaultReferralCode)
+  const effectiveReferralInfo = referralInfo || (defaultReferralCode && !getCurrentReferralCode() ? {
+    code: defaultReferralCode,
+    timestamp: Date.now(),
+    isActive: true
+  } : null);
 
   // Pré-preencher dados se cliente já estiver logado
   useEffect(() => {
@@ -243,8 +256,8 @@ export default function AffiliateAwareCheckout({
           ...customerDataClean,
           user_id: userId, // Vincular user_id ao customer
           cpf_cnpj: cpf.replace(/\D/g, ''), // CPF limpo para Asaas (campo correto da tabela)
-          source: referralInfo ? 'affiliate' : 'website',
-          referral_code: getCurrentReferralCode(),
+          source: effectiveReferralInfo ? 'affiliate' : 'website',
+          referral_code: effectiveReferralCode,
           status: 'active'
         },
         product: {
@@ -270,8 +283,8 @@ export default function AffiliateAwareCheckout({
           installments: selectedPaymentMethod.installments,
           creditCard: selectedPaymentMethod.creditCard
         },
-        affiliate: referralInfo ? {
-          referral_code: referralInfo.code
+        affiliate: effectiveReferralInfo ? {
+          referral_code: effectiveReferralInfo.code
         } : undefined,
         totals: {
           subtotal_cents: product.price_cents,
@@ -295,7 +308,7 @@ export default function AffiliateAwareCheckout({
               <p className="text-sm text-muted-foreground">
                 Redirecionando para pagamento seguro...
               </p>
-              {referralInfo && (
+              {effectiveReferralInfo && (
                 <p className="text-sm text-primary">
                   ✨ Seu indicador receberá comissão automaticamente!
                 </p>
@@ -306,7 +319,7 @@ export default function AffiliateAwareCheckout({
         });
 
         // Registrar conversão se houver afiliado
-        if (referralInfo && result.order_id) {
+        if (effectiveReferralInfo && result.order_id) {
           await trackConversion(result.order_id);
         }
 
@@ -641,7 +654,7 @@ export default function AffiliateAwareCheckout({
           )}
 
           {/* Informações do Afiliado - Ocultar se for Show Room */}
-          {referralInfo && !isShowRoomProduct && (
+          {effectiveReferralInfo && !isShowRoomProduct && (
             <Alert className="border-primary/20 bg-primary/5">
               <Users className="h-4 w-4 text-primary" />
               <AlertDescription className="space-y-2">
@@ -651,7 +664,7 @@ export default function AffiliateAwareCheckout({
                 </div>
                 <div className="space-y-1">
                   <Badge variant="secondary" className="text-xs">
-                    Código: {referralInfo.code}
+                    Código: {effectiveReferralInfo.code}
                   </Badge>
                   <p className="text-sm text-muted-foreground">
                     Sua compra ajudará quem te indicou a ganhar comissão!
@@ -733,7 +746,7 @@ export default function AffiliateAwareCheckout({
                 }
               </span>
             </div>
-            {referralInfo && (
+            {effectiveReferralInfo && (
               <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
                 <Users className="h-4 w-4 text-primary" />
                 <span>Afiliado será creditado automaticamente</span>
