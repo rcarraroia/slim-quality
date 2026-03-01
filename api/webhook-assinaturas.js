@@ -211,6 +211,8 @@ async function handleSubscriptionDeleted(supabase, asaasSubscriptionId) {
  * Enfileira evento de afiliado para processamento assíncrono
  * Usa tabela subscription_webhook_events (já existe)
  * Será processado pela Edge Function process-affiliate-webhooks
+ * 
+ * FASE 4: Detecta e processa bundles (logista) antes de enfileirar
  */
 async function enqueueAffiliateWebhook(supabase, event) {
   const startTime = Date.now();
@@ -225,6 +227,19 @@ async function enqueueAffiliateWebhook(supabase, event) {
   });
 
   try {
+    // ============================================================
+    // FASE 4: DETECTAR E PROCESSAR BUNDLE (PAYMENT_CONFIRMED)
+    // ============================================================
+    if (event.event === 'PAYMENT_CONFIRMED') {
+      const isBundle = await detectBundlePayment(supabase, payment);
+      
+      if (isBundle) {
+        console.log('[WH-Afiliados] 🎯 Bundle detectado! Processando ativação...');
+        await processBundleActivation(supabase, payment);
+        console.log('[WH-Afiliados] ✅ Bundle ativado com sucesso');
+      }
+    }
+    
     // ============================================================
     // ETAPA 1: IDEMPOTÊNCIA - Verificar se evento já foi enfileirado
     // ============================================================
@@ -288,6 +303,343 @@ async function enqueueAffiliateWebhook(supabase, event) {
     throw error;
   }
 }
+
+/**
+ * Processa pagamento de pré-cadastro de afiliado (Payment First)
+ * Cria conta Supabase Auth + registro em affiliates + rede genealógica
+ * 
+ * CRÍTICO: Segue padrão idêntico ao sistema Comademig (subscription-payment-flow)
+ * - Usa password_hash diretamente da tabela payment_sessions
+ * - NÃO envia senha temporária nem email de redefinição
+ * - Usa email_confirm: true para confirmar email automaticamente
+ */
+
+// ============================================================
+// FUNÇÕES DE BUNDLE ACTIVATION (FASE 4)
+// ============================================================
+
+/**
+ * Detecta se o pagamento é de um bundle (logista)
+ * @param {object} supabase - Cliente Supabase
+ * @param {object} payment - Objeto de pagamento do Asaas
+ * @returns {Promise<boolean>} - true se é bundle, false caso contrário
+ */
+async function detectBundlePayment(supabase, payment) {
+  const externalRef = payment.externalReference;
+  
+  // Verificar se é pagamento de afiliado
+  if (!externalRef || !externalRef.startsWith('affiliate_')) {
+    return false;
+  }
+  
+  // Extrair affiliate_id
+  const affiliateId = externalRef.replace('affiliate_', '');
+  
+  console.log('[Bundle] 🔍 Verificando se é bundle:', {
+    affiliateId,
+    externalRef
+  });
+  
+  // Buscar tipo de afiliado
+  const { data: affiliate, error } = await supabase
+    .from('affiliates')
+    .select('affiliate_type')
+    .eq('id', affiliateId)
+    .single();
+  
+  if (error || !affiliate) {
+    console.log('[Bundle] ⚠️ Afiliado não encontrado:', affiliateId);
+    return false;
+  }
+  
+  const isBundle = affiliate.affiliate_type === 'logista';
+  console.log('[Bundle] 📊 Resultado da detecção:', {
+    affiliateId,
+    affiliateType: affiliate.affiliate_type,
+    isBundle
+  });
+  
+  return isBundle;
+}
+
+/**
+ * Ativa tenant e vitrine para logista
+ * @param {object} supabase - Cliente Supabase
+ * @param {string} affiliateId - ID do afiliado (UUID)
+ * @returns {Promise<string>} - ID do tenant criado/atualizado
+ */
+async function activateTenantAndVitrine(supabase, affiliateId) {
+  console.log('[Bundle] 🚀 Ativando tenant e vitrine:', affiliateId);
+  
+  // 1. Criar/atualizar tenant
+  const { data: tenant, error: tenantError } = await supabase
+    .from('multi_agent_tenants')
+    .upsert({
+      affiliate_id: affiliateId,
+      status: 'active',
+      whatsapp_status: 'inactive', // Aguardando QR code
+      activated_at: new Date().toISOString(),
+      personality: null // Usar fallback
+    }, {
+      onConflict: 'affiliate_id'
+    })
+    .select('id')
+    .single();
+  
+  if (tenantError) {
+    console.error('[Bundle] ❌ Erro ao criar/atualizar tenant:', tenantError);
+    throw tenantError;
+  }
+  
+  console.log('[Bundle] ✅ Tenant ativado:', {
+    tenantId: tenant.id,
+    affiliateId,
+    whatsappStatus: 'inactive'
+  });
+  
+  // 2. Ativar vitrine
+  const { error: vitrineError } = await supabase
+    .from('store_profiles')
+    .update({ 
+      is_visible: true,
+      updated_at: new Date().toISOString()
+    })
+    .eq('affiliate_id', affiliateId);
+  
+  if (vitrineError) {
+    console.error('[Bundle] ⚠️ Erro ao ativar vitrine:', vitrineError);
+    // Não bloqueia - vitrine pode ser ativada manualmente
+  } else {
+    console.log('[Bundle] ✅ Vitrine ativada:', affiliateId);
+  }
+  
+  return tenant.id;
+}
+
+/**
+ * Registra serviços de vitrine e agente em affiliate_services
+ * @param {object} supabase - Cliente Supabase
+ * @param {string} affiliateId - ID do afiliado (UUID)
+ */
+async function registerAffiliateServices(supabase, affiliateId) {
+  console.log('[Bundle] 📝 Registrando serviços:', affiliateId);
+  
+  const services = [
+    {
+      affiliate_id: affiliateId,
+      service_type: 'vitrine',
+      status: 'active',
+      activated_at: new Date().toISOString(),
+      metadata: { bundle: true, activated_via: 'payment' }
+    },
+    {
+      affiliate_id: affiliateId,
+      service_type: 'agente',
+      status: 'active',
+      activated_at: new Date().toISOString(),
+      metadata: { bundle: true, activated_via: 'payment' }
+    }
+  ];
+  
+  const { error } = await supabase
+    .from('affiliate_services')
+    .upsert(services, {
+      onConflict: 'affiliate_id,service_type'
+    });
+  
+  if (error) {
+    console.error('[Bundle] ❌ Erro ao registrar serviços:', error);
+    throw error;
+  }
+  
+  console.log('[Bundle] ✅ Serviços registrados:', {
+    affiliateId,
+    services: ['vitrine', 'agente']
+  });
+}
+
+/**
+ * Enfileira job para provisionar instância Evolution
+ * @param {object} supabase - Cliente Supabase
+ * @param {string} tenantId - ID do tenant (UUID)
+ * @param {string} affiliateId - ID do afiliado (UUID)
+ */
+async function enqueueEvolutionProvisioning(supabase, tenantId, affiliateId) {
+  console.log('[Bundle] 📤 Enfileirando provisioning Evolution:', {
+    tenantId,
+    affiliateId
+  });
+  
+  // Verificar se tabela evolution_provisioning_queue existe
+  // Se não existir, apenas logar (será implementado na Fase 5)
+  const { error } = await supabase
+    .from('evolution_provisioning_queue')
+    .insert({
+      tenant_id: tenantId,
+      affiliate_id: affiliateId,
+      status: 'pending',
+      created_at: new Date().toISOString()
+    });
+  
+  if (error) {
+    console.warn('[Bundle] ⚠️ Tabela evolution_provisioning_queue não existe ainda:', error.message);
+    console.log('[Bundle] ℹ️ Provisioning será implementado na Fase 5');
+  } else {
+    console.log('[Bundle] ✅ Provisioning enfileirado:', {
+      tenantId,
+      affiliateId
+    });
+  }
+}
+
+/**
+ * Cria order_items com split 50/50 para analytics
+ * @param {object} supabase - Cliente Supabase
+ * @param {string} affiliateId - ID do afiliado (UUID)
+ * @param {number} totalCents - Valor total em centavos
+ */
+async function createBundleOrderItems(supabase, affiliateId, totalCents) {
+  console.log('[Bundle] 📊 Criando order_items para analytics:', {
+    affiliateId,
+    totalCents
+  });
+  
+  // Verificar se tabela orders existe e se há order para este afiliado
+  // Se não existir, apenas logar (order_items é para analytics, não bloqueia)
+  const halfAmount = Math.floor(totalCents / 2);
+  
+  // Buscar produtos de adesão (Individual e Logista)
+  const { data: products, error: productsError } = await supabase
+    .from('products')
+    .select('id, name, category, sku')
+    .eq('category', 'adesao_afiliado')
+    .limit(2);
+  
+  if (productsError || !products || products.length < 2) {
+    console.warn('[Bundle] ⚠️ Produtos de adesão não encontrados:', productsError?.message);
+    console.log('[Bundle] ℹ️ Order items não criados (não bloqueia ativação)');
+    return;
+  }
+  
+  // Para bundle de logista, usar produto "Adesão Logista"
+  // Split 50/50: metade para vitrine, metade para agente (analytics)
+  const logistaProduct = products.find(p => p.sku.includes('ADL'));
+  
+  if (!logistaProduct) {
+    console.warn('[Bundle] ⚠️ Produto de adesão logista não encontrado');
+    return;
+  }
+  
+  // Criar order fictício para analytics (se não existir)
+  const { data: order, error: orderError } = await supabase
+    .from('orders')
+    .insert({
+      customer_id: null, // Sem customer (é pagamento de afiliado)
+      affiliate_id: affiliateId,
+      status: 'completed',
+      total_cents: totalCents,
+      payment_method: 'asaas',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    })
+    .select('id')
+    .single();
+  
+  if (orderError) {
+    console.warn('[Bundle] ⚠️ Erro ao criar order:', orderError.message);
+    return;
+  }
+  
+  // Criar order_items com split 50/50 (vitrine + agente)
+  const items = [
+    {
+      order_id: order.id,
+      product_id: logistaProduct.id,
+      quantity: 1,
+      price_cents: halfAmount,
+      metadata: { bundle: true, split_type: '50/50', service: 'vitrine' }
+    },
+    {
+      order_id: order.id,
+      product_id: logistaProduct.id,
+      quantity: 1,
+      price_cents: halfAmount,
+      metadata: { bundle: true, split_type: '50/50', service: 'agente' }
+    }
+  ];
+  
+  const { error: itemsError } = await supabase
+    .from('order_items')
+    .insert(items);
+  
+  if (itemsError) {
+    console.warn('[Bundle] ⚠️ Erro ao criar order_items:', itemsError.message);
+  } else {
+    console.log('[Bundle] ✅ Order items criados:', {
+      orderId: order.id,
+      items: 2,
+      splitType: '50/50'
+    });
+  }
+}
+
+/**
+ * Processa ativação de bundle (vitrine + agente) para logista
+ * @param {object} supabase - Cliente Supabase
+ * @param {object} payment - Objeto de pagamento do Asaas
+ */
+async function processBundleActivation(supabase, payment) {
+  const startTime = Date.now();
+  const affiliateId = payment.externalReference.replace('affiliate_', '');
+  
+  console.log('[Bundle] 🎯 Iniciando ativação de bundle:', {
+    affiliateId,
+    paymentId: payment.id,
+    value: payment.value
+  });
+  
+  try {
+    // 1. Ativar tenant e vitrine
+    const tenantId = await activateTenantAndVitrine(supabase, affiliateId);
+    
+    // 2. Registrar serviços
+    await registerAffiliateServices(supabase, affiliateId);
+    
+    // 3. Criar order_items para analytics (não bloqueia)
+    await createBundleOrderItems(supabase, affiliateId, payment.value * 100);
+    
+    // 4. Enfileirar provisioning Evolution (async)
+    await enqueueEvolutionProvisioning(supabase, tenantId, affiliateId);
+    
+    const processingTime = Date.now() - startTime;
+    console.log('[Bundle] ✅ Bundle ativado com sucesso:', {
+      affiliateId,
+      tenantId,
+      processingTimeMs: processingTime
+    });
+    
+    return {
+      success: true,
+      tenantId,
+      affiliateId,
+      processingTimeMs: processingTime
+    };
+    
+  } catch (error) {
+    const processingTime = Date.now() - startTime;
+    console.error('[Bundle] 💥 ERRO ao ativar bundle:', {
+      error: error.message,
+      stack: error.stack,
+      affiliateId,
+      processingTimeMs: processingTime
+    });
+    throw error;
+  }
+}
+
+// ============================================================
+// FIM DAS FUNÇÕES DE BUNDLE ACTIVATION
+// ============================================================
 
 /**
  * Processa pagamento de pré-cadastro de afiliado (Payment First)

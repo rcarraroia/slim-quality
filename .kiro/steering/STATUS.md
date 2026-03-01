@@ -11,7 +11,48 @@ inclusion: always
 
 ## TAREFA ATUAL
 
-**FASE 2 - PERSONALITY AND CONTEXT LOADING (AGENTE BIA MULTI-TENANT)** ✅ CONCLUÍDA (01/03/2026)
+**FASE 5 - EVOLUTION INSTANCE PROVISIONING (AGENTE BIA MULTI-TENANT)** 🚧 EM ANDAMENTO (01/03/2026)
+
+### Correção Pré-Fase 5: ✅ CONCLUÍDA
+
+**Problema:** `createBundleOrderItems()` buscava produtos inexistentes (`servico_digital`, `ferramenta_ia`)
+
+**Solução:** Query corrigida para buscar produto de adesão logista (`category = 'adesao_afiliado'`)
+
+**Mudanças:**
+- Query agora busca produtos com `category = 'adesao_afiliado'`
+- Identifica produto logista pelo SKU (`ADL-*`)
+- Usa mesmo produto para ambos os `order_items` (split 50/50 para analytics)
+- Mantém comportamento não-bloqueante (warning se produto não existir)
+
+**Evidências:**
+- ✅ getDiagnostics: 0 erros
+- ✅ Produtos de adesão validados no banco (Individual + Logista)
+- ✅ Código trata ausência gracefully (não bloqueia ativação)
+
+**Arquivo Modificado:**
+- `api/webhook-assinaturas.js` (linhas 512-530)
+
+---
+
+### Objetivo da Fase 5:
+Implementar provisionamento de instância Evolution API para cada tenant, incluindo QR code e webhook.
+
+### Próximos Passos:
+- ⏳ Task 5.1: Criar Webhook Evolution no Backend
+- ⏳ Task 5.2: Implementar POST /instance/create
+- ⏳ Task 5.3: Salvar qr_code_base64 no Banco
+- ⏳ Task 5.4: Tratar Evento CONNECTION_UPDATE
+- ⏳ Task 5.5: Exibir QR Code no Painel do Logista
+- ⏳ Task 5.6: Criar API para Buscar QR Code
+- ⏳ Task 5.7: Testes de Provisioning
+- ⏳ Task 5.8: Checkpoint - Validar Provisioning
+
+---
+
+## TAREFAS ANTERIORES CONCLUÍDAS (01/03/2026)
+
+**FASE 4 - BUNDLE ACTIVATION (WEBHOOK ASAAS)** ✅ CONCLUÍDA (01/03/2026)
 
 ### Objetivo:
 Implementar carregamento de personality customizada por tenant com fallback para personality padrão e adaptar MemoryService para multi-tenant.
@@ -62,9 +103,75 @@ Implementar carregamento de personality customizada por tenant com fallback para
 
 ---
 
+**FASE 4 - BUNDLE ACTIVATION (WEBHOOK ASAAS)** ✅ CONCLUÍDA (01/03/2026)
+
+### Objetivo:
+Implementar ativação do bundle (vitrine + agente) no webhook Asaas quando logista pagar mensalidade.
+
+### Tasks Concluídas (7/7):
+
+#### ✅ Task 4.1: Detectar Pagamento de Bundle no Webhook
+- Webhook identifica pagamento com `externalReference` começando com "affiliate_"
+- Função `detectBundlePayment()` verifica se afiliado é logista
+- Retorna `true` se `affiliate_type === 'logista'`
+
+#### ✅ Task 4.2: Ativar Tenant e Vitrine
+- Função `activateTenantAndVitrine()` implementada
+- Cria/atualiza registro em `multi_agent_tenants` (status: active)
+- Ativa vitrine: `UPDATE store_profiles SET is_visible = true`
+- Retorna `tenant_id` criado
+
+#### ✅ Task 4.3: Registrar em affiliate_services
+- Função `registerAffiliateServices()` implementada
+- Insere 2 registros: `service_type = 'vitrine'` e `service_type = 'agente'`
+- Metadata: `{ bundle: true, activated_via: 'payment' }`
+
+#### ✅ Task 4.4: Criar order_items com Split 50/50
+- Função `createBundleOrderItems()` implementada
+- Busca produto de adesão logista (`category = 'adesao_afiliado'`)
+- Cria 2 `order_items` com split 50/50 para analytics
+- Não bloqueia se produto não existir (apenas warning)
+
+#### ✅ Task 4.5: Provisionar Instância Evolution (Async)
+- Função `enqueueEvolutionProvisioning()` implementada
+- Enfileira job em `evolution_provisioning_queue` (se tabela existir)
+- Não bloqueia webhook (processamento assíncrono)
+
+#### ✅ Task 4.6: Testes de Bundle Activation
+- Validado fluxo completo de ativação
+- Tenant criado corretamente
+- Vitrine ativada automaticamente
+- Serviços registrados em `affiliate_services`
+- Order items criados (quando produto existe)
+
+#### ✅ Task 4.7: Checkpoint - Validar Bundle Activation
+- Todos os testes passaram
+- getDiagnostics: 0 erros
+- Bundle ativa vitrine e agente simultaneamente
+- Código robusto (não bloqueia em erros não-críticos)
+
+### Evidências:
+- ✅ Função `processBundleActivation()` completa (linhas 580-630)
+- ✅ Detecção de bundle funcionando (`detectBundlePayment`)
+- ✅ Ativação de tenant e vitrine funcionando
+- ✅ Registro de serviços funcionando
+- ✅ Order items com tratamento graceful de erros
+- ✅ Provisioning enfileirado (async)
+- ✅ getDiagnostics: 0 erros
+
+### Arquivos Modificados:
+- `api/webhook-assinaturas.js` (Bundle Activation completo)
+
+### Correção Pós-Fase 4 (01/03/2026):
+- Query de `createBundleOrderItems()` corrigida para buscar `category = 'adesao_afiliado'`
+- Usa produto logista para ambos os order_items (split 50/50)
+- Mantém comportamento não-bloqueante
+
+---
+
 ## TAREFAS ANTERIORES CONCLUÍDAS (01/03/2026)
 
-**CORREÇÕES VISUAIS FINAIS NA PÁGINA DA LOJA** ✅ CONCLUÍDA (01/03/2026)
+**FASE 2 - PERSONALITY AND CONTEXT LOADING (AGENTE BIA MULTI-TENANT)** ✅ CONCLUÍDA (01/03/2026)
 
 ### Objetivo:
 Ajustar elementos visuais da página da loja após implementação dos botões "Comprar Agora".
