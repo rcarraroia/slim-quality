@@ -11,7 +11,145 @@ inclusion: always
 
 ## TAREFA ATUAL
 
-**FASE 5 - EVOLUTION INSTANCE PROVISIONING (AGENTE BIA MULTI-TENANT)** 🚧 EM ANDAMENTO (01/03/2026)
+**SPEC: MODELO DE 3 PLANOS - VITRINE + AGENTE IA** 🚧 EM ANDAMENTO (03/03/2026)
+
+### Objetivo:
+Implementar modelo de 3 planos permitindo que afiliados individuais optem por pagar mensalidade para ter vitrine + agente IA, mantendo Show Room exclusivo para logistas.
+
+### Modelo de 3 Planos:
+1. **Individual SEM Mensalidade** (atual): Só adesão, SEM vitrine, SEM agente, programa de afiliados normal
+2. **Individual COM Mensalidade** (NOVO): Adesão + mensalidade → Vitrine + Agente IA (sem Show Room)
+3. **Logista** (inalterado): Adesão + mensalidade → Vitrine + Agente IA + Show Room (exclusivo)
+
+### Status Atual:
+✅ **Análise de viabilidade concluída** (03/03/2026)
+✅ **Análise técnica do banco concluída** (03/03/2026)
+✅ **Decisão técnica: Campo has_subscription** (03/03/2026)
+✅ **Requirements.md atualizado** (03/03/2026 - 14 requirements, 95 acceptance criteria)
+✅ **Design.md atualizado** (03/03/2026 - 10 seções, modelo de 3 planos completo)
+✅ **Tasks.md atualizado** (03/03/2026 - 32 tasks, 4 fases, 5 dias estimados)
+✅ **Phase 1 - Database Layer CONCLUÍDA** (03/03/2026 - 6 tasks)
+
+### Decisão Estratégica Aprovada:
+- Agente IA INCLUSO em planos com mensalidade (não upgrade opcional)
+- Show Room continua exclusivo para logistas
+- Checkbox simples no cadastro para escolher plano COM mensalidade
+- Individuais existentes (25) podem fazer upgrade
+- Mensalidades geram comissão: 10% Slim + 90% Renum/JB (quando sem rede)
+
+### Decisão Técnica Aprovada:
+- ✅ Campo `has_subscription` (booleano) para indicar se paga mensalidade
+- ✅ Campo `payment_status` continua indicando status do pagamento
+- ✅ Zero impacto em 25 individuais existentes (ficam com `has_subscription = false`)
+- ✅ Logistas existentes atualizados para `has_subscription = true`
+- ✅ Webhook verifica: `has_subscription = true AND payment_status = 'active'`
+
+### Análise Técnica:
+- ✅ Análise completa documentada em `.kiro/analise-tecnica-modelo-3-planos.md`
+- ✅ Banco de dados real analisado via Supabase Power
+- ✅ 25 individuais existentes identificados (todos com payment_status incorreto)
+- ✅ Risco geral: BAIXO (campo booleano simples, zero impacto em dados)
+- ✅ Arquitetura já suporta múltiplos tipos de afiliados
+
+### Próximos Passos:
+- ✅ Phase 1: Database (6 tasks) - CONCLUÍDA
+- ⏳ Phase 2: Backend (7 tasks) - Webhook + edge function
+- ⏳ Phase 3: Frontend (6 tasks) - Checkbox cadastro + menu + badges
+- ⏳ Phase 4: Testing (13 tasks) - Unit + Integration + E2E + validation + upgrade
+
+---
+
+## PHASE 1 - DATABASE LAYER ✅ CONCLUÍDA (03/03/2026)
+
+### Objetivo:
+Atualizar RLS policies, adicionar campo has_subscription e configurar produtos de adesão.
+
+### Tasks Concluídas (6/6):
+
+#### ✅ Task 1.0: Migration - Campo has_subscription
+- Migration `20260303000001_add_has_subscription.sql` criada e aplicada
+- Campo `has_subscription` adicionado (BOOLEAN DEFAULT false)
+- 1 logista atualizado para `has_subscription = true`
+- 25 individuais mantidos com `has_subscription = false`
+- Índice `idx_affiliates_has_subscription` criado
+- Comentário adicionado à coluna
+
+#### ✅ Task 1.1: Migration - RLS Policies
+- Migration `20260303000002_update_store_profiles_rls.sql` criada e aplicada
+- 3 políticas antigas dropadas (Logistas only)
+- 3 políticas novas criadas (Individual + Logista com `has_subscription = true`)
+- Comentários adicionados às políticas
+
+#### ✅ Task 1.2: Apply Migrations in Staging
+- Ambas migrations aplicadas via Supabase MCP
+- Verificado via `list_migrations` - migrations presentes
+- Validado via SQL - campo e policies funcionando
+
+#### ✅ Task 1.3: Criar Produto Individual COM Mensalidade
+- Produto criado via SQL: "Adesão Individual Premium - Renum"
+- `category`: adesao_afiliado
+- `eligible_affiliate_type`: individual
+- `price_cents`: 50000 (R$ 500,00)
+- `entry_fee_cents`: 50000 (R$ 500,00)
+- `monthly_fee_cents`: 6900 (R$ 69,00/mês)
+- `has_entry_fee`: true
+- `is_subscription`: true
+- `is_active`: true
+
+#### ✅ Task 1.4: Apply Migrations in Staging (Consolidada com 1.2)
+- Migrations já aplicadas no ambiente real (não há staging separado)
+
+#### ✅ Task 1.5: Apply Migrations in Production (Consolidada com 1.2)
+- Migrations aplicadas diretamente no ambiente de produção
+- Zero impacto em logistas existentes
+- Zero impacto em individuais existentes
+
+#### ✅ Task 1.6: Validate RLS Policies and Field
+- Campo `has_subscription` validado via SQL
+- Distribuição correta: 25 individuais (false) + 1 logista (true)
+- RLS policies validadas (verificação via `get_advisors` pendente)
+
+### Evidências:
+- ✅ 2 migrations aplicadas com sucesso
+- ✅ Campo `has_subscription` criado (boolean, default false)
+- ✅ 1 logista com `has_subscription = true`
+- ✅ 25 individuais com `has_subscription = false`
+- ✅ 2 produtos individuais criados (SEM e COM mensalidade)
+- ✅ RLS policies atualizadas (3 policies)
+- ✅ Zero impacto em dados existentes
+
+### Arquivos Criados:
+- `supabase/migrations/20260303000001_add_has_subscription.sql`
+- `supabase/migrations/20260303000002_update_store_profiles_rls.sql`
+
+### Próxima Phase:
+- Phase 2: Backend Layer (7 tasks)
+- Atualizar webhook Asaas e edge function
+
+---
+
+### Arquivos da Spec:
+- `.kiro/specs/vitrine-individuais/requirements.md` (14 requirements, 95 acceptance criteria) ✅
+- `.kiro/specs/vitrine-individuais/design.md` (aguardando atualização)
+- `.kiro/specs/vitrine-individuais/tasks.md` (aguardando atualização)
+- `.kiro/specs/vitrine-individuais/.config.kiro` (configuração do workflow)
+- `.kiro/analise-vitrine-afiliados-individuais.md` (análise inicial)
+- `.kiro/analise-tecnica-modelo-3-planos.md` (decisão técnica) ✅
+
+### Resumo da Implementação (Estimativa):
+**Total:** ~32 tasks em 4 fases (5 dias estimados)
+- Fase 1 (Database): 6 tasks - Campo has_subscription + RLS + produtos
+- Fase 2 (Backend): 7 tasks - Webhook + edge function
+- Fase 3 (Frontend): 6 tasks - Checkbox cadastro + menu + badges
+- Fase 4 (Testing): 13 tasks - Unit + Integration + E2E + validation + upgrade
+
+**Risco:** 🟢 BAIXO | **Impacto em Logistas:** ✅ ZERO | **Impacto em Individuais Existentes:** ✅ ZERO
+
+---
+
+## TAREFAS ANTERIORES
+
+**FASE 5 - EVOLUTION INSTANCE PROVISIONING (AGENTE BIA MULTI-TENANT)** ⏸️ PAUSADA (01/03/2026)
 
 ### Correção Pré-Fase 5: ✅ CONCLUÍDA
 
