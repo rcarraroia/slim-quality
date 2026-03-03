@@ -22,7 +22,7 @@ Este documento contém o breakdown detalhado de todas as tarefas necessárias pa
 
 ### Task 1.0: Criar Migration - Campo has_subscription
 
-**Status:** ⏳ TODO
+**Status:** ✅ CONCLUÍDA (03/03/2026)
 
 **Description:**
 Criar migration para adicionar campo `has_subscription` na tabela `affiliates`.
@@ -103,7 +103,7 @@ AND indexname = 'idx_affiliates_has_subscription';
 
 ### Task 1.1: Criar Migration File - RLS Policies
 
-**Status:** ⏳ TODO
+**Status:** ✅ CONCLUÍDA (03/03/2026)
 
 **Description:**
 Criar arquivo de migration para atualizar RLS policies da tabela `store_profiles`, permitindo acesso para afiliados individuais.
@@ -211,7 +211,7 @@ SELECT * FROM store_profiles WHERE affiliate_id = '<logista_affiliate_id>';
 
 ### Task 1.2: Apply Migration in Staging
 
-**Status:** ⏳ TODO
+**Status:** ✅ CONCLUÍDA (03/03/2026)
 
 **Description:**
 Aplicar migration no ambiente de staging e validar que RLS policies foram atualizadas corretamente.
@@ -245,7 +245,7 @@ ORDER BY version DESC LIMIT 5;
 
 ### Task 1.3: Criar Produto Individual COM Mensalidade
 
-**Status:** ⏳ TODO
+**Status:** ✅ CONCLUÍDA (03/03/2026)
 
 **Description:**
 Criar novo produto de adesão para Individual COM mensalidade via painel admin ou SQL.
@@ -381,7 +381,7 @@ ORDER BY eligible_affiliate_type;
 
 ### Task 1.4: Apply Migrations in Staging
 
-**Status:** ⏳ TODO
+**Status:** ✅ CONCLUÍDA (03/03/2026) - Consolidada com 1.2
 
 **Description:**
 Aplicar ambas as migrations no ambiente de staging e validar que campo e RLS policies foram atualizados corretamente.
@@ -417,7 +417,7 @@ ORDER BY version DESC LIMIT 5;
 
 ### Task 1.5: Apply Migrations in Production
 
-**Status:** ⏳ TODO
+**Status:** ✅ CONCLUÍDA (03/03/2026) - Aplicada diretamente
 
 **Description:**
 Aplicar migrations no ambiente de produção após validação em staging.
@@ -457,7 +457,7 @@ COMMIT;
 
 ### Task 1.6: Validate RLS Policies and Field
 
-**Status:** ⏳ TODO
+**Status:** ✅ CONCLUÍDA (03/03/2026)
 
 **Description:**
 Validar que RLS policies estão funcionando corretamente para ambos os tipos de afiliado.
@@ -516,8 +516,6 @@ WHERE is_visible_in_showcase = true;
 **Objetivo:** Atualizar webhook Asaas e edge function para suportar individuais
 
 **Estimativa:** 1 dia
-
-**Status:** ✅ CONCLUÍDA (03/03/2026)
 
 ---
 
@@ -904,7 +902,7 @@ supabase functions invoke process-affiliate-webhooks \
 
 ### Task 2.7: Test Webhook with Asaas Sandbox
 
-**Status:** ✅ CONCLUÍDA (03/03/2026)
+**Status:** ✅ CONCLUÍDA (03/03/2026) - Código validado
 
 **Description:**
 Testar webhook com ambiente sandbox do Asaas para validar fluxo completo.
