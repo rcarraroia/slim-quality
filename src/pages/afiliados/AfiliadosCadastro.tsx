@@ -33,7 +33,7 @@ export default function AfiliadosCadastro() {
   const [showPaywall, setShowPaywall] = useState(false);
   const [sessionToken, setSessionToken] = useState<string | null>(null);
 
-  // Form data - Campos essenciais + senha + tipo de afiliado
+  // Form data - Campos essenciais + senha + tipo de afiliado + assinatura
   const [formData, setFormData] = useState({
     name: "",
     affiliateType: "individual" as "individual" | "logista",
@@ -41,7 +41,8 @@ export default function AfiliadosCadastro() {
     email: "",
     phone: "",
     password: "",
-    confirmPassword: ""
+    confirmPassword: "",
+    wantsSubscription: false // Checkbox para plano COM mensalidade
   });
 
   // Estado para erros de validação
@@ -185,7 +186,8 @@ export default function AfiliadosCadastro() {
           password: formData.password,
           affiliate_type: formData.affiliateType,
           document: parseDocument(formData.document),
-          referred_by: referralCode || undefined
+          referred_by: referralCode || undefined,
+          has_subscription: formData.affiliateType === 'logista' ? true : formData.wantsSubscription
         })
       });
 
@@ -309,7 +311,13 @@ export default function AfiliadosCadastro() {
                   <Select
                     value={formData.affiliateType}
                     onValueChange={(value: "individual" | "logista") => {
-                      setFormData(prev => ({ ...prev, affiliateType: value, document: "" }));
+                      setFormData(prev => ({ 
+                        ...prev, 
+                        affiliateType: value, 
+                        document: "",
+                        // Logistas sempre têm assinatura
+                        wantsSubscription: value === 'logista' ? true : prev.wantsSubscription
+                      }));
                       setDocumentError(null);
                     }}
                   >
@@ -327,6 +335,39 @@ export default function AfiliadosCadastro() {
                       : 'Para lojas físicas que desejam revender produtos'}
                   </p>
                 </div>
+
+                {/* Checkbox de Assinatura - Apenas para Individuais */}
+                {formData.affiliateType === 'individual' && (
+                  <div className="bg-gradient-to-r from-primary/5 to-secondary/5 border-2 border-primary/20 rounded-lg p-4 space-y-3">
+                    <div className="flex items-start space-x-3">
+                      <Checkbox
+                        id="wantsSubscription"
+                        checked={formData.wantsSubscription}
+                        onCheckedChange={(checked) => setFormData(prev => ({ ...prev, wantsSubscription: checked as boolean }))}
+                      />
+                      <div className="space-y-1 flex-1">
+                        <Label htmlFor="wantsSubscription" className="font-semibold cursor-pointer leading-tight">
+                          Incluir Vitrine + Agente IA (mensalidade)
+                        </Label>
+                        <p className="text-sm text-muted-foreground">
+                          Tenha sua própria loja online e atendimento automatizado por apenas <span className="font-semibold text-primary">R$ 69,00/mês</span>
+                        </p>
+                      </div>
+                    </div>
+                    
+                    {formData.wantsSubscription && (
+                      <div className="bg-background/50 rounded-md p-3 space-y-2 text-sm">
+                        <p className="font-medium text-primary">✨ Benefícios inclusos:</p>
+                        <ul className="space-y-1 text-muted-foreground ml-4">
+                          <li>• Vitrine pública com seus produtos</li>
+                          <li>• Agente IA para atendimento 24/7</li>
+                          <li>• Link personalizado da sua loja</li>
+                          <li>• Comissões em todas as vendas</li>
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 {/* Documento (CPF ou CNPJ) - Condicional */}
                 <div className="space-y-2">
