@@ -319,7 +319,8 @@ async function enqueueAffiliateWebhook(supabase, event) {
 // ============================================================
 
 /**
- * Detecta se o pagamento é de um bundle (logista)
+ * Detecta se o pagamento é de um bundle (vitrine + agente)
+ * ATUALIZADO: Verifica has_subscription ao invés de affiliate_type
  * @param {object} supabase - Cliente Supabase
  * @param {object} payment - Objeto de pagamento do Asaas
  * @returns {Promise<boolean>} - true se é bundle, false caso contrário
@@ -335,27 +336,31 @@ async function detectBundlePayment(supabase, payment) {
   // Extrair affiliate_id
   const affiliateId = externalRef.replace('affiliate_', '');
   
-  console.log('[Bundle] 🔍 Verificando se é bundle:', {
+  console.log('[Bundle] 🔍 Detectando bundle payment:', {
     affiliateId,
-    externalRef
+    paymentId: payment.id,
+    value: payment.value
   });
   
-  // Buscar tipo de afiliado
+  // Buscar has_subscription do afiliado
   const { data: affiliate, error } = await supabase
     .from('affiliates')
-    .select('affiliate_type')
+    .select('has_subscription, affiliate_type')
     .eq('id', affiliateId)
     .single();
   
   if (error || !affiliate) {
-    console.log('[Bundle] ⚠️ Afiliado não encontrado:', affiliateId);
+    console.error('[Bundle] ❌ Afiliado não encontrado:', affiliateId);
     return false;
   }
   
-  const isBundle = affiliate.affiliate_type === 'logista';
-  console.log('[Bundle] 📊 Resultado da detecção:', {
+  // Bundle = afiliado com mensalidade (has_subscription = true)
+  const isBundle = affiliate.has_subscription === true;
+  
+  console.log('[Bundle] 📊 Detection result:', {
     affiliateId,
     affiliateType: affiliate.affiliate_type,
+    hasSubscription: affiliate.has_subscription,
     isBundle
   });
   
@@ -363,57 +368,66 @@ async function detectBundlePayment(supabase, payment) {
 }
 
 /**
- * Ativa tenant e vitrine para logista
+ * Ativa bundle (vitrine + agente) para afiliado com mensalidade
+ * ATUALIZADO: Renomeado de activateTenantAndVitrine() e corrigido campo is_visible_in_showcase
  * @param {object} supabase - Cliente Supabase
  * @param {string} affiliateId - ID do afiliado (UUID)
  * @returns {Promise<string>} - ID do tenant criado/atualizado
  */
-async function activateTenantAndVitrine(supabase, affiliateId) {
-  console.log('[Bundle] 🚀 Ativando tenant e vitrine:', affiliateId);
+async function activateBundle(supabase, affiliateId) {
+  console.log('[Bundle] 🚀 Activating bundle:', affiliateId);
   
-  // 1. Criar/atualizar tenant
-  const { data: tenant, error: tenantError } = await supabase
-    .from('multi_agent_tenants')
-    .upsert({
-      affiliate_id: affiliateId,
-      status: 'active',
-      whatsapp_status: 'inactive', // Aguardando QR code
-      activated_at: new Date().toISOString(),
-      personality: null // Usar fallback
-    }, {
-      onConflict: 'affiliate_id'
-    })
-    .select('id')
-    .single();
-  
-  if (tenantError) {
-    console.error('[Bundle] ❌ Erro ao criar/atualizar tenant:', tenantError);
-    throw tenantError;
+  try {
+    // 1. Create/update tenant (agent IA)
+    const { data: tenant, error: tenantError } = await supabase
+      .from('multi_agent_tenants')
+      .upsert({
+        affiliate_id: affiliateId,
+        status: 'active',
+        whatsapp_status: 'inactive',
+        activated_at: new Date().toISOString(),
+        personality: null  // Use fallback
+      }, {
+        onConflict: 'affiliate_id'
+      })
+      .select('id')
+      .single();
+    
+    if (tenantError) {
+      console.error('[Bundle] ❌ Error creating tenant:', tenantError);
+      throw tenantError;
+    }
+    
+    console.log('[Bundle] ✅ Tenant activated:', {
+      tenantId: tenant.id,
+      affiliateId
+    });
+    
+    // 2. Activate vitrine (CORRECTED FIELD)
+    const { error: vitrineError } = await supabase
+      .from('store_profiles')
+      .update({ 
+        is_visible_in_showcase: true,  // ✅ CORRECT FIELD
+        updated_at: new Date().toISOString()
+      })
+      .eq('affiliate_id', affiliateId);
+    
+    if (vitrineError) {
+      console.error('[Bundle] ⚠️ Error activating vitrine:', vitrineError);
+      // Don't block - vitrine can be activated manually
+    } else {
+      console.log('[Bundle] ✅ Vitrine activated:', affiliateId);
+    }
+    
+    return tenant.id;
+    
+  } catch (error) {
+    console.error('[Bundle] 💥 Fatal error:', {
+      error: error.message,
+      affiliateId
+    });
+    throw error;
   }
-  
-  console.log('[Bundle] ✅ Tenant ativado:', {
-    tenantId: tenant.id,
-    affiliateId,
-    whatsappStatus: 'inactive'
-  });
-  
-  // 2. Ativar vitrine
-  const { error: vitrineError } = await supabase
-    .from('store_profiles')
-    .update({ 
-      is_visible: true,
-      updated_at: new Date().toISOString()
-    })
-    .eq('affiliate_id', affiliateId);
-  
-  if (vitrineError) {
-    console.error('[Bundle] ⚠️ Erro ao ativar vitrine:', vitrineError);
-    // Não bloqueia - vitrine pode ser ativada manualmente
-  } else {
-    console.log('[Bundle] ✅ Vitrine ativada:', affiliateId);
-  }
-  
-  return tenant.id;
 }
 
 /**
@@ -584,7 +598,8 @@ async function createBundleOrderItems(supabase, affiliateId, totalCents) {
 }
 
 /**
- * Processa ativação de bundle (vitrine + agente) para logista
+ * Processa ativação de bundle (vitrine + agente) para afiliado com mensalidade
+ * ATUALIZADO: Usa activateBundle() ao invés de activateTenantAndVitrine()
  * @param {object} supabase - Cliente Supabase
  * @param {object} payment - Objeto de pagamento do Asaas
  */
@@ -600,7 +615,7 @@ async function processBundleActivation(supabase, payment) {
   
   try {
     // 1. Ativar tenant e vitrine
-    const tenantId = await activateTenantAndVitrine(supabase, affiliateId);
+    const tenantId = await activateBundle(supabase, affiliateId);
     
     // 2. Registrar serviços
     await registerAffiliateServices(supabase, affiliateId);

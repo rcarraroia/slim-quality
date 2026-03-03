@@ -170,121 +170,173 @@ async function processEvent(supabase: any, event: any) {
 }
 
 async function handlePaymentSuccess(supabase: any, payment: any, affiliateId: string) {
-  const { data: affiliatePayment, error: paymentError } = await supabase
-    .from('affiliate_payments')
-    .update({
-      status: 'paid',
-      paid_at: payment.paymentDate || payment.clientPaymentDate || new Date().toISOString(),
-      asaas_payment_status: payment.status,
-      updated_at: new Date().toISOString()
-    })
-    .eq('asaas_payment_id', payment.id)
-    .select('id, payment_type, affiliate_id')
-    .single();
-
-  if (paymentError || !affiliatePayment) {
-    throw new Error(`Pagamento nao encontrado: ${payment.id}`);
-  }
-
-  await supabase
-    .from('affiliates')
-    .update({
-      payment_status: 'active',
-      updated_at: new Date().toISOString()
-    })
-    .eq('id', affiliateId);
-
-  // Calcular comissoes para taxas de adesao e mensalidades
-  if (affiliatePayment.payment_type === 'membership_fee' || affiliatePayment.payment_type === 'monthly_subscription') {
-    console.log(`[handlePaymentSuccess] Calculando comissoes para ${affiliatePayment.payment_type}`);
-    
-    try {
-      await calculateAndSaveCommissions(supabase, affiliateId, payment.value, payment.id);
-    } catch (commissionError) {
-      console.error('[handlePaymentSuccess] Erro ao calcular comissoes:', commissionError);
-      // Nao bloquear o fluxo se comissao falhar
-    }
-  }
-
-  // Criar notificacao
   try {
-    await supabase
-      .from('notifications')
-      .insert({
-        affiliate_id: affiliateId,
-        type: 'payment_confirmed',
-        title: 'Pagamento confirmado!',
-        message: `Seu pagamento de R$ ${(payment.value).toFixed(2)} foi confirmado com sucesso.`,
-        link: '/afiliados/dashboard/pagamentos'
-      });
-  } catch (notifError) {
-    console.error('Erro ao criar notificacao:', notifError);
-  }
-
-  return {
-    success: true,
-    message: 'Payment processed successfully',
-    affiliatePaymentId: affiliatePayment.id
-  };
-}
-
-async function handlePaymentOverdue(supabase: any, payment: any, affiliateId: string) {
-  await supabase
-    .from('affiliate_payments')
-    .update({
-      status: 'overdue',
-      asaas_payment_status: payment.status,
-      updated_at: new Date().toISOString()
-    })
-    .eq('asaas_payment_id', payment.id);
-
-  await supabase
-    .from('affiliates')
-    .update({
-      payment_status: 'overdue',
-      updated_at: new Date().toISOString()
-    })
-    .eq('id', affiliateId);
-
-  const { data: affiliate } = await supabase
-    .from('affiliates')
-    .select('affiliate_type, show_row')
-    .eq('id', affiliateId)
-    .single();
-
-  if (affiliate?.affiliate_type === 'logista' && affiliate.show_row) {
-    await supabase
-      .from('store_profiles')
+    const { data: affiliatePayment, error: paymentError } = await supabase
+      .from('affiliate_payments')
       .update({
-        is_visible_in_showcase: false,
+        status: 'paid',
+        paid_at: payment.paymentDate || payment.clientPaymentDate || new Date().toISOString(),
+        asaas_payment_status: payment.status,
         updated_at: new Date().toISOString()
       })
-      .eq('affiliate_id', affiliateId);
-  }
+      .eq('asaas_payment_id', payment.id)
+      .select('id, payment_type, affiliate_id')
+      .single();
 
-  try {
-    const daysOverdue = Math.floor(
-      (new Date().getTime() - new Date(payment.dueDate).getTime()) / (1000 * 60 * 60 * 24)
-    );
+    if (paymentError || !affiliatePayment) {
+      throw new Error(`Pagamento nao encontrado: ${payment.id}`);
+    }
 
     await supabase
-      .from('notifications')
-      .insert({
-        affiliate_id: affiliateId,
-        type: 'overdue',
-        title: 'Pagamento em atraso',
-        message: `Seu pagamento de R$ ${(payment.value).toFixed(2)} esta em atraso ha ${daysOverdue} dias. ${affiliate?.affiliate_type === 'logista' ? 'Sua vitrine foi temporariamente desativada.' : 'Regularize para evitar suspensao.'}`,
-        link: '/afiliados/dashboard/pagamentos'
-      });
-  } catch (notifError) {
-    console.error('Erro ao criar notificacao:', notifError);
-  }
+      .from('affiliates')
+      .update({
+        payment_status: 'active',
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', affiliateId);
 
-  return {
-    success: true,
-    message: 'Overdue payment processed',
-    vitrineBlocked: affiliate?.affiliate_type === 'logista'
-  };
+    // Calcular comissoes para taxas de adesao e mensalidades
+    if (affiliatePayment.payment_type === 'membership_fee' || affiliatePayment.payment_type === 'monthly_subscription') {
+      console.log(`[handlePaymentSuccess] Calculando comissoes para ${affiliatePayment.payment_type}`);
+      
+      try {
+        await calculateAndSaveCommissions(supabase, affiliateId, payment.value, payment.id);
+      } catch (commissionError) {
+        console.error('[handlePaymentSuccess] Erro ao calcular comissoes:', commissionError);
+        // Nao bloquear o fluxo se comissao falhar
+      }
+    }
+
+    // Criar notificacao
+    try {
+      await supabase
+        .from('notifications')
+        .insert({
+          affiliate_id: affiliateId,
+          type: 'payment_confirmed',
+          title: 'Pagamento confirmado!',
+          message: `Seu pagamento de R$ ${(payment.value).toFixed(2)} foi confirmado com sucesso.`,
+          link: '/afiliados/dashboard/pagamentos'
+        });
+    } catch (notifError) {
+      console.error('Erro ao criar notificacao:', notifError);
+    }
+
+    return {
+      success: true,
+      message: 'Payment processed successfully',
+      affiliatePaymentId: affiliatePayment.id
+    };
+
+  } catch (error) {
+    throw error;
+  }
+}
+
+/**
+ * ATUALIZADO (Phase 2): Bloqueia vitrine e agente para TODOS os tipos de afiliado
+ * Remove verificação de affiliate_type - aplica bloqueio universal
+ */
+async function handlePaymentOverdue(supabase: any, payment: any, affiliateId: string) {
+  try {
+    console.log('[Overdue] ⚠️ Processing overdue payment:', affiliateId);
+
+    // Atualizar status do pagamento
+    await supabase
+      .from('affiliate_payments')
+      .update({
+        status: 'overdue',
+        asaas_payment_status: payment.status,
+        updated_at: new Date().toISOString()
+      })
+      .eq('asaas_payment_id', payment.id);
+
+    // Atualizar status do afiliado
+    await supabase
+      .from('affiliates')
+      .update({
+        payment_status: 'overdue',
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', affiliateId);
+
+    // Buscar afiliado para verificar has_subscription
+    const { data: affiliate } = await supabase
+      .from('affiliates')
+      .select('has_subscription, affiliate_type')
+      .eq('id', affiliateId)
+      .single();
+
+    // Bloquear vitrine para TODOS os afiliados com mensalidade
+    if (affiliate?.has_subscription) {
+      const { error: vitrineError } = await supabase
+        .from('store_profiles')
+        .update({
+          is_visible_in_showcase: false,
+          updated_at: new Date().toISOString()
+        })
+        .eq('affiliate_id', affiliateId);
+
+      if (vitrineError) {
+        console.error('[Overdue] ❌ Error blocking vitrine:', vitrineError);
+      } else {
+        console.log('[Overdue] ✅ Vitrine blocked:', affiliateId);
+      }
+    }
+
+    // Bloquear agente IA para TODOS os afiliados com mensalidade
+    if (affiliate?.has_subscription) {
+      const { error: tenantError } = await supabase
+        .from('multi_agent_tenants')
+        .update({
+          status: 'inactive',
+          suspended_at: new Date().toISOString()
+        })
+        .eq('affiliate_id', affiliateId);
+
+      if (tenantError) {
+        console.error('[Overdue] ❌ Error blocking agent:', tenantError);
+      } else {
+        console.log('[Overdue] ✅ Agent blocked:', affiliateId);
+      }
+    }
+
+    // Criar notificação
+    try {
+      const daysOverdue = Math.floor(
+        (new Date().getTime() - new Date(payment.dueDate).getTime()) / (1000 * 60 * 60 * 24)
+      );
+
+      await supabase
+        .from('notifications')
+        .insert({
+          affiliate_id: affiliateId,
+          type: 'overdue',
+          title: 'Pagamento em atraso',
+          message: `Seu pagamento de R$ ${(payment.value).toFixed(2)} esta em atraso ha ${daysOverdue} dias. ${affiliate?.has_subscription ? 'Sua vitrine e agente IA foram temporariamente desativados.' : 'Regularize para evitar suspensao.'}`,
+          link: '/afiliados/dashboard/pagamentos'
+        });
+    } catch (notifError) {
+      console.error('Erro ao criar notificacao:', notifError);
+    }
+
+    console.log('[Overdue] ✅ Overdue processing complete:', {
+      affiliateId,
+      hasSubscription: affiliate?.has_subscription,
+      vitrineBlocked: affiliate?.has_subscription,
+      agentBlocked: affiliate?.has_subscription
+    });
+
+    return {
+      success: true,
+      message: 'Overdue payment processed',
+      vitrineBlocked: affiliate?.has_subscription || false,
+      agentBlocked: affiliate?.has_subscription || false
+    };
+
+  } catch (error) {
+    throw error;
+  }
 }
 
 /**
