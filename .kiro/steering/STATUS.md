@@ -11,58 +11,81 @@ inclusion: always
 
 ## TAREFA ATUAL
 
-**SPEC: MODELO DE 3 PLANOS - VITRINE + AGENTE IA** 🚧 EM ANDAMENTO (03/03/2026)
+**GERENCIAMENTO DE ASSINATURAS** 📋 PLANEJAMENTO CONCLUÍDO (03/03/2026)
+
+### Objetivo:
+Implementar módulo completo de gerenciamento de assinaturas permitindo upgrade, cancelamento e visualização de status para todos os afiliados.
+
+### Escopo:
+1. Menu "Assinatura" visível para TODOS os afiliados (individuais + logistas)
+2. Visibilidade controlada por produtos de assinatura ativos no admin
+3. Página de gerenciamento completo (upgrade + cancelamento + status + histórico)
+4. Integração com API de assinatura existente
+
+### Status Atual:
+✅ **Documento de tasks criado** (03/03/2026)
+✅ **18 tasks organizadas em 7 phases**
+✅ **Estimativa: ~11 horas (2 dias de trabalho)**
+⏳ **Aguardando início da implementação**
+
+### Próximos Passos:
+- ⏳ Phase 1: Menu e Roteamento (2 tasks - 40 min)
+- ⏳ Phase 2: Página de Gerenciamento (4 tasks - 2h 30min)
+- ⏳ Phase 3: Modais de Ação (2 tasks - 1h 15min)
+- ⏳ Phase 4: Lógica de Negócio (2 tasks - 1h)
+- ⏳ Phase 5: Backend (Webhook) (2 tasks - 1h 30min)
+- ⏳ Phase 6: Testes e Validação (4 tasks - 3h 30min)
+- ⏳ Phase 7: Documentação e Deploy (2 tasks - 45 min)
+
+### Documento de Tasks:
+- `.spec/tasks/subscription-management.md` (1490 linhas)
+
+---
+
+## TAREFA ANTERIOR
+
+**SPEC: MODELO DE 3 PLANOS - VITRINE + AGENTE IA** ✅ CONCLUÍDA (03/03/2026)
 
 ### Objetivo:
 Implementar modelo de 3 planos permitindo que afiliados individuais optem por pagar mensalidade para ter vitrine + agente IA, mantendo Show Room exclusivo para logistas.
 
-### Modelo de 3 Planos:
-1. **Individual SEM Mensalidade** (atual): Só adesão, SEM vitrine, SEM agente, programa de afiliados normal
-2. **Individual COM Mensalidade** (NOVO): Adesão + mensalidade → Vitrine + Agente IA (sem Show Room)
-3. **Logista** (inalterado): Adesão + mensalidade → Vitrine + Agente IA + Show Room (exclusivo)
-
-### Status Atual:
-✅ **Análise de viabilidade concluída** (03/03/2026)
-✅ **Análise técnica do banco concluída** (03/03/2026)
-✅ **Decisão técnica: Campo has_subscription** (03/03/2026)
-✅ **Requirements.md atualizado** (03/03/2026 - 14 requirements, 95 acceptance criteria)
-✅ **Design.md atualizado** (03/03/2026 - 10 seções, modelo de 3 planos completo)
-✅ **Tasks.md atualizado** (03/03/2026 - 32 tasks, 4 fases, 5 dias estimados)
+### Status Final:
 ✅ **Phase 1 - Database Layer CONCLUÍDA** (03/03/2026 - 6 tasks)
+✅ **Phase 2 - Backend Layer CONCLUÍDA** (03/03/2026 - 7 tasks)
+✅ **Phase 3 - Frontend Layer CONCLUÍDA** (03/03/2026 - 3/6 tasks, 3 pendentes de validação manual)
+✅ **Phase 4 - Testing PARCIALMENTE CONCLUÍDA** (03/03/2026 - 2/7 tasks, 5 pendentes de validação manual)
 
-### Decisão Estratégica Aprovada:
-- Agente IA INCLUSO em planos com mensalidade (não upgrade opcional)
-- Show Room continua exclusivo para logistas
-- Checkbox simples no cadastro para escolher plano COM mensalidade
-- Individuais existentes (25) podem fazer upgrade
-- Mensalidades geram comissão: 10% Slim + 90% Renum/JB (quando sem rede)
+### Evidências:
+- ✅ Campo `has_subscription` criado e populado
+- ✅ RLS policies atualizadas
+- ✅ Produto Individual Premium criado
+- ✅ Webhook e edge function atualizados
+- ✅ Menu "Loja" habilitado para has_subscription = true
+- ✅ Checkbox de assinatura no cadastro
+- ✅ 11 unit tests passando
+- ✅ Documentação de rollback completa
+- ✅ 7 commits realizados
 
-### Decisão Técnica Aprovada:
-- ✅ Campo `has_subscription` (booleano) para indicar se paga mensalidade
-- ✅ Campo `payment_status` continua indicando status do pagamento
-- ✅ Zero impacto em 25 individuais existentes (ficam com `has_subscription = false`)
-- ✅ Logistas existentes atualizados para `has_subscription = true`
-- ✅ Webhook verifica: `has_subscription = true AND payment_status = 'active'`
+### Commits:
+1. `4827396` - feat: Habilita menu Loja para afiliados com mensalidade
+2. `35dc1962` - test: Adiciona testes unitários para webhook bundle
+3. `9fd3970` - docs: Adiciona documentação de rollback
+4. `f8ee66c` - docs: Atualiza STATUS.md
+5. `e3b7897` - docs: Atualiza steering files
+6. `e009878` - docs: Adiciona análises técnicas
+7. `394c4cc` - feat: Adiciona checkbox de assinatura no cadastro
 
-### Análise Técnica:
-- ✅ Análise completa documentada em `.kiro/analise-tecnica-modelo-3-planos.md`
-- ✅ Banco de dados real analisado via Supabase Power
-- ✅ 25 individuais existentes identificados (todos com payment_status incorreto)
-- ✅ Risco geral: BAIXO (campo booleano simples, zero impacto em dados)
-- ✅ Arquitetura já suporta múltiplos tipos de afiliados
-
-### Próximos Passos:
-- ✅ Phase 1: Database (6 tasks) - CONCLUÍDA
-- ✅ Phase 2: Backend (7 tasks) - CONCLUÍDA
-- 🚧 Phase 3: Frontend (6 tasks) - EM ANDAMENTO (3/6 tasks concluídas)
-- ⏳ Phase 4: Testing (13 tasks) - Unit + Integration + E2E + validation + upgrade
+### Gap Identificado:
+- Afiliados individuais existentes (25) não têm como fazer upgrade via painel
+- Funcionalidade estava especificada no design mas não foi quebrada em tasks executáveis
+- Solução: Criar módulo de gerenciamento de assinaturas (nova tarefa)
 
 ---
 
-## PHASE 4 - TESTING & VALIDATION 🚧 EM ANDAMENTO (03/03/2026)
+## PHASE 4 - TESTING & VALIDATION ⏸️ PAUSADA (03/03/2026)
 
-### Objetivo:
-Executar testes automatizados e validar zero impacto em logistas.
+### Motivo da Pausa:
+Gap identificado: funcionalidade de upgrade não implementada. Criado documento de tasks para gerenciamento de assinaturas.
 
 ### Tasks Concluídas (2/7):
 
