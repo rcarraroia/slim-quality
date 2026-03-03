@@ -231,13 +231,39 @@ async function enqueueAffiliateWebhook(supabase, event) {
     // FASE 4: DETECTAR E PROCESSAR BUNDLE (PAYMENT_CONFIRMED)
     // ============================================================
     if (event.event === 'PAYMENT_CONFIRMED') {
-      const isBundle = await detectBundlePayment(supabase, payment);
+      const affiliateId = payment.externalReference.replace('affiliate_', '');
       
-      if (isBundle) {
-        console.log('[WH-Afiliados] 🎯 Bundle detectado! Processando ativação...');
-        await processBundleActivation(supabase, payment);
-        console.log('[WH-Afiliados] ✅ Bundle ativado com sucesso');
+      // Verificar se é upgrade (Individual Básico → Premium)
+      const { data: affiliate } = await supabase
+        .from('affiliates')
+        .select('has_subscription')
+        .eq('id', affiliateId)
+        .single();
+      
+      if (affiliate && !affiliate.has_subscription) {
+        // É um upgrade! Processar upgrade
+        console.log('[WH-Afiliados] 🆙 Upgrade detectado! Processando...');
+        await handleUpgradePayment(supabase, payment);
+        console.log('[WH-Afiliados] ✅ Upgrade processado com sucesso');
+      } else {
+        // Pagamento regular de assinatura
+        const isBundle = await detectBundlePayment(supabase, payment);
+        
+        if (isBundle) {
+          console.log('[WH-Afiliados] 🎯 Bundle detectado! Processando ativação...');
+          await processBundleActivation(supabase, payment);
+          console.log('[WH-Afiliados] ✅ Bundle ativado com sucesso');
+        }
       }
+    }
+    
+    // ============================================================
+    // PROCESSAR CANCELAMENTO DE ASSINATURA
+    // ============================================================
+    if (event.event === 'SUBSCRIPTION_CANCELLED') {
+      console.log('[WH-Afiliados] 🚫 Cancelamento detectado! Processando...');
+      await handleSubscriptionCancelled(supabase, payment);
+      console.log('[WH-Afiliados] ✅ Cancelamento processado com sucesso');
     }
     
     // ============================================================
@@ -654,6 +680,143 @@ async function processBundleActivation(supabase, payment) {
 
 // ============================================================
 // FIM DAS FUNÇÕES DE BUNDLE ACTIVATION
+// ============================================================
+
+/**
+ * Processa upgrade de Individual Básico para Premium
+ * Atualiza has_subscription, ativa bundle e cria notificação
+ * @param {object} supabase - Cliente Supabase
+ * @param {object} payment - Objeto de pagamento do Asaas
+ */
+async function handleUpgradePayment(supabase, payment) {
+  const affiliateId = payment.externalReference.replace('affiliate_', '');
+  
+  console.log('[Upgrade] 🔄 Processing upgrade payment:', affiliateId);
+  
+  try {
+    // 1. Update affiliate
+    const { error: updateError } = await supabase
+      .from('affiliates')
+      .update({
+        has_subscription: true,
+        payment_status: 'active',
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', affiliateId);
+    
+    if (updateError) {
+      console.error('[Upgrade] ❌ Error updating affiliate:', updateError);
+      throw updateError;
+    }
+    
+    console.log('[Upgrade] ✅ Affiliate updated to premium');
+    
+    // 2. Activate bundle
+    const tenantId = await activateBundle(supabase, affiliateId);
+    
+    console.log('[Upgrade] ✅ Bundle activated:', tenantId);
+    
+    // 3. Create notification
+    await supabase.from('notifications').insert({
+      affiliate_id: affiliateId,
+      type: 'upgrade_success',
+      title: 'Upgrade realizado com sucesso!',
+      message: 'Sua conta foi atualizada para o Plano Premium. Agora você tem acesso à vitrine e agente IA.',
+      link: '/afiliados/dashboard/loja',
+      read: false,
+      created_at: new Date().toISOString()
+    });
+    
+    console.log('[Upgrade] ✅ Notification created');
+    
+    return { success: true, tenantId };
+  } catch (error) {
+    console.error('[Upgrade] 💥 Error processing upgrade:', error);
+    throw error;
+  }
+}
+
+/**
+ * Processa cancelamento de assinatura
+ * Atualiza has_subscription, desativa bundle e cria notificação
+ * @param {object} supabase - Cliente Supabase
+ * @param {object} payment - Objeto de pagamento do Asaas
+ */
+async function handleSubscriptionCancelled(supabase, payment) {
+  const affiliateId = payment.externalReference.replace('affiliate_', '');
+  
+  console.log('[Cancel] 🔄 Processing subscription cancellation:', affiliateId);
+  
+  try {
+    // 1. Update affiliate
+    const { error: updateError } = await supabase
+      .from('affiliates')
+      .update({
+        has_subscription: false,
+        payment_status: 'cancelled',
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', affiliateId);
+    
+    if (updateError) {
+      console.error('[Cancel] ❌ Error updating affiliate:', updateError);
+      throw updateError;
+    }
+    
+    console.log('[Cancel] ✅ Affiliate downgraded to basic');
+    
+    // 2. Deactivate vitrine
+    const { error: vitrineError } = await supabase
+      .from('store_profiles')
+      .update({
+        is_visible_in_showcase: false,
+        updated_at: new Date().toISOString()
+      })
+      .eq('affiliate_id', affiliateId);
+    
+    if (vitrineError) {
+      console.error('[Cancel] ⚠️ Error deactivating vitrine:', vitrineError);
+    } else {
+      console.log('[Cancel] ✅ Vitrine deactivated');
+    }
+    
+    // 3. Deactivate agent
+    const { error: tenantError } = await supabase
+      .from('multi_agent_tenants')
+      .update({
+        status: 'inactive',
+        suspended_at: new Date().toISOString()
+      })
+      .eq('affiliate_id', affiliateId);
+    
+    if (tenantError) {
+      console.error('[Cancel] ⚠️ Error deactivating agent:', tenantError);
+    } else {
+      console.log('[Cancel] ✅ Agent deactivated');
+    }
+    
+    // 4. Create notification
+    await supabase.from('notifications').insert({
+      affiliate_id: affiliateId,
+      type: 'subscription_cancelled',
+      title: 'Assinatura cancelada',
+      message: 'Sua assinatura foi cancelada. Você voltou para o Plano Básico. Pode reativar a qualquer momento.',
+      link: '/afiliados/dashboard/assinatura',
+      read: false,
+      created_at: new Date().toISOString()
+    });
+    
+    console.log('[Cancel] ✅ Notification created');
+    
+    return { success: true };
+  } catch (error) {
+    console.error('[Cancel] 💥 Error processing cancellation:', error);
+    throw error;
+  }
+}
+
+// ============================================================
+// FIM DAS FUNÇÕES DE UPGRADE E CANCELAMENTO
 // ============================================================
 
 /**

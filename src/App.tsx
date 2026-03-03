@@ -55,6 +55,7 @@ import AffiliateDashboardComissoes from "./pages/afiliados/dashboard/Comissoes";
 import AffiliateDashboardVendas from "./pages/afiliados/dashboard/Vendas";
 import AffiliateDashboardRecebimentos from "./pages/afiliados/dashboard/Recebimentos";
 import AffiliateDashboardPagamentos from "./pages/afiliados/dashboard/Pagamentos";
+import Assinatura from "./pages/afiliados/dashboard/Assinatura";
 import AffiliateDashboardEstatisticas from "./pages/afiliados/dashboard/Estatisticas";
 import FerramentasIA from "./pages/afiliados/dashboard/FerramentasIA";
 import ShowRow from "./pages/afiliados/dashboard/ShowRow";
@@ -168,6 +169,7 @@ const App = () => (
                 <Route path="vendas" element={<AffiliateDashboardVendas />} />
                 <Route path="recebimentos" element={<AffiliateDashboardRecebimentos />} />
                 <Route path="pagamentos" element={<AffiliateDashboardPagamentos />} />
+                <Route path="assinatura" element={<Assinatura />} />
                 <Route path="estatisticas" element={<AffiliateDashboardEstatisticas />} />
                 <Route path="ferramentas-ia" element={<FerramentasIA />} />
                 <Route path="show-row" element={<ShowRow />} />

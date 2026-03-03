@@ -16,7 +16,8 @@ import {
   Loader2,
   Megaphone, // Adicionado manualmente
   Package, // ETAPA 3: Ícone para Show Row
-  Store // ETAPA 4: Ícone para Loja
+  Store, // ETAPA 4: Ícone para Loja
+  Sparkles // Ícone para Assinatura
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -38,12 +39,14 @@ export function AffiliateDashboardLayout() {
   const [loading, setLoading] = useState(true);
   const [showIAMenu, setShowIAMenu] = useState(false); // Novo estado
   const [showShowRowMenu, setShowShowRowMenu] = useState(false); // ETAPA 3: Estado para Show Row
+  const [showSubscriptionMenu, setShowSubscriptionMenu] = useState(false); // Estado para Assinatura
 
   // Carregar dados do afiliado e verificar produto IA ao montar
   useEffect(() => {
     loadAffiliateData();
     checkIAAvailability();
     checkShowRowAvailability(); // ETAPA 3: Verificar Show Row
+    checkSubscriptionAvailability(); // Verificar Assinatura
   }, []);
 
   const checkIAAvailability = async () => {
@@ -83,6 +86,22 @@ export function AffiliateDashboardLayout() {
     } catch (error) {
       console.error('Erro ao verificar disponibilidade Show Row:', error);
       setShowShowRowMenu(false);
+    }
+  };
+
+  // Verificar disponibilidade de produtos de assinatura
+  const checkSubscriptionAvailability = async () => {
+    try {
+      const { count } = await supabase
+        .from('products')
+        .select('*', { count: 'exact', head: true })
+        .eq('category', 'adesao_afiliado')
+        .eq('is_active', true);
+
+      setShowSubscriptionMenu(!!count && count > 0);
+    } catch (error) {
+      console.error('Erro ao verificar disponibilidade de assinatura:', error);
+      setShowSubscriptionMenu(false);
     }
   };
 
@@ -138,6 +157,8 @@ export function AffiliateDashboardLayout() {
     { icon: DollarSign, label: "Comissões", path: "/afiliados/dashboard/comissoes" },
     { icon: CreditCard, label: "Recebimentos", path: "/afiliados/dashboard/recebimentos" },
     { icon: CreditCard, label: "Pagamentos", path: "/afiliados/dashboard/pagamentos" }, // ETAPA 5: Menu Pagamentos
+    // ✅ ASSINATURA: Visível para todos quando produtos ativos
+    ...(showSubscriptionMenu ? [{ icon: Sparkles, label: "Assinatura", path: "/afiliados/dashboard/assinatura" }] : []),
     { icon: BarChart3, label: "Estatísticas", path: "/afiliados/dashboard/estatisticas" },
     { icon: Settings, label: "Configurações", path: "/afiliados/dashboard/configuracoes" },
   ];
