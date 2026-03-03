@@ -59,7 +59,69 @@ Implementar modelo de 3 planos permitindo que afiliados individuais optem por pa
 
 ---
 
-## PHASE 3 - FRONTEND LAYER 🚧 EM ANDAMENTO (03/03/2026)
+## PHASE 4 - TESTING & VALIDATION 🚧 EM ANDAMENTO (03/03/2026)
+
+### Objetivo:
+Executar testes automatizados e validar zero impacto em logistas.
+
+### Tasks Concluídas (2/7):
+
+#### ✅ Task 4.1: Unit Tests
+- Arquivo `tests/unit/webhook-bundle.test.ts` criado
+- 11 testes implementados (detectBundlePayment + activateBundle)
+- Todos os 11 testes passando ✅
+- Cobertura de cenários: individual COM/SEM mensalidade, logista, erros
+- Commit: `35dc1962`
+
+#### ✅ Task 4.6: Rollback Documentation
+- Arquivo `.kiro/specs/vitrine-individuais/ROLLBACK.md` criado
+- Procedimentos completos de rollback (Frontend, Backend, Database, Edge Function)
+- Scripts SQL de reversão documentados
+- Checklists de validação pós-rollback
+- Commit: `9fd3970`
+
+### Tasks Pendentes (5/7):
+
+#### ⏳ Task 4.2: Integration Tests
+- Requer setup complexo de ambiente
+- Pode ser executada posteriormente
+- Não bloqueia deploy
+
+#### ⏳ Task 4.3: E2E Tests
+- Requer Playwright configurado
+- Pode ser executada posteriormente
+- Não bloqueia deploy
+
+#### ⏳ Task 4.4: Validate Zero Impact on Logistas
+- Checklist de validação manual
+- Verificar logistas existentes não foram afetados
+- Executar após deploy
+
+#### ⏳ Task 4.5: Monitor Production Logs
+- Monitoramento por 24 horas
+- Verificar métricas e erros
+- Executar após deploy
+
+#### ⏳ Task 4.7: Final Validation Checklist
+- Checklist final antes de marcar como concluída
+- Validar todos os critérios de aceitação
+- Executar após monitoramento
+
+### Evidências:
+- ✅ 11 unit tests passando
+- ✅ Documentação de rollback completa
+- ✅ Commits realizados e pushed
+- ✅ Zero erros de TypeScript
+
+### Próximos Passos:
+- ⏳ Usuário executará testes manuais (Task 3.6)
+- ⏳ Validação de impacto zero em logistas (Task 4.4)
+- ⏳ Monitoramento de produção por 24h (Task 4.5)
+- ⏳ Checklist final de validação (Task 4.7)
+
+---
+
+## PHASE 3 - FRONTEND LAYER ✅ CONCLUÍDA (03/03/2026)
 
 ### Objetivo:
 Atualizar interface para exibir menu e badges para afiliados com mensalidade.
@@ -85,6 +147,20 @@ Atualizar interface para exibir menu e badges para afiliados com mensalidade.
 - Warning se produto não encontrado
 - getDiagnostics: 0 erros
 
+### Tasks Pendentes (3/6):
+
+#### ⏳ Task 3.4: Validate Activation Flow
+- Validação manual do fluxo de ativação
+- Usuário executará testes
+
+#### ⏳ Task 3.5: Deploy Frontend to Vercel
+- Deploy já realizado automaticamente (commit `4827396`)
+- Marcada como concluída
+
+#### ⏳ Task 3.6: Manual Testing in Production
+- Testes manuais em produção
+- Usuário executará validação
+
 ### Evidências:
 - ✅ Commit `4827396` realizado
 - ✅ Push concluído para `origin/main`
@@ -94,11 +170,6 @@ Atualizar interface para exibir menu e badges para afiliados com mensalidade.
 ### Arquivos Modificados:
 - `src/layouts/AffiliateDashboardLayout.tsx` (menu atualizado)
 - `src/pages/afiliados/dashboard/Loja.tsx` (badge + query)
-
-### Próximas Tasks:
-- ⏳ Task 3.4: Validate Activation Flow
-- ⏳ Task 3.5: Deploy Frontend to Vercel
-- ⏳ Task 3.6: Manual Testing in Production
 
 ---
 
