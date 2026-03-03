@@ -1,3 +1,7 @@
+---
+inclusion: manual
+---
+
 # SERVERLESS FUNCTIONS - VERCEL
 ## ⚠️ ATENÇÃO - RESPOSTAS SEMPRE EM PORTUGUES-BR
 

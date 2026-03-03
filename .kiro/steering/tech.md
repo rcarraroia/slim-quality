@@ -1,3 +1,7 @@
+---
+inclusion: manual
+---
+
 # TECNOLOGIAS E PADRÕES: SLIM QUALITY BACKEND
 ## ⚠️ ATENÇÃO - RESPOSTAS SEMPRE EM PORTUGUES-BR
 

@@ -1,3 +1,7 @@
+---
+inclusion: manual
+---
+
 # ARQUITETURA: SLIM QUALITY BACKEND
 ## ⚠️ ATENÇÃO - RESPOSTAS SEMPRE EM PORTUGUES-BR
 

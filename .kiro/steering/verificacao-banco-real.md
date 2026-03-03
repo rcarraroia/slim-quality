@@ -1,3 +1,7 @@
+---
+inclusion: manual
+---
+
 # 🔍 PROTOCOLO DE VERIFICAÇÃO DO BANCO REAL
 ## ⚠️ ATENÇÃO - RESPOSTAS SEMPRE EM PORTUGUES-BR
 

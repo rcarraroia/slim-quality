@@ -1,3 +1,7 @@
+---
+inclusion: manual
+---
+
 # 🚀 PROCEDIMENTO DE DEPLOY - SLIM QUALITY
 
 ## ⚠️ ATENÇÃO - RESPOSTAS SEMPRE EM PORTUGUES-BR
