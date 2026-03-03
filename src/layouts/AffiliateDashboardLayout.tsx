@@ -128,8 +128,10 @@ export function AffiliateDashboardLayout() {
     { icon: Home, label: "Início", path: "/afiliados/dashboard" },
     // Item condicional
     ...(showIAMenu ? [{ icon: Bot, label: "Ferramentas IA", path: "/afiliados/dashboard/ferramentas-ia" }] : []),
-    ...(showShowRowMenu ? [{ icon: Package, label: "Show Room", path: "/afiliados/dashboard/show-row" }] : []), // ETAPA 3: Menu Show Room
-    ...(showShowRowMenu ? [{ icon: Store, label: "Minha Loja", path: "/afiliados/dashboard/loja" }] : []), // ETAPA 4: Menu Loja
+    // ✅ LOJA: Para afiliados com has_subscription = true (individuais premium + logistas)
+    ...(affiliate?.has_subscription ? [{ icon: Store, label: "Loja", path: "/afiliados/dashboard/loja" }] : []),
+    // ⚠️ SHOW ROOM: Exclusivo para logistas
+    ...(showShowRowMenu ? [{ icon: Package, label: "Show Room", path: "/afiliados/dashboard/show-row" }] : []),
     { icon: Megaphone, label: "Materiais", path: "/afiliados/dashboard/materiais" }, // Novo menu
     { icon: TreeDeciduous, label: "Minha Rede", path: "/afiliados/dashboard/rede" },
     { icon: ShoppingCart, label: "Vendas", path: "/afiliados/dashboard/vendas" },

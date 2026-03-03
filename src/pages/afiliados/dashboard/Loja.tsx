@@ -11,6 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Badge } from '@/components/ui/badge';
 import { storeFrontendService, StoreProfile, BusinessHours } from '@/services/frontend/store.service';
 import { affiliateFrontendService } from '@/services/frontend/affiliate.service';
 import { useToast } from '@/hooks/use-toast';
@@ -39,7 +40,7 @@ export default function Loja() {
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [isLogista, setIsLogista] = useState(false);
+  const [affiliateType, setAffiliateType] = useState<'individual' | 'logista' | null>(null);
   const [hasProfile, setHasProfile] = useState(false);
   const [affiliateId, setAffiliateId] = useState<string | null>(null);
   
@@ -80,16 +81,27 @@ export default function Loja() {
     try {
       setLoading(true);
 
-      // Verificar se é logista
+      // Verificar tipo de afiliado e has_subscription
       const { isAffiliate, affiliate } = await affiliateFrontendService.checkAffiliateStatus();
 
-      if (!isAffiliate || affiliate?.affiliate_type !== 'logista') {
-        setIsLogista(false);
+      if (!isAffiliate || !affiliate?.has_subscription) {
+        console.log('[Loja] Affiliate does not have subscription:', {
+          isAffiliate,
+          hasSubscription: affiliate?.has_subscription,
+          affiliateType: affiliate?.affiliate_type
+        });
+        setAffiliateType(null);
         return;
       }
 
-      setIsLogista(true);
+      setAffiliateType(affiliate.affiliate_type);
       setAffiliateId(affiliate.id);
+
+      console.log('[Loja] Affiliate loaded:', {
+        id: affiliate.id,
+        type: affiliate.affiliate_type,
+        hasSubscription: affiliate.has_subscription
+      });
 
       // Carregar perfil existente
       const profile = await storeFrontendService.getProfile();
@@ -105,8 +117,8 @@ export default function Loja() {
       // Verificar se há assinatura ativa
       await checkActiveSubscription(affiliate.id);
 
-      // Buscar produto de mensalidade
-      await loadSubscriptionProduct();
+      // Buscar produto de mensalidade (filtrado por tipo)
+      await loadSubscriptionProduct(affiliate.affiliate_type);
     } catch (error) {
       console.error('Erro ao carregar perfil:', error);
       toast({
@@ -135,21 +147,35 @@ export default function Loja() {
     }
   };
 
-  const loadSubscriptionProduct = async () => {
+  const loadSubscriptionProduct = async (affType: 'individual' | 'logista') => {
     try {
-      const { data } = await supabase
+      console.log('[Loja] Loading subscription product for:', affType);
+      
+      const { data, error } = await supabase
         .from('products')
         .select(`
           *,
           product_images(image_url, is_primary)
         `)
         .eq('category', 'adesao_afiliado')
-        .eq('eligible_affiliate_type', 'logista')
+        .eq('eligible_affiliate_type', affType)  // ✅ FILTER BY TYPE
         .eq('is_active', true)
         .maybeSingle();
 
+      if (error) {
+        console.error('[Loja] Error loading product:', error);
+        return;
+      }
+
       if (data) {
+        console.log('[Loja] Product loaded:', {
+          id: data.id,
+          name: data.name,
+          monthlyFee: data.monthly_fee_cents
+        });
         setSubscriptionProduct(data);
+      } else {
+        console.warn('[Loja] No subscription product found for:', affType);
       }
     } catch (error) {
       console.error('Erro ao carregar produto:', error);
@@ -344,13 +370,13 @@ export default function Loja() {
     );
   }
 
-  if (!isLogista) {
+  if (!affiliateType) {
     return (
       <div className="max-w-2xl mx-auto">
         <Alert>
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>
-            Apenas afiliados do tipo Logista podem gerenciar perfil de loja.
+            Apenas afiliados com mensalidade ativa podem gerenciar perfil de loja.
           </AlertDescription>
         </Alert>
       </div>
@@ -361,7 +387,22 @@ export default function Loja() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold">Minha Loja</h1>
+        <div className="flex items-center justify-between mb-2">
+          <h1 className="text-3xl font-bold">Minha Loja</h1>
+          
+          {/* ✅ VISUAL DIFFERENTIATION */}
+          {affiliateType === 'individual' && (
+            <Badge variant="secondary" className="text-sm">
+              Afiliado Individual
+            </Badge>
+          )}
+          
+          {affiliateType === 'logista' && (
+            <Badge variant="default" className="text-sm">
+              Logista
+            </Badge>
+          )}
+        </div>
         <p className="text-muted-foreground">
           Gerencie as informações da sua loja na vitrine pública
         </p>
