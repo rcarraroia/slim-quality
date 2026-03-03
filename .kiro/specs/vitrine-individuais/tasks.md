@@ -984,7 +984,7 @@ Testar webhook com ambiente sandbox do Asaas para validar fluxo completo.
 
 ### Task 3.1: Update Menu Layout
 
-**Status:** ⏳ TODO
+**Status:** ✅ CONCLUÍDA (03/03/2026)
 
 **Description:**
 Atualizar menu lateral para exibir "Loja" para todos os tipos de afiliado.
@@ -1063,7 +1063,7 @@ expect(screen.getByText('Show Room')).toBeInTheDocument();
 
 ### Task 3.2: Add Visual Badge to Loja Page
 
-**Status:** ⏳ TODO
+**Status:** ✅ CONCLUÍDA (03/03/2026)
 
 **Description:**
 Adicionar badge visual para diferenciar tipo de afiliado na página Loja.
@@ -1124,7 +1124,7 @@ expect(screen.getByText('Logista')).toBeInTheDocument();
 
 ### Task 3.3: Update Product Loading Logic
 
-**Status:** ⏳ TODO
+**Status:** ✅ CONCLUÍDA (03/03/2026)
 
 **Description:**
 Atualizar lógica de carregamento de produto para filtrar por `eligible_affiliate_type`.

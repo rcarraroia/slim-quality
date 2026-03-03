@@ -54,8 +54,51 @@ Implementar modelo de 3 planos permitindo que afiliados individuais optem por pa
 ### Próximos Passos:
 - ✅ Phase 1: Database (6 tasks) - CONCLUÍDA
 - ✅ Phase 2: Backend (7 tasks) - CONCLUÍDA
-- ⏳ Phase 3: Frontend (6 tasks) - Checkbox cadastro + menu + badges
+- 🚧 Phase 3: Frontend (6 tasks) - EM ANDAMENTO (3/6 tasks concluídas)
 - ⏳ Phase 4: Testing (13 tasks) - Unit + Integration + E2E + validation + upgrade
+
+---
+
+## PHASE 3 - FRONTEND LAYER 🚧 EM ANDAMENTO (03/03/2026)
+
+### Objetivo:
+Atualizar interface para exibir menu e badges para afiliados com mensalidade.
+
+### Tasks Concluídas (3/6):
+
+#### ✅ Task 3.1: Update Menu Layout
+- Menu "Loja" agora verifica `has_subscription` ao invés de `affiliate_type`
+- Show Room continua exclusivo para logistas
+- Ordem do menu mantida
+- getDiagnostics: 0 erros
+
+#### ✅ Task 3.2: Add Visual Badge to Loja Page
+- Badge "Afiliado Individual" (variant secondary) para individuais
+- Badge "Logista" (variant default) para logistas
+- Badge posicionado no header da página
+- getDiagnostics: 0 erros
+
+#### ✅ Task 3.3: Update Product Loading Logic
+- Query filtra por `eligible_affiliate_type`
+- Logs detalhados adicionados
+- Error handling implementado
+- Warning se produto não encontrado
+- getDiagnostics: 0 erros
+
+### Evidências:
+- ✅ Commit `4827396` realizado
+- ✅ Push concluído para `origin/main`
+- ✅ Deploy automático no Vercel iniciado
+- ✅ getDiagnostics: 0 erros em ambos os arquivos
+
+### Arquivos Modificados:
+- `src/layouts/AffiliateDashboardLayout.tsx` (menu atualizado)
+- `src/pages/afiliados/dashboard/Loja.tsx` (badge + query)
+
+### Próximas Tasks:
+- ⏳ Task 3.4: Validate Activation Flow
+- ⏳ Task 3.5: Deploy Frontend to Vercel
+- ⏳ Task 3.6: Manual Testing in Production
 
 ---
 
