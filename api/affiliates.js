@@ -451,14 +451,14 @@ async function handlePaymentFirstValidate(req, res, supabase) {
     // Buscar produto de adesão correto
     // Usar valor enviado pelo frontend (checkbox) ou forçar true para logistas
     // IMPORTANTE: Usar ?? ao invés de || para não converter false em true
-    const hasSubscription = affiliate_type === 'logista' ? true : (body.has_subscription === true);
+    const hasSubscription = affiliate_type === 'logista' ? true : (req.body.has_subscription === true);
     console.log('[PaymentFirstValidate] DEBUG - Valores recebidos:', {
-      'body.has_subscription': body.has_subscription,
+      'req.body.has_subscription': req.body.has_subscription,
       'affiliate_type': affiliate_type,
       'hasSubscription calculado': hasSubscription,
-      'tipo de has_subscription': typeof body.has_subscription
+      'tipo de has_subscription': typeof req.body.has_subscription
     });
-    console.log('[PaymentFirstValidate] Buscando produto de adesão:', { affiliate_type, has_subscription_from_body: body.has_subscription, hasSubscription });
+    console.log('[PaymentFirstValidate] Buscando produto de adesão:', { affiliate_type, has_subscription_from_body: req.body.has_subscription, hasSubscription });
     
     const { data: product, error: productError } = await supabase
       .from('products')
