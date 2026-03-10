@@ -11,7 +11,7 @@ inclusion: always
 
 ## TAREFA ATUAL
 
-**CORREÇÃO: ERROS NO CADASTRO DE AFILIADOS** 🔧 EM ANDAMENTO (10/03/2026)
+**CORREÇÃO: ERROS NO CADASTRO DE AFILIADOS** ✅ CONCLUÍDA (10/03/2026)
 
 ### Objetivo:
 Corrigir erros 406 e 500 no cadastro de afiliados identificados no console do navegador.
@@ -21,8 +21,7 @@ Corrigir erros 406 e 500 no cadastro de afiliados identificados no console do na
 2. **Erro 500** em `/api/affiliates?action=payment-first-validate`: Erro interno na validação de cadastro
 
 ### Status Atual:
-✅ **Correção 1: select('*') CONCLUÍDA** (10/03/2026)
-✅ **Correção 2: bcryptjs CONCLUÍDA** (10/03/2026)
+✅ **TODAS AS CORREÇÕES CONCLUÍDAS** (10/03/2026)
 
 ### Tasks Concluídas:
 
@@ -39,7 +38,7 @@ Corrigir erros 406 e 500 no cadastro de afiliados identificados no console do na
 - **Evidências:**
   - ✅ Estrutura do banco consultada via Supabase Power
   - ✅ getDiagnostics: 0 erros
-  - ✅ Correção aplicada na linha 392
+  - ✅ Commit: `7d9b5ca`
 
 #### ✅ Correção 2: Instalar bcryptjs e migrar para import estático
 - **Arquivo:** `api/affiliates.js`
@@ -57,20 +56,54 @@ Corrigir erros 406 e 500 no cadastro de afiliados identificados no console do na
   - ✅ Import estático adicionado no topo
   - ✅ Dynamic import removido
   - ✅ getDiagnostics: 0 erros
+  - ✅ Commit: `c35d76e`
+
+#### ✅ Correção 3: Remover colunas inexistentes de payment_sessions
+- **Arquivo:** `api/affiliates.js`
+- **Problema:** Código tentava inserir `has_subscription` e `product_id` que não existem na tabela
+- **Análise do banco:** Consultado estrutura real via Supabase Power - tabela tem apenas 14 colunas
+- **Solução aplicada:** Removidas linhas 495-496 do INSERT
+- **Evidências:**
+  - ✅ Estrutura do banco validada via Supabase Power
+  - ✅ getDiagnostics: 0 erros
+  - ✅ Commit: `564d727`
+
+#### ✅ Correção 4: Usar has_subscription do frontend na seleção de produto
+- **Arquivo:** `api/affiliates.js`
+- **Problema:** Backend ignorava valor `has_subscription` enviado pelo frontend
+- **Causa raiz:** Linha 456 recalculava `hasSubscription = affiliate_type === 'logista'` ignorando checkbox
+- **Análise detalhada:**
+  - Frontend envia `has_subscription: formData.wantsSubscription` corretamente
+  - Backend ignorava esse valor e sempre usava `false` para individuais
+  - Query buscava produto errado, retornando 2 resultados (erro PGRST116)
+- **Solução aplicada:**
+  - Corrigida linha 456: `const hasSubscription = body.has_subscription || affiliate_type === 'logista'`
+  - Agora usa valor do checkbox enviado pelo frontend
+  - Logistas continuam forçados para `true`
+- **Evidências:**
+  - ✅ Análise completa do fluxo frontend → backend
+  - ✅ Causa raiz identificada via code review
+  - ✅ getDiagnostics: 0 erros
+  - ✅ Commit: `4436355`
+
+### Lições Aprendidas:
+1. **SEMPRE verificar banco de dados real via Supabase Power ANTES de fazer alterações relacionadas ao banco.** Não confiar apenas em arquivos de migration ou documentação desatualizada.
+2. **Usar bcryptjs ao invés de bcrypt em ambientes serverless** porque é 100% JavaScript puro, sem bindings nativos.
+3. **Import estático é melhor prática** - carregar módulos no topo do arquivo ao invés de dynamic imports.
+4. **Analisar fluxo completo frontend → backend** quando houver inconsistências de dados.
+5. **Usar code review sistemático** para identificar problemas de lógica complexos.
+
+### Arquivos Modificados:
+- `src/services/customer-auth.service.ts` (linha 392 corrigida)
+- `api/affiliates.js` (4 correções: import bcryptjs, remoção de colunas, uso de has_subscription)
+- `package.json` (bcryptjs instalado)
 
 ### Próximos Passos:
 1. ✅ Testar cadastro de afiliado em produção
 2. ✅ Verificar se erro 406 foi resolvido
 3. ✅ Verificar se erro 500 foi resolvido
-4. ⏳ Monitorar logs do Vercel para confirmar funcionamento
-
-### Arquivos Modificados:
-- `src/services/customer-auth.service.ts` (linha 392 corrigida)
-- `api/affiliates.js` (import de bcryptjs adicionado, dynamic import removido)
-- `package.json` (bcryptjs instalado)
-
-### Lição Aprendida:
-**SEMPRE verificar banco de dados real via Supabase Power ANTES de fazer alterações relacionadas ao banco.** Não confiar apenas em arquivos de migration ou documentação desatualizada.
+4. ✅ Testar checkbox "Incluir Vitrine + Agente IA"
+5. ⏳ Monitorar logs do Vercel para confirmar funcionamento
 
 ---
 
