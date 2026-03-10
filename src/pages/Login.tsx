@@ -205,15 +205,31 @@ export default function Login() {
 
             <Separator className="my-4" />
 
-            <Button
-              type="button"
-              variant="outline"
-              className="w-full"
-              onClick={() => navigate("/afiliados")}
-              disabled={isSubmitting}
-            >
-              Quero Ser Afiliado
-            </Button>
+            <div className="space-y-3">
+              <p className="text-sm text-muted-foreground text-center">
+                Ainda não tem uma conta?
+              </p>
+              
+              <Button
+                type="button"
+                variant="default"
+                className="w-full"
+                onClick={() => navigate("/afiliados/cadastro")}
+                disabled={isSubmitting}
+              >
+                Criar Conta de Afiliado
+              </Button>
+
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full"
+                onClick={() => navigate("/afiliados")}
+                disabled={isSubmitting}
+              >
+                Conhecer o Programa de Afiliados
+              </Button>
+            </div>
           </CardContent>
         </Card>
       </div>
