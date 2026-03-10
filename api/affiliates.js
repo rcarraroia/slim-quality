@@ -449,8 +449,9 @@ async function handlePaymentFirstValidate(req, res, supabase) {
     const password_hash = await bcrypt.hash(password, 10);
 
     // Buscar produto de adesão correto
-    const hasSubscription = affiliate_type === 'logista'; // Logistas sempre têm mensalidade
-    console.log('[PaymentFirstValidate] Buscando produto de adesão:', { affiliate_type, hasSubscription });
+    // Usar valor enviado pelo frontend (checkbox) ou forçar true para logistas
+    const hasSubscription = body.has_subscription || affiliate_type === 'logista';
+    console.log('[PaymentFirstValidate] Buscando produto de adesão:', { affiliate_type, has_subscription_from_body: body.has_subscription, hasSubscription });
     
     const { data: product, error: productError } = await supabase
       .from('products')
