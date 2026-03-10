@@ -155,6 +155,64 @@ async function handlePaymentConfirmed(supabase, asaasSubscriptionId) {
     if (tenantError) console.error('[WH-Assinaturas] ⚠️ Erro ao ativar tenant:', tenantError);
   }
 }
+// ============================================
+// FUNÇÃO AUXILIAR: CALCULAR SPLIT
+// ============================================
+const COMMISSION_RATES = {
+  SLIM: 0.10, SELLER: 0.15, N1: 0.03, N2: 0.02, RENUM: 0.05, JB: 0.05
+};
+
+async function calculateSplit(supabase, affiliateId, paymentValue) {
+  const renumWalletId = process.env.ASAAS_WALLET_RENUM;
+  const jbWalletId = process.env.ASAAS_WALLET_JB;
+  if (!renumWalletId || !jbWalletId) throw new Error('Wallet IDs não configuradas');
+
+  const { data: n1Affiliate } = await supabase.from('affiliates')
+    .select('id, referred_by, wallet_id, payment_status').eq('id', affiliateId).is('deleted_at', null).single();
+  if (!n1Affiliate) throw new Error('Afiliado não encontrado');
+
+  const n1IsActive = n1Affiliate.payment_status === 'active' && n1Affiliate.wallet_id;
+  let n2Affiliate = null, n3Affiliate = null, n2IsActive = false, n3IsActive = false;
+
+  if (n1Affiliate.referred_by) {
+    const { data: n2Data } = await supabase.from('affiliates')
+      .select('id, referred_by, wallet_id, payment_status').eq('id', n1Affiliate.referred_by).is('deleted_at', null).single();
+    n2Affiliate = n2Data;
+    n2IsActive = n2Affiliate?.payment_status === 'active' && n2Affiliate?.wallet_id;
+    if (n2Affiliate?.referred_by) {
+      const { data: n3Data } = await supabase.from('affiliates')
+        .select('id, referred_by, wallet_id, payment_status').eq('id', n2Affiliate.referred_by).is('deleted_at', null).single();
+      n3Affiliate = n3Data;
+      n3IsActive = n3Affiliate?.payment_status === 'active' && n3Affiliate?.wallet_id;
+    }
+  }
+
+  const n1Percentage = n1IsActive ? COMMISSION_RATES.SELLER * 100 : 0;
+  const n2Percentage = n2IsActive ? COMMISSION_RATES.N1 * 100 : 0;
+  const n3Percentage = n3IsActive ? COMMISSION_RATES.N2 * 100 : 0;
+  const networkPercentage = n1Percentage + n2Percentage + n3Percentage;
+  const remainingPercentage = 90 - networkPercentage;
+  const renumPercentage = remainingPercentage / 2;
+  const jbPercentage = remainingPercentage / 2;
+
+  const splits = [];
+  if (n1IsActive) splits.push({ walletId: n1Affiliate.wallet_id, percentualValue: Math.round(n1Percentage * 100) / 100 });
+  if (n2IsActive) splits.push({ walletId: n2Affiliate.wallet_id, percentualValue: Math.round(n2Percentage * 100) / 100 });
+  if (n3IsActive) splits.push({ walletId: n3Affiliate.wallet_id, percentualValue: Math.round(n3Percentage * 100) / 100 });
+  splits.push({ walletId: renumWalletId, percentualValue: Math.round(renumPercentage * 100) / 100 });
+  splits.push({ walletId: jbWalletId, percentualValue: Math.round(jbPercentage * 100) / 100 });
+
+  const totalPercentage = splits.reduce((sum, s) => sum + s.percentualValue, 0);
+  const diff = Math.abs(totalPercentage - 90);
+  if (diff > 0.01) {
+    const lastSplit = splits[splits.length - 1];
+    lastSplit.percentualValue += (90 - totalPercentage);
+    lastSplit.percentualValue = Math.round(lastSplit.percentualValue * 100) / 100;
+  }
+  return splits;
+}
+
+
 
 /**
  * Suspende o acesso por atraso no pagamento
@@ -716,6 +774,93 @@ async function handleUpgradePayment(supabase, payment) {
     
     console.log('[Upgrade] ✅ Bundle activated:', tenantId);
     
+    // 2.5. Create recurring subscription (if not exists)
+    console.log('[Upgrade] 🔄 Checking for existing subscription...');
+    
+    try {
+      // Check if subscription already exists
+      const { data: existingSub } = await supabase
+        .from('affiliate_payments')
+        .select('id, asaas_subscription_id')
+        .eq('affiliate_id', affiliateId)
+        .eq('payment_type', 'monthly_subscription')
+        .not('asaas_subscription_id', 'is', null)
+        .single();
+      
+      if (existingSub) {
+        console.log('[Upgrade] ℹ️ Subscription already exists:', existingSub.asaas_subscription_id);
+      } else {
+        // Fetch affiliate data
+        const { data: affiliate } = await supabase
+          .from('affiliates')
+          .select('affiliate_type')
+          .eq('id', affiliateId)
+          .single();
+        
+        // Fetch product
+        const { data: product } = await supabase
+          .from('products')
+          .select('monthly_fee_cents, name, billing_cycle')
+          .eq('category', 'adesao_afiliado')
+          .eq('eligible_affiliate_type', affiliate.affiliate_type)
+          .eq('is_subscription', true)
+          .eq('is_active', true)
+          .single();
+        
+        if (product && product.monthly_fee_cents > 0) {
+          // Calculate next due date (+30 days)
+          const nextDueDate = new Date();
+          nextDueDate.setDate(nextDueDate.getDate() + 30);
+          const nextDueDateStr = nextDueDate.toISOString().split('T')[0];
+          
+          // Calculate split
+          const splits = await calculateSplit(supabase, affiliateId, product.monthly_fee_cents / 100);
+          
+          // Create subscription in Asaas
+          const subscriptionResponse = await fetch('https://api.asaas.com/v3/subscriptions', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'access_token': process.env.ASAAS_API_KEY
+            },
+            body: JSON.stringify({
+              customer: payment.customer,
+              billingType: 'CREDIT_CARD',
+              value: product.monthly_fee_cents / 100,
+              cycle: product.billing_cycle?.toUpperCase() || 'MONTHLY',
+              nextDueDate: nextDueDateStr,
+              description: `Mensalidade - ${product.name}`,
+              externalReference: `affiliate_${affiliateId}`,
+              split: splits
+            })
+          });
+          
+          if (subscriptionResponse.ok) {
+            const subscription = await subscriptionResponse.json();
+            
+            // Register subscription in affiliate_payments
+            await supabase.from('affiliate_payments').insert({
+              affiliate_id: affiliateId,
+              payment_type: 'monthly_subscription',
+              amount_cents: product.monthly_fee_cents,
+              status: 'active',
+              asaas_subscription_id: subscription.id,
+              due_date: nextDueDateStr,
+              created_at: new Date().toISOString()
+            });
+            
+            console.log('[Upgrade] ✅ Recurring subscription created:', subscription.id);
+          } else {
+            const errorData = await subscriptionResponse.json();
+            console.error('[Upgrade] ❌ Error creating subscription:', errorData);
+          }
+        }
+      }
+    } catch (subError) {
+      console.error('[Upgrade] ⚠️ Error creating subscription (non-fatal):', subError);
+      // Non-blocking - subscription can be created manually
+    }
+    
     // 3. Create notification
     await supabase.from('notifications').insert({
       affiliate_id: affiliateId,
@@ -1055,6 +1200,90 @@ async function handlePreRegistrationPayment(supabase, payment) {
       // NÃO bloqueia - pagamento pode ser registrado manualmente
     } else {
       console.log('[WH-PreReg] ✅ Pagamento registrado em affiliate_payments');
+    }
+
+    // ============================================================
+    // ETAPA 8.5: CRIAR ASSINATURA RECORRENTE (SE APLICÁVEL)
+    // ============================================================
+    if (session.affiliate_type === 'logista' || session.has_subscription) {
+      console.log('[WH-PreReg] 🔄 Criando assinatura recorrente...');
+      
+      try {
+        // Buscar produto para obter monthly_fee_cents
+        const { data: product, error: productError } = await supabase
+          .from('products')
+          .select('monthly_fee_cents, name, billing_cycle')
+          .eq('category', 'adesao_afiliado')
+          .eq('eligible_affiliate_type', session.affiliate_type)
+          .eq('is_subscription', true)
+          .eq('is_active', true)
+          .single();
+        
+        if (productError || !product) {
+          console.error('[WH-PreReg] ⚠️ Produto de assinatura não encontrado:', productError);
+          // NÃO bloqueia - assinatura pode ser criada manualmente
+        } else if (product.monthly_fee_cents > 0) {
+          // Calcular próxima cobrança (+30 dias)
+          const nextDueDate = new Date();
+          nextDueDate.setDate(nextDueDate.getDate() + 30);
+          const nextDueDateStr = nextDueDate.toISOString().split('T')[0];
+          
+          // Calcular split
+          const splits = await calculateSplit(supabase, affiliateId, product.monthly_fee_cents / 100);
+          
+          // Criar assinatura no Asaas
+          const subscriptionResponse = await fetch('https://api.asaas.com/v3/subscriptions', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'access_token': process.env.ASAAS_API_KEY
+            },
+            body: JSON.stringify({
+              customer: payment.customer,
+              billingType: 'CREDIT_CARD', // Padrão para recorrência
+              value: product.monthly_fee_cents / 100,
+              cycle: product.billing_cycle?.toUpperCase() || 'MONTHLY',
+              nextDueDate: nextDueDateStr,
+              description: `Mensalidade - ${product.name}`,
+              externalReference: `affiliate_${affiliateId}`,
+              split: splits
+            })
+          });
+          
+          if (subscriptionResponse.ok) {
+            const subscription = await subscriptionResponse.json();
+            
+            // Registrar assinatura em affiliate_payments
+            const { error: subError } = await supabase
+              .from('affiliate_payments')
+              .insert({
+                affiliate_id: affiliateId,
+                payment_type: 'monthly_subscription',
+                amount_cents: product.monthly_fee_cents,
+                status: 'active',
+                asaas_subscription_id: subscription.id,
+                due_date: nextDueDateStr,
+                created_at: new Date().toISOString()
+              });
+            
+            if (subError) {
+              console.error('[WH-PreReg] ❌ Erro ao registrar assinatura no banco:', subError);
+            } else {
+              console.log('[WH-PreReg] ✅ Assinatura recorrente criada:', {
+                subscriptionId: subscription.id,
+                nextDueDate: nextDueDateStr,
+                value: product.monthly_fee_cents / 100
+              });
+            }
+          } else {
+            const errorData = await subscriptionResponse.json();
+            console.error('[WH-PreReg] ❌ Erro ao criar assinatura no Asaas:', errorData);
+          }
+        }
+      } catch (subError) {
+        console.error('[WH-PreReg] ⚠️ Erro ao criar assinatura (não fatal):', subError);
+        // NÃO bloqueia - assinatura pode ser criada manualmente
+      }
     }
 
     // ============================================================
