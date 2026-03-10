@@ -491,8 +491,6 @@ async function handlePaymentFirstValidate(req, res, supabase) {
         document: cleanDocument,
         document_type,
         affiliate_type,
-        has_subscription: hasSubscription,
-        product_id: product.id,
         referred_by,
         referral_code: referral_code || null,
         password_hash,
