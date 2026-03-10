@@ -411,6 +411,26 @@ async function handlePaymentFirstValidate(req, res, supabase) {
     const bcrypt = await import('bcryptjs');
     const password_hash = await bcrypt.hash(password, 10);
 
+    // Buscar produto de adesão correto
+    const hasSubscription = affiliate_type === 'logista'; // Logistas sempre têm mensalidade
+    const { data: product, error: productError } = await supabase
+      .from('products')
+      .select('id')
+      .eq('category', 'adesao_afiliado')
+      .eq('eligible_affiliate_type', affiliate_type)
+      .eq('is_subscription', hasSubscription)
+      .eq('is_active', true)
+      .single();
+
+    if (productError || !product) {
+      console.error('Erro ao buscar produto:', productError);
+      return res.status(500).json({ 
+        success: false,
+        error: 'Produto de adesão não encontrado',
+        details: productError?.message
+      });
+    }
+
     // Criar sessão temporária
     const { data: session, error: sessionError } = await supabase
       .from('payment_sessions')
@@ -421,6 +441,8 @@ async function handlePaymentFirstValidate(req, res, supabase) {
         document: cleanDocument,
         document_type,
         affiliate_type,
+        has_subscription: hasSubscription,
+        product_id: product.id,
         referred_by,
         referral_code: referral_code || null,
         password_hash,
