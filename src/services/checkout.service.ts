@@ -79,7 +79,7 @@ export class CheckoutService {
     // Verificar se cliente já existe pelo email
     const { data: existingCustomer } = await supabase
       .from('customers')
-      .select('*')
+      .select('id, user_id, name, email, phone, cpf_cnpj, birth_date, street, number, complement, neighborhood, city, state, postal_code, source, referral_code, assigned_to, status, notes, created_at, updated_at, deleted_at')
       .eq('email', customerData.email)
       .is('deleted_at', null)
       .single();
@@ -464,7 +464,7 @@ export class CheckoutService {
       // Buscar dados do cliente
       const { data: customer } = await supabase
         .from('customers')
-        .select('*')
+        .select('id, user_id, name, email, phone, cpf_cnpj, birth_date, street, number, complement, neighborhood, city, state, postal_code, source, referral_code, assigned_to, status, notes, created_at, updated_at, deleted_at')
         .eq('id', order.customer_id)
         .single();
 

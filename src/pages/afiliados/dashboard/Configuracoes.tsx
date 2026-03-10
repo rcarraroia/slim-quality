@@ -102,7 +102,7 @@ export default function AffiliateDashboardConfiguracoes() {
       // Buscar dados do customer (cidade, estado, CEP, data nascimento)
       const { data: customerData } = await supabase
         .from('customers')
-        .select('*')
+        .select('id, user_id, name, email, phone, cpf_cnpj, birth_date, street, number, complement, neighborhood, city, state, postal_code, source, referral_code, assigned_to, status, notes, created_at, updated_at, deleted_at')
         .eq('user_id', user.id)
         .single();
 

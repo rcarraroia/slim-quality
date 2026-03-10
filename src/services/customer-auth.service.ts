@@ -6,6 +6,9 @@
 import { supabase } from '@/config/supabase';
 import { StorageHelper } from '@/utils/storage-helper';
 
+// Lista completa de colunas da tabela customers (validada via Supabase Power em 10/03/2026)
+const CUSTOMERS_COLUMNS = 'id, user_id, name, email, phone, cpf_cnpj, birth_date, street, number, complement, neighborhood, city, state, postal_code, source, referral_code, assigned_to, status, notes, created_at, updated_at, deleted_at';
+
 export interface CustomerUser {
   id: string;
   email: string;
@@ -390,7 +393,7 @@ class CustomerAuthService {
 
       const { data: customerData } = await supabase
         .from('customers')
-        .select('id, user_id, name, email, phone, cpf_cnpj, birth_date, street, number, complement, neighborhood, city, state, postal_code, source, referral_code, assigned_to, status, notes, created_at, updated_at, deleted_at')
+        .select(CUSTOMERS_COLUMNS)
         .eq('user_id', user.id)
         .single();
 
