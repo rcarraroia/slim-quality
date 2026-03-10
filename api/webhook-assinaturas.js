@@ -82,11 +82,33 @@ export default async function handler(req, res) {
     switch (eventType) {
       case 'PAYMENT_CONFIRMED':
       case 'PAYMENT_RECEIVED':
-        await handlePaymentConfirmed(supabase, asaasSubscriptionId);
+        // Verificar se é assinatura de afiliado ou agente IA
+        const { data: affiliateSub } = await supabase
+          .from('affiliate_payments')
+          .select('id')
+          .eq('asaas_subscription_id', asaasSubscriptionId)
+          .single();
+        
+        if (affiliateSub) {
+          await handleAffiliatePaymentConfirmed(supabase, asaasSubscriptionId, payment);
+        } else {
+          await handlePaymentConfirmed(supabase, asaasSubscriptionId);
+        }
         break;
 
       case 'PAYMENT_OVERDUE':
-        await handlePaymentOverdue(supabase, asaasSubscriptionId);
+        // Verificar se é assinatura de afiliado ou agente IA
+        const { data: affiliateSubOverdue } = await supabase
+          .from('affiliate_payments')
+          .select('id')
+          .eq('asaas_subscription_id', asaasSubscriptionId)
+          .single();
+        
+        if (affiliateSubOverdue) {
+          await handleAffiliatePaymentOverdue(supabase, asaasSubscriptionId);
+        } else {
+          await handlePaymentOverdue(supabase, asaasSubscriptionId);
+        }
         break;
 
       case 'SUBSCRIPTION_DELETED':
@@ -119,6 +141,8 @@ export default async function handler(req, res) {
 
 /**
  * Ativa ou Renova o acesso ao Agente IA (+30 dias)
+ * NOTA: Esta função processa assinaturas do sistema de agente IA multi-tenant
+ * Para renovações de afiliados, use handleAffiliatePaymentConfirmed()
  */
 async function handlePaymentConfirmed(supabase, asaasSubscriptionId) {
   const expiresAt = new Date();
@@ -153,6 +177,103 @@ async function handlePaymentConfirmed(supabase, asaasSubscriptionId) {
       .eq('id', sub.tenant_id);
 
     if (tenantError) console.error('[WH-Assinaturas] ⚠️ Erro ao ativar tenant:', tenantError);
+  }
+}
+
+/**
+ * Processa renovação mensal de assinatura de afiliado
+ * Cria novo registro de pagamento, calcula comissões e notifica
+ */
+async function handleAffiliatePaymentConfirmed(supabase, asaasSubscriptionId, payment) {
+  console.log('[Affiliate-Renewal] 🔄 Processing monthly renewal:', asaasSubscriptionId);
+  
+  try {
+    // 1. Buscar assinatura ativa
+    const { data: subscription, error: subError } = await supabase
+      .from('affiliate_payments')
+      .select('affiliate_id, amount_cents')
+      .eq('asaas_subscription_id', asaasSubscriptionId)
+      .eq('payment_type', 'monthly_subscription')
+      .eq('status', 'active')
+      .single();
+    
+    if (subError || !subscription) {
+      console.error('[Affiliate-Renewal] ❌ Subscription not found:', asaasSubscriptionId);
+      return;
+    }
+    
+    console.log('[Affiliate-Renewal] ✅ Subscription found:', {
+      affiliateId: subscription.affiliate_id,
+      amountCents: subscription.amount_cents
+    });
+    
+    // 2. Criar novo registro de pagamento mensal
+    const { error: paymentError } = await supabase
+      .from('affiliate_payments')
+      .insert({
+        affiliate_id: subscription.affiliate_id,
+        asaas_payment_id: payment.id,
+        asaas_subscription_id: asaasSubscriptionId,
+        payment_type: 'monthly_subscription',
+        amount_cents: subscription.amount_cents,
+        status: 'confirmed',
+        confirmed_at: new Date().toISOString(),
+        due_date: payment.dueDate,
+        created_at: new Date().toISOString()
+      });
+    
+    if (paymentError) {
+      console.error('[Affiliate-Renewal] ❌ Error creating payment record:', paymentError);
+      throw paymentError;
+    }
+    
+    console.log('[Affiliate-Renewal] ✅ Payment record created');
+    
+    // 3. Garantir que afiliado está ativo
+    const { error: affiliateError } = await supabase
+      .from('affiliates')
+      .update({
+        payment_status: 'active',
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', subscription.affiliate_id);
+    
+    if (affiliateError) {
+      console.error('[Affiliate-Renewal] ⚠️ Error updating affiliate:', affiliateError);
+    } else {
+      console.log('[Affiliate-Renewal] ✅ Affiliate status updated to active');
+    }
+    
+    // 4. Calcular e salvar comissões
+    try {
+      await calculateAndSaveCommissions(
+        supabase, 
+        subscription.affiliate_id, 
+        subscription.amount_cents, 
+        'monthly_subscription'
+      );
+      console.log('[Affiliate-Renewal] ✅ Commissions calculated');
+    } catch (commError) {
+      console.error('[Affiliate-Renewal] ⚠️ Error calculating commissions:', commError);
+      // Non-blocking
+    }
+    
+    // 5. Criar notificação
+    await supabase.from('notifications').insert({
+      affiliate_id: subscription.affiliate_id,
+      type: 'payment_confirmed',
+      title: 'Pagamento confirmado',
+      message: `Sua mensalidade de R$ ${(subscription.amount_cents / 100).toFixed(2)} foi confirmada. Obrigado!`,
+      read: false,
+      created_at: new Date().toISOString()
+    });
+    
+    console.log('[Affiliate-Renewal] ✅ Notification created');
+    console.log('[Affiliate-Renewal] ✅ Renewal processed successfully');
+    
+  } catch (error) {
+    console.error('[Affiliate-Renewal] 💥 Error processing renewal:', error);
+    throw error;
   }
 }
 // ============================================
@@ -216,6 +337,8 @@ async function calculateSplit(supabase, affiliateId, paymentValue) {
 
 /**
  * Suspende o acesso por atraso no pagamento
+ * NOTA: Esta função processa assinaturas do sistema de agente IA multi-tenant
+ * Para atrasos de afiliados, use handleAffiliatePaymentOverdue()
  */
 async function handlePaymentOverdue(supabase, asaasSubscriptionId) {
   console.log(`[WH-Assinaturas] ⚠️ Suspendendo acesso por atraso: ${asaasSubscriptionId}`);
@@ -235,6 +358,97 @@ async function handlePaymentOverdue(supabase, asaasSubscriptionId) {
         suspended_at: new Date().toISOString()
       })
       .eq('id', sub.tenant_id);
+  }
+}
+
+/**
+ * Processa atraso de pagamento de assinatura de afiliado
+ * Bloqueia vitrine, agente IA e atualiza status
+ */
+async function handleAffiliatePaymentOverdue(supabase, asaasSubscriptionId) {
+  console.log('[Affiliate-Overdue] ⚠️ Processing overdue payment:', asaasSubscriptionId);
+  
+  try {
+    // 1. Buscar assinatura
+    const { data: subscription, error: subError } = await supabase
+      .from('affiliate_payments')
+      .select('affiliate_id')
+      .eq('asaas_subscription_id', asaasSubscriptionId)
+      .eq('payment_type', 'monthly_subscription')
+      .single();
+    
+    if (subError || !subscription) {
+      console.error('[Affiliate-Overdue] ❌ Subscription not found:', asaasSubscriptionId);
+      return;
+    }
+    
+    console.log('[Affiliate-Overdue] ✅ Subscription found:', {
+      affiliateId: subscription.affiliate_id
+    });
+    
+    // 2. Atualizar status do afiliado
+    const { error: affiliateError } = await supabase
+      .from('affiliates')
+      .update({
+        payment_status: 'overdue',
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', subscription.affiliate_id);
+    
+    if (affiliateError) {
+      console.error('[Affiliate-Overdue] ❌ Error updating affiliate:', affiliateError);
+      throw affiliateError;
+    }
+    
+    console.log('[Affiliate-Overdue] ✅ Affiliate marked as overdue');
+    
+    // 3. Desativar vitrine
+    const { error: vitrineError } = await supabase
+      .from('store_profiles')
+      .update({
+        is_visible_in_showcase: false,
+        updated_at: new Date().toISOString()
+      })
+      .eq('affiliate_id', subscription.affiliate_id);
+    
+    if (vitrineError) {
+      console.error('[Affiliate-Overdue] ⚠️ Error deactivating vitrine:', vitrineError);
+    } else {
+      console.log('[Affiliate-Overdue] ✅ Vitrine deactivated');
+    }
+    
+    // 4. Suspender agente IA
+    const { error: tenantError } = await supabase
+      .from('multi_agent_tenants')
+      .update({
+        status: 'suspended',
+        suspended_at: new Date().toISOString()
+      })
+      .eq('affiliate_id', subscription.affiliate_id);
+    
+    if (tenantError) {
+      console.error('[Affiliate-Overdue] ⚠️ Error suspending agent:', tenantError);
+    } else {
+      console.log('[Affiliate-Overdue] ✅ Agent suspended');
+    }
+    
+    // 5. Criar notificação
+    await supabase.from('notifications').insert({
+      affiliate_id: subscription.affiliate_id,
+      type: 'payment_overdue',
+      title: 'Pagamento em atraso',
+      message: 'Sua mensalidade está em atraso. Regularize para manter acesso à vitrine e agente IA.',
+      link: '/afiliados/dashboard/assinatura',
+      read: false,
+      created_at: new Date().toISOString()
+    });
+    
+    console.log('[Affiliate-Overdue] ✅ Notification created');
+    console.log('[Affiliate-Overdue] ✅ Overdue processed successfully');
+    
+  } catch (error) {
+    console.error('[Affiliate-Overdue] 💥 Error processing overdue:', error);
+    throw error;
   }
 }
 
