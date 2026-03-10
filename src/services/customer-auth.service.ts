@@ -62,7 +62,7 @@ class CustomerAuthService {
       // Buscar dados do customer
       const { data: customerData, error: customerError } = await supabase
         .from('customers')
-        .select('*')
+        .select('id, user_id, name, email, phone, cpf_cnpj, birth_date, city, state, postal_code, created_at, updated_at')
         .eq('user_id', authData.user.id)
         .single();
 
@@ -390,7 +390,7 @@ class CustomerAuthService {
 
       const { data: customerData } = await supabase
         .from('customers')
-        .select('*')
+        .select('id, user_id, name, email, phone, cpf_cnpj, birth_date, street, number, complement, neighborhood, city, state, postal_code, source, referral_code, assigned_to, status, notes, created_at, updated_at, deleted_at')
         .eq('user_id', user.id)
         .single();
 

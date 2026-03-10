@@ -320,10 +320,21 @@ async function handlePaymentFirstValidate(req, res, supabase) {
   }
 
   try {
+    console.log('[PaymentFirstValidate] Iniciando validação', { body: req.body });
+    
     const { email, name, phone, document, affiliate_type, referral_code, password } = req.body;
 
     // Validação de campos obrigatórios
     if (!email || !name || !phone || !document || !affiliate_type || !password) {
+      console.log('[PaymentFirstValidate] Campos obrigatórios faltando', {
+        email: !!email,
+        name: !!name,
+        phone: !!phone,
+        document: !!document,
+        affiliate_type: !!affiliate_type,
+        password: !!password
+      });
+      
       return res.status(400).json({ 
         success: false,
         error: 'Campos obrigatórios faltando',
@@ -333,6 +344,7 @@ async function handlePaymentFirstValidate(req, res, supabase) {
 
     // Validar tipo de afiliado
     if (!['individual', 'logista'].includes(affiliate_type)) {
+      console.log('[PaymentFirstValidate] Tipo de afiliado inválido:', affiliate_type);
       return res.status(400).json({ 
         success: false,
         error: 'Tipo de afiliado inválido' 
@@ -341,6 +353,7 @@ async function handlePaymentFirstValidate(req, res, supabase) {
 
     // Remover formatação do documento
     const cleanDocument = document.replace(/[^\d]/g, '');
+    console.log('[PaymentFirstValidate] Documento limpo:', { original: document, clean: cleanDocument });
 
     // Determinar tipo de documento
     const document_type = cleanDocument.length === 11 ? 'CPF' : 'CNPJ';
@@ -351,6 +364,7 @@ async function handlePaymentFirstValidate(req, res, supabase) {
       : validateCNPJ(cleanDocument);
       
     if (!isValidDocument) {
+      console.log('[PaymentFirstValidate] Documento inválido:', { document_type, cleanDocument });
       return res.status(400).json({ 
         success: false,
         error: document_type === 'CPF' ? 'CPF inválido' : 'CNPJ inválido' 
@@ -358,14 +372,21 @@ async function handlePaymentFirstValidate(req, res, supabase) {
     }
 
     // Verificar duplicatas de email
-    const { data: existingEmail } = await supabase
+    console.log('[PaymentFirstValidate] Verificando duplicata de email:', email);
+    const { data: existingEmail, error: emailCheckError } = await supabase
       .from('affiliates')
       .select('id')
       .eq('email', email)
       .is('deleted_at', null)
       .maybeSingle();
 
+    if (emailCheckError) {
+      console.error('[PaymentFirstValidate] Erro ao verificar email:', emailCheckError);
+      throw emailCheckError;
+    }
+
     if (existingEmail) {
+      console.log('[PaymentFirstValidate] Email já cadastrado:', email);
       return res.status(409).json({ 
         success: false,
         error: 'Email já cadastrado' 
@@ -373,14 +394,21 @@ async function handlePaymentFirstValidate(req, res, supabase) {
     }
 
     // Verificar duplicatas de document
-    const { data: existingDocument } = await supabase
+    console.log('[PaymentFirstValidate] Verificando duplicata de documento:', cleanDocument);
+    const { data: existingDocument, error: documentCheckError } = await supabase
       .from('affiliates')
       .select('id')
       .eq('document', cleanDocument)
       .is('deleted_at', null)
       .maybeSingle();
 
+    if (documentCheckError) {
+      console.error('[PaymentFirstValidate] Erro ao verificar documento:', documentCheckError);
+      throw documentCheckError;
+    }
+
     if (existingDocument) {
+      console.log('[PaymentFirstValidate] Documento já cadastrado:', cleanDocument);
       return res.status(409).json({ 
         success: false,
         error: document_type === 'CPF' ? 'CPF já cadastrado' : 'CNPJ já cadastrado' 
@@ -390,7 +418,8 @@ async function handlePaymentFirstValidate(req, res, supabase) {
     // Validar referral_code (se fornecido)
     let referred_by = null;
     if (referral_code) {
-      const { data: parent } = await supabase
+      console.log('[PaymentFirstValidate] Validando código de indicação:', referral_code);
+      const { data: parent, error: parentCheckError } = await supabase
         .from('affiliates')
         .select('id')
         .eq('referral_code', referral_code)
@@ -398,21 +427,31 @@ async function handlePaymentFirstValidate(req, res, supabase) {
         .is('deleted_at', null)
         .maybeSingle();
 
+      if (parentCheckError) {
+        console.error('[PaymentFirstValidate] Erro ao validar referral_code:', parentCheckError);
+        throw parentCheckError;
+      }
+
       if (!parent) {
+        console.log('[PaymentFirstValidate] Código de indicação inválido:', referral_code);
         return res.status(404).json({ 
           success: false,
           error: 'Código de indicação inválido' 
         });
       }
       referred_by = parent.id;
+      console.log('[PaymentFirstValidate] Código de indicação válido, referred_by:', referred_by);
     }
 
     // Criptografar senha (bcrypt)
+    console.log('[PaymentFirstValidate] Criptografando senha');
     const bcrypt = await import('bcryptjs');
     const password_hash = await bcrypt.hash(password, 10);
 
     // Buscar produto de adesão correto
     const hasSubscription = affiliate_type === 'logista'; // Logistas sempre têm mensalidade
+    console.log('[PaymentFirstValidate] Buscando produto de adesão:', { affiliate_type, hasSubscription });
+    
     const { data: product, error: productError } = await supabase
       .from('products')
       .select('id')
@@ -422,16 +461,27 @@ async function handlePaymentFirstValidate(req, res, supabase) {
       .eq('is_active', true)
       .single();
 
-    if (productError || !product) {
-      console.error('Erro ao buscar produto:', productError);
+    if (productError) {
+      console.error('[PaymentFirstValidate] Erro ao buscar produto:', productError);
       return res.status(500).json({ 
         success: false,
         error: 'Produto de adesão não encontrado',
-        details: productError?.message
+        details: productError.message
       });
     }
 
+    if (!product) {
+      console.error('[PaymentFirstValidate] Produto não encontrado para:', { affiliate_type, hasSubscription });
+      return res.status(500).json({ 
+        success: false,
+        error: 'Produto de adesão não encontrado'
+      });
+    }
+
+    console.log('[PaymentFirstValidate] Produto encontrado:', product.id);
+
     // Criar sessão temporária
+    console.log('[PaymentFirstValidate] Criando sessão temporária');
     const { data: session, error: sessionError } = await supabase
       .from('payment_sessions')
       .insert({
@@ -452,13 +502,15 @@ async function handlePaymentFirstValidate(req, res, supabase) {
       .single();
 
     if (sessionError) {
-      console.error('Erro ao criar sessão:', sessionError);
+      console.error('[PaymentFirstValidate] Erro ao criar sessão:', sessionError);
       return res.status(500).json({ 
         success: false,
         error: 'Erro ao criar sessão temporária',
         details: sessionError.message
       });
     }
+
+    console.log('[PaymentFirstValidate] Sessão criada com sucesso:', session.session_token);
 
     return res.status(200).json({
       success: true,
@@ -477,11 +529,12 @@ async function handlePaymentFirstValidate(req, res, supabase) {
     });
 
   } catch (error) {
-    console.error('Erro inesperado na validação:', error);
+    console.error('[PaymentFirstValidate] Erro inesperado na validação:', error);
     return res.status(500).json({
       success: false,
       error: 'Erro interno do servidor',
-      details: error.message
+      details: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
   }
 }

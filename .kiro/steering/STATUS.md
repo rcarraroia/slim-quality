@@ -11,7 +11,52 @@ inclusion: always
 
 ## TAREFA ATUAL
 
-**CORREÇÃO CRÍTICA: SISTEMA DE ASSINATURAS RECORRENTES** 🔄 EM ANDAMENTO (10/03/2026)
+**CORREÇÃO: ERROS NO CADASTRO DE AFILIADOS** 🔧 EM ANDAMENTO (10/03/2026)
+
+### Objetivo:
+Corrigir erros 406 e 500 no cadastro de afiliados identificados no console do navegador.
+
+### Problemas Identificados:
+1. **Erro 406** em `/rest/v1/customers?select=*&user_id=eq.e8bb906b...`: Supabase rejeitando `select('*')` na tabela customers
+2. **Erro 500** em `/api/affiliates?action=payment-first-validate`: Erro interno na validação de cadastro
+
+### Status Atual:
+✅ **Correção 1: select('*') CONCLUÍDA** (10/03/2026)
+
+### Tasks Concluídas:
+
+#### ✅ Correção 1: Substituir select('*') por lista explícita de colunas
+- **Arquivo:** `src/services/customer-auth.service.ts`
+- **Linha corrigida:** 392
+- **Problema:** Supabase rejeitava `select('*')` retornando erro 406
+- **Solução:** Consultado banco de dados real via Supabase Power
+- **Estrutura real validada:** 22 colunas na tabela `customers`
+- **Correção aplicada:** Substituído `select('*')` por lista explícita:
+  ```typescript
+  .select('id, user_id, name, email, phone, cpf_cnpj, birth_date, street, number, complement, neighborhood, city, state, postal_code, source, referral_code, assigned_to, status, notes, created_at, updated_at, deleted_at')
+  ```
+- **Evidências:**
+  - ✅ Estrutura do banco consultada via Supabase Power
+  - ✅ getDiagnostics: 0 erros
+  - ✅ Correção aplicada na linha 392
+
+### Próximos Passos:
+1. ⏳ Testar cadastro de afiliado em produção
+2. ⏳ Verificar se erro 406 foi resolvido
+3. ⏳ Analisar logs do erro 500 no Vercel
+4. ⏳ Corrigir erro 500 se persistir após correção do 406
+
+### Arquivos Modificados:
+- `src/services/customer-auth.service.ts` (linha 392 corrigida)
+
+### Lição Aprendida:
+**SEMPRE verificar banco de dados real via Supabase Power ANTES de fazer alterações relacionadas ao banco.** Não confiar apenas em arquivos de migration ou documentação desatualizada.
+
+---
+
+## TAREFA ANTERIOR
+
+**CORREÇÃO CRÍTICA: SISTEMA DE ASSINATURAS RECORRENTES** ✅ CONCLUÍDA (10/03/2026)
 
 ### Objetivo:
 Corrigir sistema de assinaturas recorrentes para garantir que afiliados premium e logistas sejam cobrados mensalmente após pagamento de adesão.
