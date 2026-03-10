@@ -11,7 +11,8 @@ interface PaywallCadastroProps {
   sessionToken: string;
   affiliateType: 'individual' | 'logista';
   email: string;
-  password: string;
+  password: string | null; // MODIFICADO: pode ser null para clientes existentes
+  isExistingCustomer?: boolean; // NOVO: flag para clientes existentes
   onPaymentConfirmed: () => void;
   onBack: () => void;
 }
@@ -39,6 +40,7 @@ export default function PaywallCadastro({
   affiliateType,
   email,
   password,
+  isExistingCustomer = false, // NOVO: default false
   onPaymentConfirmed,
   onBack
 }: PaywallCadastroProps) {
@@ -120,7 +122,7 @@ export default function PaywallCadastro({
     }
   };
 
-  // Polling para verificar se conta foi criada
+  // Polling para verificar se conta foi criada (novo usuário) ou pagamento confirmado (cliente existente)
   const startPolling = () => {
     setPolling(true);
     const startTime = Date.now();
@@ -144,27 +146,54 @@ export default function PaywallCadastro({
       }
 
       try {
-        // Tentar autenticar com email + senha
-        const { data, error } = await supabase.auth.signInWithPassword({
-          email,
-          password
-        });
+        if (isExistingCustomer) {
+          // Cliente existente: verificar status da payment_session
+          const { data: session } = await supabase
+            .from('payment_sessions')
+            .select('status')
+            .eq('session_token', sessionToken)
+            .single();
 
-        if (data.user && !error) {
-          // Conta criada! Webhook processou o pagamento
-          clearInterval(interval);
-          setPolling(false);
-          toast({
-            title: 'Pagamento confirmado!',
-            description: 'Sua conta foi ativada com sucesso. Bem-vindo!',
+          if (session?.status === 'completed') {
+            // Pagamento confirmado!
+            clearInterval(interval);
+            setPolling(false);
+            toast({
+              title: 'Pagamento confirmado!',
+              description: 'Sua conta foi ativada como afiliado. Bem-vindo!',
+            });
+            setTimeout(() => {
+              onPaymentConfirmed();
+            }, 1500);
+          }
+        } else {
+          // Novo usuário: tentar autenticar com email + senha
+          if (!password) {
+            console.error('Password é obrigatório para novos usuários');
+            return;
+          }
+
+          const { data, error } = await supabase.auth.signInWithPassword({
+            email,
+            password
           });
-          setTimeout(() => {
-            onPaymentConfirmed();
-          }, 1500);
+
+          if (data.user && !error) {
+            // Conta criada! Webhook processou o pagamento
+            clearInterval(interval);
+            setPolling(false);
+            toast({
+              title: 'Pagamento confirmado!',
+              description: 'Sua conta foi ativada com sucesso. Bem-vindo!',
+            });
+            setTimeout(() => {
+              onPaymentConfirmed();
+            }, 1500);
+          }
         }
       } catch (err) {
-        // Conta ainda não existe, continuar polling
-        console.log('Tentativa de autenticação:', pollingAttempts + 1);
+        // Conta ainda não existe ou pagamento não confirmado, continuar polling
+        console.log('Tentativa de verificação:', pollingAttempts + 1);
       }
 
       setPollingAttempts(prev => prev + 1);

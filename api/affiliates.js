@@ -70,6 +70,8 @@ export default async function handler(req, res) {
       return handleCreateAsaasAccount(req, res, supabase);
     case 'configure-wallet':
       return handleConfigureWallet(req, res, supabase);
+    case 'create-payment-session-for-customer':
+      return handleCreatePaymentSessionForCustomer(req, res, supabase);
     default:
       return res.status(404).json({ success: false, error: 'Action não encontrada' });
   }
@@ -1793,6 +1795,120 @@ async function handleConfigureWallet(req, res, supabase) {
       success: false,
       error: 'Erro interno do servidor',
       details: error.message
+    });
+  }
+}
+
+
+// ============================================
+// HANDLER: CREATE PAYMENT SESSION FOR CUSTOMER
+// ============================================
+async function handleCreatePaymentSessionForCustomer(req, res, supabase) {
+  if (req.method !== 'POST') {
+    return res.status(405).json({ 
+      success: false, 
+      error: 'Método não permitido. Use POST.' 
+    });
+  }
+
+  try {
+    const { user_id, affiliate_type, wants_subscription } = req.body;
+
+    if (!user_id || !affiliate_type) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'user_id e affiliate_type são obrigatórios' 
+      });
+    }
+
+    // Validar que user existe
+    const { data: user, error: userError } = await supabase
+      .from('users')
+      .select('id, email, name, phone')
+      .eq('id', user_id)
+      .single();
+
+    if (userError || !user) {
+      return res.status(404).json({ 
+        success: false, 
+        error: 'Usuário não encontrado' 
+      });
+    }
+
+    // Verificar se user já é afiliado
+    const { data: existingAffiliate } = await supabase
+      .from('affiliates')
+      .select('id')
+      .eq('user_id', user_id)
+      .single();
+
+    if (existingAffiliate) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Usuário já é afiliado' 
+      });
+    }
+
+    // Buscar produto correto
+    const { data: product, error: productError } = await supabase
+      .from('products')
+      .select('*')
+      .eq('category', 'adesao_afiliado')
+      .eq('eligible_affiliate_type', affiliate_type)
+      .eq('is_subscription', wants_subscription || false)
+      .eq('is_active', true)
+      .single();
+
+    if (productError || !product) {
+      return res.status(404).json({ 
+        success: false, 
+        error: 'Produto não encontrado' 
+      });
+    }
+
+    // Gerar session_token único
+    const sessionToken = `${Date.now()}_${Math.random().toString(36).substring(7)}`;
+
+    // Criar payment_session
+    const expiresAt = new Date();
+    expiresAt.setMinutes(expiresAt.getMinutes() + 30);
+
+    const { error: sessionError } = await supabase
+      .from('payment_sessions')
+      .insert({
+        session_token: sessionToken,
+        user_id: user_id, // Vincular ao user existente
+        email: user.email,
+        name: user.name,
+        phone: user.phone,
+        affiliate_type: affiliate_type,
+        has_subscription: wants_subscription || false,
+        product_id: product.id,
+        status: 'pending',
+        expires_at: expiresAt.toISOString()
+      });
+
+    if (sessionError) {
+      console.error('Erro ao criar payment_session:', sessionError);
+      return res.status(500).json({ 
+        success: false, 
+        error: 'Erro ao criar sessão de pagamento' 
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      session_token: sessionToken,
+      product_id: product.id,
+      amount: product.entry_fee_cents / 100
+    });
+
+  } catch (error) {
+    console.error('Erro em create-payment-session-for-customer:', error);
+    return res.status(500).json({ 
+      success: false, 
+      error: 'Erro interno do servidor',
+      details: error.message 
     });
   }
 }

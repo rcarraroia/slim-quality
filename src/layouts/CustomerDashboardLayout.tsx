@@ -33,6 +33,9 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/config/supabase";
 import { STORAGE_KEYS } from "@/constants/storage-keys";
 
+import { PlanSelectionModal } from "@/components/affiliates/PlanSelectionModal";
+import { PaywallCadastro } from "@/components/affiliates/PaywallCadastro";
+
 export function CustomerDashboardLayout() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -41,6 +44,9 @@ export function CustomerDashboardLayout() {
   
   const [showAffiliateModal, setShowAffiliateModal] = useState(false);
   const [isActivating, setIsActivating] = useState(false);
+  const [showPlanModal, setShowPlanModal] = useState(false);
+  const [sessionToken, setSessionToken] = useState<string | null>(null);
+  const [showPaywall, setShowPaywall] = useState(false);
 
   // Redirecionar se não autenticado
   useEffect(() => {
@@ -81,109 +87,64 @@ export function CustomerDashboardLayout() {
     await logout();
   };
 
-  // Ativar conta de afiliado
+  // Ativar conta de afiliado - MODIFICADO para abrir modal de seleção de plano
   const handleActivateAffiliate = async () => {
+    setShowAffiliateModal(false);
+    setShowPlanModal(true);
+  };
+
+  // Nova função: processar seleção de plano
+  const handlePlanSelected = async (wantsSubscription: boolean) => {
     if (!user) return;
     
-    setIsActivating(true);
-    
     try {
-      // Gerar código de indicação único (exatamente 6 caracteres alfanuméricos maiúsculos)
-      const baseCode = user.name
-        .toUpperCase()
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '')
-        .replace(/[^A-Z0-9]/g, '')
-        .substring(0, 3);
+      setShowPlanModal(false);
+      setIsActivating(true);
       
-      // Completar com caracteres aleatórios para ter exatamente 6 caracteres
-      const randomPart = Math.random().toString(36).substring(2, 2 + (6 - baseCode.length)).toUpperCase().replace(/[^A-Z0-9]/g, '');
-      let referralCode = (baseCode + randomPart).substring(0, 6);
-      
-      // Garantir que tenha exatamente 6 caracteres
-      while (referralCode.length < 6) {
-        referralCode += Math.random().toString(36).substring(2, 3).toUpperCase();
-      }
-      referralCode = referralCode.substring(0, 6).replace(/[^A-Z0-9]/g, 'X');
-
-      // Buscar quem indicou (referred_by) do localStorage
-      let referredById: string | null = null;
-      try {
-        const storedReferral = localStorage.getItem(STORAGE_KEYS.REFERRAL_CODE);
-        if (storedReferral) {
-          const referralData = JSON.parse(storedReferral);
-          if (referralData.code && Date.now() < referralData.expiry) {
-            // Buscar o afiliado que indicou pelo código
-            const { data: referrerAffiliate } = await supabase
-              .from('affiliates')
-              .select('id')
-              .eq('referral_code', referralData.code.toUpperCase())
-              .eq('status', 'active')
-              .is('deleted_at', null)
-              .single();
-            
-            if (referrerAffiliate) {
-              referredById = referrerAffiliate.id;
-              console.log('[Affiliate Activation] Vinculando à rede de:', referralData.code);
-            }
-          }
-        }
-      } catch (e) {
-        console.warn('[Affiliate Activation] Erro ao buscar referrer:', e);
-      }
-
-      // Criar registro de afiliado (ativação automática)
-      const { data: affiliateData, error } = await supabase
-        .from('affiliates')
-        .insert({
+      const response = await fetch('/api/affiliates?action=create-payment-session-for-customer', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
           user_id: user.id,
-          name: user.name,
-          email: user.email,
-          phone: user.phone,
-          referral_code: referralCode,
-          status: 'active',  // Ativação automática - admin só desativa se necessário
-          referred_by: referredById  // Vincular à rede de quem indicou (fonte única de verdade)
+          affiliate_type: 'individual',
+          wants_subscription: wantsSubscription
         })
-        .select('id, status')
-        .single();
+      });
 
-      if (error) {
-        throw error;
+      if (!response.ok) {
+        const error = await response.json();
+        toast({
+          title: "Erro",
+          description: error.error || 'Erro ao criar sessão de pagamento',
+          variant: "destructive"
+        });
+        return;
       }
 
-      console.log('[Affiliate Activation] Afiliado criado com sucesso:', {
-        affiliateId: affiliateData.id,
-        referralCode,
-        referredBy: referredById
-      });
-
-      // Atualizar estado do usuário
-      updateUser({
-        isAffiliate: true,
-        affiliateId: affiliateData.id,
-        affiliateStatus: affiliateData.status
-      });
-
-      toast({
-        title: "Parabéns! 🎉",
-        description: "Você agora é um afiliado Slim Quality! Configure sua carteira Asaas para receber comissões.",
-      });
-
-      setShowAffiliateModal(false);
-      
-      // Redirecionar para dashboard de afiliado
-      navigate('/afiliados/dashboard');
-      
-    } catch (error: any) {
-      console.error('Erro ao ativar afiliado:', error);
+      const { session_token } = await response.json();
+      setSessionToken(session_token);
+      setShowPaywall(true);
+    } catch (error) {
+      console.error('Erro ao criar sessão:', error);
       toast({
         title: "Erro",
-        description: error.message || "Não foi possível ativar sua conta de afiliado",
+        description: 'Erro ao processar solicitação',
         variant: "destructive"
       });
     } finally {
       setIsActivating(false);
     }
+  };
+
+  // Nova função: callback após pagamento confirmado
+  const handlePaymentConfirmed = () => {
+    setShowPaywall(false);
+    toast({
+      title: "Parabéns! 🎉",
+      description: "Pagamento confirmado! Bem-vindo ao programa de afiliados!",
+    });
+    // Recarregar dados do usuário
+    window.location.reload();
   };
 
   if (isLoading) {
@@ -349,12 +310,32 @@ export function CustomerDashboardLayout() {
                   Ativando...
                 </>
               ) : (
-                'Confirmar Ativação'
+                'Continuar'
               )}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Modal de Seleção de Plano */}
+      <PlanSelectionModal
+        open={showPlanModal}
+        onClose={() => setShowPlanModal(false)}
+        onPlanSelected={handlePlanSelected}
+      />
+
+      {/* Paywall para Cliente Existente */}
+      {showPaywall && sessionToken && user && (
+        <PaywallCadastro
+          sessionToken={sessionToken}
+          affiliateType="individual"
+          email={user.email}
+          password={null}
+          isExistingCustomer={true}
+          onPaymentConfirmed={handlePaymentConfirmed}
+          onBack={() => setShowPaywall(false)}
+        />
+      )}
     </div>
   );
 }
