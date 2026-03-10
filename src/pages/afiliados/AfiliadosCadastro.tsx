@@ -33,6 +33,9 @@ export default function AfiliadosCadastro() {
   const [showPaywall, setShowPaywall] = useState(false);
   const [sessionToken, setSessionToken] = useState<string | null>(null);
 
+  // Estado para valor da mensalidade (dinâmico)
+  const [monthlyFee, setMonthlyFee] = useState<number>(69.00); // Fallback padrão
+
   // Form data - Campos essenciais + senha + tipo de afiliado + assinatura
   const [formData, setFormData] = useState({
     name: "",
@@ -54,6 +57,35 @@ export default function AfiliadosCadastro() {
       navigate("/afiliados/dashboard");
     }
   }, [isAuthenticated, navigate]);
+
+  // Buscar valor da mensalidade do produto Individual Premium
+  useEffect(() => {
+    const fetchMonthlyFee = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('products')
+          .select('monthly_fee_cents')
+          .eq('category', 'adesao_afiliado')
+          .eq('eligible_affiliate_type', 'individual')
+          .eq('is_subscription', true)
+          .eq('is_active', true)
+          .maybeSingle();
+
+        if (error) {
+          console.warn('Erro ao buscar valor da mensalidade:', error);
+          return;
+        }
+
+        if (data && data.monthly_fee_cents) {
+          setMonthlyFee(data.monthly_fee_cents / 100);
+        }
+      } catch (error) {
+        console.warn('Erro ao buscar valor da mensalidade:', error);
+      }
+    };
+
+    fetchMonthlyFee();
+  }, []);
 
   // Buscar nome do afiliado indicador ao carregar
   useEffect(() => {
@@ -350,7 +382,7 @@ export default function AfiliadosCadastro() {
                           Incluir Vitrine + Agente IA (mensalidade)
                         </Label>
                         <p className="text-sm text-muted-foreground">
-                          Tenha sua própria loja online e atendimento automatizado por apenas <span className="font-semibold text-primary">R$ 69,00/mês</span>
+                          Tenha sua própria loja online e atendimento automatizado por apenas <span className="font-semibold text-primary">R$ {monthlyFee.toFixed(2).replace('.', ',')}/mês</span>
                         </p>
                       </div>
                     </div>
