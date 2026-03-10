@@ -1250,30 +1250,44 @@ async function handlePreRegistrationPayment(supabase, payment) {
     });
 
     // ============================================================
-    // ETAPA 3: Criar usuário no Supabase Auth
-    // CRÍTICO: Usar password_hash diretamente (padrão Comademig)
+    // ETAPA 3: Verificar se é cliente existente ou novo usuário
     // ============================================================
-    const { data: authUser, error: authError } = await supabase.auth.admin.createUser({
-      email: session.email,
-      password: session.password_hash, // Hash recuperado da tabela payment_sessions
-      email_confirm: true, // Confirmar email automaticamente (sem envio de email)
-      user_metadata: {
-        name: session.name,
-        phone: session.phone,
-        affiliate_type: session.affiliate_type
+    let userId;
+    let isExistingCustomer = false;
+
+    if (session.user_id) {
+      // CLIENTE EXISTENTE - não criar user
+      userId = session.user_id;
+      isExistingCustomer = true;
+      
+      console.log('[WH-PreReg] ℹ️ Cliente existente detectado:', {
+        userId,
+        email: session.email
+      });
+    } else {
+      // NOVO USUÁRIO - criar no Supabase Auth
+      const { data: authUser, error: authError } = await supabase.auth.admin.createUser({
+        email: session.email,
+        password: session.password_hash, // Hash recuperado da tabela payment_sessions
+        email_confirm: true, // Confirmar email automaticamente (sem envio de email)
+        user_metadata: {
+          name: session.name,
+          phone: session.phone,
+          affiliate_type: session.affiliate_type
+        }
+      });
+
+      if (authError) {
+        console.error('[WH-PreReg] ❌ Erro ao criar usuário Supabase Auth:', authError);
+        throw new Error(`Falha ao criar usuário: ${authError.message}`);
       }
-    });
 
-    if (authError) {
-      console.error('[WH-PreReg] ❌ Erro ao criar usuário Supabase Auth:', authError);
-      throw new Error(`Falha ao criar usuário: ${authError.message}`);
+      userId = authUser.user.id;
+      console.log('[WH-PreReg] ✅ Usuário Supabase Auth criado:', {
+        userId,
+        email: session.email
+      });
     }
-
-    const userId = authUser.user.id;
-    console.log('[WH-PreReg] ✅ Usuário Supabase Auth criado:', {
-      userId,
-      email: session.email
-    });
 
     // ============================================================
     // ETAPA 4: Gerar referral_code único
@@ -1512,18 +1526,33 @@ async function handlePreRegistrationPayment(supabase, payment) {
     }
 
     // ============================================================
-    // ETAPA 10: Deletar sessão temporária
+    // ETAPA 10: Atualizar ou deletar sessão temporária
     // ============================================================
-    const { error: deleteError } = await supabase
-      .from('payment_sessions')
-      .delete()
-      .eq('session_token', sessionToken);
+    if (isExistingCustomer) {
+      // Cliente existente: atualizar status ao invés de deletar
+      const { error: updateError } = await supabase
+        .from('payment_sessions')
+        .update({ status: 'completed' })
+        .eq('session_token', sessionToken);
 
-    if (deleteError) {
-      console.error('[WH-PreReg] ⚠️ Erro ao deletar sessão temporária (não fatal):', deleteError);
-      // NÃO bloqueia - sessão expira automaticamente em 30 minutos
+      if (updateError) {
+        console.error('[WH-PreReg] ⚠️ Erro ao atualizar sessão (não fatal):', updateError);
+      } else {
+        console.log('[WH-PreReg] ✅ Sessão marcada como completed');
+      }
     } else {
-      console.log('[WH-PreReg] ✅ Sessão temporária deletada');
+      // Novo usuário: deletar sessão temporária
+      const { error: deleteError } = await supabase
+        .from('payment_sessions')
+        .delete()
+        .eq('session_token', sessionToken);
+
+      if (deleteError) {
+        console.error('[WH-PreReg] ⚠️ Erro ao deletar sessão temporária (não fatal):', deleteError);
+        // NÃO bloqueia - sessão expira automaticamente em 30 minutos
+      } else {
+        console.log('[WH-PreReg] ✅ Sessão temporária deletada');
+      }
     }
 
     // ============================================================
