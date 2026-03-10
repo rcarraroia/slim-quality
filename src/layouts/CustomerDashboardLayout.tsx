@@ -34,7 +34,7 @@ import { supabase } from "@/config/supabase";
 import { STORAGE_KEYS } from "@/constants/storage-keys";
 
 import { PlanSelectionModal } from "@/components/affiliates/PlanSelectionModal";
-import { PaywallCadastro } from "@/components/affiliates/PaywallCadastro";
+import PaywallCadastro from "@/components/PaywallCadastro";
 
 export function CustomerDashboardLayout() {
   const navigate = useNavigate();
