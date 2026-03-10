@@ -11,7 +11,74 @@ inclusion: always
 
 ## TAREFA ATUAL
 
-**GERENCIAMENTO DE ASSINATURAS** ✅ IMPLEMENTAÇÃO CONCLUÍDA (03/03/2026)
+**CORREÇÃO CRÍTICA: SISTEMA DE ASSINATURAS RECORRENTES** 🔄 EM ANDAMENTO (10/03/2026)
+
+### Objetivo:
+Corrigir sistema de assinaturas recorrentes para garantir que afiliados premium e logistas sejam cobrados mensalmente após pagamento de adesão.
+
+### Problema Identificado:
+Sistema NÃO estava criando assinaturas recorrentes no Asaas após pagamento de adesão. Afiliados pagavam apenas adesão (R$ 97 ou R$ 197) mas não eram cobrados mensalmente (R$ 97/mês).
+
+### Status Atual:
+✅ **Phase 1: Criação de Assinaturas CONCLUÍDA** (10/03/2026)
+- ✅ Task 1.1: Adicionar criação de assinatura no pré-cadastro (ETAPA 8.5)
+- ✅ Task 1.2: Adicionar criação de assinatura no upgrade (ETAPA 2.5)
+- ✅ Task 1.3: Validar webhook de renovação mensal
+
+### Tasks Concluídas:
+
+#### ✅ Task 1.1: Criação de Assinatura no Pré-Cadastro
+- ETAPA 8.5 adicionada em `handlePreRegistrationPayment()`
+- Verifica se afiliado é logista OU tem `has_subscription = true`
+- Busca produto de adesão com `is_subscription = true`
+- Cria assinatura no Asaas via API `/v3/subscriptions`
+- Registra em `affiliate_payments` com `asaas_subscription_id`
+- Próxima cobrança: +30 dias da ativação
+- Split de comissionamento aplicado
+- Commit: `48bb07c`
+
+#### ✅ Task 1.2: Criação de Assinatura no Upgrade
+- ETAPA 2.5 adicionada em `handleUpgradePayment()`
+- Verifica se assinatura já existe antes de criar
+- Mesmo fluxo da ETAPA 8.5
+- Evita duplicação de assinaturas
+- Commit: `48bb07c`
+
+#### ✅ Task 1.3: Webhook de Renovação Mensal
+- Criada `handleAffiliatePaymentConfirmed()` para processar renovações
+- Criada `handleAffiliatePaymentOverdue()` para processar atrasos
+- Roteamento atualizado para distinguir assinaturas de afiliados vs agente IA
+- Renovação cria novo registro em `affiliate_payments`
+- Renovação calcula e salva comissões automaticamente
+- Renovação cria notificação para o afiliado
+- Atraso bloqueia vitrine, agente IA e atualiza `payment_status`
+- Atraso cria notificação de alerta
+- Commit: `9a20945`
+
+### Evidências:
+- ✅ getDiagnostics: 0 erros em todos os arquivos
+- ✅ 3 commits realizados e pushed
+- ✅ Deploy automático no Vercel
+- ✅ Funções `calculateSplit()` e `calculateAndSaveCommissions()` integradas
+- ✅ Webhook processa renovações e atrasos corretamente
+
+### Próximos Passos:
+- ⏳ Phase 2: Testes Manuais (3 tasks)
+  - Task 2.1: Testar fluxo completo individual premium
+  - Task 2.2: Testar fluxo completo logista
+  - Task 2.3: Testar upgrade básico → premium
+- ⏳ Validar em produção:
+  - Criar novo afiliado premium via `/afiliados/cadastro`
+  - Confirmar que assinatura é criada no Asaas
+  - Verificar registro em `affiliate_payments` com `asaas_subscription_id`
+  - Simular renovação mensal no sandbox Asaas
+
+### Arquivos Modificados:
+- `api/webhook-assinaturas.js` (3 modificações)
+- `.spec/tasks/assinaturas-recorrentes-e-fluxo-hibrido.md` (documento de tasks)
+- `.kiro/analise-assinaturas-recorrentes.md` (análise do problema)
+
+---
 
 ### Objetivo:
 Implementar módulo completo de gerenciamento de assinaturas permitindo upgrade, cancelamento e visualização de status para todos os afiliados.
