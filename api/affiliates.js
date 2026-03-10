@@ -16,6 +16,7 @@
  */
 
 import { createClient } from '@supabase/supabase-js';
+import bcrypt from 'bcryptjs';
 
 export default async function handler(req, res) {
   // CORS
@@ -445,7 +446,6 @@ async function handlePaymentFirstValidate(req, res, supabase) {
 
     // Criptografar senha (bcrypt)
     console.log('[PaymentFirstValidate] Criptografando senha');
-    const bcrypt = await import('bcryptjs');
     const password_hash = await bcrypt.hash(password, 10);
 
     // Buscar produto de adesão correto

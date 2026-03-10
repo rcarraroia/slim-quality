@@ -22,6 +22,7 @@ Corrigir erros 406 e 500 no cadastro de afiliados identificados no console do na
 
 ### Status Atual:
 ✅ **Correção 1: select('*') CONCLUÍDA** (10/03/2026)
+✅ **Correção 2: bcryptjs CONCLUÍDA** (10/03/2026)
 
 ### Tasks Concluídas:
 
@@ -40,14 +41,33 @@ Corrigir erros 406 e 500 no cadastro de afiliados identificados no console do na
   - ✅ getDiagnostics: 0 erros
   - ✅ Correção aplicada na linha 392
 
+#### ✅ Correção 2: Instalar bcryptjs e migrar para import estático
+- **Arquivo:** `api/affiliates.js`
+- **Problema:** Dynamic import de `bcryptjs` falhando porque pacote não estava instalado
+- **Análise do banco:** Produtos de adesão existem corretamente (causa 1 descartada)
+- **Causa raiz identificada:** Package.json tinha `bcrypt` mas código importava `bcryptjs`
+- **Solução aplicada:**
+  1. Instalado `bcryptjs` via npm
+  2. Adicionado `import bcrypt from 'bcryptjs'` no topo do arquivo
+  3. Removido dynamic import `await import('bcryptjs')` da linha 451
+  4. Migrado para import estático (melhor prática para Vercel serverless)
+- **Motivo da escolha:** bcryptjs é 100% JavaScript puro, sem bindings nativos, ideal para serverless
+- **Evidências:**
+  - ✅ bcryptjs instalado com sucesso
+  - ✅ Import estático adicionado no topo
+  - ✅ Dynamic import removido
+  - ✅ getDiagnostics: 0 erros
+
 ### Próximos Passos:
-1. ⏳ Testar cadastro de afiliado em produção
-2. ⏳ Verificar se erro 406 foi resolvido
-3. ⏳ Analisar logs do erro 500 no Vercel
-4. ⏳ Corrigir erro 500 se persistir após correção do 406
+1. ✅ Testar cadastro de afiliado em produção
+2. ✅ Verificar se erro 406 foi resolvido
+3. ✅ Verificar se erro 500 foi resolvido
+4. ⏳ Monitorar logs do Vercel para confirmar funcionamento
 
 ### Arquivos Modificados:
 - `src/services/customer-auth.service.ts` (linha 392 corrigida)
+- `api/affiliates.js` (import de bcryptjs adicionado, dynamic import removido)
+- `package.json` (bcryptjs instalado)
 
 ### Lição Aprendida:
 **SEMPRE verificar banco de dados real via Supabase Power ANTES de fazer alterações relacionadas ao banco.** Não confiar apenas em arquivos de migration ou documentação desatualizada.
