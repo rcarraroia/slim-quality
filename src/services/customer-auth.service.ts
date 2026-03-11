@@ -67,15 +67,15 @@ class CustomerAuthService {
         .from('customers')
         .select('id, user_id, name, email, phone, cpf_cnpj, birth_date, city, state, postal_code, created_at, updated_at')
         .eq('user_id', authData.user.id)
-        .single();
+        .maybeSingle();
 
-      if (customerError || !customerData) {
-        // Verificar se é admin tentando logar como cliente
+      if (customerError) {
+        // Erro real de banco — verificar se é admin tentando logar como cliente
         const { data: adminData } = await supabase
           .from('admins')
           .select('id')
           .eq('id', authData.user.id)
-          .single();
+          .maybeSingle();
 
         if (adminData) {
           await supabase.auth.signOut();
@@ -95,16 +95,40 @@ class CustomerAuthService {
       // Verificar se é afiliado
       const { data: affiliateData } = await supabase
         .from('affiliates')
-        .select('id, status')
+        .select('id, status, name, phone')
         .eq('user_id', authData.user.id)
-        .single();
+        .maybeSingle();
+
+      // Sem registro em customers NEM em affiliates → conta inválida
+      if (!customerData && !affiliateData) {
+        // Verificar se é admin
+        const { data: adminData } = await supabase
+          .from('admins')
+          .select('id')
+          .eq('id', authData.user.id)
+          .maybeSingle();
+
+        if (adminData) {
+          await supabase.auth.signOut();
+          return {
+            success: false,
+            error: 'Use o login de administrador em /admin/login'
+          };
+        }
+
+        await supabase.auth.signOut();
+        return {
+          success: false,
+          error: 'Conta não encontrada'
+        };
+      }
 
       const customerUser: CustomerUser = {
         id: authData.user.id,
         email: authData.user.email || '',
-        name: customerData.name,
-        phone: customerData.phone,
-        customerId: customerData.id,
+        name: customerData?.name || affiliateData?.name || authData.user.user_metadata?.name || '',
+        phone: customerData?.phone || affiliateData?.phone || null,
+        customerId: customerData?.id || null,
         isAffiliate: !!affiliateData,
         affiliateId: affiliateData?.id,
         affiliateStatus: affiliateData?.status
