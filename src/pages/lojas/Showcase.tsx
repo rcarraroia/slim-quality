@@ -103,9 +103,9 @@ export default function Showcase() {
   return (
     <>
       <SEOHead 
-        title="Lojas Parceiras Slim Quality | Encontre uma Loja Perto de Você"
-        description="Visite uma de nossas lojas parceiras e experimente nossos colchões magnéticos pessoalmente. Encontre a loja Slim Quality mais próxima de você."
-        keywords="loja colchão magnético, onde comprar colchão magnético, loja slim quality, revendedor colchão terapêutico, loja física colchão"
+        title="Parceiros Slim Quality | Encontre um Parceiro Perto de Você"
+        description="Conheça nossos parceiros em diversas cidades do país e experimente nossos colchões magnéticos pessoalmente. Encontre o parceiro Slim Quality mais próximo de você."
+        keywords="parceiro colchão magnético, onde comprar colchão magnético, parceiro slim quality, revendedor colchão terapêutico, distribuidor colchão"
         canonical="https://slimquality.com.br/lojas"
         type="website"
       />
@@ -115,9 +115,9 @@ export default function Showcase() {
       <div className="border-b bg-card">
         <div className="container py-8">
           <div className="max-w-3xl">
-            <h1 className="text-4xl font-bold mb-2">Encontre uma Loja Slim Quality</h1>
+            <h1 className="text-4xl font-bold mb-2">Encontre um Parceiro Slim Quality</h1>
             <p className="text-lg text-muted-foreground">
-              Visite uma de nossas lojas parceiras e experimente nossos produtos pessoalmente
+              São vários parceiros em diversas cidades do país, encontre o mais próximo de você
             </p>
           </div>
         </div>
@@ -143,7 +143,7 @@ export default function Showcase() {
               <p className="flex items-start gap-2">
                 <MapPin className="h-4 w-4 mt-0.5 flex-shrink-0" />
                 <span>
-                  Use os filtros para encontrar lojas próximas a você ou busque pelo nome da loja
+                  Use os filtros para encontrar os parceiros mais próximos a você ou busque pelo nome do parceiro
                 </span>
               </p>
             </div>
@@ -172,7 +172,7 @@ export default function Showcase() {
             {!loading && stores.length === 0 && (
               <div className="text-center py-12">
                 <MapPin className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-                <h3 className="text-xl font-semibold mb-2">Nenhuma loja encontrada</h3>
+                <h3 className="text-xl font-semibold mb-2">Nenhum parceiro encontrado</h3>
                 <p className="text-muted-foreground mb-4">
                   Tente ajustar os filtros ou buscar por outra localização
                 </p>
@@ -188,7 +188,7 @@ export default function Showcase() {
                 {/* Contador */}
                 <div className="flex items-center justify-between">
                   <p className="text-sm text-muted-foreground">
-                    Mostrando {stores.length} de {pagination.total} lojas
+                    Mostrando {stores.length} de {pagination.total} parceiros
                   </p>
                 </div>
 
