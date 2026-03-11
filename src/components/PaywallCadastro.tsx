@@ -1,19 +1,17 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/config/supabase';
-import { Loader2, CheckCircle2, XCircle, ArrowLeft, Copy, QrCode, CreditCard, Clock } from 'lucide-react';
-import { Progress } from '@/components/ui/progress';
+import { Loader2, CheckCircle2, XCircle, ArrowLeft, QrCode, CreditCard } from 'lucide-react';
 
 interface PaywallCadastroProps {
   sessionToken: string;
   affiliateType: 'individual' | 'logista';
   email: string;
-  password: string | null; // MODIFICADO: pode ser null para clientes existentes
-  isExistingCustomer?: boolean; // NOVO: flag para clientes existentes
-  wantsSubscription?: boolean; // NOVO: se o afiliado individual quer mensalidade
+  password: string | null;
+  isExistingCustomer?: boolean;
+  wantsSubscription?: boolean;
   onPaymentConfirmed: () => void;
   onBack: () => void;
 }
@@ -25,46 +23,27 @@ interface Product {
   eligible_affiliate_type: string;
 }
 
-interface PaymentData {
-  success: boolean;
-  payment_id: string;
-  payment_method: string;
-  amount: number;
-  qr_code: string | null;
-  qr_code_image: string | null;
-  invoice_url: string;
-  external_reference: string;
-}
-
 export default function PaywallCadastro({
   sessionToken,
   affiliateType,
   email,
   password,
-  isExistingCustomer = false, // NOVO: default false
-  wantsSubscription = false, // NOVO: default false
+  isExistingCustomer = false,
+  wantsSubscription = false,
   onPaymentConfirmed,
   onBack
 }: PaywallCadastroProps) {
-  const navigate = useNavigate();
   const { toast } = useToast();
 
   const [loading, setLoading] = useState(true);
   const [product, setProduct] = useState<Product | null>(null);
-  const [paymentData, setPaymentData] = useState<PaymentData | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<'pix' | 'credit_card'>('pix');
-  const [polling, setPolling] = useState(false);
-  const [pollingAttempts, setPollingAttempts] = useState(0);
-  const [timeoutProgress, setTimeoutProgress] = useState(0);
-  const [timeRemaining, setTimeRemaining] = useState(900); // 15 minutos em segundos
   const [error, setError] = useState<string | null>(null);
 
   // Buscar produto de adesão
   useEffect(() => {
     async function fetchProduct() {
       try {
-        // Determinar se precisa de assinatura baseado no tipo de afiliado
-        // Logistas sempre têm assinatura, individuais podem ou não ter
         const needsSubscription = affiliateType === 'logista' || wantsSubscription;
         
         const { data, error } = await supabase
@@ -103,7 +82,6 @@ export default function PaywallCadastro({
     setError(null);
 
     try {
-      // Converter payment_method para maiúsculas (PIX ou CREDIT_CARD)
       const paymentMethodUpperCase = paymentMethod === 'pix' ? 'PIX' : 'CREDIT_CARD';
       
       const response = await fetch(
@@ -121,14 +99,17 @@ export default function PaywallCadastro({
 
       const result = await response.json();
 
-      if (result.success) {
-        // CORREÇÃO: Extrair objeto payment da resposta
-        setPaymentData(result.payment);
+      if (result.success && result.payment_url) {
+        // Exibir toast de sucesso
+        toast({
+          title: 'Pagamento gerado!',
+          description: 'Redirecionando para pagamento seguro...'
+        });
 
-        // Iniciar polling após 5 segundos
+        // Redirecionar para Asaas após 2 segundos
         setTimeout(() => {
-          startPolling();
-        }, 5000);
+          window.location.href = result.payment_url;
+        }, 2000);
       } else {
         setError(result.error || 'Erro ao criar pagamento');
       }
@@ -137,102 +118,6 @@ export default function PaywallCadastro({
     } finally {
       setLoading(false);
     }
-  };
-
-  // Polling para verificar se conta foi criada (novo usuário) ou pagamento confirmado (cliente existente)
-  const startPolling = () => {
-    setPolling(true);
-    const startTime = Date.now();
-    const timeout = 15 * 60 * 1000; // 15 minutos
-
-    const interval = setInterval(async () => {
-      // Atualizar progress bar e tempo restante
-      const elapsed = Date.now() - startTime;
-      const progress = (elapsed / timeout) * 100;
-      const remaining = Math.max(0, Math.floor((timeout - elapsed) / 1000));
-
-      setTimeoutProgress(progress);
-      setTimeRemaining(remaining);
-
-      // Timeout atingido
-      if (elapsed >= timeout) {
-        clearInterval(interval);
-        setPolling(false);
-        setError('Tempo esgotado. Gere um novo QR code ou tente novamente.');
-        return;
-      }
-
-      try {
-        if (isExistingCustomer) {
-          // Cliente existente: verificar status da payment_session
-          const { data: session } = await supabase
-            .from('payment_sessions')
-            .select('status')
-            .eq('session_token', sessionToken)
-            .single();
-
-          if (session?.status === 'completed') {
-            // Pagamento confirmado!
-            clearInterval(interval);
-            setPolling(false);
-            toast({
-              title: 'Pagamento confirmado!',
-              description: 'Sua conta foi ativada como afiliado. Bem-vindo!',
-            });
-            setTimeout(() => {
-              onPaymentConfirmed();
-            }, 1500);
-          }
-        } else {
-          // Novo usuário: tentar autenticar com email + senha
-          if (!password) {
-            console.error('Password é obrigatório para novos usuários');
-            return;
-          }
-
-          const { data, error } = await supabase.auth.signInWithPassword({
-            email,
-            password
-          });
-
-          if (data.user && !error) {
-            // Conta criada! Webhook processou o pagamento
-            clearInterval(interval);
-            setPolling(false);
-            toast({
-              title: 'Pagamento confirmado!',
-              description: 'Sua conta foi ativada com sucesso. Bem-vindo!',
-            });
-            setTimeout(() => {
-              onPaymentConfirmed();
-            }, 1500);
-          }
-        }
-      } catch (err) {
-        // Conta ainda não existe ou pagamento não confirmado, continuar polling
-        console.log('Tentativa de verificação:', pollingAttempts + 1);
-      }
-
-      setPollingAttempts(prev => prev + 1);
-    }, 5000); // Polling a cada 5 segundos
-  };
-
-  // Copiar código PIX
-  const handleCopyPix = () => {
-    if (paymentData?.qr_code) {
-      navigator.clipboard.writeText(paymentData.qr_code);
-      toast({
-        title: 'Código copiado!',
-        description: 'Cole no app do seu banco para pagar',
-      });
-    }
-  };
-
-  // Formatar tempo restante
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
   // Loading inicial
@@ -252,7 +137,7 @@ export default function PaywallCadastro({
   }
 
   // Erro ao carregar produto
-  if (error && !paymentData) {
+  if (error && !product) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5 flex items-center justify-center px-4">
         <Card className="w-full max-w-md">
@@ -275,206 +160,76 @@ export default function PaywallCadastro({
   }
 
   // Tela de seleção de pagamento
-  if (!paymentData) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5 py-12 px-4">
-        <div className="max-w-2xl mx-auto">
-          <Card className="shadow-lg">
-            <CardHeader className="text-center space-y-2 pb-6">
-              <div className="mx-auto h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center mb-2">
-                <CheckCircle2 className="h-6 w-6 text-primary" />
-              </div>
-              <CardTitle className="text-3xl font-bold">Taxa de Adesão</CardTitle>
-              <p className="text-muted-foreground">
-                Complete o pagamento para ativar sua conta
-              </p>
-            </CardHeader>
-
-            <CardContent className="space-y-6">
-              {/* Informações do produto */}
-              <div className="bg-gradient-to-r from-primary/10 to-secondary/10 border-2 border-primary/30 rounded-lg p-6 text-center">
-                <p className="text-sm text-muted-foreground mb-1">{product?.name}</p>
-                <p className="text-4xl font-bold text-primary">
-                  R$ {((product?.entry_fee_cents || 0) / 100).toFixed(2).replace('.', ',')}
-                </p>
-                <p className="text-xs text-muted-foreground mt-2">
-                  {affiliateType === 'individual' ? 'Pagamento único' : 'Taxa de adesão'}
-                </p>
-              </div>
-
-              {/* Método de pagamento */}
-              <div className="space-y-3">
-                <label className="text-sm font-semibold">Método de Pagamento</label>
-                <div className="grid grid-cols-2 gap-4">
-                  <Button
-                    variant={paymentMethod === 'pix' ? 'default' : 'outline'}
-                    onClick={() => setPaymentMethod('pix')}
-                    className="h-auto py-6 flex flex-col gap-2"
-                  >
-                    <QrCode className="h-6 w-6" />
-                    <div className="text-center">
-                      <div className="font-semibold">PIX</div>
-                      <div className="text-xs opacity-80">Aprovação imediata</div>
-                    </div>
-                  </Button>
-                  <Button
-                    variant={paymentMethod === 'credit_card' ? 'default' : 'outline'}
-                    onClick={() => setPaymentMethod('credit_card')}
-                    className="h-auto py-6 flex flex-col gap-2"
-                  >
-                    <CreditCard className="h-6 w-6" />
-                    <div className="text-center">
-                      <div className="font-semibold">Cartão</div>
-                      <div className="text-xs opacity-80">Crédito ou débito</div>
-                    </div>
-                  </Button>
-                </div>
-              </div>
-
-              {/* Informação */}
-              <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
-                <div className="flex gap-3">
-                  <CheckCircle2 className="h-5 w-5 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
-                  <div className="space-y-1">
-                    <p className="text-sm font-medium text-blue-900 dark:text-blue-100">
-                      Pagamento Seguro
-                    </p>
-                    <p className="text-xs text-blue-700 dark:text-blue-300">
-                      Após a confirmação do pagamento, você terá acesso imediato ao painel de afiliados.
-                      O processo é automático e leva apenas alguns segundos.
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Botões */}
-              <div className="flex gap-3 pt-4">
-                <Button
-                  variant="outline"
-                  onClick={onBack}
-                  disabled={loading}
-                  className="flex-1"
-                >
-                  <ArrowLeft className="h-4 w-4 mr-2" />
-                  Voltar
-                </Button>
-                <Button
-                  onClick={handleCreatePayment}
-                  disabled={loading}
-                  className="flex-1"
-                >
-                  {loading ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Gerando...
-                    </>
-                  ) : (
-                    'Continuar'
-                  )}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-    );
-  }
-
-  // Tela de aguardando pagamento
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5 py-12 px-4">
       <div className="max-w-2xl mx-auto">
         <Card className="shadow-lg">
           <CardHeader className="text-center space-y-2 pb-6">
             <div className="mx-auto h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center mb-2">
-              {polling ? (
-                <Loader2 className="h-6 w-6 animate-spin text-primary" />
-              ) : (
-                <QrCode className="h-6 w-6 text-primary" />
-              )}
+              <CheckCircle2 className="h-6 w-6 text-primary" />
             </div>
-            <CardTitle className="text-3xl font-bold">
-              {polling ? 'Aguardando Confirmação' : 'Pagamento Gerado'}
-            </CardTitle>
+            <CardTitle className="text-3xl font-bold">Taxa de Adesão</CardTitle>
             <p className="text-muted-foreground">
-              {polling ? 'Verificando pagamento automaticamente' : 'Complete o pagamento para ativar sua conta'}
+              Complete o pagamento para ativar sua conta
             </p>
           </CardHeader>
 
           <CardContent className="space-y-6">
-            {/* QR Code PIX */}
-            {paymentMethod === 'pix' && paymentData.qr_code_image && (
-              <div className="space-y-4">
-                <div className="flex flex-col items-center gap-4">
-                  <div className="bg-white p-4 rounded-lg shadow-sm">
-                    <img
-                      src={paymentData.qr_code_image}
-                      alt="QR Code PIX"
-                      className="w-64 h-64"
-                    />
-                  </div>
-                  <p className="text-sm text-muted-foreground text-center">
-                    Escaneie o QR Code com o app do seu banco
-                  </p>
-                </div>
+            {/* Informações do produto */}
+            <div className="bg-gradient-to-r from-primary/10 to-secondary/10 border-2 border-primary/30 rounded-lg p-6 text-center">
+              <p className="text-sm text-muted-foreground mb-1">{product?.name}</p>
+              <p className="text-4xl font-bold text-primary">
+                R$ {((product?.entry_fee_cents || 0) / 100).toFixed(2).replace('.', ',')}
+              </p>
+              <p className="text-xs text-muted-foreground mt-2">
+                {affiliateType === 'individual' ? 'Pagamento único' : 'Taxa de adesão'}
+              </p>
+            </div>
 
-                {/* Código Copia e Cola */}
-                <div className="space-y-2">
-                  <p className="text-sm font-medium">Ou copie o código:</p>
-                  <div className="flex gap-2">
-                    <div className="flex-1 bg-muted p-3 rounded-lg">
-                      <p className="text-xs break-all font-mono">
-                        {paymentData.qr_code}
-                      </p>
-                    </div>
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      onClick={handleCopyPix}
-                      className="shrink-0"
-                    >
-                      <Copy className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Link para cartão */}
-            {paymentMethod === 'credit_card' && paymentData.invoice_url && (
-              <div className="text-center space-y-4">
-                <p className="text-sm text-muted-foreground">
-                  Clique no botão abaixo para pagar com cartão
-                </p>
+            {/* Método de pagamento */}
+            <div className="space-y-3">
+              <label className="text-sm font-semibold">Método de Pagamento</label>
+              <div className="grid grid-cols-2 gap-4">
                 <Button
-                  onClick={() => window.open(paymentData.invoice_url, '_blank')}
-                  size="lg"
-                  className="w-full"
+                  variant={paymentMethod === 'pix' ? 'default' : 'outline'}
+                  onClick={() => setPaymentMethod('pix')}
+                  className="h-auto py-6 flex flex-col gap-2"
                 >
-                  <CreditCard className="h-4 w-4 mr-2" />
-                  Pagar com Cartão
+                  <QrCode className="h-6 w-6" />
+                  <div className="text-center">
+                    <div className="font-semibold">PIX</div>
+                    <div className="text-xs opacity-80">Aprovação imediata</div>
+                  </div>
+                </Button>
+                <Button
+                  variant={paymentMethod === 'credit_card' ? 'default' : 'outline'}
+                  onClick={() => setPaymentMethod('credit_card')}
+                  className="h-auto py-6 flex flex-col gap-2"
+                >
+                  <CreditCard className="h-6 w-6" />
+                  <div className="text-center">
+                    <div className="font-semibold">Cartão</div>
+                    <div className="text-xs opacity-80">Crédito ou débito</div>
+                  </div>
                 </Button>
               </div>
-            )}
+            </div>
 
-            {/* Status de polling */}
-            {polling && (
-              <div className="space-y-3 pt-4 border-t">
-                <div className="flex items-center justify-between text-sm">
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <Clock className="h-4 w-4 animate-pulse" />
-                    <span>Aguardando pagamento...</span>
-                  </div>
-                  <span className="font-mono text-muted-foreground">
-                    {formatTime(timeRemaining)}
-                  </span>
+            {/* Informação */}
+            <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+              <div className="flex gap-3">
+                <CheckCircle2 className="h-5 w-5 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
+                <div className="space-y-1">
+                  <p className="text-sm font-medium text-blue-900 dark:text-blue-100">
+                    Pagamento Seguro
+                  </p>
+                  <p className="text-xs text-blue-700 dark:text-blue-300">
+                    Após a confirmação do pagamento, você terá acesso imediato ao painel de afiliados.
+                    O processo é automático e leva apenas alguns segundos.
+                  </p>
                 </div>
-                <Progress value={timeoutProgress} className="h-2" />
-                <p className="text-xs text-muted-foreground text-center">
-                  Verificando automaticamente a cada 5 segundos
-                </p>
               </div>
-            )}
+            </div>
 
             {/* Erro */}
             {error && (
@@ -486,34 +241,32 @@ export default function PaywallCadastro({
               </div>
             )}
 
-            {/* Informação de segurança */}
-            {!error && (
-              <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
-                <div className="flex gap-3">
-                  <CheckCircle2 className="h-5 w-5 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
-                  <div className="space-y-1">
-                    <p className="text-sm font-medium text-blue-900 dark:text-blue-100">
-                      Pagamento Seguro
-                    </p>
-                    <p className="text-xs text-blue-700 dark:text-blue-300">
-                      Após a confirmação do pagamento, você será redirecionado automaticamente para o painel de afiliados.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Botão de voltar */}
-            {!polling && (
+            {/* Botões */}
+            <div className="flex gap-3 pt-4">
               <Button
                 variant="outline"
                 onClick={onBack}
-                className="w-full"
+                disabled={loading}
+                className="flex-1"
               >
                 <ArrowLeft className="h-4 w-4 mr-2" />
                 Voltar
               </Button>
-            )}
+              <Button
+                onClick={handleCreatePayment}
+                disabled={loading}
+                className="flex-1"
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Gerando...
+                  </>
+                ) : (
+                  'Continuar'
+                )}
+              </Button>
+            </div>
           </CardContent>
         </Card>
       </div>

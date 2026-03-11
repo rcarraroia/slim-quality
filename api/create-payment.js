@@ -954,22 +954,10 @@ async function handleCreateAffiliateMembership(req, res, supabase) {
         throw new Error(paymentData.errors?.[0]?.description || 'Erro ao criar pagamento');
       }
 
-      // Retornar dados do pagamento
+      // Retornar URL de pagamento (padrão de produtos digitais)
       return res.status(200).json({
         success: true,
-        payment: {
-          id: paymentData.id,
-          payment_method: payment_method,
-          amount: amount,
-          due_date: dueDate,
-          status: 'pending',
-          external_reference: externalReference,
-          // Dados específicos do tipo de pagamento
-          qr_code: payment_method === 'PIX' ? paymentData.payload : null,
-          qr_code_image: payment_method === 'PIX' ? paymentData.encodedImage : null,
-          invoice_url: paymentData.invoiceUrl,
-          bank_slip_url: paymentData.bankSlipUrl
-        }
+        payment_url: paymentData.invoiceUrl
       });
 
     } catch (error) {

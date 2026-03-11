@@ -11,7 +11,62 @@ inclusion: always
 
 ## TAREFA ATUAL
 
-**CORREÇÃO: ERRO 404 EM CREATE-PAYMENT.JS** 🔧 EM ANDAMENTO (11/03/2026)
+**CORREÇÃO IMPLEMENTADA: FLUXO DE PAGAMENTO DE AFILIADOS** ✅ CONCLUÍDA (11/03/2026)
+
+### Objetivo
+
+Corrigir bug onde QR Code PIX não aparecia no cadastro de afiliados.
+
+### Status da Implementação
+
+**✅ PHASE 1: BACKEND (API) - CONCLUÍDA**
+- ✅ Task 1.1: API modificada para retornar apenas `payment_url`
+- ✅ Task 1.2: getDiagnostics: 0 erros
+
+**✅ PHASE 2: FRONTEND (COMPONENTE) - CONCLUÍDA**
+- ✅ Task 2.1: Estados desnecessários removidos (5 estados)
+- ✅ Task 2.2: Funções desnecessárias removidas (3 funções)
+- ✅ Task 2.3: Lógica de redirecionamento implementada
+- ✅ Task 2.4: Renderização de QR Code removida
+- ✅ Task 2.5: Renderização de polling removida
+- ✅ Task 2.6: getDiagnostics: 0 erros
+
+**Mudanças Realizadas:**
+
+**Backend (`api/create-payment.js`):**
+```javascript
+// ANTES: Retornava qr_code e qr_code_image
+return res.status(200).json({
+  success: true,
+  payment: { qr_code, qr_code_image, ... }
+});
+
+// DEPOIS: Retorna apenas payment_url
+return res.status(200).json({
+  success: true,
+  payment_url: paymentData.invoiceUrl
+});
+```
+
+**Frontend (`src/components/PaywallCadastro.tsx`):**
+- Removidos 5 estados: `paymentData`, `polling`, `pollingAttempts`, `timeoutProgress`, `timeRemaining`
+- Removidas 3 funções: `startPolling()`, `handleCopyPix()`, `formatTime()`
+- Removida renderização de QR Code (150 linhas)
+- Removida renderização de polling (50 linhas)
+- Adicionado redirecionamento para Asaas
+- Código reduzido de ~600 para ~250 linhas (-58%)
+
+**Próximos Passos:**
+- ⏳ PHASE 3: Testes e Validação
+- ⏳ Testar fluxo completo PIX em produção
+- ⏳ Testar fluxo completo Cartão em produção
+- ⏳ Validar que conta é criada e ativada automaticamente
+
+---
+
+## TAREFA ANTERIOR
+
+**CORREÇÃO: ERRO 404 EM CREATE-PAYMENT.JS** ✅ CONCLUÍDA (11/03/2026)
 
 ### Problema Identificado
 

@@ -1,0 +1,7 @@
+{
+  "specType": "bugfix",
+  "workflowType": "requirements-first",
+  "featureName": "correcao-fluxo-pagamento-afiliados",
+  "createdAt": "2026-03-11T00:00:00.000Z",
+  "updatedAt": "2026-03-11T00:00:00.000Z"
+}
