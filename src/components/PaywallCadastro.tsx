@@ -122,7 +122,8 @@ export default function PaywallCadastro({
       const result = await response.json();
 
       if (result.success) {
-        setPaymentData(result);
+        // CORREÇÃO: Extrair objeto payment da resposta
+        setPaymentData(result.payment);
 
         // Iniciar polling após 5 segundos
         setTimeout(() => {
