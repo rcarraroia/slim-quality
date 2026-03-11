@@ -55,7 +55,7 @@ export default async function handler(req, res) {
 
   // Inicializar Supabase
   const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
-  const supabaseKey = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY;
+  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY;
 
   if (!supabaseUrl || !supabaseKey) {
     console.error('Supabase não configurado');
@@ -93,6 +93,12 @@ export default async function handler(req, res) {
     if (!orderId) {
       console.log('Pagamento sem externalReference (orderId)');
       return res.status(200).json({ received: true, message: 'Sem orderId' });
+    }
+
+    // Roteamento especial: pagamentos de adesão de afiliados
+    if (orderId.startsWith('affiliate_pre_') &&
+        (eventType === 'PAYMENT_CONFIRMED' || eventType === 'PAYMENT_RECEIVED')) {
+      return handleAffiliatePrePayment(res, supabase, payment, orderId);
     }
 
     console.log(`Processando evento ${eventType} para pedido ${orderId}`);
@@ -215,6 +221,108 @@ export default async function handler(req, res) {
       received: true,
       error: error.message
     });
+  }
+}
+
+/**
+ * Processa confirmação de pagamento de taxa de adesão de afiliado.
+ * Cria conta no Supabase Auth, registra o afiliado e finaliza a sessão.
+ */
+async function handleAffiliatePrePayment(res, supabase, payment, orderId) {
+  const sessionToken = orderId.replace('affiliate_pre_', '');
+  console.log('[AffiliateWebhook] Processando adesão para sessão:', sessionToken);
+
+  try {
+    // 1. Buscar sessão temporária
+    const { data: session, error: sessionError } = await supabase
+      .from('payment_sessions')
+      .select('*')
+      .eq('session_token', sessionToken)
+      .single();
+
+    if (sessionError || !session) {
+      console.error('[AffiliateWebhook] Sessão não encontrada:', sessionToken, sessionError);
+      return res.status(200).json({ received: true, message: 'Sessão não encontrada' });
+    }
+
+    // 2. Verificar se usuário já existe (idempotência)
+    const { data: existingUser } = await supabase.auth.admin.getUserByEmail(session.email);
+    let userId;
+
+    if (existingUser?.user) {
+      console.log('[AffiliateWebhook] Usuário já existe:', session.email);
+      userId = existingUser.user.id;
+    } else {
+      // 3. Criar usuário no Supabase Auth
+      const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+        email: session.email,
+        password: session.password_hash,
+        email_confirm: true,
+        user_metadata: {
+          name: session.name,
+          affiliate_type: session.affiliate_type
+        }
+      });
+
+      if (authError) {
+        console.error('[AffiliateWebhook] Erro ao criar usuário:', authError);
+        return res.status(200).json({ received: true, message: 'Erro ao criar usuário', error: authError.message });
+      }
+
+      userId = authData.user.id;
+      console.log('[AffiliateWebhook] Usuário criado:', userId);
+    }
+
+    // 4. Verificar se afiliado já existe (idempotência)
+    const { data: existingAffiliate } = await supabase
+      .from('affiliates')
+      .select('id')
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    if (!existingAffiliate) {
+      // Gerar referral_code único
+      const referralCode = `AF${Date.now().toString(36).toUpperCase()}`;
+
+      const { error: affiliateError } = await supabase
+        .from('affiliates')
+        .insert({
+          user_id: userId,
+          name: session.name,
+          email: session.email,
+          phone: session.phone || null,
+          document: session.document,
+          document_type: session.document_type,
+          affiliate_type: session.affiliate_type,
+          financial_status: 'financeiro_pendente',
+          referral_code: referralCode,
+          referred_by: session.referred_by || null,
+          status: 'pending'
+        });
+
+      if (affiliateError) {
+        console.error('[AffiliateWebhook] Erro ao criar afiliado:', affiliateError);
+        return res.status(200).json({ received: true, message: 'Erro ao criar afiliado', error: affiliateError.message });
+      }
+
+      console.log('[AffiliateWebhook] Afiliado registrado:', session.email, '| referral_code:', referralCode);
+    } else {
+      console.log('[AffiliateWebhook] Afiliado já existe:', session.email);
+    }
+
+    // 5. Atualizar sessão como concluída (libera o polling do PaywallCadastro)
+    await supabase
+      .from('payment_sessions')
+      .update({ status: 'completed' })
+      .eq('session_token', sessionToken);
+
+    console.log('[AffiliateWebhook] Sessão finalizada:', sessionToken);
+
+    return res.status(200).json({ received: true, message: 'Afiliado criado com sucesso' });
+
+  } catch (error) {
+    console.error('[AffiliateWebhook] Erro inesperado:', error);
+    return res.status(200).json({ received: true, message: 'Erro interno', error: error.message });
   }
 }
 

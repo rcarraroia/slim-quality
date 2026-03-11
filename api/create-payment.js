@@ -788,7 +788,7 @@ async function handleCreateAffiliateMembership(req, res, supabase) {
   }
 
   try {
-    const { session_token, payment_method = 'PIX' } = req.body;
+    const { session_token, payment_method = 'PIX', has_subscription } = req.body;
 
     if (!session_token) {
       return res.status(400).json({ 
@@ -819,12 +819,18 @@ async function handleCreateAffiliateMembership(req, res, supabase) {
       });
     }
 
-    // Buscar produto de adesão conforme tipo de afiliado
+    // Buscar produto de adesão conforme tipo de afiliado e tipo de assinatura
+    // Logistas sempre têm assinatura; individuais conforme seleção do frontend
+    const hasSubscription = session.affiliate_type === 'logista'
+      ? true
+      : (has_subscription === true || has_subscription === 'true');
+
     const { data: product, error: productError } = await supabase
       .from('products')
       .select('*')
       .eq('category', 'adesao_afiliado')
       .eq('eligible_affiliate_type', session.affiliate_type)
+      .eq('is_subscription', hasSubscription)
       .eq('is_active', true)
       .single();
 

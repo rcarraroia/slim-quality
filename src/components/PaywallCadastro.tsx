@@ -113,7 +113,8 @@ export default function PaywallCadastro({
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             session_token: sessionToken,
-            payment_method: paymentMethodUpperCase
+            payment_method: paymentMethodUpperCase,
+            has_subscription: affiliateType === 'logista' || wantsSubscription
           })
         }
       );
