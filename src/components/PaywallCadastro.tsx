@@ -103,6 +103,9 @@ export default function PaywallCadastro({
     setError(null);
 
     try {
+      // Converter payment_method para maiúsculas (PIX ou CREDIT_CARD)
+      const paymentMethodUpperCase = paymentMethod === 'pix' ? 'PIX' : 'CREDIT_CARD';
+      
       const response = await fetch(
         '/api/subscriptions/create-payment?action=create-affiliate-membership',
         {
@@ -110,7 +113,7 @@ export default function PaywallCadastro({
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             session_token: sessionToken,
-            payment_method: paymentMethod
+            payment_method: paymentMethodUpperCase
           })
         }
       );
