@@ -227,7 +227,7 @@ export default function Loja() {
       setProcessingSubscription(true);
 
       // Criar assinatura via API
-      const response = await fetch('/api/subscriptions/create-payment?action=create-subscription', {
+      const response = await fetch('/api/create-payment?action=create-subscription', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -270,7 +270,7 @@ export default function Loja() {
       setProcessingSubscription(true);
 
       // Cancelar assinatura via API
-      const response = await fetch('/api/subscriptions/create-payment?action=cancel-subscription', {
+      const response = await fetch('/api/create-payment?action=cancel-subscription', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

@@ -589,7 +589,7 @@ export class SubscriptionFrontendService {
   }) {
     try {
       const response = await fetch(
-        '/api/subscriptions/create-payment?action=create-affiliate-membership',
+        '/api/create-payment?action=create-affiliate-membership',
         {
           method: 'POST',
           headers: {

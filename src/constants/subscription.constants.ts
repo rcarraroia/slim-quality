@@ -8,7 +8,7 @@
 
 export const SUBSCRIPTION_API_ROUTES = {
   // Subscription-specific routes (isolated)
-  CREATE_PAYMENT: '/api/subscriptions/create-payment',
+  CREATE_PAYMENT: '/api/create-payment',
   WEBHOOK: '/api/subscriptions/webhook',
   STATUS: '/api/subscriptions/status',
   CANCEL: '/api/subscriptions/cancel',

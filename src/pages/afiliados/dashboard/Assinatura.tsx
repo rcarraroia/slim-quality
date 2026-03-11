@@ -99,7 +99,7 @@ export default function Assinatura() {
       }
 
       // Criar assinatura via API
-      const response = await fetch('/api/subscriptions/create-payment', {
+      const response = await fetch('/api/create-payment', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -147,7 +147,7 @@ export default function Assinatura() {
       }
 
       // Cancelar assinatura via API
-      const response = await fetch('/api/subscriptions/create-payment', {
+      const response = await fetch('/api/create-payment', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

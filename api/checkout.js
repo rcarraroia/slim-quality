@@ -166,7 +166,7 @@ export default async function handler(req, res) {
       return res.status(400).json({
         success: false,
         error: 'Produtos de assinatura (Agente IA) devem ser processados via endpoint dedicado',
-        hint: 'Use POST /api/subscriptions/create-payment para produtos IA',
+        hint: 'Use POST /api/create-payment para produtos IA',
         documentation: 'Consulte .spec/subscription-payment-flow/ para detalhes'
       });
     }

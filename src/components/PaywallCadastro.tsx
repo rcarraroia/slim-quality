@@ -107,7 +107,7 @@ export default function PaywallCadastro({
       const paymentMethodUpperCase = paymentMethod === 'pix' ? 'PIX' : 'CREDIT_CARD';
       
       const response = await fetch(
-        '/api/subscriptions/create-payment?action=create-affiliate-membership',
+        '/api/create-payment?action=create-affiliate-membership',
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },

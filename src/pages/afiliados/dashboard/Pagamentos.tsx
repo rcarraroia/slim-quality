@@ -88,7 +88,7 @@ export default function Pagamentos() {
 
   const handleDownloadReceipt = async (paymentId: string) => {
     try {
-      const response = await fetch(`/api/subscriptions/create-payment?action=get-receipt&payment_id=${paymentId}`);
+      const response = await fetch(`/api/create-payment?action=get-receipt&payment_id=${paymentId}`);
       const result = await response.json();
 
       if (result.success && result.receipt_url) {
