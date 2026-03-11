@@ -104,12 +104,24 @@ export default async function handler(req, res) {
     const ASAAS_WALLET_RENUM = process.env.ASAAS_WALLET_RENUM;
     const ASAAS_WALLET_JB = process.env.ASAAS_WALLET_JB;
 
+    console.log('🔍 DEBUG - Variáveis de ambiente:', {
+      ASAAS_API_KEY_exists: !!ASAAS_API_KEY,
+      ASAAS_API_KEY_length: ASAAS_API_KEY?.length || 0,
+      ASAAS_API_KEY_prefix: ASAAS_API_KEY?.substring(0, 15) || 'VAZIA',
+      ASAAS_WALLET_RENUM_exists: !!ASAAS_WALLET_RENUM,
+      ASAAS_WALLET_JB_exists: !!ASAAS_WALLET_JB,
+      all_env_keys: Object.keys(process.env).filter(k => k.includes('ASAAS'))
+    });
+
     if (!ASAAS_API_KEY) {
       console.error('❌ ASAAS_API_KEY está vazia ou não definida no process.env');
       return res.status(500).json({
         success: false,
         error: 'ASAAS_API_KEY não configurada',
-        hint: 'Configure no Vercel Dashboard > Settings > Environment Variables'
+        hint: 'Configure no Vercel Dashboard > Settings > Environment Variables',
+        debug: {
+          env_keys_found: Object.keys(process.env).filter(k => k.includes('ASAAS'))
+        }
       });
     }
 
