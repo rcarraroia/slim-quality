@@ -23,6 +23,14 @@ const COMMISSION_RATES = {
 };
 
 export default async function handler(req, res) {
+  // Log de entrada para debug
+  console.log('🔵 [create-payment.js] Handler chamado:', {
+    method: req.method,
+    url: req.url,
+    query: req.query,
+    timestamp: new Date().toISOString()
+  });
+
   // CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
@@ -33,6 +41,7 @@ export default async function handler(req, res) {
   }
 
   const { action } = req.query;
+  console.log('🔵 [create-payment.js] Action recebida:', action);
 
   if (!action) {
     return res.status(400).json({ 
@@ -52,20 +61,29 @@ export default async function handler(req, res) {
   const supabase = createClient(supabaseUrl, supabaseKey);
 
   // Roteamento
+  console.log('🔵 [create-payment.js] Iniciando roteamento para action:', action);
+  
   switch (action) {
     case 'create-membership-payment':
+      console.log('✅ [create-payment.js] Roteando para handleCreateMembershipPayment');
       return handleCreateMembershipPayment(req, res, supabase);
     case 'create-subscription':
+      console.log('✅ [create-payment.js] Roteando para handleCreateSubscription');
       return handleCreateSubscription(req, res, supabase);
     case 'cancel-subscription':
+      console.log('✅ [create-payment.js] Roteando para handleCancelSubscription');
       return handleCancelSubscription(req, res, supabase);
     case 'get-history':
+      console.log('✅ [create-payment.js] Roteando para handleGetHistory');
       return handleGetHistory(req, res, supabase);
     case 'get-receipt':
+      console.log('✅ [create-payment.js] Roteando para handleGetReceipt');
       return handleGetReceipt(req, res, supabase);
     case 'create-affiliate-membership':
+      console.log('✅ [create-payment.js] Roteando para handleCreateAffiliateMembership');
       return handleCreateAffiliateMembership(req, res, supabase);
     default:
+      console.log('❌ [create-payment.js] Action não encontrada:', action);
       return res.status(404).json({ success: false, error: 'Action não encontrada' });
   }
 }
@@ -780,7 +798,10 @@ async function handleGetHistory(req, res, supabase) {
 // Phase B3: Criar pagamento de taxa de adesão para pré-cadastro
 // ============================================
 async function handleCreateAffiliateMembership(req, res, supabase) {
+  console.log('🟢 [handleCreateAffiliateMembership] Função iniciada');
+  
   if (req.method !== 'POST') {
+    console.log('❌ [handleCreateAffiliateMembership] Método não permitido:', req.method);
     return res.status(405).json({ 
       success: false, 
       error: 'Método não permitido. Use POST.' 
@@ -789,6 +810,11 @@ async function handleCreateAffiliateMembership(req, res, supabase) {
 
   try {
     const { session_token, payment_method = 'PIX', has_subscription } = req.body;
+    console.log('🟢 [handleCreateAffiliateMembership] Dados recebidos:', {
+      session_token: session_token ? 'presente' : 'ausente',
+      payment_method,
+      has_subscription
+    });
 
     if (!session_token) {
       return res.status(400).json({ 
