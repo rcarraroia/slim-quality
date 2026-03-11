@@ -13,6 +13,7 @@ interface PaywallCadastroProps {
   email: string;
   password: string | null; // MODIFICADO: pode ser null para clientes existentes
   isExistingCustomer?: boolean; // NOVO: flag para clientes existentes
+  wantsSubscription?: boolean; // NOVO: se o afiliado individual quer mensalidade
   onPaymentConfirmed: () => void;
   onBack: () => void;
 }
@@ -41,6 +42,7 @@ export default function PaywallCadastro({
   email,
   password,
   isExistingCustomer = false, // NOVO: default false
+  wantsSubscription = false, // NOVO: default false
   onPaymentConfirmed,
   onBack
 }: PaywallCadastroProps) {
@@ -61,6 +63,10 @@ export default function PaywallCadastro({
   useEffect(() => {
     async function fetchProduct() {
       try {
+        // Determinar se precisa de assinatura baseado no tipo de afiliado
+        // Logistas sempre têm assinatura, individuais podem ou não ter
+        const needsSubscription = affiliateType === 'logista' || wantsSubscription;
+        
         const { data, error } = await supabase
           .from('products')
           .select(`
@@ -69,21 +75,27 @@ export default function PaywallCadastro({
           `)
           .eq('category', 'adesao_afiliado')
           .eq('eligible_affiliate_type', affiliateType)
+          .eq('is_subscription', needsSubscription)
           .eq('is_active', true)
-          .single();
+          .maybeSingle();
 
         if (error) throw error;
+        
+        if (!data) {
+          throw new Error(`Produto não encontrado para ${affiliateType} com is_subscription=${needsSubscription}`);
+        }
+        
         setProduct(data);
       } catch (err: any) {
         setError('Erro ao buscar produto de adesão');
-        console.error(err);
+        console.error('[PaywallCadastro] Erro ao buscar produto:', err);
       } finally {
         setLoading(false);
       }
     }
 
     fetchProduct();
-  }, [affiliateType]);
+  }, [affiliateType, wantsSubscription]);
 
   // Criar pagamento
   const handleCreatePayment = async () => {

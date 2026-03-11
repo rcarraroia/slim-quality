@@ -283,6 +283,7 @@ export default function AfiliadosCadastro() {
         affiliateType={formData.affiliateType}
         email={formData.email}
         password={formData.password}
+        wantsSubscription={formData.wantsSubscription}
         onPaymentConfirmed={handlePaymentConfirmed}
         onBack={handlePaywallBack}
       />
