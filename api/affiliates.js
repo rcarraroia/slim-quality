@@ -450,43 +450,67 @@ async function handlePaymentFirstValidate(req, res, supabase) {
 
     // Buscar produto de adesão correto
     // Usar valor enviado pelo frontend (checkbox) ou forçar true para logistas
-    // IMPORTANTE: Usar ?? ao invés de || para não converter false em true
-    const hasSubscription = affiliate_type === 'logista' ? true : (has_subscription === true);
-    console.log('[PaymentFirstValidate] DEBUG - Valores recebidos:', {
-      'has_subscription': has_subscription,
-      'affiliate_type': affiliate_type,
-      'hasSubscription calculado': hasSubscription,
-      'tipo de has_subscription': typeof has_subscription
-    });
-    console.log('[PaymentFirstValidate] Buscando produto de adesão:', { affiliate_type, has_subscription_from_body: has_subscription, hasSubscription });
+    // IMPORTANTE: Converter para boolean explicitamente
+    const hasSubscriptionFromBody = has_subscription === true || has_subscription === 'true';
+    const hasSubscription = affiliate_type === 'logista' ? true : hasSubscriptionFromBody;
     
-    const { data: product, error: productError } = await supabase
+    console.log('[PaymentFirstValidate] DEBUG - Valores recebidos:', {
+      'has_subscription RAW': has_subscription,
+      'tipo de has_subscription': typeof has_subscription,
+      'hasSubscriptionFromBody': hasSubscriptionFromBody,
+      'affiliate_type': affiliate_type,
+      'hasSubscription FINAL': hasSubscription
+    });
+    console.log('[PaymentFirstValidate] Buscando produto de adesão:', { 
+      affiliate_type, 
+      hasSubscription,
+      filtros: {
+        category: 'adesao_afiliado',
+        eligible_affiliate_type: affiliate_type,
+        is_subscription: hasSubscription,
+        is_active: true
+      }
+    });
+    
+    const { data: products, error: productError } = await supabase
       .from('products')
-      .select('id')
+      .select('id, name, sku, is_subscription')
       .eq('category', 'adesao_afiliado')
       .eq('eligible_affiliate_type', affiliate_type)
       .eq('is_subscription', hasSubscription)
-      .eq('is_active', true)
-      .single();
+      .eq('is_active', true);
 
     if (productError) {
       console.error('[PaymentFirstValidate] Erro ao buscar produto:', productError);
       return res.status(500).json({ 
         success: false,
-        error: 'Produto de adesão não encontrado',
+        error: 'Erro ao buscar produto de adesão',
         details: productError.message
       });
     }
 
-    if (!product) {
-      console.error('[PaymentFirstValidate] Produto não encontrado para:', { affiliate_type, hasSubscription });
+    console.log('[PaymentFirstValidate] Produtos encontrados:', products?.length || 0, products);
+
+    if (!products || products.length === 0) {
+      console.error('[PaymentFirstValidate] Nenhum produto encontrado para:', { affiliate_type, hasSubscription });
       return res.status(500).json({ 
         success: false,
-        error: 'Produto de adesão não encontrado'
+        error: 'Produto de adesão não encontrado',
+        details: `Nenhum produto encontrado para ${affiliate_type} com is_subscription=${hasSubscription}`
       });
     }
 
-    console.log('[PaymentFirstValidate] Produto encontrado:', product.id);
+    if (products.length > 1) {
+      console.error('[PaymentFirstValidate] MÚLTIPLOS produtos encontrados:', products);
+      return res.status(500).json({ 
+        success: false,
+        error: 'Múltiplos produtos encontrados',
+        details: `Encontrados ${products.length} produtos. Verifique a configuração no banco de dados.`
+      });
+    }
+
+    const product = products[0];
+    console.log('[PaymentFirstValidate] Produto selecionado:', product);
 
     // Criar sessão temporária
     console.log('[PaymentFirstValidate] Criando sessão temporária');
