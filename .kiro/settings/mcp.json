@@ -20,9 +20,10 @@
         "list_tables",
         "execute_sql",
         "get_project_url",
-        "get_publishable_keys"
+        "get_publishable_keys",
+        "get_advisors"
       ],
-      "disabled": true
+      "disabled": false
     }
   }
 }

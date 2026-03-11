@@ -11,33 +11,151 @@ inclusion: always
 
 ## TAREFA ATUAL
 
-**INVESTIGAÇÃO: ERRO DE CHAVE API NA COMPRA DE PRODUTOS** 🔍 EM ANDAMENTO (10/03/2026)
+**ANÁLISE DA BRANCH DE CORREÇÃO DO CLAUDE** ✅ CONCLUÍDA (11/03/2026)
 
-### Objetivo:
-Investigar e corrigir erro "A chave de API fornecida é inválida" que ocorre ao tentar comprar produtos físicos.
+### ❌ DECISÃO: NÃO ACEITAR A BRANCH
 
-### Contexto:
-- Erro ocorre em `POST /api/checkout` ao criar customer no Asaas
-- Chave `ASAAS_API_KEY` foi validada via MCP Asaas e está CORRETA
-- Cadastro de afiliados funciona normalmente (usa mesma chave)
-- Problema pode ser variável vazia no ambiente Vercel ou cache
+**Branch Analisada:** `origin/claude/system-audit-quality-9622F`  
+**Commit:** `c5c69e0` (11/01/2026)
 
-### Ações Realizadas:
-1. ✅ Adicionados logs detalhados em `api/checkout.js` (linhas 101-120)
-2. ✅ Logs mostram: variáveis de ambiente, comprimento da chave, prefixo
-3. ✅ Commit `5e42182` realizado e pushed
-4. ✅ Deploy automático no Vercel iniciado
+### Conclusão
 
-### Próximos Passos:
-1. ⏳ Aguardar deploy do Vercel (1-2 minutos)
-2. ⏳ Tentar comprar produto novamente
-3. ⏳ Verificar logs no console do navegador (F12)
-4. ⏳ Logs vão revelar se `ASAAS_API_KEY` está vazia ou se há outro problema
-5. ⏳ Se chave vazia: verificar Vercel Dashboard > Settings > Environment Variables
-6. ⏳ Se chave existe mas erro persiste: investigar problema de rede/firewall
+A branch **DELETA arquivos críticos** do sistema em produção e propõe uma arquitetura incompatível com Vercel. Aceitar esta branch resultaria em:
 
-### Arquivos Modificados:
-- `api/checkout.js` (logs de debug adicionados)
+- 🔴 Sistema completamente quebrado em produção
+- 🔴 Perda de funcionalidades de afiliados, pagamentos e assinaturas
+- 🔴 Arquitetura TypeScript em `src/api/` (Vercel NÃO suporta)
+- 🔴 Código não testado
+
+### Arquivos Críticos Deletados
+
+1. ❌ `api/affiliates.js` (2019 linhas) - Cadastro de afiliados
+2. ❌ `api/webhook-assinaturas.js` (1965 linhas) - Webhooks Asaas
+3. ❌ `api/admin.js` - Funções administrativas
+4. ❌ `api/create-payment.js` - Criação de pagamentos
+5. ❌ `api/referral.js` - Rastreamento de referências
+6. ❌ `api/store-profiles.js` - Vitrine de lojas
+7. ❌ `src/components/PaywallCadastro.tsx` - Payment-first flow
+8. ❌ E mais 20+ componentes React
+
+### Documentação Útil Identificada
+
+A branch contém 4 arquivos de documentação de auditoria que SÃO úteis:
+
+1. ✅ `auditoria/RELATORIO_AUDITORIA_2026-01-11.md` (1295 linhas)
+2. ✅ `auditoria/BUGS_CRITICOS.md` (718 linhas)
+3. ✅ `auditoria/RECOMENDACOES.md` (1219 linhas)
+4. ✅ `auditoria/SCRIPTS_SQL_VALIDACAO.md` (968 linhas)
+
+### Ação Tomada
+
+- ✅ Análise completa documentada em `.kiro/ANALISE_BRANCH_CLAUDE.md`
+- ✅ Decisão: NÃO aceitar a branch
+- ✅ Recomendação: Extrair apenas documentação de auditoria
+- ✅ Manter sistema atual funcionando
+
+### Próximos Passos
+
+1. ⏳ Extrair manualmente os 4 arquivos de documentação
+2. ⏳ Criar pasta `.kiro/auditorias/2026-01-11/`
+3. ⏳ Usar documentação como referência para melhorias futuras
+4. ⏳ Focar em resolver problema da chave Asaas (causa raiz já identificada)
+
+---
+
+## TAREFA ANTERIOR
+
+**CAUSA RAIZ IDENTIFICADA: CHAVE API ASAAS EXCLUÍDA POR INATIVIDADE** 🔴 CRÍTICO (11/03/2026)
+
+### ✅ CAUSA RAIZ CONFIRMADA
+
+**Problema:** Chave API Asaas foi **excluída automaticamente pela Asaas** após 3 dias de inatividade.
+
+**Linha do Tempo:**
+- 27/02/2026 às 19:17 → ✅ Chave "SlimQuality" criada (duração: 1 ano)
+- 27/02 - 02/03 → ⚠️ Chave não foi usada (sem requisições)
+- 02/03/2026 às 15:15 → ❌ Asaas excluiu a chave por inatividade
+- 10/03/2026 → 🚨 Sistema começou a falhar
+- 11/03/2026 → 🔍 Causa raiz identificada
+
+**Duração da chave:** Apenas 3 dias (ao invés de 1 ano configurado)
+
+### Política de Inatividade do Asaas
+
+Segundo documentação oficial:
+> "ACCESS_TOKEN_EXPIRED - An API key has been permanently expired **due to inactivity**"
+
+**Fonte:** [https://asaas.readme.io/docs/api-key-events](https://asaas.readme.io/docs/api-key-events)
+
+### Impacto Total
+
+- ❌ Compra de produtos físicos NÃO funciona
+- ❌ Cadastro de afiliados NÃO funciona  
+- ❌ Cobrança de adesões NÃO funciona
+- ❌ Assinaturas recorrentes NÃO funcionam
+- ❌ Split de comissões NÃO funciona
+
+**Tempo de inatividade:** ~8 dias (02/03 → 11/03)
+
+### Documentos Criados
+
+1. ✅ `.kiro/AUDITORIA_COMPLETA_SISTEMA.md` (500+ linhas)
+2. ✅ `.kiro/ANALISE_PROBLEMA_ADESAO_AFILIADOS.md` (análise com 6 hipóteses)
+3. ✅ `.kiro/CAUSA_RAIZ_CHAVE_ASAAS_EXCLUIDA.md` (análise completa + prevenção)
+
+### 🎯 SOLUÇÃO IMEDIATA
+
+#### Passo 1: Criar Nova Chave API
+1. Acessar painel Asaas: [https://www.asaas.com](https://www.asaas.com)
+2. Ir em: Configurações → Integrações → Chaves de API
+3. Criar nova chave:
+   - Nome: "SlimQuality Production"
+   - Duração: 1 ano
+   - Ambiente: Produção
+4. **COPIAR A CHAVE IMEDIATAMENTE**
+
+#### Passo 2: Atualizar no Vercel
+1. Acessar: [https://vercel.com/dashboard](https://vercel.com/dashboard)
+2. Projeto: slim-quality
+3. Settings → Environment Variables
+4. Atualizar: `ASAAS_API_KEY`
+5. Aplicar em: Production, Preview, Development
+6. Salvar
+
+#### Passo 3: Redeploy
+1. Deployments → Último deploy
+2. Redeploy
+3. Aguardar conclusão (~1-2 minutos)
+
+#### Passo 4: TESTAR IMEDIATAMENTE ⚠️ CRÍTICO
+**Fazer pelo menos 1 requisição nas primeiras 24 horas para evitar nova exclusão!**
+
+Testes obrigatórios:
+- [ ] Comprar produto físico
+- [ ] Cadastrar afiliado de teste
+- [ ] Verificar logs do Vercel
+
+### 🛡️ PREVENÇÃO FUTURA
+
+#### Curto Prazo (Esta Semana)
+- [ ] Configurar webhooks de eventos de chave API
+- [ ] Criar endpoint `/api/asaas-key-events`
+- [ ] Implementar health check diário
+- [ ] Configurar cron job no Vercel
+
+#### Médio Prazo (Este Mês)
+- [ ] Implementar alertas por email
+- [ ] Criar documentação de rotação de chaves
+- [ ] Configurar monitoramento proativo
+- [ ] Criar backup de histórico de chaves
+
+### 📚 Lições Aprendidas
+
+1. **Chaves não utilizadas são excluídas** - Mesmo com duração de 1 ano
+2. **Testar imediatamente** - Sempre fazer requisição nas primeiras 24h
+3. **Webhooks são essenciais** - Para receber alertas de expiração
+4. **Monitoramento proativo** - Health checks diários obrigatórios
+5. **Documentação salva tempo** - Procedimentos de rotação documentados
 
 ---
 
