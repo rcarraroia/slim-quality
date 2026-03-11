@@ -30,11 +30,9 @@ const getEnvBoolean = (key: string, defaultValue: boolean): boolean => {
 // Subscription Configuration (Isolated from existing system)
 export const subscriptionConfig: SubscriptionConfig = {
   asaas: {
-    apiKey: getEnvVar('ASAAS_API_KEY'),
-    baseUrl: getEnvVar('ASAAS_ENVIRONMENT') === 'production' 
-      ? getEnvVar('ASAAS_API_URL_PRODUCTION', 'https://api.asaas.com/v3')
-      : getEnvVar('ASAAS_API_URL_SANDBOX', 'https://api-sandbox.asaas.com/v3'),
-    webhookToken: getEnvVar('SUBSCRIPTION_WEBHOOK_TOKEN', getEnvVar('ASAAS_WEBHOOK_TOKEN'))
+    apiKey: '', // ✅ REMOVIDO: Chave NÃO deve estar no frontend - fica apenas no backend
+    baseUrl: 'https://api.asaas.com/v3', // ✅ FIXO: Sempre produção (backend decide o ambiente)
+    webhookToken: '' // ✅ REMOVIDO: Token NÃO deve estar no frontend
   },
   
   supabase: {
@@ -92,14 +90,7 @@ export const subscriptionWebhookConfig = {
 
 // Validation
 export const validateSubscriptionConfig = (): void => {
-  // Validate critical configuration
-  if (!subscriptionConfig.asaas.apiKey) {
-    throw new Error('ASAAS_API_KEY is required for subscription flow');
-  }
-  
-  if (!subscriptionConfig.asaas.webhookToken) {
-    throw new Error('SUBSCRIPTION_WEBHOOK_TOKEN or ASAAS_WEBHOOK_TOKEN is required');
-  }
+  // ✅ REMOVIDO: Validações de chave/token (não devem estar no frontend)
   
   // Validate polling configuration
   if (subscriptionConfig.polling.timeoutMs < 1000) {

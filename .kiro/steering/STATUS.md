@@ -11,6 +11,38 @@ inclusion: always
 
 ## TAREFA ATUAL
 
+**INVESTIGAÇÃO: ERRO DE CHAVE API NA COMPRA DE PRODUTOS** 🔍 EM ANDAMENTO (10/03/2026)
+
+### Objetivo:
+Investigar e corrigir erro "A chave de API fornecida é inválida" que ocorre ao tentar comprar produtos físicos.
+
+### Contexto:
+- Erro ocorre em `POST /api/checkout` ao criar customer no Asaas
+- Chave `ASAAS_API_KEY` foi validada via MCP Asaas e está CORRETA
+- Cadastro de afiliados funciona normalmente (usa mesma chave)
+- Problema pode ser variável vazia no ambiente Vercel ou cache
+
+### Ações Realizadas:
+1. ✅ Adicionados logs detalhados em `api/checkout.js` (linhas 101-120)
+2. ✅ Logs mostram: variáveis de ambiente, comprimento da chave, prefixo
+3. ✅ Commit `5e42182` realizado e pushed
+4. ✅ Deploy automático no Vercel iniciado
+
+### Próximos Passos:
+1. ⏳ Aguardar deploy do Vercel (1-2 minutos)
+2. ⏳ Tentar comprar produto novamente
+3. ⏳ Verificar logs no console do navegador (F12)
+4. ⏳ Logs vão revelar se `ASAAS_API_KEY` está vazia ou se há outro problema
+5. ⏳ Se chave vazia: verificar Vercel Dashboard > Settings > Environment Variables
+6. ⏳ Se chave existe mas erro persiste: investigar problema de rede/firewall
+
+### Arquivos Modificados:
+- `api/checkout.js` (logs de debug adicionados)
+
+---
+
+## TAREFA ANTERIOR
+
 **CORREÇÃO: ERROS NO CADASTRO DE AFILIADOS** ✅ CONCLUÍDA (10/03/2026)
 
 ### Objetivo:
