@@ -53,9 +53,8 @@ Sistema de cadastro de afiliados completamente parado devido a erro 404 na API d
 
 1. ⏳ Aguardar deploy completar no Vercel (~2 minutos)
 2. ⏳ Testar cadastro de afiliado novamente
-3. ⏳ Verificar logs no Vercel Dashboard
-4. ⏳ Confirmar que erro 404 foi resolvido
-5. ⏳ Validar fluxo completo de cadastro
+3. ✅ **QR Code do PIX agora deve aparecer corretamente**
+4. ⏳ Validar fluxo completo de cadastro até ativação da conta
 
 ### Documentação
 
