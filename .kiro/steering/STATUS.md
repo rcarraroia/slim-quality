@@ -11,6 +11,61 @@ inclusion: always
 
 ## TAREFA ATUAL
 
+**CORREÇÃO: ERRO 404 EM CREATE-PAYMENT.JS** 🔧 EM ANDAMENTO (11/03/2026)
+
+### Problema Identificado
+
+Sistema de cadastro de afiliados completamente parado devido a erro 404 na API de pagamentos.
+
+### Status das Correções
+
+**Compras de Produtos Físicos:** ✅ **FUNCIONANDO 100%**
+- Testado PIX: ✅ OK
+- Testado Cartão: ✅ OK
+- Chave API Asaas atualizada: ✅ OK
+
+**Cadastro de Afiliados:** 🔧 **EM CORREÇÃO**
+- Erro 406 (Supabase): ⚠️ Persistente (não bloqueia)
+- Erro 404 (create-payment): 🔧 **CORRIGINDO AGORA**
+
+### Ações Executadas
+
+1. ✅ **Análise Completa Realizada**
+   - Arquivo `api/create-payment.js` existe no código (1035 linhas)
+   - Action `create-affiliate-membership` implementada corretamente
+   - Frontend chama URL correta
+   - Arquivo confirmado no repositório via `git ls-tree`
+   - **Causa raiz:** Arquivo não está sendo servido pelo Vercel (404)
+
+2. ✅ **Forçado Redeploy Completo**
+   - Commit: `a62c8a3` - "fix: Força redeploy para corrigir erro 404"
+   - Push realizado com sucesso
+   - Deploy automático iniciado no Vercel
+
+3. ✅ **Adicionados Logs de Debug**
+   - Commit: `210d37e` - "debug: Adiciona logs detalhados"
+   - Logs no handler principal
+   - Logs em cada case do switch
+   - Logs na função `handleCreateAffiliateMembership`
+   - Push realizado com sucesso
+
+### Próximos Passos
+
+1. ⏳ Aguardar deploy completar no Vercel (~2 minutos)
+2. ⏳ Testar cadastro de afiliado novamente
+3. ⏳ Verificar logs no Vercel Dashboard
+4. ⏳ Confirmar que erro 404 foi resolvido
+5. ⏳ Validar fluxo completo de cadastro
+
+### Documentação
+
+- ✅ Análise completa em `.kiro/ANALISE_ERROS_CADASTRO_AFILIADOS.md`
+- ✅ Histórico de chaves em `.kiro/HISTORICO_CHAVES_ASAAS.md`
+
+---
+
+## TAREFA ANTERIOR
+
 **ANÁLISE DA BRANCH DE CORREÇÃO DO CLAUDE** ✅ CONCLUÍDA (11/03/2026)
 
 ### ❌ DECISÃO: NÃO ACEITAR A BRANCH
