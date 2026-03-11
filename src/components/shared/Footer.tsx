@@ -38,7 +38,11 @@ export function Footer() {
                 </Link>
               </li>
               <li>
-                <Link to="/afiliados" className="hover:text-primary transition-colors">
+                <Link 
+                  to="/afiliados" 
+                  className="hover:text-primary transition-colors"
+                  onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+                >
                   Programa de Afiliados
                 </Link>
               </li>
