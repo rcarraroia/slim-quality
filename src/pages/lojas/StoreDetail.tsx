@@ -82,6 +82,33 @@ export default function StoreDetail() {
     // Aqui pode adicionar toast de sucesso ou redirecionar
   };
 
+  // Função para determinar badge do afiliado
+  const getAffiliateBadge = () => {
+    if (!store) return null;
+    
+    if (store.affiliate_type === 'logista') {
+      return (
+        <Badge variant="default" className="text-sm gap-1">
+          <span>🏪</span>
+          Logista
+        </Badge>
+      );
+    }
+    
+    // Se chegou aqui, é individual com has_subscription = true
+    // (porque individuais simples não aparecem na vitrine)
+    if (store.affiliate_type === 'individual') {
+      return (
+        <Badge className="bg-amber-100 text-amber-700 border-amber-200 text-sm gap-1">
+          <span>👤</span>
+          Afiliado Premium
+        </Badge>
+      );
+    }
+    
+    return null;
+  };
+
   const isOpen = store ? storeFrontendService.isStoreOpen(store.business_hours) : false;
   const businessHours = store ? storeFrontendService.formatBusinessHours(store.business_hours) : [];
 
@@ -189,13 +216,16 @@ export default function StoreDetail() {
                         </div>
                       </div>
 
-                      {/* ✅ CORREÇÃO: Badge com cores corretas - Verde para Aberto, Cinza para Fechado */}
-                      <Badge 
-                        variant={isOpen ? 'default' : 'secondary'} 
-                        className={`text-sm ${isOpen ? 'bg-green-600 hover:bg-green-700' : 'bg-muted text-muted-foreground'}`}
-                      >
-                        {isOpen ? 'Aberto agora' : 'Fechado'}
-                      </Badge>
+                      {/* Badges */}
+                      <div className="flex gap-2">
+                        {getAffiliateBadge()}
+                        <Badge 
+                          variant={isOpen ? 'default' : 'secondary'} 
+                          className={`text-sm ${isOpen ? 'bg-green-600 hover:bg-green-700' : 'bg-muted text-muted-foreground'}`}
+                        >
+                          {isOpen ? 'Aberto agora' : 'Fechado'}
+                        </Badge>
+                      </div>
                     </div>
 
                     {store.description && (

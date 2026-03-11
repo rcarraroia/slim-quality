@@ -28,6 +28,8 @@ export interface StoreProfile {
   affiliate_name?: string;
   affiliate_email?: string;
   referral_code?: string;
+  affiliate_type?: 'individual' | 'logista';
+  has_subscription?: boolean;
   distance?: number;
 }
 

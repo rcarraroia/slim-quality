@@ -248,10 +248,16 @@ async function handleShowcase(req, res, supabase) {
     const { page = 1, limit = 20, city, state, search } = req.query;
     const offset = (parseInt(page) - 1) * parseInt(limit);
 
-    // Query base
+    // Query base com JOIN para retornar affiliate_type e has_subscription
     let query = supabase
       .from('store_profiles')
-      .select('*', { count: 'exact' })
+      .select(`
+        *,
+        affiliates!inner(
+          affiliate_type,
+          has_subscription
+        )
+      `, { count: 'exact' })
       .eq('is_visible_in_showcase', true)
       .order('created_at', { ascending: false });
 
@@ -273,10 +279,18 @@ async function handleShowcase(req, res, supabase) {
 
     if (error) throw error;
 
+    // Flatten: Mover dados do afiliado para o nível raiz de cada store
+    const flattenedStores = (stores || []).map(store => ({
+      ...store,
+      affiliate_type: store.affiliates?.affiliate_type,
+      has_subscription: store.affiliates?.has_subscription,
+      affiliates: undefined // Remover objeto aninhado
+    }));
+
     return res.status(200).json({ 
       success: true, 
       data: {
-        stores: stores || [],
+        stores: flattenedStores,
         pagination: {
           page: parseInt(page),
           limit: parseInt(limit),
@@ -414,7 +428,7 @@ async function handleBySlug(req, res, supabase) {
       });
     }
 
-    // ✅ CORREÇÃO: Adicionar JOIN com affiliates para retornar referral_code
+    // ✅ CORREÇÃO: Adicionar JOIN com affiliates para retornar referral_code + affiliate_type + has_subscription
     const { data: store, error } = await supabase
       .from('store_profiles')
       .select(`
@@ -422,7 +436,9 @@ async function handleBySlug(req, res, supabase) {
         affiliates!inner(
           referral_code,
           name,
-          email
+          email,
+          affiliate_type,
+          has_subscription
         )
       `)
       .eq('slug', slug)
@@ -444,6 +460,8 @@ async function handleBySlug(req, res, supabase) {
       affiliate_name: store.affiliates?.name,
       affiliate_email: store.affiliates?.email,
       referral_code: store.affiliates?.referral_code,
+      affiliate_type: store.affiliates?.affiliate_type,
+      has_subscription: store.affiliates?.has_subscription,
       affiliates: undefined // Remover objeto aninhado
     };
 

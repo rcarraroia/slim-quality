@@ -18,6 +18,8 @@ interface StoreCardProps {
   whatsapp?: string;
   distance?: number;
   isOpen?: boolean;
+  affiliate_type?: 'individual' | 'logista';
+  has_subscription?: boolean;
   onClick?: () => void;
   className?: string;
 }
@@ -34,6 +36,8 @@ export function StoreCard({
   whatsapp,
   distance,
   isOpen,
+  affiliate_type,
+  has_subscription,
   onClick,
   className
 }: StoreCardProps) {
@@ -52,6 +56,31 @@ export function StoreCard({
       return `${Math.round(meters)}m`;
     }
     return `${(meters / 1000).toFixed(1)}km`;
+  };
+
+  // Função para determinar badge do afiliado
+  const getAffiliateBadge = () => {
+    if (affiliate_type === 'logista') {
+      return (
+        <Badge variant="default" className="text-xs gap-1">
+          <span>🏪</span>
+          Logista
+        </Badge>
+      );
+    }
+    
+    // Se chegou aqui, é individual com has_subscription = true
+    // (porque individuais simples não aparecem na vitrine)
+    if (affiliate_type === 'individual') {
+      return (
+        <Badge className="bg-amber-100 text-amber-700 border-amber-200 text-xs gap-1">
+          <span>👤</span>
+          Afiliado Premium
+        </Badge>
+      );
+    }
+    
+    return null;
   };
 
   return (
@@ -88,6 +117,7 @@ export function StoreCard({
 
               {/* Badges */}
               <div className="flex flex-col gap-1 items-end">
+                {getAffiliateBadge()}
                 {isOpen !== undefined && (
                   <Badge variant={isOpen ? 'default' : 'secondary'} className="text-xs">
                     {isOpen ? 'Aberto' : 'Fechado'}
