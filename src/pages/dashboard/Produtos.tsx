@@ -486,7 +486,7 @@ export default function Produtos() {
                     <img
                       src={produto.product_images[0].image_url}
                       alt={produto.name}
-                      className="w-full h-full object-cover"
+                      className="w-full h-full object-contain"
                     />
                   ) : (
                     <Package className="h-16 w-16 text-muted-foreground" />

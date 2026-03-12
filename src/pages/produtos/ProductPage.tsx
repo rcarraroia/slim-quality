@@ -79,7 +79,7 @@ const ProductPage = () => {
                       <img 
                         src={product.image} 
                         alt={`Colchão magnético terapêutico Slim Quality ${product.name} - ${product.dimensions} - 240 ímãs de 800 Gauss`}
-                        className="w-full h-full object-cover"
+                        className="w-full h-full object-contain"
                         loading="lazy"
                       />
                     ) : (

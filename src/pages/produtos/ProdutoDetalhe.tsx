@@ -7,6 +7,7 @@ import { ChatWidget } from "@/components/chat/ChatWidget";
 import { useProducts } from "@/hooks/useProducts";
 import { AffiliateAwareCheckout } from "@/components/checkout/AffiliateAwareCheckout";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { ProductGallery } from "@/components/products/ProductGallery";
 import { useState, useEffect } from "react";
 import { SchemaOrg } from "@/components/seo/SchemaOrg";
 import { SEOHead } from "@/components/seo/SEOHead";
@@ -137,22 +138,11 @@ export default function ProdutoDetalhe() {
         </div>
 
         <div className="grid md:grid-cols-2 gap-8">
-          {/* Imagem do Produto */}
-          <div className="aspect-[4/3] bg-muted rounded-xl flex items-center justify-center overflow-hidden">
-            {displayProduct.image ? (
-              <img
-                src={displayProduct.image}
-                alt={`Colchão magnético terapêutico Slim Quality ${displayProduct.name} - ${displayProduct.dimensions} - 8 tecnologias terapêuticas incluídas`}
-                className="w-full h-full object-cover"
-                loading="eager"
-              />
-            ) : (
-              <div className="text-center text-muted-foreground">
-                <div className="text-9xl mb-4">🛏️</div>
-                <p>Imagem do Colchão {displayProduct.name}</p>
-              </div>
-            )}
-          </div>
+          {/* Galeria de Imagens do Produto */}
+          <ProductGallery
+            images={rawProduct.product_images || []}
+            productName={displayProduct.name}
+          />
 
           {/* Informações do Produto */}
           <Card className="p-6 space-y-6">

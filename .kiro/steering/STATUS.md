@@ -11,6 +11,57 @@ inclusion: always
 
 ## TAREFA ATUAL
 
+**BADGES DE DIFERENCIAÇÃO: LOGISTAS E AFILIADOS PREMIUM** ✅ CONCLUÍDA (11/03/2026)
+
+### Objetivo
+
+Criar badges visuais para diferenciar Logistas de Afiliados Premium nas páginas públicas de parceiros.
+
+### Status da Implementação
+
+**✅ IMPLEMENTAÇÃO COMPLETA**
+
+**Alterações Realizadas:**
+
+1. **Backend (api/store-profiles.js):**
+   - Action `showcase`: JOIN com `affiliates` para retornar `affiliate_type` e `has_subscription`
+   - Action `by-slug`: JOIN com `affiliates` para retornar `affiliate_type` e `has_subscription`
+   - Dados flattenados para nível raiz do objeto
+
+2. **Frontend (Interface TypeScript):**
+   - `StoreProfile`: Adicionados campos `affiliate_type` e `has_subscription`
+
+3. **Frontend (StoreCard.tsx):**
+   - Função `getAffiliateBadge()` implementada
+   - Badge 🏪 Logista (roxo - variant default)
+   - Badge 👤 Afiliado Premium (dourado)
+   - Badge renderizado na listagem de parceiros
+
+4. **Frontend (StoreDetail.tsx):**
+   - Função `getAffiliateBadge()` implementada
+   - Badge renderizado na página individual do parceiro
+   - Layout ajustado (badges em flex-row)
+
+**Evidências:**
+- ✅ getDiagnostics: 0 erros em todos os arquivos
+- ✅ Commit: `d373b3f`
+- ✅ Push realizado com sucesso
+- ✅ Deploy automático no Vercel iniciado
+
+**Regra de Negócio:**
+- Apenas Logistas e Afiliados Premium aparecem na vitrine
+- Afiliados Individuais simples NÃO aparecem (não têm vitrine)
+- Badges diferenciam visualmente os dois tipos
+
+**Próximos Passos:**
+- ⏳ Validação manual em produção
+- ⏳ Testar listagem `/lojas` (badges aparecem?)
+- ⏳ Testar página individual `/lojas/:slug` (badge aparece?)
+
+---
+
+## TAREFA ANTERIOR
+
 **CORREÇÃO IMPLEMENTADA: FLUXO DE PAGAMENTO DE AFILIADOS** ✅ CONCLUÍDA (11/03/2026)
 
 ### Objetivo

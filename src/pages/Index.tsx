@@ -273,7 +273,7 @@ const Index = () => {
                       <img 
                         src={product.image} 
                         alt={`Colchão magnético terapêutico Slim Quality ${product.name} - ${product.dimensions} com 240 ímãs e 8 tecnologias`}
-                        className="w-full h-full object-cover"
+                        className="w-full h-full object-contain"
                         loading="lazy"
                       />
                     ) : (
