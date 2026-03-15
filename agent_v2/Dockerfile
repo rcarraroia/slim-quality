@@ -9,7 +9,7 @@ RUN apt-get update && apt-get install -y \
 
 # Copiar requirements e instalar dependências Python
 COPY requirements.txt .
-ARG CACHEBUST=1
+ARG CACHEBUST=2
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copiar código da aplicação
