@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import SubAgentCard from '@/components/SubAgentCard';
-import agentService from '@/services/agent.service';
+import { agentService } from '@/services/agent.service';
 import { supabase } from '@/config/supabase';
 
 interface AgentConfig {
