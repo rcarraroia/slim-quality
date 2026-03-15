@@ -1,91 +1,106 @@
 /**
- * Agent Service - Serviço para gerenciamento de agentes e sub-agentes
- * Prioridade 3 - Tornar Nodes Configuráveis
+ * Serviço de integração com BIA v2 Agent API
  */
+import { supabase } from '@/config/supabase';
 
-import { apiService, ApiResponse } from './api.service';
+const API_BASE_URL = 'https://slimquality-bia-agent-v2.wpjtfd.easypanel.host';
 
-export interface SubAgent {
-  id: string;
+interface AgentConfig {
   agent_name: string;
-  domain: string;
-  system_prompt: string;
-  model: string;
-  temperature: number;
-  max_tokens: number;
-  is_active: boolean;
+  agent_personality?: string;
+  tone: 'amigavel' | 'formal' | 'casual' | 'tecnico';
+  knowledge_enabled: boolean;
+  tts_enabled: boolean;
 }
 
-export interface AgentConfig {
-  model: string;
-  temperature: number;
-  max_tokens: number;
-  system_prompt: string;
+interface AgentStatus {
+  state: 'connected' | 'disconnected' | 'connecting';
 }
 
-export interface TestPromptRequest {
-  prompt: string;
-  temperature: number;
-  max_tokens: number;
+interface NapkinItem {
+  id: string;
+  content: string;
+  last_updated_by: 'agent' | 'affiliate';
+  created_at: string;
 }
 
-export interface TestPromptResponse {
-  response: string;
-  tokens_used: number;
-  response_time_ms: number;
-  model_used: string;
+interface AgentMetrics {
+  total_messages_received: number;
+  total_messages_sent: number;
+  total_conversations: number;
+  active_conversations: number;
 }
 
 class AgentService {
-  /**
-   * Buscar configuração geral do agente
-   */
-  async getConfig(): Promise<ApiResponse<AgentConfig>> {
-    return apiService.get<AgentConfig>('/api/agent/config');
+  private async getAuthToken(): Promise<string> {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.access_token) {
+      throw new Error('Não autenticado');
+    }
+    return session.access_token;
   }
 
-  /**
-   * Atualizar configuração geral do agente
-   */
-  async updateConfig(config: AgentConfig): Promise<ApiResponse<AgentConfig>> {
-    return apiService.post<AgentConfig>('/api/agent/config', config);
+  private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+    const token = await this.getAuthToken();
+    
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      ...options,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+        ...options.headers,
+      },
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ detail: 'Erro desconhecido' }));
+      throw new Error(error.detail || 'Erro na requisição');
+    }
+
+    return response.json();
   }
 
-  /**
-   * Testar prompt com configurações específicas
-   */
-  async testPrompt(request: TestPromptRequest): Promise<ApiResponse<TestPromptResponse>> {
-    return apiService.post<TestPromptResponse>('/api/agent/test-prompt', request);
+  async activateAgent(): Promise<{ qr_code: string; instance_name: string }> {
+    return this.request('/agent/activate', { method: 'POST' });
   }
 
-  /**
-   * Listar todos os sub-agentes
-   */
-  async getSubAgents(): Promise<ApiResponse<SubAgent[]>> {
-    return apiService.get<SubAgent[]>('/api/agent/sub-agents');
+  async getStatus(): Promise<AgentStatus> {
+    const response = await this.request<{ status: AgentStatus }>('/agent/status');
+    return response.status;
   }
 
-  /**
-   * Buscar um sub-agente específico
-   */
-  async getSubAgent(id: string): Promise<ApiResponse<SubAgent>> {
-    return apiService.get<SubAgent>(`/api/agent/sub-agents/${id}`);
+  async regenerateQRCode(): Promise<{ qr_code: string }> {
+    return this.request('/agent/qr-code', { method: 'POST' });
   }
 
-  /**
-   * Atualizar configuração de um sub-agente
-   */
-  async updateSubAgent(id: string, data: Partial<SubAgent>): Promise<ApiResponse<SubAgent>> {
-    return apiService.put<SubAgent>(`/api/agent/sub-agents/${id}`, data);
+  async disconnect(): Promise<void> {
+    await this.request('/agent/disconnect', { method: 'POST' });
   }
 
-  /**
-   * Restaurar configuração padrão de um sub-agente
-   */
-  async resetSubAgent(id: string): Promise<ApiResponse<SubAgent>> {
-    return apiService.post<SubAgent>(`/api/agent/sub-agents/${id}/reset`, {});
+  async getConfig(): Promise<AgentConfig> {
+    return this.request('/agent/config');
+  }
+
+  async updateConfig(config: Partial<AgentConfig>): Promise<AgentConfig> {
+    const response = await this.request<{ config: AgentConfig }>('/agent/config', {
+      method: 'PUT',
+      body: JSON.stringify(config),
+    });
+    return response.config;
+  }
+
+  async getNapkin(): Promise<NapkinItem[]> {
+    const response = await this.request<{ napkin: NapkinItem[] }>('/agent/napkin');
+    return response.napkin;
+  }
+
+  async deleteNapkin(napkinId: string): Promise<void> {
+    await this.request(`/agent/napkin/${napkinId}`, { method: 'DELETE' });
+  }
+
+  async getMetrics(): Promise<AgentMetrics> {
+    return this.request('/agent/metrics');
   }
 }
 
 export const agentService = new AgentService();
-export default agentService;
