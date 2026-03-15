@@ -3,7 +3,7 @@ fastapi==0.109.0
 uvicorn[standard]==0.27.0
 python-multipart==0.0.6
 
-# Supabase
+# Supabase (deixar resolver dependências automaticamente)
 supabase==2.4.0
 
 # Redis
@@ -14,7 +14,6 @@ openai==1.10.0
 
 # Requests para Evolution API
 requests==2.31.0
-httpx==0.24.1
 
 # Variáveis de ambiente
 python-dotenv==1.0.0
