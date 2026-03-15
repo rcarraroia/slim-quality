@@ -4,7 +4,7 @@ uvicorn[standard]==0.27.0
 python-multipart==0.0.6
 
 # Supabase
-supabase==2.8.0
+supabase==2.4.0
 
 # Redis
 redis[hiredis]==5.0.1
@@ -14,7 +14,7 @@ openai==1.10.0
 
 # Requests para Evolution API
 requests==2.31.0
-httpx==0.25.2
+httpx==0.24.1
 
 # Variáveis de ambiente
 python-dotenv==1.0.0
