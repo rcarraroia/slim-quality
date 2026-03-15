@@ -1,0 +1,31 @@
+# FastAPI e servidor
+fastapi==0.109.0
+uvicorn[standard]==0.27.0
+python-multipart==0.0.6
+
+# Supabase
+supabase==2.3.4
+
+# Redis
+redis[hiredis]==5.0.1
+
+# OpenAI
+openai==1.10.0
+
+# Requests para Evolution API
+requests==2.31.0
+httpx==0.26.0
+
+# Variáveis de ambiente
+python-dotenv==1.0.0
+
+# JWT
+pyjwt==2.8.0
+cryptography==42.0.0
+
+# Logging
+python-json-logger==2.0.7
+
+# Utilitários
+pydantic==2.5.3
+pydantic-settings==2.1.0
