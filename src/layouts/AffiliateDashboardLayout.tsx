@@ -149,6 +149,8 @@ export function AffiliateDashboardLayout() {
     ...(showIAMenu ? [{ icon: Bot, label: "Ferramentas IA", path: "/afiliados/dashboard/ferramentas-ia" }] : []),
     // ✅ LOJA: Para afiliados com has_subscription = true (individuais premium + logistas)
     ...(affiliate?.has_subscription ? [{ icon: Store, label: "Loja", path: "/afiliados/dashboard/loja" }] : []),
+    // ✅ MEU AGENTE BIA: Para afiliados com has_subscription = true
+    ...(affiliate?.has_subscription ? [{ icon: Bot, label: "Meu Agente", path: "/afiliados/dashboard/meu-agente" }] : []),
     // ⚠️ SHOW ROOM: Exclusivo para logistas
     ...(showShowRowMenu ? [{ icon: Package, label: "Show Room", path: "/afiliados/dashboard/show-row" }] : []),
     { icon: Megaphone, label: "Materiais", path: "/afiliados/dashboard/materiais" }, // Novo menu

@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import { Settings, Loader2, Save } from 'lucide-react';
 import { agentService } from '@/services/agent.service';
-import { useToast } from '@/components/ui/use-toast';
+import { useToast } from '@/hooks/use-toast';
 
 export function AgentConfig() {
   const [loading, setLoading] = useState(true);

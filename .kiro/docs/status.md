@@ -11,6 +11,164 @@ inclusion: always
 
 ## TAREFA ATUAL
 
+**AUDITORIAS COMPLETAS: SISTEMA DE AFILIADOS** ✅ CONCLUÍDA (14/03/2026)
+
+### Objetivo
+
+Mapear completamente o sistema de afiliados para planejamento do BIA v2: autenticação, dashboard, fluxo de ativação e estrutura de dados.
+
+### Status da Implementação
+
+**✅ 3 RELATÓRIOS TÉCNICOS COMPLETOS**
+
+**Relatório 1: Dashboard do Afiliado**
+- ✅ Estrutura completa do layout (sidebar + topbar + main)
+- ✅ 13 menus mapeados com regras de visibilidade
+- ✅ Página inicial detalhada (métricas, links, comissões, rede)
+- ✅ Todas as 13 seções documentadas
+- ✅ Sistema de notificações mapeado
+- ✅ Banners e alertas documentados
+- ✅ Dados exibidos no dashboard
+- ✅ Conclusão: NÃO existe menu "Meu Agente" atualmente
+
+**Relatório 2: Fluxo de Ativação de Afiliados**
+- ✅ Modelo Payment First documentado (8 etapas)
+- ✅ Formulário de cadastro (campos e validações)
+- ✅ Sessão temporária (payment_sessions)
+- ✅ Paywall e seleção de pagamento
+- ✅ Geração de pagamento no Asaas
+- ✅ Webhook PAYMENT_CONFIRMED (13 sub-etapas)
+- ✅ Função activateBundle() detalhada
+- ✅ Estado final do banco documentado
+- ✅ Campo has_subscription explicado
+- ✅ Tempo de processamento mapeado
+
+**Relatório 3: JWT e Estrutura de Autenticação** (anterior)
+- ✅ Sistema de autenticação Supabase Auth
+- ✅ Estrutura de afiliados (27 registros)
+- ✅ Multi-tenant (2 tenants ativos)
+- ✅ Webhooks Asaas (1.966 linhas)
+- ✅ Sistema de comissionamento (3 níveis)
+
+**Evidências:**
+- ✅ `docs/auditorias/RELATORIO_DASHBOARD_AFILIADO.md` (10 seções)
+- ✅ `docs/auditorias/RELATORIO_FLUXO_ATIVACAO_AFILIADOS.md` (8 etapas)
+- ✅ `docs/auditorias/RELATORIO_AUDITORIA_JWT_AUTH.md` (12 seções)
+- ✅ Total: 3 relatórios técnicos completos
+- ✅ Análise de 5.000+ linhas de código
+- ✅ Mapeamento de 20+ tabelas do banco
+- ✅ Documentação de 13 menus do dashboard
+- ✅ Fluxo de ativação com 21 sub-etapas
+
+**Conclusões Principais:**
+
+**Dashboard:**
+- ✅ Sistema completo e funcional com 13 seções
+- ⚠️ NÃO existe menu "Meu Agente" dedicado
+- ⚠️ Acesso ao agente é via "Ferramentas IA" (genérico)
+- ⚠️ Sem painel de configuração do agente
+- ⚠️ Sem histórico de conversas
+- ⚠️ Sem métricas específicas do agente
+
+**Fluxo de Ativação:**
+- ✅ Payment First funcionando perfeitamente
+- ✅ Ativação 100% automática via webhook
+- ✅ Bundle (vitrine + agente) ativado instantaneamente
+- ✅ Assinatura recorrente criada no mesmo fluxo
+- ✅ Tempo total: 5-10 minutos
+- ⚠️ Evolution API não provisionado automaticamente
+
+**Autenticação:**
+- ✅ Supabase Auth (não JWT customizado)
+- ✅ Infraestrutura multi-tenant já existe
+- ✅ Sistema de assinaturas recorrentes completo
+- ✅ Webhooks robustos com roteamento inteligente
+- ✅ Comissionamento automático em 3 níveis
+
+**Próximos Passos para BIA v2:**
+- ⏳ Criar menu "Meu Agente BIA" dedicado
+- ⏳ Painel de configuração do agente (personalidade, SICC, WhatsApp)
+- ⏳ Histórico de conversas
+- ⏳ Métricas do agente (conversas, resolução, satisfação)
+- ⏳ Status de conexão WhatsApp
+- ⏳ Logs de aprendizado (SICC)
+- ⏳ Provisioning Evolution automático
+
+---
+
+## TAREFA ANTERIOR
+
+**AUDITORIA: JWT E ESTRUTURA DE AUTENTICAÇÃO** ✅ CONCLUÍDA (14/03/2026)
+
+### Objetivo
+
+Mapear estrutura atual de JWT, tabelas de afiliados, assinaturas e webhooks Asaas para planejar BIA v2 multi-tenant.
+
+### Status da Implementação
+
+**✅ AUDITORIA COMPLETA**
+
+**Principais Descobertas:**
+
+1. **Sistema de Autenticação:**
+   - ✅ Usa Supabase Auth (não JWT customizado)
+   - ✅ Tokens gerados automaticamente pelo Supabase
+   - ✅ Dados de contexto buscados do banco após autenticação
+
+2. **Estrutura de Afiliados:**
+   - ✅ Tabela `affiliates` com 27 registros
+   - ✅ Campo `affiliate_type`: 'individual' ou 'logista'
+   - ✅ Campo `has_subscription`: controla acesso à vitrine + agente
+   - ✅ Campo `payment_status`: 'active', 'overdue', 'suspended', 'cancelled'
+   - ✅ Modelo de 3 planos funcionando (Básico, Premium, Logista)
+
+3. **Estrutura Multi-Tenant:**
+   - ✅ Tabela `multi_agent_tenants` (2 registros ativos)
+   - ✅ Tabela `multi_agent_subscriptions` (2 registros ativos)
+   - ✅ Tabelas SICC 2.0 com `tenant_id` (5 tabelas vazias)
+   - ✅ Relação 1:1 (affiliate → tenant)
+
+4. **Webhooks Asaas:**
+   - ✅ Arquivo `api/webhook-assinaturas.js` (1.966 linhas)
+   - ✅ Roteamento inteligente por `externalReference`
+   - ✅ 6 eventos tratados (PAYMENT_CONFIRMED, PAYMENT_OVERDUE, etc)
+   - ✅ Idempotência implementada
+   - ✅ Fluxo completo de pré-cadastro (Payment First)
+   - ✅ Criação automática de assinaturas recorrentes
+   - ✅ Tratamento de upgrades e cancelamentos
+
+5. **Sistema de Comissionamento:**
+   - ✅ Split automático em 3 níveis de rede
+   - ✅ Taxas: N1 (15%), N2 (3%), N3 (2%)
+   - ✅ Distribuição Renum/JB (50/50 do restante)
+   - ✅ Validação de afiliados ativos
+
+**Evidências:**
+- ✅ Relatório completo em `docs/auditorias/RELATORIO_AUDITORIA_JWT_AUTH.md`
+- ✅ Análise de 1.966 linhas de código do webhook
+- ✅ Mapeamento de 10+ tabelas do banco de dados
+- ✅ Documentação de 6 fluxos de webhook
+- ✅ Análise de serviços de autenticação
+
+**Conclusões:**
+- ✅ Infraestrutura multi-tenant já existe e está funcional
+- ✅ Sistema de assinaturas recorrentes completo
+- ✅ Webhooks robustos com roteamento inteligente
+- ✅ Comissionamento automático implementado
+- ⚠️ Agente BIA atual não será reaproveitado (apenas referência)
+- ⚠️ Tabelas SICC 2.0 existem mas estão vazias (não utilizadas)
+
+**Próximos Passos:**
+- ⏳ Usar infraestrutura multi-tenant existente para BIA v2
+- ⏳ Implementar autenticação no agente (validar JWT Supabase)
+- ⏳ Ativar SICC 2.0 com lógica de aprendizado
+- ⏳ Integrar com webhooks existentes
+- ⏳ Implementar Evolution API por tenant
+
+---
+
+## TAREFA ANTERIOR
+
 **ORGANIZAÇÃO DO REPOSITÓRIO: ESTRUTURA DE DOCUMENTAÇÃO** ✅ CONCLUÍDA (12/03/2026)
 
 ### Objetivo

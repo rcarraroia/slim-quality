@@ -701,7 +701,45 @@ async function activateBundle(supabase, affiliateId) {
       affiliateId
     });
     
-    // 2. Activate vitrine (CORRECTED FIELD)
+    // 2. Initialize BIA v2 agent config
+    const { error: configError } = await supabase
+      .from('bia_agent_config')
+      .upsert({
+        tenant_id: tenant.id,
+        agent_name: 'BIA',
+        tone: 'amigavel',
+        knowledge_enabled: true,
+        tts_enabled: true
+      }, {
+        onConflict: 'tenant_id'
+      });
+    
+    if (configError) {
+      console.error('[Bundle] ⚠️ Error creating agent config:', configError);
+      // Don't block - config can be created manually
+    } else {
+      console.log('[Bundle] ✅ Agent config initialized:', tenant.id);
+    }
+    
+    // 3. Initialize BIA v2 napkin
+    const { error: napkinError } = await supabase
+      .from('bia_napkin')
+      .upsert({
+        tenant_id: tenant.id,
+        content: '',
+        last_updated_by: 'agent'
+      }, {
+        onConflict: 'tenant_id'
+      });
+    
+    if (napkinError) {
+      console.error('[Bundle] ⚠️ Error creating napkin:', napkinError);
+      // Don't block - napkin can be created manually
+    } else {
+      console.log('[Bundle] ✅ Napkin initialized:', tenant.id);
+    }
+    
+    // 4. Activate vitrine (CORRECTED FIELD)
     const { error: vitrineError } = await supabase
       .from('store_profiles')
       .update({ 

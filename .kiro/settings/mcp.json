@@ -23,7 +23,7 @@
         "get_publishable_keys",
         "get_advisors"
       ],
-      "disabled": false
+      "disabled": true
     }
   }
 }

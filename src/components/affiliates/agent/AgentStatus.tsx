@@ -5,7 +5,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Bot, QrCode, Power, RefreshCw, CheckCircle2, XCircle, Loader2 } from 'lucide-react';
 import { agentService } from '@/services/agent.service';
-import { useToast } from '@/components/ui/use-toast';
+import { useToast } from '@/hooks/use-toast';
 
 interface AgentStatusProps {
   status: 'connected' | 'disconnected' | 'connecting';

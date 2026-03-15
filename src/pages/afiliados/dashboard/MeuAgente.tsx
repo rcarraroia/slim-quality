@@ -7,7 +7,7 @@ import { AgentConfig } from '@/components/affiliates/agent/AgentConfig';
 import { AgentNapkin } from '@/components/affiliates/agent/AgentNapkin';
 import { AgentMetrics } from '@/components/affiliates/agent/AgentMetrics';
 import { agentService } from '@/services/agent.service';
-import { useToast } from '@/components/ui/use-toast';
+import { useToast } from '@/hooks/use-toast';
 
 export default function MeuAgente() {
   const [loading, setLoading] = useState(true);
