@@ -4,8 +4,7 @@ uvicorn[standard]==0.27.0
 python-multipart==0.0.6
 
 # Supabase com versões compatíveis testadas
-supabase==2.4.0
-gotrue==2.9.1
+supabase==2.7.4
 
 # Redis
 redis[hiredis]==5.0.1

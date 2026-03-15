@@ -115,6 +115,13 @@
 
 3. **[2026-03-15] Testar dependências localmente antes de rebuild Docker**
    Do instead: Criar venv temporário, instalar requirements.txt e testar imports antes de pedir rebuild no EasyPanel.
+   Do instead: Usar `agent_v2` (não `/agent_v2` ou `./agent_v2`) e `Dockerfile` (não `./Dockerfile`).
+
+2. **[2026-03-15] Supabase 2.4.0 instala httpx automaticamente - não forçar versão**
+   Do instead: Deixar Supabase instalar sua versão compatível de httpx automaticamente. Supabase 2.4.0 instala httpx 0.25.2 que funciona perfeitamente.
+
+3. **[2026-03-15] Testar dependências localmente antes de rebuild Docker**
+   Do instead: Criar venv temporário, instalar requirements.txt e testar imports antes de pedir rebuild no EasyPanel.
 
 3. **[2026-02-26] Variáveis de ambiente no Vercel Dashboard**
    Do instead: Atualizar em Settings → Environment Variables e aplicar em Production/Preview/Development.
