@@ -14,7 +14,7 @@ openai==1.10.0
 
 # Requests para Evolution API
 requests==2.31.0
-httpx==0.26.0
+httpx==0.25.2
 
 # Variáveis de ambiente
 python-dotenv==1.0.0
